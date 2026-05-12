@@ -1,0 +1,26 @@
+// Prompt blocks - composable message templates
+prompt greetingTemplate {
+  "Hello! "
+  "How are you today?"
+}
+
+prompt responseTemplate {
+  greetingTemplate
+  "\n"
+  "I hope you're having a great day!"
+}
+
+// Prompts evaluate to strings
+let greeting = responseTemplate
+print greeting
+
+// Prompts can use variables
+let userName = "Alice"
+
+prompt personalGreeting {
+  "Hello, "
+  userName
+  "! Welcome back!"
+}
+
+print personalGreeting

@@ -1,0 +1,28 @@
+// Tool Call Demo
+// This script lets the AI decide what to log.
+
+memory discoveries {
+  "Discoveries:\n"
+}
+
+fn recordDiscovery(item: string) {
+  print("Recording discovery: ", item)
+  discoveries = discoveries + "- " + item + "\n"
+}
+
+print("AI is deciding what to record...")
+
+// The AI will call recordDiscovery with a summary of its findings
+// We use the 'Most capable' model as suggested by the docs
+tool_call(recordDiscovery)(
+  model("gemini-3.1-flash-lite") {
+    "temperature": 0
+  } {
+    "Analyze the file src/interpreter.ts and record one major architectural pattern you find."
+    "Source code snippet: "
+    read_file("src/interpreter.ts")
+  }
+)
+
+print("\nFinal Log:")
+print(discoveries)

@@ -1,0 +1,41 @@
+{
+  "name": "sesi",
+  "version": "1.0.0",
+  "description": "Sesi: An AI-Native Programming Language",
+  "main": "dist/index.js",
+  "bin": {
+    "sesi": "bin/sesi.js"
+  },
+  "scripts": {
+    "lint": "npx eslint --fix",
+    "build": "tsc",
+    "dev": "npm run lint &&dotenvx run -- npm run build --watch",
+    "test": "npx ts-node tests/basic.test.ts",
+    "test:watch": "npm run lint && npx ts-node tests/basic.test.ts --watch",
+    "repl": "node dist/repl.js",
+    "example": "node --no-deprecation example.js",
+    "example:ai": "node --no-deprecation example-ai.js"
+  },
+  "keywords": [
+    "ai",
+    "language",
+    "programming",
+    "gemini",
+    "interpreter"
+  ],
+  "author": "Sesi Community",
+  "license": "MIT",
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.65.0",
+    "@dotenvx/dotenvx-ops": "^0.45.3",
+    "@google/genai": "2.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.7.0",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.59.3"
+  }
+}

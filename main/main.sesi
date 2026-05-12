@@ -1,0 +1,21 @@
+// Welcome to your first Sesi program!
+
+print "Initializing..."
+
+// You can start with a simple calculation
+let a = 10
+let b = 5
+print("Math check: ", a + b)
+
+// Or jump straight into AI tasks
+let topic = "building a new programming language"
+
+let response = model("gemini-3.1-flash-lite") {
+  "temperature": 0.5
+} {
+  "Write a motivational 2-sentence intro about "
+  topic
+}
+
+print "\nAI Response:"
+print response

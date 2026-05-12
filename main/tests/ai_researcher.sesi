@@ -1,0 +1,72 @@
+// AI Researcher Script
+// This script reads its own codebase and analyzes it using Sesi's AI features.
+
+memory researchNotes {
+  "Research Session Log:\n"
+}
+
+fn logDiscovery(discovery: string) {
+  researchNotes = researchNotes + "- " + discovery + "\n"
+}
+
+print("--- AI Researcher Initializing ---")
+
+// 1. Load context
+// We read the interpreter code to understand the language's inner workings
+let targetFile = "src/interpreter.ts"
+let sourceCode = read_file(targetFile)
+logDiscovery("Loaded " + targetFile)
+
+// 2. Define research prompt
+// Sequential content in prompt block (no '+' allowed)
+prompt analysisPrompt {
+  "Analyze the following TypeScript interpreter code and identify 3 unique architectural decisions or quirks.\n"
+  "Source Code:\n"
+  sourceCode
+}
+
+// 3. Perform analysis
+print("Analyzing " + targetFile + "...")
+let findings = model("gemini-3.1-flash-lite") {
+  "temperature": 0.2
+} {
+  analysisPrompt
+}
+
+logDiscovery("Completed architectural analysis")
+
+// 4. Categorize findings using structured output
+// Schema keys must be unquoted identifiers
+print("Categorizing findings...")
+let summary = structured_output({
+  language: string,
+  paradigm: string,
+  quirks: array<string>,
+  complexityScore: number
+})(
+  model("gemini-3.1-flash-lite") {
+    "Extract metadata and quirks from this analysis:\n"
+    findings
+  }
+)
+
+logDiscovery("Categorized findings into structured format")
+
+// 5. Output results
+print("\n--- Research Summary ---")
+print("Language: ", summary.language)
+print("Paradigm: ", summary.paradigm)
+print("Complexity Score: ", str(summary.complexityScore))
+print("Quirks identified: ", str(len(summary.quirks)))
+
+// Using for-in loop for array iteration
+for quirk in summary.quirks {
+  print("• ", quirk)
+}
+
+print("\n--- Internal Memory Log ---")
+print(researchNotes)
+
+// 6. Save findings
+write_file("main/research_report.txt", findings)
+print("\nDetailed analysis saved to main/research_report.txt")

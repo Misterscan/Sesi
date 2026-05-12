@@ -1,0 +1,95 @@
+// Comprehensive example: AI-powered data pipeline
+// This example demonstrates:
+// - Functions and control flow
+// - Loops and arrays
+// - Model calls with configuration
+// - Structured output parsing
+// - Memory for multi-step processing
+
+// Data to process
+let reviews = [
+  "This product is amazing! Highly recommended.",
+  "Terrible quality. Waste of money.",
+  "It's okay. Nothing special.",
+  "Love it! Best purchase ever.",
+  "Disappointed. Poor customer service."
+]
+
+// Function to analyze single review
+fn analyzeReview(review: string) -> object {
+  let analysis = structured_output({
+    sentiment: string,
+    confidence: number
+  })(
+    model("gemini-3-flash-preview") {
+      "temperature": 0.3
+    } {
+      "Analyze sentiment. Return JSON with sentiment (positive/negative/neutral) "
+      "and confidence (0-1).\n"
+      "Review: "
+      review
+    }
+  )
+  
+  return analysis
+}
+
+// Process all reviews
+print "Processing " + str(len(reviews)) + " reviews..."
+print ""
+
+let results = []
+let positiveCount = 0
+let negativeCount = 0
+let neutralCount = 0
+
+for review in reviews {
+  print "Review: " + review
+  
+  let analysis = analyzeReview(review)
+  let sentiment = analysis["sentiment"]
+  let confidence = analysis["confidence"]
+  
+    print "  Sentiment: " + sentiment + " (confidence: " + str(confidence) + ")"
+  push(results, analysis)
+  
+    if sentiment == "positive" {
+      positiveCount = positiveCount + 1
+    } else {
+      if sentiment == "negative" {
+        negativeCount = negativeCount + 1
+      } else {
+        neutralCount = neutralCount + 1
+      }
+    }
+    
+    print ""
+  }
+
+  // Summary
+print "=== Summary ==="
+print "Total reviews: " + str(len(reviews))
+print "Positive: " + str(positiveCount)
+print "Negative: " + str(negativeCount)
+print "Neutral: " + str(neutralCount)
+
+// Calculate average sentiment score
+let totalConfidence = 0
+for result in results {
+  totalConfidence = totalConfidence + result["confidence"]
+}
+
+let avgConfidence = totalConfidence / len(results)
+print "Average confidence: " + str(avgConfidence)
+
+// Overall recommendation
+print ""
+if positiveCount > negativeCount {
+  print "Overall: RECOMMENDED (more positive reviews)"
+  } else {
+    if negativeCount > positiveCount {
+      print "Overall: NOT RECOMMENDED (more negative reviews)"
+    } else {
+      print "Overall: MIXED (balanced reviews)"
+    }
+  }

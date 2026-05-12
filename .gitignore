@@ -1,0 +1,12 @@
+node_modules
+.env
+dist
+*-lock.json
+*.log
+data.txt
+report.md
+research_report.md
+tool_call_example.md
+.DS_Store
+*-test.html
+main/explain_folder.sesi

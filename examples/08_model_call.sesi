@@ -1,0 +1,15 @@
+// AI-powered text analysis using model calls
+// Requires GEMINI_API_KEY environment variable
+
+let text = "Artificial intelligence is transforming how we work and live"
+
+let analysis = model("gemini-3.1-flash-lite") {
+  "temperature": 0.5,
+  "max_tokens": 400
+} {
+  "Analyze the following text and provide 3 concise key insights. Keep the total response under 120 words.\n"
+  text
+}
+
+print "Analysis:"
+print analysis

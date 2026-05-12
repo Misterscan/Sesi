@@ -1,0 +1,19 @@
+// Code generation with AI
+// Requires GEMINI_API_KEY environment variable
+
+let requirement = "A function that checks if a number is prime"
+
+let generatedCode = model("gemini-3.1-pro-preview") {
+  "temperature": 0.2,
+  "max_tokens": 500
+} {
+  "Generate JavaScript code for the following requirement:\n"
+  requirement
+  "\n\nProvide only the code, no explanation."
+}
+
+print "Generated Code:"
+print generatedCode
+
+// You could validate or use this code
+// (code execution not yet supported in v1)

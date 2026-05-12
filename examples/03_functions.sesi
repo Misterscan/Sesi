@@ -1,0 +1,14 @@
+// Functions
+fn add(a: number, b: number) -> number {
+  return a + b
+}
+
+fn greet(name: string = "World") {
+  print "Hello, " + name + "!"
+}
+
+let result = add(5, 3)
+print "5 + 3 = " + str(result)
+
+greet()
+greet("Alice")

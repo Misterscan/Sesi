@@ -1,0 +1,31 @@
+// Multi-turn conversation with memory
+// Requires GEMINI_API_KEY environment variable
+
+memory conversation {
+  "You are a helpful programming assistant. Respond concisely."
+}
+
+fn askBot(question: string) -> string {
+  let message = conversation + "\n\nUser: " + question
+  
+  let response = model("gemini-3-flash-preview") {} {
+    message
+  }
+  
+  conversation = message + "\nAssistant: " + response
+  return response
+}
+
+print "Starting conversation..."
+print ""
+
+let answer1 = askBot("What is a closure in JavaScript?")
+print "Q1 Answer: " + answer1
+print ""
+
+let answer2 = askBot("Can you give me an example?")
+print "Q2 Answer: " + answer2
+print ""
+
+let answer3 = askBot("How do I use it in practice?")
+print "Q3 Answer: " + answer3

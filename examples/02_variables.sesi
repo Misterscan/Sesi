@@ -1,0 +1,12 @@
+// Variables and basic operations
+let x = 10
+let y = 20
+let z = x + y
+
+print "x = " + str(x)
+print "y = " + str(y)
+print "sum = " + str(z)
+
+// Reassignment
+x = 30
+print "x updated: " + str(x)

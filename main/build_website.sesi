@@ -1,0 +1,45 @@
+let page_title = "Sesi Language"
+let tagline = "An AI-Native Programming Language"
+let features = [
+  "Native Prompt Blocks",
+  "First-Class Model Calls",
+  "JSON Structured Output",
+  "Integrated Try/Catch Error Handling",
+  "Native File System I/O"
+]
+
+prompt website_prompt {
+  "You are an expert frontend developer. Create a stunning, responsive, single-page HTML5 landing page."
+  "\n\nTopic: "
+  page_title
+  "\nTagline: "
+  tagline
+  "\nFeatures to highlight: "
+  join(features, ", ")
+  "\n\nRequirements:"
+  "\n1. Use a modern dark theme with sleek neon accents (inline CSS)."
+  "\n2. Include a hero section, a features grid, and a footer."
+  "\n3. Return STRICTLY RAW HTML starting with <!DOCTYPE html>. Do NOT wrap the output in markdown blockquotes like ```html."
+  "\n4. Base every claim only on these implemented facts: Sesi is a TypeScript tree-walking interpreter; it has prompt blocks, Gemini model calls, structured output, tool_call, memory, try/catch, and read_file/write_file."
+  "\n5. Do NOT mention unsupported features such as LLVM, compilation, multiple model providers, OpenAI, Anthropic, WebAssembly, package registries, classes, FS.write syntax, or typed syntax that does not exist in Sesi."
+  "\n6. All code snippets must use actual Sesi syntax with let, fn, prompt, model(...), try/catch, and write_file(...)."
+  "\n7. If you include a hero code snippet, it must follow this shape exactly: prompt extract_data { ... } then inside fn process_data(input_file) use let data = read_file(input_file), let result = model(\"gemini-3.1-pro-preview\") { ... }, and write_file(\"output.json\", result)."
+}
+
+try {
+  print "Generating website via Gemini..."
+  let html_output = model("gemini-3.1-pro-preview") {
+    "temperature": 0.3,
+    "max_tokens": 8192
+  } {
+    website_prompt
+  }
+  
+  print "Writing to index.html..."
+  write_file("index.html", html_output)
+  print "Website successfully built!"
+  
+} catch (e) {
+  print "Error generating site:"
+  print e
+}
