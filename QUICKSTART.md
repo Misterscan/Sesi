@@ -304,7 +304,7 @@ else {print "Response: " response}
 ## Next Steps
 
 1. **Read the spec**: [SPECIFICATION.md](docs/SPECIFICATION.md)
-2. **Learn AI features**: [AI_FEATURES.md](docs/AI_FEATURES.md)
+2. **Learn about reasoning **: [SYSTEMS_REASONING.md](docs/SYSTEMS_REASONING.md)
 3. **Understand architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 4. **Check roadmap**: [ROADMAP.md](docs/ROADMAP.md)
 5. **Study examples**: [examples/](examples/)

@@ -86,7 +86,7 @@ print code
 - [Language Specification](./docs/SPECIFICATION.md)
 - [Language Comparison Showcase](./docs/COMPARISON.md)
 - [Built-in Functions](./docs/BUILTINS.md)
-- [AI Features Guide](./docs/AI_FEATURES.md)
+- [Reasoning Guide](./docs/SYSTEMS_REASONING.md)
 - [Distributed Systems](./docs/DISTRIBUTED_SYSTEMS.md)
 - [Runtime Architecture](./docs/ARCHITECTURE.md)
 - [Examples](./examples/)
@@ -121,7 +121,8 @@ sesi-programming-lang/
 │   └── sesi.js           # CLI executable
 ├── examples/             # 13 sample programs demonstrating all features
 ├── main/                 # Main entry and specialized tests
-│   ├── main.sesi         # Playground/Bootstrap script
+│   ├── playground.sesi   # Main playground script
+│   ├── start.sesi        # Beginner script 
 │   ├── build_website.sesi # Sesi-powered landing page generator
 │   └── tests/            # Debug and syntax scripts
 ├── tests/                # Test suite

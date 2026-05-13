@@ -322,5 +322,5 @@ Sesi isn't just syntactic sugar. By embedding the AI runtime directly into the p
 
 - [Language Specification](./SPECIFICATION.md)
 - [Architecture](./ARCHITECTURE.md)
-- [AI Features](./AI_FEATURES.md)
+- [Reasoning Features](./SYSTEMS_REASONING.md)
 - [Distributed Systems](./DISTRIBUTED_SYSTEMS.md)

@@ -42,7 +42,8 @@ sesi-programming-lang/
 │   └── sesi.js                       # CLI executable
 │
 ├── main/                             # Playgrounds & debugging
-│   ├── main.sesi                     # Main playground script
+│   ├── playground.sesi               # Main playground script
+│   ├── start.sesi                    # Beginner script 
 │   ├── build_website.sesi            # Sesi-powered systems site generator
 │   └── tests/                        # Additional syntax validation scripts
 │
@@ -228,7 +229,7 @@ print("Reasoning Response:", response)
 | Source files        | 7      |
 | Documentation pages | 5      |
 | Example programs    | 13     |
-| Built-in functions  | 15     |
+| Built-in functions  | 21     |
 | Supported operators | 20+    |
 | AST node types      | 30+    |
 | Token types         | 50+    |
@@ -415,7 +416,7 @@ npm test
 
 **Example Coverage**
 
-- 13 complete example programs
+- 14 complete example programs
 - Covers all major language features
 - Demonstrates reasoning integration
 - Real-world use cases
@@ -486,7 +487,7 @@ When open source:
 - ✅ API reference (450+ lines)
 - ✅ Systems reasoning guide (500+ lines)
 - ✅ Development roadmap (400+ lines)
-- ✅ 13 example programs
+- ✅ 14 example programs
 - ✅ CLI executable
 - ✅ Test suite
 - ✅ Quick start guide

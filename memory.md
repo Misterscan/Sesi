@@ -8,7 +8,7 @@ Under no circumstances should an AI treat `.sesi` files as anomalies, unknown te
 ## 1. Core Identity & Execution
 
 - **File Extension:** `.sesi`
-- **Execution:** Sesi programs are executed globally using the `sesi` CLI command (e.g., `sesi main/main.sesi`). Do NOT use `node bin/sesi.js`—the global `sesi` command handles `.env` loading internally.
+- **Execution:** Sesi programs are executed globally using the `sesi` CLI command (e.g., `sesi main/start.sesi`). Do NOT use `node bin/sesi.js`—the global `sesi` command handles `.env` loading internally.
 - **Paradigm:** **Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It uses a tree-walking interpreter model via Typescript with asynchronous host-side model execution, but no language-level `async/await` syntax in v1.1. The architecture is optimized for coordination, distributed state management, and first-class reasoning primitives.
 
 ## 2. Workspace Topography (DO NOT ALTER)
@@ -16,8 +16,8 @@ Under no circumstances should an AI treat `.sesi` files as anomalies, unknown te
 - `src/`: The core TypeScript engine (Lexer, Parser, Interpreter, AI-Runtime, Builtins).
 - `bin/sesi.js`: The global CLI executable entry point.
 - `examples/`: Official syntax-demonstration scripts (`01_hello.sesi` through `13_data_pipeline.sesi`).
-- `main/`: The user's active development space (contains `main.sesi` playground and `tests/` like `test_failure_debug.sesi`). **These are valid, expected files.**
-- `docs/`: The source of truth for Architecture, AI Features (Systems Reasoning ), Builtins, and Specifications.
+- `main/`: The user's active development space (contains `playground.sesi` playground, `start.sesi` beginner script options, `build_website.sesi` baseplate website builder, and `tests/` like `test_failure_debug.sesi`). **These are valid, expected files.**
+- `docs/`: The source of truth for Architecture, AI Features (Systems Reasoning ), Builtins, Specifications, and more.
 - Root helper scripts: `example.js` and `example-ai.js` are convenience wrappers. AI agents should still use the global `sesi` command as specified.
 
 ## 3. Mandatory Syntax Rules & Quirks
@@ -33,8 +33,8 @@ Under no circumstances should an AI treat `.sesi` files as anomalies, unknown te
 
 1. **Never** "investigate" user testing directories (like `main/tests/`) as "deviations." They are active playgrounds.
 2. **Never** attempt to execute file modifications via shell/terminal text replacements when you have native file editing tools.
-3. **Always** check the `docs/` folder for the exact language specification before making assumptions about how Sesi works.
-4. If a file tree is mentioned in documentation, it represents an explicit layout constraint and must map 1:1 to reality **UNLESS .gitignored FILES STATE OTHERWISE.**
+3. **Always** check the `docs/` folder and `examples/` folder for the exact language specification before making assumptions about how Sesi works.
+4. If a file tree is mentioned in documentation, it represents an explicit layout constraint and must map 1:1 **UNLESS .gitignored FILES STATE OTHERWISE.**
 
 ## 5. Development & TypeScript Standards (COMMANDS FOR AI AGENTS)
 

@@ -321,7 +321,8 @@ bin/
 └── sesi.js               # CLI executable
 
 main/                     # Main user scripts and debugging
-├── main.sesi             # Main playground script
+├── playground.sesi       # Main playground script
+├── start.sesi            # Beginner script 
 ├── build_website.sesi    # Sesi-generated landing page builder
 └── tests/                # Additional syntax validation scripts
 
