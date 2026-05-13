@@ -2,7 +2,7 @@
   <img src="./sesi-logo.svg" alt="Sesi Logo" width="250" />
 </p>
 
-<h1 align="center">Sesi: An AI-Native Programming Language</h1>
+<h1 align="center">Sesi: A High-Performance Systems Language</h1>
 
 <p align="center">
   <em>Pronounced "say-see" — What you say, you'll see.</em>
@@ -15,7 +15,7 @@
   <img alt="Framework" src="https://img.shields.io/badge/Node.js-Engine-success?logo=node.js">
 </p>
 
-**Sesi** is a programming language where AI interaction is a first-class concept. Write code that seamlessly integrates Gemini AI for reasoning, generation, and tool execution—without sacrificing the simplicity of traditional programming.
+**Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It provides first-class primitives for process management, filesystem orchestration, and integrated reasoning—enabling developers to build complex logic with a fraction of the boilerplate required by traditional languages.
 
 ## Quick Start
 
@@ -37,10 +37,13 @@ Then run any program directly:
 
 ```bash
 # Standard script execution
-sesi examples/01_hello.sesi
+sesi main/start.sesi
 
-# AI script execution (automatically loads .env for Gemini API key)
+# Reasoning script example
 sesi examples/08_model_call.sesi
+
+# Run all examples
+sesi examples.sesi
 ```
 
 # Local Execution (Development)
@@ -50,6 +53,7 @@ If you don't install it globally, use the helper npm scripts:
 ```bash
 npm run example 01_hello.sesi
 npm run example:ai 08_model_call.sesi
+npm run example:all
 ```
 
 ## Language Overview
@@ -68,17 +72,12 @@ Sesi is designed for developers who want to:
 // Basic computation
 let x = 10
 let y = 20
-print x + y  // 30
+let result = x + y
+print result // 30
 
 // AI-powered code generation
-prompt generateCode {
-  "Write a TypeScript function that reverses a string"
-}
-
-let code = model("gemini-3.1-pro-preview") {
-  generateCode
-}
-
+prompt generateCode {"Write a TypeScript function that reverses a string"}
+let code = model("gemini-3.1-pro-preview") {generateCode}
 print code
 ```
 
@@ -88,6 +87,7 @@ print code
 - [Language Comparison Showcase](./docs/COMPARISON.md)
 - [Built-in Functions](./docs/BUILTINS.md)
 - [AI Features Guide](./docs/AI_FEATURES.md)
+- [Distributed Systems](./docs/DISTRIBUTED_SYSTEMS.md)
 - [Runtime Architecture](./docs/ARCHITECTURE.md)
 - [Examples](./examples/)
 
@@ -128,20 +128,17 @@ sesi-programming-lang/
 └── docs/                 # Documentation (ARCHITECTURE, BUILTINS, SPECIFICATION, etc.)
 ```
 
-## Version 1 Features
+## Version 1.1 Features (Complete)
 
-### Core Language
+### Core Language ✅
 
-- Variables and immutable bindings
-- Functions with parameters and return types
-- Conditionals (if/else)
-- Loops (while, for)
-- Error handling with `try/catch`
-- Arrays, strings, numbers, booleans
-- Objects (key-value maps)
-- Import/export syntax is parsed in v1.0.0. Runtime module loading, namespaces, and built-in modules are planned, not implemented.
+- **Variables & Bindings**: Immutable `const` and mutable `let`.
+- **Functions**: Typed parameters and return values.
+- **Control Flow**: `if/else`, `while`, `for`, and `try/catch`.
+- **Collections**: Robust Arrays and Objects.
+- **Error Handling**: Structured `try/catch` for both runtime and AI-level errors.
 
-### AI-Native Features
+### AI-Native Features ✅
 
 - `prompt` blocks for message composition
 - `model()` calls with AI provider configuration
@@ -149,6 +146,8 @@ sesi-programming-lang/
 - `tool_call()` for function calling
 - Basic memory for multi-turn reasoning
 - `read_file()`, `write_file()`, and `list_dir()` for local file I/O
+- **Native Orchestration**: `spawn()` and `exec()` for concurrent process management
+- **Utility Builtins**: `time()` and `random()` for robust coordination
 
 ### Type System
 

@@ -68,6 +68,8 @@ export class Parser {
   }
 
   private statement(): Statement | null {
+    this.skipNewlines();
+    if (this.isAtEnd()) return null;
     try {
       if (this.match('LET')) return this.letStatement();
       if (this.match('CONST')) return this.constStatement();
@@ -168,6 +170,7 @@ export class Parser {
       returnType = this.typeAnnotation();
     }
 
+    this.skipNewlines();
     const body = this.blockStatement();
 
     return {
@@ -183,11 +186,17 @@ export class Parser {
   private ifStatement(): IfStatement {
     const line = this.previous().line;
     const condition = this.expression();
+    this.skipNewlines();
     const thenBranch = this.blockStatement();
-    let elseBranch: BlockStatement | undefined;
+    let elseBranch: Statement | undefined;
 
     if (this.match('ELSE')) {
-      elseBranch = this.blockStatement();
+      if (this.match('IF')) {
+        elseBranch = this.ifStatement();
+      } else {
+        this.skipNewlines();
+        elseBranch = this.blockStatement();
+      }
     }
 
     return {
@@ -202,6 +211,7 @@ export class Parser {
   private whileStatement(): WhileStatement {
     const line = this.previous().line;
     const condition = this.expression();
+    this.skipNewlines();
     const body = this.blockStatement();
 
     return {
@@ -228,6 +238,7 @@ export class Parser {
       end = this.expression();
     }
 
+    this.skipNewlines();
     const body = this.blockStatement();
 
     return {
@@ -277,15 +288,18 @@ export class Parser {
 
   private tryStatement(): TryStatement {
     const line = this.previous().line;
+    this.skipNewlines();
     const tryBlock = this.blockStatement();
     
+    this.skipNewlines();
     this.consume('CATCH', 'Expected "catch" after try block');
+    this.skipNewlines();
     let catchParameter = 'e';
     if (this.match('LEFT_PAREN')) {
       catchParameter = this.consume('IDENTIFIER', 'Expected error variable name').lexeme;
       this.consume('RIGHT_PAREN', 'Expected ")" after catch parameter');
     }
-    
+    this.skipNewlines();
     const catchBlock = this.blockStatement();
 
     return {
@@ -387,9 +401,11 @@ export class Parser {
     const line = this.previous().line;
 
     const statements: Statement[] = [];
+    this.skipNewlines();
     while (!this.check('RIGHT_BRACE') && !this.isAtEnd()) {
       const stmt = this.statement();
       if (stmt) statements.push(stmt);
+      this.skipNewlines();
     }
 
     this.consume('RIGHT_BRACE', 'Expected } to end block');
@@ -591,8 +607,12 @@ export class Parser {
 
     if (!this.check('RIGHT_PAREN')) {
       do {
+        this.skipNewlines();
         args.push(this.assignment());
-      } while (this.match('COMMA'));
+        this.skipNewlines();
+        this.match('COMMA');
+        this.skipNewlines();
+      } while (!this.check('RIGHT_PAREN') && !this.isAtEnd());
     }
 
     this.consume('RIGHT_PAREN', 'Expected ) after arguments');
@@ -675,8 +695,12 @@ export class Parser {
         }
         this.consume('RIGHT_PAREN', 'Expected ) after print arguments');
       } else {
-        // Without parens, parse a single expression
-        args.push(this.assignment());
+        // Without parens, allow multiple expressions separated by commas or spaces (on the same line)
+        do {
+          args.push(this.assignment());
+          // Optional comma
+          this.match('COMMA');
+        } while (!this.check('SEMICOLON') && !this.check('NEWLINE') && !this.check('RIGHT_BRACE') && !this.isAtEnd());
       }
 
       return {
@@ -803,6 +827,7 @@ export class Parser {
 
     let config: Record<string, Expression> | undefined;
     
+    this.skipNewlines();
     let hasConfig = false;
     if (this.check('LEFT_BRACE')) {
       const insideToken = this.tokens[this.current + 1];
@@ -833,8 +858,10 @@ export class Parser {
       this.consume('RIGHT_BRACE', 'Expected } after config');
     }
 
+    this.skipNewlines();
     // Prompt or block
     let prompt: Expression;
+    this.skipNewlines();
     if (this.check('LEFT_BRACE')) {
       this.advance();
       const content: Expression[] = [];
@@ -898,7 +925,9 @@ export class Parser {
     this.consume('RIGHT_BRACE', 'Expected } after schema');
     this.consume('RIGHT_PAREN', 'Expected ) after schema');
 
+    this.skipNewlines();
     this.consume('LEFT_PAREN', 'Expected ( for model call');
+    this.skipNewlines();
     this.consume('MODEL', 'Expected model expression in structured_output');
     const modelCall = this.modelCall();
     this.consume('RIGHT_PAREN', 'Expected ) after model call');
@@ -987,6 +1016,10 @@ export class Parser {
     throw new Error('Expected type annotation');
   }
 
+  private skipNewlines(): void {
+    while (this.match('NEWLINE'));
+  }
+
   private match(...types: TokenType[]): boolean {
     for (const type of types) {
       if (this.check(type)) {
@@ -1025,7 +1058,13 @@ export class Parser {
   }
 
   private consumeStatementEnd(): void {
-    this.match('SEMICOLON');
+    if (this.match('SEMICOLON') || this.match('NEWLINE')) return;
+    if (this.check('RIGHT_BRACE') || this.isAtEnd()) return;
+    
+    // Allow implicit end of statement after a block-ending expression
+    if (this.previous().type === 'RIGHT_BRACE') return;
+    
+    throw new Error(`Expected end of statement, got ${this.peek().lexeme}`);
   }
 
   private synchronize(): void {

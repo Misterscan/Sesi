@@ -25,9 +25,14 @@ export class AIRuntime {
   async callModel(request: AIRequest): Promise<AIResponse> {
     try {
       const client = this.client;
+      
+      // Inject current date/time for context
+      const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
+      const fullPrompt = timeContext + request.prompt;
+
       const response = await client.models.generateContent({
         model: request.model,
-        contents: request.prompt,
+        contents: fullPrompt,
         config: {
           temperature: request.temperature ?? 0.3,
           maxOutputTokens: request.maxTokens ?? 2048,

@@ -1,0 +1,15 @@
+print "🚀 Master: Launching 5-Agent Swarm..."
+make_dir("bank")
+write_file("bank/balance.txt", "1000")
+write_file("bank/lock.txt", "unlocked")
+write_file("bank/done_count.txt", "0")
+spawn("main/atm_deposit.sesi")
+spawn("main/atm_withdraw.sesi")
+spawn("main/atm_deposit.sesi")
+spawn("main/atm_withdraw.sesi")
+spawn("main/atm_deposit.sesi")
+let finished = false
+while !finished {let countStr = read_file("bank/done_count.txt")
+if countStr != "" {if num(countStr) >= 5 {finished = true}}}
+print "🏦 Vault: Swarm Finished."
+print "Final Balance: " + read_file("bank/balance.txt")

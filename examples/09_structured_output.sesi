@@ -1,20 +1,7 @@
 // Sentiment analysis with structured output
 // Requires GEMINI_API_KEY environment variable
-
 let review = "This product is amazing! I love how it works. Highly recommended!"
-
-let sentiment = structured_output({
-  sentiment: string,
-  confidence: number,
-  keywords: string
-})(
-  model("gemini-3.1-flash-lite") {} {
-    "Analyze the sentiment of this review and extract key information.\n"
-    "Return JSON with: sentiment (positive/negative/neutral), confidence (0-1), keywords (comma-separated)\n"
-    review
-  }
-)
-
-print "Sentiment: " + sentiment["sentiment"]
-print "Confidence: " + str(sentiment["confidence"])
-print "Keywords: " + sentiment["keywords"]
+let sentiment = structured_output({sentiment: string, confidence: number, keywords: string})(model("gemini-3.1-flash-lite") {"Analyze the sentiment of this review and extract key information. " "Return JSON with: sentiment (positive/negative/neutral), confidence (0-1), keywords (comma-separated) " review})
+print("Sentiment: ", sentiment["sentiment"])
+print("Confidence: ", sentiment["confidence"])
+print("Keywords: ", sentiment["keywords"])

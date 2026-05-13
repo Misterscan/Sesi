@@ -1,0 +1,37 @@
+let id = "Dep_" + str(time()) + "_" + str(random())
+let locked = true
+while locked {
+  let status = "error"
+  try {
+    status = read_file("bank/lock.txt")
+  } catch (e) {
+    status = "error"
+  }
+  if status == "unlocked" {
+    try {
+      write_file("bank/lock.txt", id)
+      let i = 0
+      while i < 500 {
+        i = i + 1
+      }
+      if read_file("bank/lock.txt") == id {
+        locked = false
+      }
+    } catch (e) {
+      status = "error"
+    }
+  } else {
+    let j = 0
+    while j < 1000 {
+      j = j + 1
+    }
+  }
+}
+try {
+  write_file("bank/balance.txt", str(num(read_file("bank/balance.txt")) + 100))
+  write_file("bank/done_count.txt", str(num(read_file("bank/done_count.txt")) + 1))
+  write_file("bank/lock.txt", "unlocked")
+  print id + ": Success"
+} catch (e) {
+  write_file("bank/lock.txt", "unlocked")
+}

@@ -150,7 +150,7 @@ export interface IfStatement {
   type: 'IfStatement';
   condition: Expression;
   thenBranch: BlockStatement;
-  elseBranch?: BlockStatement;
+  elseBranch?: Statement;
   line: number;
 }
 

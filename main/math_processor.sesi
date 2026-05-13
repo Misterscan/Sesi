@@ -1,0 +1,23 @@
+// Math Swarm: Prime Processor
+fn isPrime(n: number) -> bool {
+  if n <= 1 {return false}
+  let i = 2
+  while i * i <= n {
+    if n % i == 0 {return false}
+    i = i + 1
+  }
+  return true
+}
+print "🧬 Processor: Waiting for input..."
+let input = ""
+while input == "" {input = read_file("swarm/input.txt")}
+let numbers = split(input, ",")
+let primes = []
+for nStr in numbers {
+  if nStr != "" {
+    let n = num(nStr)
+    if isPrime(n) {push(primes, nStr)}
+  }
+}
+write_file("swarm/primes.txt", join(primes, ","))
+print "Processor: Filtered " + str(len(primes)) + " primes."

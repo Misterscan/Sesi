@@ -220,27 +220,100 @@ print text
 Write string content to a file. Overwrites the file if it exists.
 
 ```sesi
-write_file("output.txt", "Hello World!")
+let success = write_file("output.txt", "Hello, Sesi!")
+if success { print "File written successfully" }
 ```
 
-**Note**: Paths are resolved relative to the current working directory. Throws on write failure.
+**Note**: Paths are resolved relative to the current working directory.
 
-**Returns**: `bool` (true if successful)
+**Returns**: `bool` (true on success, throws on error)
 
 ---
 
 ### list_dir(path) -> array
 
-List the contents of a directory as an array of strings. Ignores hidden files starting with `.`.
+List the contents of a directory as an array of strings.
 
 ```sesi
-let files = list_dir("src")
+let files = list_dir(".")
 print files
 ```
 
-**Note**: Paths are resolved relative to the current working directory. Returns null if path isn't a directory.
+**Note**: Paths are resolved relative to the current working directory.
 
-**Returns**: `array<string>` or `null`
+**Returns**: `array<string>`
+
+---
+
+### make_dir(path) -> bool
+
+Create a new directory recursively. Returns `true` on success, `false` or throws on failure.
+
+```sesi
+let success = make_dir("new_directory")
+if success { print "Directory created successfully" }
+```
+
+**Note**: Paths are resolved relative to the current working directory.
+
+**Returns**: `bool` (true on success, throws on error)
+
+---
+
+## System Functions
+
+### spawn(path) -> number
+
+Launch a Sesi script as a concurrent background process. Returns the process ID (PID).
+
+```sesi
+let pid = spawn("worker.sesi")
+print "Launched worker with PID:", pid
+```
+
+**Returns**: `number` (PID)
+
+---
+
+### exec(command) -> string
+
+Execute a shell command synchronously and return its output.
+
+```sesi
+let files = exec("ls -la")
+print files
+```
+
+**Returns**: `string` (stdout)
+
+---
+
+### time() -> number
+
+Returns the current Unix timestamp in milliseconds.
+
+```sesi
+let start = time()
+// ... do work ...
+print "Elapsed time:", time() - start, "ms"
+```
+
+**Returns**: `number`
+
+---
+
+### random() -> number
+
+Returns a random floating-point number between 0 (inclusive) and 1 (exclusive).
+
+```sesi
+let rand = random()
+if rand > 0.5 { print "Heads" } else { print "Tails" }
+```
+
+**Returns**: `number`
+
+---
 
 ---
 
@@ -260,14 +333,6 @@ sqrt(n)
 pow(a, b)
 sin(n), cos(n), tan(n)
 ```
-for i in range(10) {
-  print i
-}
-```
-
-**Returns**: `array<number>`
-
----
 
 ## Function Introspection (v2 planned)
 
@@ -337,18 +402,19 @@ flatten(array) -> array          // Flatten one level
 
 ---
 
-## Error Handling (v2 planned)
+## Error Handling
+
+Sesi supports structured error handling via `try/catch` blocks.
 
 ```sesi
-// Planned for v2:
 try {
-  // risky code
-} catch err {
-  print err.message
+  let data = read_file("missing.txt")
+} catch (e) {
+  print "Caught error:", e
 }
-
-throw "Error message"
 ```
+
+---
 
 ---
 
@@ -367,6 +433,7 @@ let json = stringify({ "name": "Alice" })
 ## Tips & Tricks
 
 ### Converting values
+
 ```sesi
 // To string
 str(value)
@@ -382,6 +449,7 @@ bool(value)
 ```
 
 ### Checking types
+
 ```sesi
 type(value) == "array"
 type(value) == "object"
@@ -389,6 +457,7 @@ type(value) == "null"
 ```
 
 ### Working with arrays
+
 ```sesi
 let arr = [1, 2, 3]
 
@@ -409,6 +478,7 @@ join(arr, ", ")
 ```
 
 ### Working with objects
+
 ```sesi
 let obj = { "a": 1, "b": 2 }
 
@@ -427,21 +497,25 @@ keys(obj) contains "a"    // Future: not yet supported
 ## Standard Library Modules (v2 planned)
 
 ### std/math
+
 ```sesi
 import { PI, E, sqrt, sin, cos } from "std/math"
 ```
 
 ### std/time
+
 ```sesi
 import { now, sleep } from "std/time"
 ```
 
 ### std/json
+
 ```sesi
 import { parse, stringify } from "std/json"
 ```
 
 ### std/http
+
 ```sesi
 import { get, post } from "std/http"
 ```
@@ -459,20 +533,21 @@ import { get, post } from "std/http"
 
 ## Return Value Reference
 
-| Function | Return Value on Error |
-|----------|----------------------|
-| num(value) | `null` |
-| len(value) | `null` |
-| keys(value) | `null` |
-| values(value) | `null` |
-| pop([]) | `null` |
-| type(value) | `"unknown"` |
-| str(value) | `"null"` or string representation |
+| Function      | Return Value on Error             |
+| ------------- | --------------------------------- |
+| num(value)    | `null`                            |
+| len(value)    | `null`                            |
+| keys(value)   | `null`                            |
+| values(value) | `null`                            |
+| pop([])       | `null`                            |
+| type(value)   | `"unknown"`                       |
+| str(value)    | `"null"` or string representation |
 
 ---
 
 ## See Also
 
 - [Specification](./SPECIFICATION.md)
-- [AI Features Guide](./AI_FEATURES.md)
+- [Systems Reasoning Guide](./SYSTEMS_REASONING.md)
+- [Distributed Systems](./DISTRIBUTED_SYSTEMS.md)
 - [Examples](../examples/)

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Sesi uses a tree-walking interpreter model with asynchronous host-side model execution, but no language-level `async/await` syntax in v1. The architecture is designed to be simple, readable, and extensible while providing first-class AI integration.
+**Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It uses a tree-walking interpreter model with asynchronous host-side model execution, but no language-level `async/await` syntax in v1. The architecture is optimized for coordination, distributed state management, and first-class reasoning primitives.
 
 ## Component Stack
 
@@ -36,11 +36,12 @@ Sesi uses a tree-walking interpreter model with asynchronous host-side model exe
 │                     │  │                     │
 │ - print()           │  │ - Gemini API calls  │
 │ - len()             │  │ - Memory mgmt       │
-│ - type()            │  │ - Structured output │
-│ - range()           │  │ - Finish-reason validation │
-│ - read_file()       │  │ - Tool calling      │
-│ - write_file()      │  │                     │
-│ - list_dir()        │  │                     │
+│ - read_file()       │  │ - Structured output │
+│ - write_file()      │  │ - Tool calling      │
+│ - spawn()           │  │                     │
+│ - exec()            │  │                     │
+│ - time()            │  │                     │
+│ - random()          │  │                     │
 │ - etc.              │  │                     │
 └─────────────────────┘  └────┬────────────────┘
                               │
@@ -265,10 +266,10 @@ Sesi now has basic exception-style error handling in v1:
 
 ## Limitations (V1)
 
-- **Single-threaded**: No concurrent operations
-- **Blocking AI calls**: No language-level async/await or concurrent execution
-- **No optimization**: No bytecode or JIT
-- **Simple type system**: Runtime checking only
+- **Interpreter Single-threaded**: Each individual Sesi process is single-threaded.
+- **Process-level Concurrency**: Sesi uses a multi-process model via `spawn()` for concurrent task execution.
+- **No optimization**: No bytecode or JIT.
+- **Simple type system**: Runtime checking only.
 - **No macro system**: No compile-time code generation
 - **No introspection**: Can't inspect function bodies
 - **Limited error info**: Basic error messages
@@ -344,7 +345,8 @@ docs/
 ├── ARCHITECTURE.md       # This file
 ├── BUILTINS.md           # Built-in reference
 ├── COMPARISON.md         # Language comparison showcase
-├── AI_FEATURES.md        # AI usage guide
+├── SYSTEMS_REASONING.md  # Integrated reasoning guide
+├── DISTRIBUTED_SYSTEMS.md # Swarm & coordination guide
 └── ROADMAP.md            # Future plans
 
 tests/

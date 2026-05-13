@@ -3,10 +3,21 @@ node_modules
 dist
 *-lock.json
 *.log
+.DS_Store
+
+# Sesi specific folders and files
+
 data.txt
 report.md
 research_report.md
 tool_call_example.md
-.DS_Store
 *-test.html
 main/explain_folder.sesi
+model-tests.md
+bank
+swarm
+names
+*_site.sesi
+sesi-site
+folder_analysis.md
+index-copy.html

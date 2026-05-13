@@ -1,0 +1,5 @@
+// Sesi Swarm Setup
+make_dir("swarm")
+write_file("swarm/input.txt", "")
+write_file("swarm/primes.txt", "")
+print "🚀 Swarm Workspace Ready."

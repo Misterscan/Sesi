@@ -2,6 +2,7 @@
 import { RuntimeValue, RuntimeFunction } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { spawn, execSync } from 'child_process';
 
 export function getBuiltins(): Map<string, RuntimeFunction> {
   const builtins = new Map<string, RuntimeFunction>();
@@ -245,6 +246,90 @@ export function getBuiltins(): Map<string, RuntimeFunction> {
         throw new Error(`Failed to list directory: ${dirPath}`);
       }
     },
+  });
+
+  builtins.set('make_dir', {
+    type: 'function',
+    name: 'make_dir',
+    params: [{ name: 'path' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (dirPath: RuntimeValue): RuntimeValue => {
+      if (typeof dirPath !== 'string') return null;
+      try {
+        const absolutePath = path.resolve(process.cwd(), dirPath);
+        if (!fs.existsSync(absolutePath)) {
+          fs.mkdirSync(absolutePath, { recursive: true });
+        }
+        return true;
+      } catch (e) {
+        throw new Error(`Failed to create directory: ${dirPath}`);
+      }
+    },
+  });
+
+  builtins.set('spawn', {
+    type: 'function',
+    name: 'spawn',
+    params: [{ name: 'filePath' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (filePath: RuntimeValue): RuntimeValue => {
+      if (typeof filePath !== 'string') return null;
+      try {
+        const absolutePath = path.resolve(process.cwd(), filePath);
+        // Use 'node' to run the local sesi executable if it's in the bin folder
+        const sesiBin = path.resolve(__dirname, '../bin/sesi.js');
+        const child = spawn('node', [sesiBin, absolutePath], {
+          detached: true,
+          stdio: 'inherit',
+          shell: true
+        });
+        child.unref();
+        return child.pid || true;
+      } catch (e) {
+        throw new Error(`Failed to spawn process: ${filePath}`);
+      }
+    },
+  });
+
+  builtins.set('exec', {
+    type: 'function',
+    name: 'exec',
+    params: [{ name: 'command' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (command: RuntimeValue): RuntimeValue => {
+      if (typeof command !== 'string') return null;
+      try {
+        return execSync(command, { encoding: 'utf-8' });
+      } catch (e) {
+        throw new Error(`Failed to execute command: ${command}`);
+      }
+    },
+  });
+
+  builtins.set('time', {
+    type: 'function',
+    name: 'time',
+    params: [],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (): RuntimeValue => Date.now(),
+  });
+
+  builtins.set('random', {
+    type: 'function',
+    name: 'random',
+    params: [],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (): RuntimeValue => Math.random(),
   });
 
   return builtins;

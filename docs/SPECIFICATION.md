@@ -1,48 +1,49 @@
-# Sesi Language Specification
+# Sesi Systems Language Specification (v1.1)
 
 ## 1. Philosophy & Design Principles
 
 Sesi is built on these core principles:
 
-1. **AI as First-Class Citizen**: AI calls are not library functions—they're language constructs with dedicated syntax.
-2. **Practical Over Perfect**: Version 1 focuses on what developers actually need, not complete generality.
-3. **Transparency Over Magic**: Explicit AI calls with clear costs and latency, not hidden inference.
-4. **Type Safety with Flexibility**: Static types for normal code, structured types for AI outputs.
-5. **Embeddable AI Reasoning**: AI can be called for code generation, problem-solving, and decision-making inline.
+1. **High-Performance Systems Orchestration**: Designed for building resilient, stateful applications with first-class primitives for process management and filesystem orchestration.
+2. **Reasoning as a First-Class Citizen**: Model calls, schema definitions, and tool orchestration are treated as language primitives rather than external SDK dependencies.
+3. **Transparency Over Magic**: Explicit model calls with clear costs and latency, not hidden inference.
+4. **Distributed State Management**: Optimized for coordination and state integrity using filesystem locking and concurrent `spawn()` patterns.
+5. **Practical Over Perfect**: Focus on reducing boilerplate code for complex reasoning logic, emphasizing what developers actually need over complete generality.
 
 ## 2. Target Users
 
-**Primary**: AI application developers building systems that combine algorithmic logic with AI reasoning.
+**Primary**: Developers building resilient, stateful applications that require systems-level orchestration alongside integrated reasoning.
 
 **Secondary**: 
-- Python/JavaScript developers exploring AI-native languages
-- Research teams prototyping AI-augmented programs
-- Teams building AI-powered tools and agents
+- Engineers transitioning from traditional languages (TypeScript, Python, Go)
+- Developers building agentic swarms and distributed systems
+- Teams requiring complex logic with a fraction of the boilerplate
 
 **Use Cases**:
-- AI-assisted data processing pipelines
-- Agentic systems with built-in reasoning
-- Real-time code generation
-- Complex decision-making with AI explanation
-- Knowledge extraction and classification
+- Stateful multi-agent swarm orchestration
+- High-performance data pipelines with structured extraction
+- Concurrent process management and distributed locking
+- Multi-stage reasoning workflows with stateful memory
 
-## 3. V1 Feature Set
+## 3. V1.1 Feature Set (Current)
 
 ### Core Language Features
 - ✅ Variables and bindings (`let`, `const`)
 - ✅ Functions (named, anonymous)
 - ✅ Conditionals (`if/else`)
 - ✅ Loops (`while`, `for`)
+- ✅ Error Handling (`try/catch` blocks)
 - ✅ Data types (number, string, bool, array, object)
+- ✅ Systems Orchestration (`spawn`, `exec`, `time`, `random`)
 - ✅ Comments (`//`, `/* */`)
 - ✅ Operators (arithmetic, logical, comparison)
 - ✅ Standard library (print, len, range, etc.)
 
-### AI-Native Features
+### Reasoning-Native Features
 - ✅ `prompt` blocks (composable message templates)
 - ✅ `model()` calls (invoke Gemini with configuration)
 - ✅ `structured_output()` (schema-guided structured output with JSON recovery and empty-object fallback on failure)
-- ✅ `tool_call()` (Fully functional function calling via AI)
+- ✅ `tool_call()` (Fully functional function calling via models)
 - ✅ Simple memory (conversation context)
 
 ### Type System
@@ -105,13 +106,8 @@ parameters := (identifier ':' type ('=' expr)?)? (',' identifier ':' type ('=' e
 
 Example:
 ```sesi
-fn add(a: number, b: number) -> number {
-  return a + b
-}
-
-fn greet(name: string = "World") {
-  print "Hello, " + name
-}
+fn add(a: number, b: number) -> number {return a + b}
+fn greet(name: string = "World") {print "Hello, " + name}
 ```
 
 #### Import/Export
@@ -152,10 +148,7 @@ continue_stmt := 'continue'
 
 Example:
 ```sesi
-for i = 0 to 10 {
-  print i
-}
-
+for i = 0 to 10 {print i}
 try {
   let result = model("Hello")
 } catch (e) {
@@ -200,32 +193,20 @@ content := (string | expression | newline)+
 
 Example:
 ```sesi
-prompt codeReview {
-  "Review this code for bugs:\n"
-  code
-  "\nProvide specific issues found."
-}
+prompt codeReview {"Review this code for bugs:" code "Provide specific issues found."}
 ```
 
 #### Model Call
 ```
-model_call := 'model' '(' STRING ')' '{' config '}' '{' prompt '}'
+model_call := 'model' '(' STRING ')' '{' config (optional) '}' '{' prompt '}'
             | 'model' '(' STRING ')' '{' prompt '}'
 config := (STRING ':' expression (',' STRING ':' expression)*)?
 ```
 
 Example:
 ```sesi
-let result = model("gemini-3.1-flash-lite") {
-  codeReview
-}
-
-let output = model("gemini-3.1-flash-lite") {
-  "temperature": 0.4,
-  "max_tokens": 2000
-} {
-  prompt
-}
+let result = model("gemini-3.1-flash-lite") {codeReview}
+let output = model("gemini-3.1-flash-lite") {"temperature": 0.4, "max_tokens": 2000} {prompt}
 ```
 
 #### Structured Output
@@ -236,13 +217,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 
 Example:
 ```sesi
-let analysis = structured_output({
-  sentiment: string,
-  score: number,
-  keywords: array<string>
-})(
-  model("gemini-3.1-flash-lite") { analyzeText }
-)
+let analysis = structured_output({sentiment: string, score: number, keywords: array<string>})(model("gemini-3.1-flash-lite") { analyzeText })
 ```
 
 #### Tool Call
@@ -257,18 +232,9 @@ memory := 'memory' identifier ('{' expressions '}')?
 
 Example:
 ```sesi
-memory conversation {
-  "Previous messages here"
-}
-
-let response = model("gemini-3-flash-preview") {
-  prompt {
-    conversation
-    "\nNew question: " + userInput
-  }
-}
-
-conversation = conversation + "\nAssistant: " + response
+memory conversation {"Previous messages here"}
+let response = model("gemini-3-flash-preview") {prompt {conversation "New question:" userInput}}
+conversation = conversation + "Assistant: " + response
 ```
 
 ### 4.6 Type Annotations
@@ -286,7 +252,7 @@ optional_type := type '?'
 1. **Short-circuit evaluation**: `&&` and `||` short-circuit
 2. **Type coercion**: Automatic for numeric operations; explicit for string/number
 3. **Null propagation**: Operations on `null` return `null` (no exceptions in v1)
-4. **AI responses**: Always returned as strings initially; structured_output provides type safety
+4. **Model responses**: Always returned as strings initially; structured_output provides type safety
 
 ## 6. Scope and Binding
 
@@ -302,16 +268,16 @@ optional_type := type '?'
 1. Tokenize (lexer)
 2. Parse (parser) → AST
 3. Evaluate (interpreter)
-4. AI calls are **blocking** (no async in v1)
+4. Model calls are **blocking** (no async in v1)
 
 ### Memory Model
 - **Stack**: Local variables, function parameters
 - **Heap**: Arrays, objects, strings
-- **AI Context**: Implicit conversation history per `memory` binding
+- **Reasoning Context**: Implicit conversation history per `memory` binding
 
 ### Error Handling (V1 Simple)
-- Runtime and AI errors can be caught with `try/catch`
-- AI errors throw when Gemini returns no text or a non-`STOP` finish reason
+- Runtime and model errors can be caught with `try/catch`
+- Model errors throw when Gemini returns no text or a non-`STOP` finish reason
 - `read_file()`, `write_file()`, and `list_dir()` throw on filesystem failure
 - `structured_output()` currently logs parsing failures and returns `{}` if recovery fails
 
@@ -334,11 +300,16 @@ split(string, string) -> array // Split by separator
 read_file(string) -> string    // Read file contents
 write_file(string, string) -> bool // Write file contents
 list_dir(string) -> array<string> // List directory contents
+make_dir(string) -> bool          // Create directory (recursive)
+spawn(string) -> number           // Concurrent process creation
+exec(string) -> string            // Synchronous shell execution
+time() -> number                  // Current Unix timestamp
+random() -> number                // Random float (0.0 to 1.0)
 ```
 
 ## 9. Module System
 
-Parser support for `import` / `export` syntax exists in v1, but runtime module execution is not implemented yet.
+Parser support for `import` / `export` syntax exists in v1.1, but runtime module execution is not implemented yet.
 
 ### Defining Modules
 ```sesi
@@ -351,7 +322,6 @@ export const PI = 3.14159
 ### Importing Modules
 ```sesi
 import { add, multiply, PI } from "math"
-
 let result = add(10, 20)
 ```
 
@@ -362,56 +332,29 @@ import math from "std/math"    // Math operations
 import json from "std/json"    // JSON parsing
 ```
 
-## 10. AI Features Details
+## 10. Reasoning Features Details
 
 ### Prompt Blocks
 
 Prompts are composable message templates:
 
 ```sesi
-prompt translate {
-  "Translate the following to Spanish:\n"
-  sourceText
-}
-
-prompt summarize {
-  "Summarize this in 3 sentences:\n"
-  text
-}
-
-prompt combined {
-  summarize
-  "\nNow translate:\n"
-  translate
-}
+prompt translate {"Translate the following to Spanish:" sourceText}
+prompt summarize {"Summarize this in 3 sentences:" text}
+prompt combined {summarize "Now translate:" translate}
 ```
 
 ### Model Calls
 
 ```sesi
-let response = model("gemini-3-flash-preview") {
-  "temperature": 0.7,
-  "max_tokens": 1000
-} {
-  "Say hello"
-}
-
+let response = model("gemini-3-flash-preview") {"temperature": 0} {"Say hello"}
 print response  // Returns string
 ```
 
 ### Structured Output
 
 ```sesi
-let result = structured_output({
-  title: string,
-  category: string,
-  confidence: number
-})(
-  model("gemini-3.1-flash-lite") {
-    "Extract metadata from this text:\n" + text
-  }
-)
-
+let result = structured_output({title: string, category: string, confidence: number})(model("gemini-3.1-flash-lite") {"Extract metadata from this text:" text})
 print result.title       // Access fields
 print result.confidence  // Type-safe access
 ```
@@ -419,33 +362,18 @@ print result.confidence  // Type-safe access
 ### Tool Calling
 
 ```sesi
-fn calculateTax(amount: number, rate: number) {
-  return amount * rate
-}
-
-let taxAmount = tool_call(calculateTax)(
-  model("gemini-3.1-flash-lite") {
-    "Calculate 8% tax on $100"
-  }
-)
+fn calculateTax(amount: number, rate: number) {return amount * rate}
+let taxAmount = tool_call(calculateTax)(model("gemini-3.1-flash-lite") {"Calculate 8% tax on $100"})
 ```
 
 ### Memory
 
 ```sesi
-memory chat {
-  "System: You are a helpful assistant."
-}
-
-fn askQuestion(question: string) -> string {
-  let response = model("gemini-3-flash-preview") {
-    chat
-    "\n\nUser: " + question
-  }
-  
-  chat = chat + "\nAssistant: " + response
-  return response
-}
+memory chat {"System: You are a helpful assistant."}
+fn askQuestion(question: string) -> string 
+{let response = model("gemini-3-flash-preview") {chat "User: " + question}
+chat = chat + "Assistant: " + response
+return response}
 ```
 
 ## 11. Examples
@@ -457,46 +385,29 @@ let y = 20
 print x + y  // Output: 30
 ```
 
-### Example 2: Function with AI
+### Example 2: Function with Reasoning
 ```sesi
-fn analyzeText(text: string) -> string {
-  return model("gemini-3.1-pro-preview") {
-    "temperature": 0
-  }
-  {
-    "Analyze this text and return key insights:\n" + text
-  }
-}
-
-print analyzeText("AI is transforming industries")
+fn analyzeText(text: string) -> string {return model("gemini-3.1-pro-preview") {"temperature": 0} {"Analyze this text and return key insights:" text}}
+print analyzeText("Reasoning is transforming industries")
 ```
 
 ### Example 3: Structured Output
 ```sesi
-let sentiment = structured_output({
-  label: string,
-  score: number
-})(
-  model("gemini-3-flash-preview") {
-    "Analyze sentiment of: " + userInput
-  }
-)
-
+let sentiment = structured_output({label: string, score: number})(model("gemini-3-flash-preview") {"Analyze sentiment of:" userInput})
 print sentiment.label
 print sentiment.score
 ```
 
-## 12. Undefined Behavior & Limitations (V1)
+## 12. Undefined Behavior & Limitations (V1.1)
 
-- **No explicit error handling**: Errors print but don't stop execution
-- **No async/await**: All operations are blocking
-- **No custom types**: Only built-in types
-- **No pattern matching**: Basic if/else only
-- **No generics**: Array and object are untyped at runtime
-- **Limited introspection**: Basic type() only
-- **No macros**: No compile-time code generation
-- **Single-threaded**: No concurrency
-- **No garbage collection tuning**: Rely on Node.js GC
+- **No async/await**: All operations within a script are blocking (including model calls). Concurrency must be achieved via `spawn()`.
+- **No custom types**: Only built-in types are supported natively.
+- **No pattern matching**: Basic if/else only.
+- **No generics**: Array and object collections are untyped at runtime.
+- **Limited introspection**: Basic type() only.
+- **No macros**: No compile-time code generation.
+- **Single-threaded runtime**: Execution per script is single-threaded. System-level concurrency is handled via multi-process `spawn()`.
+- **No garbage collection tuning**: Rely on Node.js GC.
 
 ## 13. Compatibility Notes
 

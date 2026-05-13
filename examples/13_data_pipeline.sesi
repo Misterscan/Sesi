@@ -1,95 +1,48 @@
 // Comprehensive example: AI-powered data pipeline
-// This example demonstrates:
-// - Functions and control flow
-// - Loops and arrays
-// - Model calls with configuration
-// - Structured output parsing
-// - Memory for multi-step processing
-
+// This example demonstrates: Functions and control flow, Loops and arrays, Model calls with configuration, Structured output parsing, Memory for multi-step processing
 // Data to process
-let reviews = [
-  "This product is amazing! Highly recommended.",
-  "Terrible quality. Waste of money.",
-  "It's okay. Nothing special.",
-  "Love it! Best purchase ever.",
-  "Disappointed. Poor customer service."
-]
-
+let reviews = ["This product is amazing! Highly recommended.", "Terrible quality. Waste of money.", "It's okay. Nothing special.", "Love it! Best purchase ever.", "Disappointed. Poor customer service."]
 // Function to analyze single review
 fn analyzeReview(review: string) -> object {
-  let analysis = structured_output({
-    sentiment: string,
-    confidence: number
-  })(
-    model("gemini-3-flash-preview") {
-      "temperature": 0.3
-    } {
-      "Analyze sentiment. Return JSON with sentiment (positive/negative/neutral) "
-      "and confidence (0-1).\n"
-      "Review: "
-      review
-    }
-  )
-  
-  return analysis
+  return structured_output({sentiment: string, confidence: number})(model("gemini-3.1-flash-lite") {"temperature": 0.3} {"Analyze sentiment. Return JSON with sentiment (positive/negative/neutral) and confidence (0-1). Review: " review})
 }
-
 // Process all reviews
-print "Processing " + str(len(reviews)) + " reviews..."
-print ""
-
+print("Processing ", len(reviews), " reviews...")
 let results = []
 let positiveCount = 0
 let negativeCount = 0
 let neutralCount = 0
-
 for review in reviews {
-  print "Review: " + review
-  
+  print("Review: ", review)
   let analysis = analyzeReview(review)
   let sentiment = analysis["sentiment"]
   let confidence = analysis["confidence"]
-  
-    print "  Sentiment: " + sentiment + " (confidence: " + str(confidence) + ")"
+  print("  Sentiment: ", sentiment, " (confidence: ", confidence, ")")
   push(results, analysis)
-  
-    if sentiment == "positive" {
-      positiveCount = positiveCount + 1
-    } else {
-      if sentiment == "negative" {
-        negativeCount = negativeCount + 1
-      } else {
-        neutralCount = neutralCount + 1
-      }
-    }
-    
-    print ""
+  if sentiment == "positive" {
+    positiveCount = positiveCount + 1
+  } else if sentiment == "negative" {
+    negativeCount = negativeCount + 1
+  } else {
+    neutralCount = neutralCount + 1
   }
-
-  // Summary
+}
+// Summary
 print "=== Summary ==="
-print "Total reviews: " + str(len(reviews))
-print "Positive: " + str(positiveCount)
-print "Negative: " + str(negativeCount)
-print "Neutral: " + str(neutralCount)
-
+print("Total reviews: ", len(reviews))
+print("Positive: ", positiveCount)
+print("Negative: ", negativeCount)
+print("Neutral: ", neutralCount)
 // Calculate average sentiment score
 let totalConfidence = 0
-for result in results {
-  totalConfidence = totalConfidence + result["confidence"]
-}
-
+for result in results {totalConfidence = totalConfidence + result["confidence"]}
 let avgConfidence = totalConfidence / len(results)
-print "Average confidence: " + str(avgConfidence)
-
+print("Average confidence: ", avgConfidence)
 // Overall recommendation
-print ""
 if positiveCount > negativeCount {
   print "Overall: RECOMMENDED (more positive reviews)"
-  } else {
-    if negativeCount > positiveCount {
-      print "Overall: NOT RECOMMENDED (more negative reviews)"
-    } else {
-      print "Overall: MIXED (balanced reviews)"
-    }
-  }
+} else if negativeCount > positiveCount {
+  print "Overall: NOT RECOMMENDED (more negative reviews)"
+} else {
+  print "Overall: MIXED (balanced reviews)"
+}

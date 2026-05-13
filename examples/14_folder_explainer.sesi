@@ -1,119 +1,65 @@
 // Example 14: Folder Explainer using native list_dir
 // Requires GEMINI_API_KEY environment variable
-
 let targetDir = "docs"
 let files = list_dir(targetDir)
-
 if type(files) == "null" {
   print("Error: Could not list directory ", targetDir)
 } else {
   print("Analyzing directory: ", targetDir)
   print("Files found in directory: ", len(files))
-  print("")
-
   let reports = []
-
   fn analyzeFile(fullPath: string) -> object {
     try {
       let source = read_file(fullPath)
-      
-      let analysis = structured_output({
-        fileName: string,
-        summary: string,
-        complexity: string
-      })(
-        model("gemini-3.1-flash-lite") {
-          "temperature": 0.2
-        } {
-          "Analyze this file and summarize its purpose.\n"
-          "Return JSON with fileName, summary, and complexity (low/medium/high).\n"
-          "File path: "
-          fullPath
-          "\n\nContents:\n"
-          source
-        }
-      )
-      
-      return analysis
+      return structured_output({fileName: string, summary: string, complexity: string})(model("gemini-3.1-flash-lite") {"temperature": 0.2} {"Analyze this file and summarize its purpose. Return JSON with fileName, summary, and complexity (low/medium/high). File path: " fullPath " Contents: " source})
     } catch (e) {
-      return {
-        "fileName": fullPath,
-        "summary": "Failed to read or analyze file",
-        "complexity": "unknown"
-      }
+      return {"fileName": fullPath, "summary": "Failed to read or analyze file", "complexity": "unknown"}
     }
   }
-
   for file in files {
     let fullPath = targetDir + "/" + file
-    
-    // Basic filtering to only read .md files to avoid trying to read directories or binaries
     let parts = split(file, ".")
     if len(parts) > 1 {
       let ext = parts[len(parts) - 1]
-      
       if ext == "md" {
         print("Analyzing: ", fullPath)
         let report = analyzeFile(fullPath)
         push(reports, report)
         print("  Summary: ", report["summary"])
         print("  Complexity: ", report["complexity"])
-        print("")
       }
     }
   }
-  
   print("Generating folder overview...")
-  let folderSummary = structured_output({
-    folderOverview: string,
-    keyThemes: array<string>
-  })(
-    model("gemini-3.1-flash-lite") {
-      "temperature": 0.2
-    } {
-      "You are summarizing the contents of a documentation folder based on file analyses.\n"
-      "Return JSON with folderOverview and keyThemes.\n"
-      "Analyses:\n"
-      str(reports)
-    }
-  )
-
+  let folderSummary = structured_output({folderOverview: string, keyThemes: array<string>})(model("gemini-3.1-flash-lite") {"temperature": 0.2} {"You are summarizing the contents of a documentation folder based on file analyses. Return JSON with folderOverview and keyThemes. Analyses: " str(reports)})
   print("=== Final Folder Summary ===")
   print("Overview: ", folderSummary["folderOverview"])
   print("Key Themes: ", join(folderSummary["keyThemes"], ", "))
-
   let overview = folderSummary["folderOverview"]
   let themesStr = join(folderSummary["keyThemes"], ", ")
-
-  prompt mdBase {
-    "# Folder Analysis Report\n\n"
-    "## Overview\n"
-    overview
-    "\n\n## Key Themes\n"
-    themesStr
-    "\n\n## File Details\n"
-  }
-
+  prompt mdBase {"# Folder Analysis Report
+ 
+## Overview
+" overview "
+ 
+## Key Themes
+" themesStr "
+ 
+## File Details
+"}
   let finalMarkdown = mdBase
-
   for report in reports {
     let fname = report["fileName"]
     let fsummary = report["summary"]
     let comp = report["complexity"]
-    
-    prompt fileEntry {
-      "### "
-      fname
-      "\n**Complexity**: "
-      comp
-      "\n\n**Summary**: "
-      fsummary
-      "\n\n"
-    }
-    
+    prompt fileEntry {"### " fname "
+**Complexity**: " comp "
+ 
+**Summary**: " fsummary "
+ 
+"}
     finalMarkdown = finalMarkdown + fileEntry
   }
-
   let outPath = "folder_analysis.md"
   write_file(outPath, finalMarkdown)
   print("Wrote analysis to ", outPath)

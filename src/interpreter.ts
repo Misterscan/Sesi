@@ -170,7 +170,11 @@ export class Interpreter {
     if (isTruthy(condition)) {
       await this.executeBlock(stmt.thenBranch, new Environment(this.currentEnv));
     } else if (stmt.elseBranch) {
-      await this.executeBlock(stmt.elseBranch, new Environment(this.currentEnv));
+      if (stmt.elseBranch.type === 'BlockStatement') {
+        await this.executeBlock(stmt.elseBranch, new Environment(this.currentEnv));
+      } else {
+        await this.executeStatement(stmt.elseBranch);
+      }
     }
   }
 
@@ -246,6 +250,7 @@ export class Interpreter {
     const value = stmt.initialValue ? await this.evaluateExpression(stmt.initialValue) : '';
     const stringValue = stringify(value);
     this.memory.set(stmt.name, stringValue);
+    aiRuntime.initializeMemory(stmt.name, stringValue);
     this.currentEnv.define(stmt.name, stringValue);
   }
 
@@ -369,7 +374,9 @@ export class Interpreter {
       const name = (expr.left).name;
       this.currentEnv.set(name, value);
       if (this.memory.has(name)) {
-        this.memory.set(name, stringify(value));
+        const stringValue = stringify(value);
+        this.memory.set(name, stringValue);
+        aiRuntime.updateMemory(name, stringValue);
       }
       return value;
     }
@@ -517,8 +524,8 @@ export class Interpreter {
     const modelResponse = await this.evaluateModelCall(expr.modelCall);
     const schemaObj: any = {};
 
-    for (const [key, type] of Object.entries(expr.schema)) {
-      schemaObj[key] = type;
+    for (const [key, typeAnnotation] of Object.entries(expr.schema)) {
+      schemaObj[key] = (typeAnnotation as any).name || 'string';
     }
 
     const structured = await aiRuntime.parseStructuredOutput(modelResponse as string, schemaObj);

@@ -1,7 +1,7 @@
 {
   "name": "sesi",
-  "version": "1.0.0",
-  "description": "Sesi: An AI-Native Programming Language",
+  "version": "1.1.0",
+  "description": "Sesi: A High-Performance Systems Language",
   "main": "dist/index.js",
   "bin": {
     "sesi": "bin/sesi.js"
@@ -14,7 +14,8 @@
     "test:watch": "npm run lint && npx ts-node tests/basic.test.ts --watch",
     "repl": "node dist/repl.js",
     "example": "node --no-deprecation example.js",
-    "example:ai": "node --no-deprecation example-ai.js"
+    "example:ai": "node --no-deprecation example-ai.js",
+    "example:all": "bin/sesi.js examples.sesi"
   },
   "keywords": [
     "ai",

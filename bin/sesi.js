@@ -10,22 +10,22 @@ const args = process.argv.slice(2);
 
 if (args.length === 0) {
   console.log(`
-Sesi Programming Language v1.0.0
+Sesi Programming Language v1.1.0
 
 Usage:
   sesi <file>          Run a Sesi program
   sesi --help          Show this help
 
 Examples:
-  sesi hello.sesi
-  sesi examples/ai-code-gen.sesi
+  sesi main/start.sesi
+  sesi examples/01_hello.sesi
   `);
   process.exit(0);
 }
 
 if (args[0] === '--help' || args[0] === '-h') {
   console.log(`
-Sesi Programming Language v1.0.0
+Sesi Programming Language v1.1.0
 
 Usage:
   sesi <file>          Run a Sesi program
@@ -35,14 +35,14 @@ Options:
   --version            Show version
   
 Examples:
-  sesi hello.sesi
-  sesi examples/ai-code-gen.sesi
+  sesi main/start.sesi
+  sesi examples/01_hello.sesi
   `);
   process.exit(0);
 }
 
 if (args[0] === '--version') {
-  console.log('Sesi v1.0.0');
+  console.log('Sesi v1.1.0');
   process.exit(0);
 }
 

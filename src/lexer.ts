@@ -163,6 +163,11 @@ export class Lexer {
       case "'":
         this.string(c);
         break;
+      case '\n':
+        this.line++;
+        this.column = 0;
+        this.addToken('NEWLINE');
+        break;
       default:
         if (this.isDigit(c)) {
           this.number();
@@ -178,10 +183,6 @@ export class Lexer {
     while (!this.isAtEnd()) {
       const c = this.peek();
       if (c === ' ' || c === '\r' || c === '\t') {
-        this.advance();
-      } else if (c === '\n') {
-        this.line++;
-        this.column = 0;
         this.advance();
       } else if (c === '/' && this.peekNext() === '/') {
         while (this.peek() !== '\n' && !this.isAtEnd()) {

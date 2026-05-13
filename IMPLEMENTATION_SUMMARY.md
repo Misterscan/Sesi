@@ -2,27 +2,27 @@
 
 ## 📋 Overview
 
-**Sesi** is a complete, working AI-native programming language where AI interaction is a first-class concept. This document summarizes the entire v1.0 implementation.
+**Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It provides first-class primitives for process management and filesystem orchestration, while integrating reasoning as a first-class execution primitive. Unlike traditional languages that rely on external SDKs for AI interaction, Sesi treats reasoning as a native language construct, enabling developers to build context-aware systems with minimal boilerplate.
 
 ## 🎯 Design Philosophy
 
 Sesi follows these core principles:
 
-1. **AI as First-Class Citizen**: AI calls aren't library functions—they're language constructs with dedicated syntax
-2. **Practical Over Perfect**: Focus on what developers actually need, not theoretical completeness
-3. **Transparency Over Magic**: Explicit AI calls with clear costs and latency
-4. **Simplicity First**: Tree-walking interpreter for clarity and maintainability
-5. **Type Safety with Flexibility**: Static types for normal code, runtime checking for AI outputs
+1. **Reasoning as a Primitive**: Reasoning calls aren't library functions—they're language constructs with dedicated syntax. This allows for deep integration with the interpreter's environment and type system.
+2. **Practical Over Perfect**: Focus on what developers actually need, not theoretical completeness.
+3. **Transparency Over Magic**: Explicit reasoning calls with clear costs and latency.
+4. **Simplicity First**: Tree-walking interpreter for clarity and maintainability.
+5. **Type Safety with Flexibility**: Static types for normal code, runtime checking for reasoning outputs.
 
 ## 📁 Complete Project Structure
 
 ```
 sesi-programming-lang/
-├── memory.md                        # AI-agent context and workspace guardrails
-├── index.html                       # Sesi-generated landing page
+├── memory.md                        # Workspace context and repo guardrails
+├── index.html                       # Sesi-generated systems landing page
 ├── eslint.config.mjs                # ESLint configuration
 ├── example.js                        # Helper script to run basic examples
-├── example-ai.js                     # Helper script to run AI examples
+├── example-ai.js                     # Helper script to run reasoning examples
 ├── README.md                         # Project overview
 ├── QUICKSTART.md                     # Getting started guide
 ├── package.json                      # Dependencies & scripts
@@ -35,7 +35,7 @@ sesi-programming-lang/
 │   ├── parser.ts                     # Recursive descent parser (700+ lines)
 │   ├── interpreter.ts                # Tree-walking interpreter (600+ lines)
 │   ├── builtins.ts                   # Built-in functions (250+ lines)
-│   ├── ai-runtime.ts                 # Gemini API integration (120+ lines)
+│   ├── ai-runtime.ts                 # Integrated reasoning integration (120+ lines)
 │   └── index.ts                      # Entry point (30+ lines)
 │
 ├── bin/
@@ -43,14 +43,14 @@ sesi-programming-lang/
 │
 ├── main/                             # Playgrounds & debugging
 │   ├── main.sesi                     # Main playground script
-│   ├── build_website.sesi            # Sesi-powered landing page generator
+│   ├── build_website.sesi            # Sesi-powered systems site generator
 │   └── tests/                        # Additional syntax validation scripts
 │
 ├── docs/
 │   ├── SPECIFICATION.md              # Complete language spec (600+ lines)
 │   ├── ARCHITECTURE.md               # Runtime & system design (400+ lines)
 │   ├── BUILTINS.md                   # Built-in functions reference (450+ lines)
-│   ├── AI_FEATURES.md                # AI integration guide (500+ lines)
+│   ├── SYSTEMS_REASONING.md          # Integrated reasoning guide (500+ lines)
 │   └── ROADMAP.md                    # V2-V4+ development plan (400+ lines)
 │
 ├── examples/
@@ -60,13 +60,13 @@ sesi-programming-lang/
 │   ├── 04_conditionals.sesi          # If/else control flow
 │   ├── 05_loops.sesi                 # While, for, for-in loops
 │   ├── 06_arrays_objects.sesi        # Collections
-│   ├── 07_prompts.sesi               # Prompt blocks
-│   ├── 08_model_call.sesi            # Basic AI model calls
-│   ├── 09_structured_output.sesi     # Type-safe AI responses
-│   ├── 10_code_generation.sesi       # AI-powered code gen
-│   ├── 11_memory_conversation.sesi   # Multi-turn with memory
-│   ├── 12_classification.sesi        # AI classification
-│   └── 13_data_pipeline.sesi         # Complete AI pipeline
+│   ├── 07_prompts.sesi               # Reasoning blocks
+│   ├── 08_model_call.sesi            # Basic reasoning calls
+│   ├── 09_structured_output.sesi     # Type-safe reasoning responses
+│   ├── 10_code_generation.sesi       # Systems logic generation
+│   ├── 11_memory_conversation.sesi   # Multi-turn stateful reasoning
+│   ├── 12_classification.sesi        # Systems classification loop
+│   └── 13_data_pipeline.sesi         # Complete systems pipeline
 │
 └── tests/
     └── basic.test.ts                 # Test suite
@@ -78,7 +78,7 @@ sesi-programming-lang/
 | ---------- | ------------------------ | ---------------------------------------- |
 | Language   | TypeScript               | Type safety, IDE support, easy debugging |
 | Runtime    | Node.js 18+              | Wide availability, async support         |
-| AI Backend | Gemini 3.1               | Latest models, 1M token context, fast    |
+| Reasoning  | Gemini 3.1               | Latest models, 1M token context, fast    |
 | SDK        | @google/genai            | Official, well-maintained, async-first   |
 | Parser     | Recursive descent        | Simple, readable, extensible             |
 | Execution  | Tree-walking interpreter | Easy to understand and modify            |
@@ -106,13 +106,9 @@ let y  // null initially
 **Functions**
 
 ```sesi
-fn add(a: number, b: number) -> number {
-  return a + b
-}
+fn add(a: number, b: number) -> number {return a + b}
 
-fn greet(name: string = "World") {
-  print "Hello, " + name
-}
+fn greet(name: string = "World") {print "Hello, " + name}
 ```
 
 **Control Flow**
@@ -146,56 +142,52 @@ try { ... } catch (e) { ... }
 - Block scope for loops/conditionals
 - Closure support
 
-### AI-Native Features ✅
+### Integrated Reasoning Features ✅
 
 **Prompt Blocks**
 
 ```sesi
-prompt greeting {
-  "Hello, "
-  name
-  "!"
-}
+prompt greeting {"Hello, " name "!"}
 ```
 
-**Model Calls**
+**Reasoning Calls**
 
 ```sesi
-let response = model("gemini-3-flash-preview") {
-  temperature: 0.7,
-  max_tokens: 1000
-} {
-  "Your prompt here"
-}
+let response = model("gemini-3-flash-preview") {temperature: 0.7, max_tokens: 1000} {"Your prompt here"}
 ```
 
 **Structured Output**
 
 ```sesi
-let result = structured_output({
-  field1: string,
-  field2: number
-})(
-  model(...) { ... }
-)
+let result = structured_output({field1: string, field2: number})(model("gemini-3.1-flash-lite") {"Your prompt here"})
 ```
+
+**Temporal Context Injection** ✅
+
+Every reasoning call automatically includes the current UTC date and time in its context, providing the system with a native sense of "now."
+
+**Implicit Statement Termination** ✅
+
+Expressions ending in `}` (such as prompt blocks or reasoning calls) no longer strictly require a newline or semicolon to terminate, allowing for cleaner one-liner syntax.
 
 **Tool Calling**
 
 ```sesi
-let result = tool_call(functionName)(
-  model(...) { ... }
-)
+let result = tool_call(functionName)(model(gemini-3.1-flash-lite) {"Your prompt here"})
 ```
 
 **Memory**
 
 ```sesi
-memory conversation {
-  "Initial context"
-}
+memory conversation {"Initial context"}
+conversation = conversation + "User: How are you?"
+print("Current Conversation Memory:")
+print(conversation)
 
-conversation = conversation + "\nNew message"
+// Demonstrate using the memory in a model call
+print("\nCalling model with memory context...")
+let response = model("gemini-3-flash-preview") {conversation}
+print("Reasoning Response:", response)
 ```
 
 ## 🛠️ Built-in Functions (15 total)
@@ -205,6 +197,10 @@ conversation = conversation + "\nNew message"
 - `print(...args)` - Output to stdout
 - `read_file(path)` - Read file contents
 - `write_file(path, content)` - Write file contents
+- `spawn(path)` - Launch concurrent background process
+- `exec(command)` - Synchronous shell execution
+- `time()` - Unix timestamp (ms)
+- `random()` - Random number (0-1)
 
 ### Type Functions
 
@@ -254,7 +250,7 @@ npm install -g .
 sesi examples/01_hello.sesi
 ```
 
-### Run with AI
+### Run with Reasoning
 
 ```bash
 sesi examples/08_model_call.sesi
@@ -288,16 +284,17 @@ npm test
 
 - Tree-walking evaluation
 - Environment chain for scoping
-- Async support for AI calls
+- Async support for reasoning calls
 - Control flow exceptions (return, break, continue)
 - Built-in function dispatch
 
-### AI Runtime Design
+### Reasoning Runtime Design
 
 - Async Gemini API calls (via @google/genai)
 - Response parsing and validation
 - Memory buffer management
-- Structured output JSON extraction
+- Structured output JSON extraction with automatic schema simplification
+- Automatic injection of current UTC date/time context
 - Graceful error handling
 
 ## 📚 Documentation Coverage
@@ -317,7 +314,7 @@ npm test
 - Execution flow explanation
 - Scope management
 - Type system details
-- AI integration flow
+- Reasoning integration flow
 - Error handling strategy
 - Performance characteristics
 
@@ -329,9 +326,9 @@ npm test
 - Performance notes
 - Standard library plans
 
-✅ **AI_FEATURES.md** (500+ lines)
+✅ **SYSTEMS_REASONING.md** (500+ lines)
 
-- AI feature overview
+- Systems reasoning overview
 - Prompt blocks explained
 - Model call configuration
 - Structured output guide
@@ -342,10 +339,10 @@ npm test
 
 ✅ **ROADMAP.md** (400+ lines)
 
-- V1.0 features
-- V1.1 improvements
-- V2.0 async & advanced AI
-- V3.0 agent framework
+- V1.0 features (Complete)
+- V1.1 improvements (Complete)
+- V2.0 async & advanced reasoning (Q3-Q4 2026)
+- V3.0 systems framework
 - V4.0+ vision
 - Community involvement
 - Backwards compatibility
@@ -360,19 +357,19 @@ npm test
 | 04_conditionals.sesi        | If/else logic                   |
 | 05_loops.sesi               | While, for, for-in              |
 | 06_arrays_objects.sesi      | Collections and indexing        |
-| 07_prompts.sesi             | Prompt blocks                   |
-| 08_model_call.sesi          | Basic AI calls                  |
+| 07_prompts.sesi               | Reasoning blocks                |
+| 08_model_call.sesi            | Basic reasoning calls           |
 | 09_structured_output.sesi   | Schema-guided output            |
-| 10_code_generation.sesi     | AI code generation              |
-| 11_memory_conversation.sesi | Multi-turn AI with memory       |
-| 12_classification.sesi      | AI classification loop          |
+| 10_code_generation.sesi     | Reasoning code generation       |
+| 11_memory_conversation.sesi | Multi-turn with memory          |
+| 12_classification.sesi      | Reasoning classification loop   |
 | 13_data_pipeline.sesi       | Complete pipeline               |
 
 ## ✨ Unique Features
 
-1. **First-class AI Integration**: Not a library, but language syntax
+1. **First-class Reasoning Integration**: Not a library, but language syntax
 2. **Prompt Blocks**: Composable, type-checked message templates
-3. **Structured Output**: Get typed responses from AI
+3. **Structured Output**: Get typed responses from models
 4. **Memory Construct**: Native multi-turn conversation support
 5. **Simple Yet Complete**: All core features in ~3K lines of code
 6. **Well Documented**: 2000+ lines of documentation
@@ -380,18 +377,18 @@ npm test
 
 ## 🔮 Future Directions
 
-### V2: Async & Advanced AI
+### V2: Async & Advanced Logic
 
-- Async/await for concurrent AI calls
+- Async/await for concurrent reasoning calls
 - Streaming responses
 - Extended thinking/reasoning
 - Advanced memory with embeddings
 - finally blocks, custom error types, retry policies, timeout handling, and structured AI error recovery
 
-### V3: Agent Framework
+### V3: Systems Framework
 
-- Agent state machines
-- Multi-agent collaboration
+- System state machines
+- Multi-process collaboration
 - Knowledge base integration
 - RAG (Retrieval-Augmented Generation)
 
@@ -413,14 +410,14 @@ npm test
 **Integration Testing**
 
 - Example programs run successfully
-- AI features work with real API
+- Reasoning features work with real API
 - Error handling is graceful
 
 **Example Coverage**
 
 - 13 complete example programs
 - Covers all major language features
-- Demonstrates AI integration
+- Demonstrates reasoning integration
 - Real-world use cases
 
 ## 🎯 Design Decisions Explained
@@ -456,7 +453,7 @@ npm test
 ### Why no async in v1?
 
 - **Simplicity**: Single-threaded is easier to understand
-- **Blocking is OK**: AI calls are already slow (2-5s)
+- **Blocking is OK**: Reasoning calls are already slow (2-5s)
 - **v2 ready**: Architecture supports async extension
 
 ## 📖 Learning Path
@@ -464,9 +461,9 @@ npm test
 1. **Start**: [QUICKSTART.md](QUICKSTART.md) - Get running in 5 minutes
 2. **Basics**: examples/01-06 - Core language features
 3. **Prompts**: examples/07 - Prompt blocks
-4. **AI**: examples/08-12 - AI feature exploration
+4. **Reasoning**: examples/08-12 - Reasoning feature exploration
 5. **Specification**: [SPECIFICATION.md](docs/SPECIFICATION.md) - Complete grammar
-6. **Advanced**: [AI_FEATURES.md](docs/AI_FEATURES.md) - Patterns and best practices
+6. **Advanced**: [SYSTEMS_REASONING.md](docs/SYSTEMS_REASONING.md) - Patterns and best practices
 7. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
 8. **Roadmap**: [ROADMAP.md](docs/ROADMAP.md) - Future vision
 
@@ -487,7 +484,7 @@ When open source:
 - ✅ Full language specification (600+ lines)
 - ✅ Architecture documentation (400+ lines)
 - ✅ API reference (450+ lines)
-- ✅ AI integration guide (500+ lines)
+- ✅ Systems reasoning guide (500+ lines)
 - ✅ Development roadmap (400+ lines)
 - ✅ 13 example programs
 - ✅ CLI executable
@@ -498,26 +495,26 @@ When open source:
 
 1. **Build and install**: `npm install && npm run build && npm install -g .`
 2. **Try examples**: `sesi examples/01_hello.sesi`
-3. **Set up AI**: Set GEMINI_API_KEY in `.env`
-4. **Explore AI**: `sesi examples/08_model_call.sesi`
+3. **Set up Reasoning**: Set GEMINI_API_KEY in `.env`
+4. **Explore Reasoning**: `sesi examples/08_model_call.sesi`
 5. **Read docs**: Start with SPECIFICATION.md
 6. **Write programs**: Create your own .sesi files
 7. **Check roadmap**: See where language is headed
 
 ## 🚀 Philosophy
 
-> "Sesi demonstrates that AI-native programming is not just possible—it's practical and elegant. By treating AI as a first-class language feature rather than a library, we can write clearer, more expressive code that seamlessly blends algorithmic thinking with AI reasoning."
+> "Sesi demonstrates that systems-level logic and integrated reasoning can be unified into a single, elegant language primitive, eliminating the boilerplate of traditional AI development."
 
 The language is designed to evolve. V1 provides a solid foundation. V2+ adds power. The architecture supports this gracefully without breaking existing programs.
 
 ---
 
-**Status**: ✅ Complete V1.0 implementation  
-**Ready for**: Exploration, learning, building prototypes  
-**Not ready for**: Production systems (until v2.0 with error handling)  
-**Next milestone**: V1.1 (polish & stabilize)
+**Status**: ✅ Complete V1.1 implementation  
+**Ready for**: Distributed systems orchestration and prototypes  
+**Not ready for**: Massive-scale production (until v2.0 bytecode)  
+**Next milestone**: V2.0 (Async & advanced reasoning)
 
-Sesi is an experiment in language design. Use it to learn, explore, and imagine what AI-native programming could become.
+Sesi is an experiment in language design. Use it to learn, explore, and evolve what integrated reasoning will become.
 
 ---
 
