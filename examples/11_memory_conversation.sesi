@@ -9,8 +9,8 @@ fn askBot(question: string) -> string {
 }
 print "Starting conversation..."
 let answer1 = askBot("What is a closure in JavaScript?")
-print("Q1 Answer: ", answer1)
+print "Q1 Answer:" answer1
 let answer2 = askBot("Can you give me an example?")
-print("Q2 Answer: ", answer2)
+print "Q2 Answer:" answer2
 let answer3 = askBot("How do I use it in practice?")
-print("Q3 Answer: ", answer3)
+print "Q3 Answer:" answer3

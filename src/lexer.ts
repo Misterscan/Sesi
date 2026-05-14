@@ -28,6 +28,7 @@ export class Lexer {
     ['print', 'PRINT'],
     ['prompt', 'PROMPT'],
     ['model', 'MODEL'],
+    ['image', 'IMAGE'],
     ['structured_output', 'STRUCTURED_OUTPUT'],
     ['tool_call', 'TOOL_CALL'],
     ['memory', 'MEMORY'],

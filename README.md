@@ -61,9 +61,9 @@ npm run example:all
 Sesi is designed for developers who want to:
 
 - Write normal code (variables, functions, loops, etc.)
-- Call AI directly within code using `prompt` and `model` blocks
-- Get structured outputs from AI with type guarantees
-- Build AI agents with memory and multi-step reasoning
+- Call Reasoning directly within code using `prompt` and `model` blocks
+- Get structured outputs from Reasoning with type guarantees
+- Build Reasoning agents with memory and multi-step reasoning
 - Maintain full control and transparency
 
 ## Example
@@ -75,7 +75,7 @@ let y = 20
 let result = x + y
 print result // 30
 
-// AI-powered code generation
+// Reasoning-powered code generation
 prompt generateCode {"Write a TypeScript function that reverses a string"}
 let code = model("gemini-3.1-pro-preview") {generateCode}
 print code
@@ -93,18 +93,18 @@ print code
 
 ## AI Agent Context
 
-The root-level `memory.md` file is a workspace context file for AI agents. It records repo-specific constraints such as valid Sesi syntax expectations, execution conventions, and the intended meaning of directories like `main/` and `main/tests/`.
+The root-level `SKILLS.md` file is a workspace context file for AI agents. It records repo-specific constraints such as valid Sesi syntax expectations, execution conventions, and the intended meaning of directories like `main/` and `main/tests/`.
 
 ## Project Structure
 
 ```
 sesi-programming-lang/
-├── memory.md             # AI-agent workspace context and repo guardrails
+├── SKILLS.md             # AI-agent workspace context and repo guardrails
 ├── index.html            # Sesi-generated landing page
 ├── eslint.config.mjs     # ESLint configuration
 ├── dist/                 # Compiled TypeScript output
 ├── example.js            # Helper script to run basic examples
-├── example-ai.js         # Helper script to run AI examples
+├── example-ai.js         # Helper script to run Reasoning examples
 ├── package.json          # Dependencies & scripts
 ├── tsconfig.json         # TypeScript configuration
 ├── QUICKSTART.md         # Quick start guide
@@ -119,7 +119,7 @@ sesi-programming-lang/
 │   └── index.ts          # Main entry point
 ├── bin/
 │   └── sesi.js           # CLI executable
-├── examples/             # 13 sample programs demonstrating all features
+├── examples/             # 15 sample programs demonstrating all features
 ├── main/                 # Main entry and specialized tests
 │   ├── playground.sesi   # Main playground script
 │   ├── start.sesi        # Beginner script 
@@ -137,32 +137,34 @@ sesi-programming-lang/
 - **Functions**: Typed parameters and return values.
 - **Control Flow**: `if/else`, `while`, `for`, and `try/catch`.
 - **Collections**: Robust Arrays and Objects.
-- **Error Handling**: Structured `try/catch` for both runtime and AI-level errors.
+- **Error Handling**: Structured `try/catch` for both runtime and Reasoning-level errors.
 
-### AI-Native Features ✅
+### Reasoning-Native Features ✅
 
 - `prompt` blocks for message composition
-- `model()` calls with AI provider configuration
-- `structured_output()` for typed AI responses
+- `model()` calls with Reasoning provider configuration
+- `image()` calls with specific ratio/size generation capabilities
+- `structured_output()` for typed Reasoning responses
 - `tool_call()` for function calling
 - Basic memory for multi-turn reasoning
-- `read_file()`, `write_file()`, and `list_dir()` for local file I/O
+- `read_file()`, `write_file()`, `write_image()`, and `list_dir()` for local file I/O
 - **Native Orchestration**: `spawn()` and `exec()` for concurrent process management
+- **Async Polling**: Native looping to auto-resume generation when hitting `MAX_TOKENS` limit
 - **Utility Builtins**: `time()` and `random()` for robust coordination
 
 ### Type System
 
 - Static types: `number`, `string`, `bool`, `array<T>`, `object<T>`
 - Type inference
-- Union types for AI response handling
+- Union types for Reasoning response handling
 
 ## Roadmap
 
-### V2: Advanced AI
+### V2: Advanced Reasoning
 
 - Long-term memory and context management
 - Parallel model calls
-- Advanced error handling with AI fallbacks
+- Advanced error handling with Reasoning fallbacks
 - Custom tool definitions
 - Streaming responses
 

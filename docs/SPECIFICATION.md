@@ -41,7 +41,8 @@ Sesi is built on these core principles:
 
 ### Reasoning-Native Features
 - ✅ `prompt` blocks (composable message templates)
-- ✅ `model()` calls (invoke Gemini with configuration)
+- ✅ `model()` calls (native model with configuration)
+- ✅ `image()` calls (native image generation with configuration)
 - ✅ `structured_output()` (schema-guided structured output with JSON recovery and empty-object fallback on failure)
 - ✅ `tool_call()` (Fully functional function calling via models)
 - ✅ Simple memory (conversation context)
@@ -65,7 +66,7 @@ Sesi is built on these core principles:
 #### Keywords
 ```
 let const if else while for fn return print import export 
-prompt model memory structured_output tool_call break continue try catch true false null
+prompt model image memory structured_output tool_call break continue try catch true false null
 ```
 
 #### Identifiers & Literals
@@ -177,7 +178,7 @@ addition := multiplication (('+' | '-') multiplication)*
 multiplication := unary (('*' | '/' | '%') unary)*
 unary := ('!' | '-') unary | postfix
 postfix := primary ('[' expression ']' | '.' identifier | '(' args? ')')*
-primary := identifier | literal | '(' expression ')' | prompt | model | memory | call
+primary := identifier | literal | '(' expression ')' | prompt | model | image | memory | call
 ```
 
 #### Function Call
@@ -196,11 +197,13 @@ Example:
 prompt codeReview {"Review this code for bugs:" code "Provide specific issues found."}
 ```
 
-#### Model Call
+#### Model & Image Calls
 ```
 model_call := 'model' '(' STRING ')' '{' config (optional) '}' '{' prompt '}'
             | 'model' '(' STRING ')' '{' prompt '}'
-config := (STRING ':' expression (',' STRING ':' expression)*)?
+image_call := 'image' '(' STRING ')' '{' config (optional) '}' '{' prompt '}'
+            | 'image' '(' STRING ')' '{' prompt '}'
+config := ((STRING | identifier) ':' expression (',' (STRING | identifier) ':' expression)*)?
 ```
 
 Example:
@@ -251,7 +254,7 @@ optional_type := type '?'
 
 1. **Short-circuit evaluation**: `&&` and `||` short-circuit
 2. **Type coercion**: Automatic for numeric operations; explicit for string/number
-3. **Null propagation**: Operations on `null` return `null` (no exceptions in v1)
+3. **Null propagation**: Operations on `null` return `null` (no exceptions in v1.1)
 4. **Model responses**: Always returned as strings initially; structured_output provides type safety
 
 ## 6. Scope and Binding
@@ -299,6 +302,7 @@ join(array, string) -> string // Join with separator
 split(string, string) -> array // Split by separator
 read_file(string) -> string    // Read file contents
 write_file(string, string) -> bool // Write file contents
+write_image(string, string) -> bool // Write base64 image data to file
 list_dir(string) -> array<string> // List directory contents
 make_dir(string) -> bool          // Create directory (recursive)
 spawn(string) -> number           // Concurrent process creation
@@ -344,11 +348,15 @@ prompt summarize {"Summarize this in 3 sentences:" text}
 prompt combined {summarize "Now translate:" translate}
 ```
 
-### Model Calls
+### Model & Image Calls
 
 ```sesi
 let response = model("gemini-3-flash-preview") {"temperature": 0} {"Say hello"}
 print response  // Returns string
+
+let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512"} {"A vector logo"}
+write_image("logo.png", logo)
+print "Image written to logo.png"
 ```
 
 ### Structured Output

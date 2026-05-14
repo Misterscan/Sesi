@@ -6,7 +6,7 @@ while i < 5 {
   i = i + 1
 }
 print "For loop (range):"
-for j = 0 to 5 {print("Iteration: ", j)}
+for j = 0 to 5 {print "Iteration:" j}
 print "For loop (array):"
 let arr = [10, 20, 30, 40]
-for item in arr {print("Item: ", item)}
+for item in arr {print "Item:" item}

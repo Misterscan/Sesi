@@ -67,6 +67,9 @@
 ### Improvements & Features ✅
 
 - [x] Systems Builtins: `spawn`, `exec`, `time`, `random`
+- [x] Concurrency: Async polling via file locks for completion and MAX_TOKENS
+- [x] Image Generation primitive (`image`) and Config blocks (`ratio`, `size`)
+- [x] File Management Builtins: `list_dir`, `write_image`
 - [x] Documentation improvements (Extensive Markdown guides)
 - [x] Bug fixes (tool_call argument passing resolved)
 - [x] Simple error recovery (Parser synchronization)
@@ -396,7 +399,10 @@ The journey from v1 (interpreter) to v4+ (distributed compiler) maintains backwa
 
 ## See Also
 
-- [Specification](./SPECIFICATION.md)
-- [Architecture](./ARCHITECTURE.md)
-- [Systems Reasoning](./SYSTEMS_REASONING.md)
+- [Specification](SPECIFICATION.md)
+- [Architecture](ARCHITECTURE.md)
+- [Built-ins](BUILTINS.md)
+- [Systems Reasoning](SYSTEMS_REASONING.md)
+- [Image Generation](IMAGE_GENERATION.md)
+- [Compare to other languages](COMPARISON.md)
 - [Examples](../examples)

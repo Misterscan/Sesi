@@ -292,6 +292,9 @@ export class Interpreter {
       case 'PromptExpression':
         return await this.evaluatePrompt(expr);
 
+      case 'ImageCallExpression':
+        return await this.evaluateImageCall(expr as import('./types').ImageCallExpression);
+
       case 'ModelCallExpression':
         return await this.evaluateModelCall(expr);
 
@@ -504,7 +507,27 @@ export class Interpreter {
     return prompt;
   }
 
-  private async evaluateModelCall(expr: ModelCallExpression): Promise<RuntimeValue> {
+  private async evaluateImageCall(expr: import('./types').ImageCallExpression): Promise<RuntimeValue> {
+    let promptText = await this.evaluateExpression(expr.prompt) as string;
+    if (typeof promptText !== 'string') {
+      promptText = stringify(promptText);
+    }
+
+    const response = await aiRuntime.callModel({
+      model: expr.modelName,
+      prompt: promptText,
+      temperature: expr.config?.temperature ? (await this.evaluateExpression(expr.config.temperature) as number) : undefined,
+      maxTokens: expr.config?.max_tokens ? (await this.evaluateExpression(expr.config.max_tokens) as number) : undefined,
+      topK: expr.config?.top_k ? (await this.evaluateExpression(expr.config.top_k) as number) : undefined,
+      topP: expr.config?.top_p ? (await this.evaluateExpression(expr.config.top_p) as number) : undefined,
+      ratio: expr.config?.ratio ? (await this.evaluateExpression(expr.config.ratio) as string) : undefined,
+      size: expr.config?.size ? (await this.evaluateExpression(expr.config.size) as string) : undefined,
+    });
+
+    return response.text;
+  }
+
+  private async evaluateModelCall(expr: import('./types').ModelCallExpression): Promise<RuntimeValue> {
     let promptText = await this.evaluateExpression(expr.prompt) as string;
     if (typeof promptText !== 'string') {
       promptText = stringify(promptText);

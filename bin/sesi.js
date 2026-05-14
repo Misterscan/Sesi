@@ -10,7 +10,7 @@ const args = process.argv.slice(2);
 
 if (args.length === 0) {
   console.log(`
-Sesi Programming Language v1.1.0
+Sesi Programming Language v1.1.1
 
 Usage:
   sesi <file>          Run a Sesi program
@@ -25,7 +25,7 @@ Examples:
 
 if (args[0] === '--help' || args[0] === '-h') {
   console.log(`
-Sesi Programming Language v1.1.0
+Sesi Programming Language v1.1.1
 
 Usage:
   sesi <file>          Run a Sesi program
@@ -42,7 +42,7 @@ Examples:
 }
 
 if (args[0] === '--version') {
-  console.log('Sesi v1.1.0');
+  console.log('Sesi v1.1.1');
   process.exit(0);
 }
 

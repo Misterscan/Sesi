@@ -1,21 +1,18 @@
 // Arrays and objects
 let numbers = [1, 2, 3, 4, 5]
-print("Array: ", numbers)
-print("Length: ", len(numbers))
-print("First: ", numbers[0])
+print "Array:" numbers
+print "Length:" len(numbers)
+print "First:" numbers[0]
 
 push(numbers, 6)
-print("After push: ", numbers)
+print "After push:" numbers
 
 // Objects
 let person = {"name": "Alice", "age": 30, "city": "New York"}
-
-print("Person: ", person)
-print("Name: ", person["name"])
+print "Person:" person
+print "Name:" person["name"]
 
 // Array of objects
 let people = [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}, {"name": "Charlie", "age": 35}]
-
-for person in people {
-  print(person["name"], "is", person["age"])
-}
+for person in people 
+{print person["name"] "is" person["age"]}

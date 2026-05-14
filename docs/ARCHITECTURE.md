@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It uses a tree-walking interpreter model with asynchronous host-side model execution, but no language-level `async/await` syntax in v1. The architecture is optimized for coordination, distributed state management, and first-class reasoning primitives.
+**Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It uses a tree-walking interpreter model with asynchronous host-side model execution, but no language-level `async/await` syntax in v1.1 The architecture is optimized for coordination, distributed state management, and first-class reasoning primitives.
 
 ## Component Stack
 
@@ -75,7 +75,7 @@ Tokens: [LET, IDENTIFIER("x"), EQUAL, NUMBER(10), EOF]
 - **Input**: Token stream
 - **Process**: Recursive descent parsing
   - Statement parsing (declarations, control flow)
-  - Expression parsing (operators, function calls, AI constructs)
+  - Expression parsing (operators, function calls, Reasoning constructs)
   - AST construction
   - Error recovery
 - **Output**: Abstract Syntax Tree (AST)
@@ -101,9 +101,9 @@ Tokens: [LET, IDENTIFIER("x"), EQUAL, NUMBER(10), EOF]
   - Statement execution in order
   - Expression evaluation with proper operator precedence
   - Environment/scope management with lexical scoping
-  - Blocking host-side async calls for AI operations
+  - Blocking host-side async calls for Reasoning operations
   - Control flow (return, break, continue)
-- **Output**: Program side effects (print, AI calls, etc.)
+- **Output**: Program side effects (print, Reasoning calls, etc.)
 
 ## Scope and Environment Management
 
@@ -185,9 +185,9 @@ false  → false
 {}     → true
 ```
 
-## AI Integration
+## Reasoning Integration
 
-### AI Runtime Lifecycle
+### Reasoning Runtime Lifecycle
 
 1. **Initialization**:
    - Load @google/genai SDK
@@ -212,7 +212,7 @@ false  → false
 ModelCallExpression (AST)
     │
     ├─ Evaluate prompt expression
-    ├─ Extract configuration (temperature, max_tokens)
+    ├─ Extract configuration ("temperature", "max_tokens")
     ├─ Call AIRuntime.callModel()
     │   │
     │   ├─ Create Gemini interaction request
@@ -231,7 +231,7 @@ Sesi now has basic exception-style error handling in v1:
 1. **Parse Errors**: Parser logs the error and synchronizes to continue parsing later statements.
 2. **Runtime Errors**: Interpreter errors throw and can be caught with `try/catch`.
 3. **Built-in I/O Errors**: `read_file()`, `write_file()`, and `list_dir()` throw on filesystem failure.
-4. **AI Errors**: `model()` throws when the SDK fails, when no text is returned, or when Gemini reports a non-`STOP` finish reason such as `MAX_TOKENS`.
+4. **Reasoning Errors**: `model()` throws when the SDK fails, when no text is returned. (Note: `MAX_TOKENS` finish reasons are now handled natively via an automatic async polling loop that prompts the model to continue where it left off, and therefore does not throw errors).
 5. **Structured Output**: `structured_output()` attempts recovery, but currently logs parsing failures and returns `{}` if coercion still fails.
 
 ## Memory Model
@@ -248,7 +248,7 @@ Sesi now has basic exception-style error handling in v1:
 - Objects (key-value maps)
 - Strings (immutable)
 
-### AI Context
+### Reasoning Context
 
 - Conversation memory per memory ID
 - String buffers, not structured storage
@@ -278,7 +278,7 @@ Sesi now has basic exception-style error handling in v1:
 
 ### V2 Planned Improvements
 
-- Async/await syntax for concurrent AI calls
+- Async/await syntax for concurrent Reasoning calls
 - Bytecode compiler for faster execution
 - Advanced error handling with stack traces
 - Streaming response support
@@ -296,12 +296,12 @@ Sesi now has basic exception-style error handling in v1:
 ## Code Organization
 
 ```
-memory.md                 # AI-agent workspace context and repo guardrails
+SKILLS.md                 # AI-agent workspace context and repo guardrails
 index.html                # Sesi-generated landing page
 eslint.config.mjs         # ESLint configuration
 dist/                     # Compiled TypeScript output
 example.js                # Helper script to run basic examples
-example-ai.js             # Helper script to run AI examples
+example-ai.js             # Helper script to run Reasoning examples
 package.json              # Dependencies & scripts
 tsconfig.json             # TypeScript configuration
 QUICKSTART.md             # Quick start guide
@@ -334,17 +334,20 @@ examples/
 ├── 05_loops.sesi         # Loops & iteration
 ├── 06_arrays_objects.sesi# Arrays & objects
 ├── 07_prompts.sesi       # Prompts and string templating
-├── 08_model_call.sesi    # Basic AI model calls
+├── 08_model_call.sesi    # Basic Reasoning model calls
 ├── 09_structured_output.sesi # Schema-guided structured output with JSON recovery and empty-object fallback on failure
-├── 10_code_generation.sesi   # AI-powered code gen
-├── 11_memory_conversation.sesi # AI conversations
+├── 10_code_generation.sesi   # Reasoning-powered code gen
+├── 11_memory_conversation.sesi # Reasoning-powered conversations
 ├── 12_classification.sesi    # Classification
-└── 13_data_pipeline.sesi     # Pipeline demo
+├── 13_data_pipeline.sesi     # Pipeline demo
+├── 14_folder_explainer.sesi  # Directory parsing & reasoning
+└── 15_image_generation.sesi  # Image generation API test
 
 docs/
 ├── SPECIFICATION.md      # Language spec
 ├── ARCHITECTURE.md       # This file
 ├── BUILTINS.md           # Built-in reference
+├── IMAGE_GENERATION.md   # Image generation guide
 ├── COMPARISON.md         # Language comparison showcase
 ├── SYSTEMS_REASONING.md  # Integrated reasoning guide
 ├── DISTRIBUTED_SYSTEMS.md # Swarm & coordination guide
@@ -356,7 +359,7 @@ tests/
 
 ## Workspace Context File
 
-The root-level `memory.md` file is part of the practical repo architecture. It is not consumed by the Sesi runtime, but it is intended to guide AI-assisted development in this workspace.
+The root-level `SKILLS.md` file is part of the practical repo architecture. It is not consumed by the Sesi runtime, but it is intended to guide AI-assisted development in this workspace.
 
 It defines repo-specific operating rules such as valid Sesi assumptions, normal execution via the global `sesi` command, and the fact that `main/` and `main/tests/` are intentional user workspace areas rather than anomalies.
 
@@ -375,7 +378,7 @@ It defines repo-specific operating rules such as valid Sesi assumptions, normal 
 
 ```typescript
 // Full program execution
-// Complex AI workflows
+// Complex Reasoning workflows
 // Error handling
 ```
 
@@ -384,7 +387,7 @@ It defines repo-specific operating rules such as valid Sesi assumptions, normal 
 - Basic arithmetic and control flow
 - Functions and scoping
 - Arrays and objects
-- AI model calls
+- Reasoning model calls
 - Structured output parsing
 - Memory-based conversations
 
@@ -421,6 +424,6 @@ Sesi's architecture prioritizes **clarity and simplicity** over performance. The
 - Easy debugging
 - Simple extensions
 - Clear control flow
-- Smooth AI integration
+- Smooth Reasoning (AI) integration
 
 As the language matures, optimizations can be added without changing the API.

@@ -14,4 +14,6 @@ print exec("sesi examples/11_memory_conversation.sesi")
 print exec("sesi examples/12_classification.sesi")
 print exec("sesi examples/13_data_pipeline.sesi")
 print exec("sesi examples/14_folder_explainer.sesi")
+print "Last one! This one might take a while..."
+print exec("sesi examples/15_image_generation.sesi")
 print "All done!"

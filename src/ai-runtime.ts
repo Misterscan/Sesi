@@ -30,36 +30,116 @@ export class AIRuntime {
       const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
       const fullPrompt = timeContext + request.prompt;
 
-      const response = await client.models.generateContent({
-        model: request.model,
-        contents: fullPrompt,
-        config: {
-          temperature: request.temperature ?? 0.3,
-          maxOutputTokens: request.maxTokens ?? 2048,
-          topK: request.topK,
-          topP: request.topP,
-        },
-      });
+      // Handle image generation models dynamically
+      if (request.model.includes('image')) {
+        const imageConfig: any = {};
+        if (request.ratio) imageConfig.aspectRatio = request.ratio;
+        if (request.size) imageConfig.imageSize = request.size;
 
-      const candidate = response.candidates?.[0];
-      const rawFinishReason = candidate?.finishReason ?? response.finishReason ?? 'UNKNOWN';
-      const finishReason = String(rawFinishReason).toUpperCase();
-      const text = typeof response.text === 'string' ? response.text : '';
+        const configObj: any = {
+            responseModalities: ["IMAGE"]
+        };
+        
+        if (Object.keys(imageConfig).length > 0) {
+            configObj.imageConfig = imageConfig;
+        }
 
-      if (!text.trim()) {
-        throw new Error(`Returned no text output (finish reason: ${finishReason})`);
+        if (request.temperature !== undefined) configObj.temperature = request.temperature;
+        if (request.maxTokens !== undefined) configObj.maxOutputTokens = request.maxTokens;
+        if (request.topK !== undefined) configObj.topK = request.topK;
+        if (request.topP !== undefined) configObj.topP = request.topP;
+
+        const response = await client.models.generateContent({
+          model: request.model,
+          contents: request.prompt,
+          config: configObj
+        });
+        
+        let base64String = null;
+        if (response.candidates && response.candidates.length > 0) {
+           for (const part of response.candidates[0].content.parts) {
+               if (part.inlineData) {
+                   base64String = part.inlineData.data;
+                   break;
+               }
+           }
+        }
+
+        if (!base64String) {
+          throw new Error("Image generation failed or returned no image output.");
+        }
+        
+        return {
+          text: base64String, // Return the base64 string directly
+          finishReason: 'STOP',
+          usage: {
+            inputTokens: 0,
+            outputTokens: 0,
+          },
+        };
       }
 
-      if (finishReason !== 'STOP') {
-        throw new Error(`Generation did not complete successfully (finish reason: ${finishReason})`);
+      let accumulatedText = '';
+      let currentFinishReason = '';
+      let isComplete = false;
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
+      let maxPolls = 10;
+      let currentPoll = 0;
+
+      const contents: any[] = [
+        { role: 'user', parts: [{ text: fullPrompt }] }
+      ];
+
+      while (!isComplete && currentPoll < maxPolls) {
+        const response = await client.models.generateContent({
+          model: request.model,
+          contents: contents,
+          config: {
+            temperature: request.temperature ?? 0.3,
+            maxOutputTokens: request.maxTokens ?? 2048,
+            topK: request.topK,
+            topP: request.topP,
+          },
+        });
+
+        const candidate = response.candidates?.[0];
+        const rawFinishReason = candidate?.finishReason ?? response.finishReason ?? 'UNKNOWN';
+        const finishReason = String(rawFinishReason).toUpperCase();
+        
+        const text = typeof response.text === 'string' ? response.text : '';
+        accumulatedText += text;
+
+        totalInputTokens += response.usageMetadata?.promptTokenCount ?? 0;
+        totalOutputTokens += response.usageMetadata?.candidatesTokenCount ?? 0;
+
+        currentFinishReason = finishReason;
+
+        if (finishReason === 'MAX_TOKENS') {
+          // Add the model's partial response to the history and prompt it to continue
+          contents.push({ role: 'model', parts: [{ text: text }] });
+          contents.push({ role: 'user', parts: [{ text: 'Please continue exactly where you left off.' }] });
+          currentPoll++;
+        } else if (finishReason === 'STOP') {
+          isComplete = true;
+        } else {
+          if (!accumulatedText.trim()) {
+            throw new Error(`Returned no text output (finish reason: ${finishReason})`);
+          }
+          isComplete = true;
+        }
+      }
+
+      if (currentFinishReason !== 'STOP' && currentFinishReason !== 'MAX_TOKENS') {
+        throw new Error(`Generation did not complete successfully (finish reason: ${currentFinishReason})`);
       }
 
       return {
-        text,
-        finishReason,
+        text: accumulatedText,
+        finishReason: currentFinishReason,
         usage: {
-          inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
-          outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
         },
       };
     } catch (error: any) {

@@ -25,6 +25,7 @@ export type TokenType =
   | 'PRINT'
   | 'PROMPT'
   | 'MODEL'
+  | 'IMAGE'
   | 'STRUCTURED_OUTPUT'
   | 'TOOL_CALL'
   | 'MEMORY'
@@ -229,6 +230,7 @@ export type Expression =
   | ObjectLiteral
   | PromptExpression
   | ModelCallExpression
+  | ImageCallExpression
   | StructuredOutputExpression
   | ToolCallExpression
   | ConditionalExpression;
@@ -318,6 +320,14 @@ export interface PromptExpression {
 
 export interface ModelCallExpression {
   type: 'ModelCallExpression';
+  modelName: string;
+  config?: Record<string, Expression>;
+  prompt: Expression;
+  line: number;
+}
+
+export interface ImageCallExpression {
+  type: 'ImageCallExpression';
   modelName: string;
   config?: Record<string, Expression>;
   prompt: Expression;
@@ -460,6 +470,8 @@ export interface AIRequest {
   maxTokens?: number;
   topK?: number;
   topP?: number;
+  ratio?: string;
+  size?: string;
 }
 
 export interface AIResponse {

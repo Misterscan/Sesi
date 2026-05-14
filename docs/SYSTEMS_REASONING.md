@@ -15,7 +15,6 @@ A master script can launch concurrent processes and poll for their completion.
 ```sesi
 spawn("atm_deposit.sesi")
 spawn("atm_withdraw.sesi")
-
 let finished = false
 while !finished {
   try {
@@ -71,8 +70,8 @@ Prompts are **composable message templates** that evaluate to strings.
 ### Basic Prompt
 
 ```sesi
-prompt simplePrompt {"Hello, AI!"}
-print simplePrompt  // "Hello, AI!"
+prompt simplePrompt {"Hello, Sesi!"}
+print simplePrompt  // "Hello, Sesi!"
 ```
 
 ### Prompts with Variables
@@ -115,11 +114,11 @@ print response
 ### Model Configuration
 
 ```sesi
-let creative = model("gemini-3-flash-preview") {"temperature": 0.9, "max_tokens": 500} {"Write a creative poem about AI"}
+let creative = model("gemini-3-flash-preview") {"temperature": 0.9, "max_tokens": 500} {"Write a creative poem about technology."}
 print creative
 
 // Config options:
-// - temperature: 0.0-1.0 (higher = more creative) (OPTIONAL: if not specified, will use the model's default temperature=0.3)
+// - "temperature": 0.0-1.0 (higher = more creative) (OPTIONAL: if not specified, will use the model's default temperature=0.3)
 // - max_tokens: max length of response (OPTIONAL: if not specified, will use the model's default max tokens=2048)
 // - top_k: diversity parameter (OPTIONAL)
 // - top_p: nucleus sampling parameter (OPTIONAL)
@@ -129,8 +128,8 @@ print creative
 
 ```sesi
 // Fast model for simple tasks
-let text = " Coding in AI"
-let quick = model("gemini-3.1-flash-lite") {"Summarize this in one sentence: " text}
+let text = " Coding with Reasoning systems language is fun!"
+let quick = model("gemini-3.1-flash-lite") {"Summarize this in one sentence:" text}
 
 // Powerful model for complex reasoning
 let code = "def calculate_sum(n):
@@ -138,26 +137,40 @@ let code = "def calculate_sum(n):
     for i in range(1, n):
         total += i
     return total"
-let smart = model("gemini-3.1-pro-preview") {"Analyze this code for bugs: " code}
+let smart = model("gemini-3.1-pro-preview") {"Analyze this code for bugs:" code}
 
 // Efficient model for many calls
 let item = " Programming Languages"
-let cheap = model("gemini-3.1-flash-lite") {"temperature": 0} {"Classify: " item}
+let cheap = model("gemini-3.1-flash-lite") {"temperature": 0} {"Classify:" item}
 
 print quick
 print smart
 print cheap
 ```
 
-### Available Models (v1)
+### Available Models (v1.1)
 
+- `gemini-2.5-flash` - Legacy, but supported. 1M tokens.
+- `gemini-2.5-pro` - Legacy, but supported. 1M tokens.
+- `gemini-2.5-flash-image` - Legacy, but reliable.
 - `gemini-3-flash-preview` - Fast, balanced, 1M tokens
 - `gemini-3.1-pro-preview` - Most capable, 1M tokens
 - `gemini-3.1-flash-lite` - Fastest, cost-efficient
+- `gemini-3.1-flash-image-preview` - Cost efficient while maintaining quality images.
+- `gemini-3-pro-image-preview` - High quality image generation.
+
+#### Planned for (v2+)
+
+- `OpenAI` integration (GPT, Dall-E, etc.)
+- `HuggingFace` integration
+- `Midjourney` integration
+- `Newer Reasoning Models` - Native upgrades
+
+
 
 ## 3. Structured Output
 
-Get typed responses from AI with field validation.
+Get typed responses from Reasoning with field validation.
 
 ### Basic Structured Output
 
@@ -182,7 +195,7 @@ print bookInfo["title"]
 
 - Always include instructions for JSON format
 - Specify the exact schema in the prompt
-- Use temperature 0 for consistency
+- Use "temperature": 0 for consistency
 - Validate output structure in code
 
 ```sesi
@@ -195,7 +208,7 @@ if type(output["items"]) == "array" {print "Got" str(len(output["items"])) "item
 
 ## 4. Tool Calls (Function Calling)
 
-Let AI call functions in your program.
+Let Reasoning call functions in your program.
 
 ### Define Callable Functions
 
@@ -216,7 +229,7 @@ let result = calculateTax()
 print result
 ```
 
-### AI Makes Tool Calls
+### Reasoning Makes Tool Calls
 
 ```sesi
 let tax = tool_call(calculateTax)(model("gemini-3.1-flash-lite") {"Calculate 8% sales tax on $100"})
@@ -226,13 +239,13 @@ print tax  // 8.0
 ### Multiple Tool Availability (Future)
 
 ```sesi
-// v2: Allow AI to choose from multiple tools
+// v2: Allow Reasoning to choose from multiple tools
 let result = with_tools([getWeather, calculateTax, getTime]) {model("gemini-3-flash-preview") {"What's the weather in NY and the sales tax on $50?"}}
 ```
 
 ## 5. Memory & Conversation
 
-Maintain context across multiple AI calls.
+Maintain context across multiple Reasoning calls.
 
 ### Simple Memory
 
@@ -325,6 +338,16 @@ print "Translation:"
 print translate(text, language)
 ```
 
+### Image Generation
+
+Like `model`, the `image` command evaluates prompts and accepts configuration variables mapping accurately to backend SDKs requirements.
+
+```sesi
+let logo = image("gemini-3.1-flash-image-preview") {"ratio": "1:1", "size": "512", "temperature": 0.3} {"A high quality vector logo representing a new programming language named Sesi"}
+write_image("logo.png", logo)
+print "Image generated!"
+```
+
 ### Code Generation
 
 ```sesi
@@ -348,23 +371,21 @@ print analyzeSentiment(text)
 
 ## 7. Error Handling
 
-AI operations can fail. Handle gracefully.
+Reasoning operations can fail. Handle gracefully.
 
-### Try/Catch (v1)
+### Try/Catch (v1.1)
 
 ```sesi
-try {
-  let response = model("gemini-3-flash-preview") {"Analyze" text}
-  print response
-} catch (e) {
-  print "AI call failed"
-  print e
-}
+try
+{let response = model("gemini-3-flash-preview") {"Analyze" text}
+print response} 
+catch (e) {print "Reasoning call failed"
+print e}
 ```
 
 ### Current Failure Behavior
 
-- `model()` throws when the Gemini SDK fails, when no text is returned, or when the model stops for a non-success reason such as `MAX_TOKENS`.
+- `model()` throws when the Gemini SDK fails or when no text is returned. `MAX_TOKENS` finish reasons are handled natively via a polling loop to automatically complete long outputs.
 - `structured_output()` first tries to parse JSON from the model text, then retries with a coercion prompt.
 - If structured parsing still fails, the runtime currently logs the error and returns `{}`.
 
@@ -373,16 +394,14 @@ try {
 ```sesi
 let text = "Coding is evolving rapidly!"
 fn safeAnalyze(text: string) {
-  try {
-    let result = structured_output({sentiment: string, score: number})(model("gemini-3.1-flash-lite") {"Analyze sentiment and return JSON for:" text})
-    if len(keys(result)) == 0 {print "Structured parsing failed"
-      return null
-    }
-    return result
-  } catch (e) {print e
-    return null
-  }
-}
+try 
+{let result = structured_output({sentiment: string, score: number})(model("gemini-3.1-flash-lite") {"Analyze sentiment and return JSON for:" text})
+if len(keys(result)) == 0 {print "Structured parsing failed"
+return null}
+return result} 
+catch (e) 
+{print e
+return null}}
 print "Analysis Result: " safeAnalyze(text)
 ```
 
@@ -455,7 +474,7 @@ if remaining < 500 {summarizeMemory()}
 print "Memory size: " count_tokens(memory, model)
 ```
 
-## 10. Advanced: Custom AI Workflows
+## 10. Advanced: Custom Reasoning Workflows
 
 ### Multi-Stage Reasoning Workflow
 
@@ -463,7 +482,7 @@ print "Memory size: " count_tokens(memory, model)
 let text = "Climate change is a long-term shift in global or regional climate patterns. Often climate change refers specifically to anthropogenic climate change, which is caused by human activities, primarily fossil fuel burning, which increases heat-trapping greenhouse gas levels in Earth's atmosphere. The term is frequently used interchangeably with the term global warming, though the latter refers specifically to the long-term heating of Earth's climate system observed since the pre-industrial period due to human activities."
 fn smartSummarize(text: string) -> string
 
-// Chain multiple AI operations
+// Chain multiple Reasoning operations
 // Step 1: Extract key points
 {let keyPoints = model("gemini-3.1-pro-preview") {"temperature": 0} {"Extract 5 key points from:" text}
 
@@ -496,7 +515,10 @@ print "Classification:" classifyWithExamples(text)
 
 ## See Also
 
-- [Language Specification](./SPECIFICATION.md)
-- [Architecture](./ARCHITECTURE.md)
+- [Compare to other languages](COMPARISON.md)
+- [Language Specification](SPECIFICATION.md)
+- [Image Generation](IMAGE_GENERATION.md)
+- [Architecture](ARCHITECTURE.md)
+- [Built-ins](BUILTINS.md)
 - [Examples](../examples/)
-- [Roadmap](./ROADMAP.md)
+- [Roadmap](ROADMAP.md)

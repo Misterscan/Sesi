@@ -2,10 +2,10 @@
 let x = 10
 let y = 20
 let z = x + y
-print("x = ", x)
-print("y = ", y)
-print("sum = ", z)
+print "x = " x
+print "y = " y
+print "sum = " z
 
 // Reassignment
 x = 30
-print("x updated: ", x)
+print "x updated:" x

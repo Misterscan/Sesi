@@ -1,9 +1,8 @@
-// Data classification using AI
+// Data classification using Reasoning
 // Requires GEMINI_API_KEY environment variable
 let items = ["A quick brown fox", "123 Main Street", "user@example.com", "New York City"]
 fn classifyItem(item: string) -> string {return model("gemini-3.1-flash-lite") {"Classify this item into one of: TEXT, ADDRESS, EMAIL, LOCATION " "Item: " item}}
 print "Classifying items..."
-for item in items {
-  let classification = classifyItem(item)
-  print(item, "->", classification)
-}
+for item in items 
+{let classification = classifyItem(item)
+print item "->" classification}

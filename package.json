@@ -1,6 +1,6 @@
 {
   "name": "sesi",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Sesi: A High-Performance Systems Language",
   "main": "dist/index.js",
   "bin": {

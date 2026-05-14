@@ -723,6 +723,10 @@ export class Parser {
       return this.modelCall();
     }
 
+    if (this.match('IMAGE')) {
+      return this.imageCall();
+    }
+
     if (this.match('STRUCTURED_OUTPUT')) {
       return this.structuredOutput();
     }
@@ -819,7 +823,96 @@ export class Parser {
     };
   }
 
-  private modelCall(): ModelCallExpression {
+  private imageCall(): import('./types').ImageCallExpression {
+    const line = this.previous().line;
+    this.consume('LEFT_PAREN', 'Expected ( after image');
+    const modelName = this.consume('STRING', 'Expected image model name').literal;
+    this.consume('RIGHT_PAREN', 'Expected ) after image model name');
+
+    let config: Record<string, Expression> | undefined;
+    
+    this.skipNewlines();
+    let hasConfig = false;
+    if (this.check('LEFT_BRACE')) {
+      const insideToken = this.tokens[this.current + 1];
+      if (insideToken.type === 'RIGHT_BRACE' && this.current + 2 < this.tokens.length && this.tokens[this.current + 2].type === 'LEFT_BRACE') {
+        hasConfig = true;
+      } else if (insideToken.type === 'STRING' || insideToken.type === 'IDENTIFIER') {
+        if (this.current + 2 < this.tokens.length && this.tokens[this.current + 2].type === 'COLON') {
+          hasConfig = true;
+        }
+      }
+    }
+
+    if (hasConfig) {
+      this.advance(); // consume LEFT_BRACE
+      config = {};
+      if (!this.check('RIGHT_BRACE')) {
+        do {
+          let key: string;
+          if (this.check('STRING')) {
+            key = this.consume('STRING', '').literal as string;
+          } else {
+            key = this.consume('IDENTIFIER', 'Expected config key').lexeme;
+          }
+          this.consume('COLON', 'Expected : after config key');
+          config[key] = this.assignment();
+        } while (this.match('COMMA'));
+      }
+      this.consume('RIGHT_BRACE', 'Expected } after config');
+    }
+
+    this.skipNewlines();
+    // Prompt or block
+    let prompt: Expression;
+    this.skipNewlines();
+    if (this.check('LEFT_BRACE')) {
+      this.advance();
+      const content: Expression[] = [];
+      while (!this.check('RIGHT_BRACE') && !this.isAtEnd()) {
+        if (this.check('STRING')) {
+          this.advance();
+          content.push({
+            type: 'Literal',
+            value: this.previous().literal,
+            rawType: 'string',
+            line: this.previous().line,
+          });
+        } else {
+          content.push(this.expression());
+        }
+      }
+      this.consume('RIGHT_BRACE', 'Expected }');
+
+      if (content.length === 1) {
+        prompt = content[0];
+      } else {
+        let result = content[0];
+        for (let i = 1; i < content.length; i++) {
+          result = {
+            type: 'BinaryOp',
+            left: result,
+            operator: '+',
+            right: content[i],
+            line,
+          };
+        }
+        prompt = result;
+      }
+    } else {
+      throw new Error('Expected prompt block after image call');
+    }
+
+    return {
+      type: 'ImageCallExpression',
+      modelName: modelName as string,
+      config,
+      prompt,
+      line,
+    };
+  }
+
+  private modelCall(): import('./types').ModelCallExpression {
     const line = this.previous().line;
     this.consume('LEFT_PAREN', 'Expected ( after model');
     const modelName = this.consume('STRING', 'Expected model name').literal;

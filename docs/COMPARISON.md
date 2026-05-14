@@ -320,7 +320,10 @@ Sesi isn't just syntactic sugar. By embedding the AI runtime directly into the p
 
 ## See Also
 
-- [Language Specification](./SPECIFICATION.md)
-- [Architecture](./ARCHITECTURE.md)
-- [Reasoning Features](./SYSTEMS_REASONING.md)
-- [Distributed Systems](./DISTRIBUTED_SYSTEMS.md)
+- [Quickstart](../QUICKSTART.md)
+- [Language Specification](SPECIFICATION.md)
+- [Image Generation](IMAGE_GENERATION.md)
+- [Built-in Functions](BUILTINS.md)
+- [Architecture](ARCHITECTURE.md)
+- [Reasoning Features](SYSTEMS_REASONING.md)
+- [Distributed Systems](DISTRIBUTED_SYSTEMS.md)

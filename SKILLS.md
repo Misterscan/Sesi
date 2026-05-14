@@ -23,7 +23,6 @@ Under no circumstances should an AI treat `.sesi` files as anomalies, unknown te
 ## 3. Mandatory Syntax Rules & Quirks
 
 - **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are now valid.
-- **Print Statements:** Must use parentheses for separating multiple arguments: `print("Result:", x)`. Single arguments like `print "Hello" name` are also valid.
 - **Prompts:** Inside `prompt` blocks and anonymous model blocks, literal strings and variables are placed sequentially. You CANNOT use the `+` operator inside a prompt block body.
 - **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{"key": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
 - **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{"name": "Alice"}`).
@@ -32,8 +31,8 @@ Under no circumstances should an AI treat `.sesi` files as anomalies, unknown te
 ## 4. AI Behavioral Guidelines Working in this Repo
 
 1. **Never** "investigate" user testing directories (like `main/tests/`) as "deviations." They are active playgrounds.
-2. **Never** attempt to execute file modifications via shell/terminal text replacements when you have native file editing tools.
-3. **Always** check the `docs/` folder and `examples/` folder for the exact language specification before making assumptions about how Sesi works.
+2. **Never** attempt to execute file modifications via shell/terminal text replacements. Use native file editing tools ONLY.
+3. **Always** check the `.md files` and `examples/` folder for the exact language specification before making assumptions about how Sesi works.
 4. If a file tree is mentioned in documentation, it represents an explicit layout constraint and must map 1:1 **UNLESS .gitignored FILES STATE OTHERWISE.**
 
 ## 5. Development & TypeScript Standards (COMMANDS FOR AI AGENTS)

@@ -18,7 +18,7 @@ Sesi follows these core principles:
 
 ```
 sesi-programming-lang/
-├── memory.md                        # Workspace context and repo guardrails
+├── SKILLS.md                        # Workspace context and repo guardrails
 ├── index.html                       # Sesi-generated systems landing page
 ├── eslint.config.mjs                # ESLint configuration
 ├── example.js                        # Helper script to run basic examples
@@ -51,7 +51,9 @@ sesi-programming-lang/
 │   ├── SPECIFICATION.md              # Complete language spec (600+ lines)
 │   ├── ARCHITECTURE.md               # Runtime & system design (400+ lines)
 │   ├── BUILTINS.md                   # Built-in functions reference (450+ lines)
+|   ├── IMAGE_GENERATION.md           # Image generation guide (>100 lines)
 │   ├── SYSTEMS_REASONING.md          # Integrated reasoning guide (500+ lines)
+|.  ├── DISTRIBUTED_SYSTEMS.md        # Swarm & coordination guide (>100 lines)
 │   └── ROADMAP.md                    # V2-V4+ development plan (400+ lines)
 │
 ├── examples/
@@ -67,7 +69,9 @@ sesi-programming-lang/
 │   ├── 10_code_generation.sesi       # Systems logic generation
 │   ├── 11_memory_conversation.sesi   # Multi-turn stateful reasoning
 │   ├── 12_classification.sesi        # Systems classification loop
-│   └── 13_data_pipeline.sesi         # Complete systems pipeline
+│   ├── 13_data_pipeline.sesi         # Complete systems pipeline
+│   ├── 14_folder_explainer.sesi      # Directory parsing & reasoning
+│   └── 15_image_generation.sesi      # Image generation API test
 │
 └── tests/
     └── basic.test.ts                 # Test suite
@@ -154,13 +158,20 @@ prompt greeting {"Hello, " name "!"}
 **Reasoning Calls**
 
 ```sesi
-let response = model("gemini-3-flash-preview") {temperature: 0.7, max_tokens: 1000} {"Your prompt here"}
+let response = model("gemini-3-flash-preview") {"temperature": 0.7, "max_tokens": 1000} {"Your prompt here"}
 ```
 
 **Structured Output**
 
 ```sesi
 let result = structured_output({field1: string, field2: number})(model("gemini-3.1-flash-lite") {"Your prompt here"})
+```
+
+**Image Generation**
+
+```sesi
+let logo = image("gemini-3.1-flash-image-preview") {"ratio": '1:1', "size": 512} {"Your prompt here"}
+write_image("logo.png", logo)
 ```
 
 **Temporal Context Injection** ✅
@@ -170,6 +181,10 @@ Every reasoning call automatically includes the current UTC date and time in its
 **Implicit Statement Termination** ✅
 
 Expressions ending in `}` (such as prompt blocks or reasoning calls) no longer strictly require a newline or semicolon to terminate, allowing for cleaner one-liner syntax.
+
+**Async Polling for MAX_TOKENS** ✅
+
+The AI runtime natively polls the model if it hits a `MAX_TOKENS` finish reasoning block, automatically appending previous chunks and prompting the model to continue exactly where it left off, seamlessly synthesizing long responses.
 
 **Tool Calling**
 
@@ -186,18 +201,20 @@ print("Current Conversation Memory:")
 print(conversation)
 
 // Demonstrate using the memory in a model call
-print("\nCalling model with memory context...")
+print("Calling model with memory context...")
 let response = model("gemini-3-flash-preview") {conversation}
 print("Reasoning Response:", response)
 ```
 
-## 🛠️ Built-in Functions (15 total)
+## 🛠️ Built-in Functions
 
 ### I/O
 
 - `print(...args)` - Output to stdout
 - `read_file(path)` - Read file contents
 - `write_file(path, content)` - Write file contents
+- `write_image(path, content)` - Write base64 image data to file
+- `list_dir(path)` - List directory contents
 - `spawn(path)` - Launch concurrent background process
 - `exec(command)` - Synchronous shell execution
 - `time()` - Unix timestamp (ms)
@@ -228,8 +245,8 @@ print("Reasoning Response:", response)
 | Total lines of code | ~3,000 |
 | Source files        | 7      |
 | Documentation pages | 5      |
-| Example programs    | 13     |
-| Built-in functions  | 21     |
+| Example programs    | 15     |
+| Built-in functions  | 23     |
 | Supported operators | 20+    |
 | AST node types      | 30+    |
 | Token types         | 50+    |
@@ -365,6 +382,7 @@ npm test
 | 11_memory_conversation.sesi | Multi-turn with memory          |
 | 12_classification.sesi      | Reasoning classification loop   |
 | 13_data_pipeline.sesi       | Complete pipeline               |
+| 14_folder_explainer.sesi    | Directory parsing & reasoning   |
 
 ## ✨ Unique Features
 
@@ -384,7 +402,7 @@ npm test
 - Streaming responses
 - Extended thinking/reasoning
 - Advanced memory with embeddings
-- finally blocks, custom error types, retry policies, timeout handling, and structured AI error recovery
+- finally blocks, custom error types, retry policies, timeout handling, and structured Reasoning error recovery
 
 ### V3: Systems Framework
 
@@ -416,7 +434,7 @@ npm test
 
 **Example Coverage**
 
-- 14 complete example programs
+- 15 complete example programs
 - Covers all major language features
 - Demonstrates reasoning integration
 - Real-world use cases
@@ -465,8 +483,10 @@ npm test
 4. **Reasoning**: examples/08-12 - Reasoning feature exploration
 5. **Specification**: [SPECIFICATION.md](docs/SPECIFICATION.md) - Complete grammar
 6. **Advanced**: [SYSTEMS_REASONING.md](docs/SYSTEMS_REASONING.md) - Patterns and best practices
-7. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
-8. **Roadmap**: [ROADMAP.md](docs/ROADMAP.md) - Future vision
+7. **Builtins**: [BUILTINS.md](docs/BUILTINS.md) - Built-in functions
+8. **Image Generation**: [IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md) examples/15 - Generating images natively
+9. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
+10. **Roadmap**: [ROADMAP.md](docs/ROADMAP.md) - Future vision
 
 ## 🤝 Contributing Path (Future)
 
@@ -487,7 +507,7 @@ When open source:
 - ✅ API reference (450+ lines)
 - ✅ Systems reasoning guide (500+ lines)
 - ✅ Development roadmap (400+ lines)
-- ✅ 14 example programs
+- ✅ 15 example programs
 - ✅ CLI executable
 - ✅ Test suite
 - ✅ Quick start guide

@@ -230,6 +230,21 @@ if success { print "File written successfully" }
 
 ---
 
+### write_image(path, base64_content) -> bool
+
+Write base64 encoded string content as an image file. Overwrites the file if it exists.
+
+```sesi
+let success = write_image("logo.png", logo_data)
+if success { print "Image safely stored" }
+```
+
+**Note**: Paths are resolved relative to the current working directory.
+
+**Returns**: `bool` (true on success, throws on error)
+
+---
+
 ### list_dir(path) -> array
 
 List the contents of a directory as an array of strings.
@@ -319,7 +334,7 @@ if rand > 0.5 { print "Heads" } else { print "Tails" }
 
 ## Math-like Functions (v2 planned)
 
-These are not yet implemented in v1 but will be added:
+These are not yet implemented in v1.1 but will be added:
 
 ```sesi
 // Planned for v2:
@@ -547,7 +562,11 @@ import { get, post } from "std/http"
 
 ## See Also
 
-- [Specification](./SPECIFICATION.md)
-- [Systems Reasoning Guide](./SYSTEMS_REASONING.md)
-- [Distributed Systems](./DISTRIBUTED_SYSTEMS.md)
+- [Quick Start](QUICKSTART.md)
+- [Compare to other languages](COMPARISON.md)
+- [Specification](SPECIFICATION.md)
+- [Systems Reasoning Guide](SYSTEMS_REASONING.md)
+- [Image Generation](IMAGE_GENERATION.md)
+- [Roadmap](ROADMAP.md)
+- [Distributed Systems](DISTRIBUTED_SYSTEMS.md)
 - [Examples](../examples/)

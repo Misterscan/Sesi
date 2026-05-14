@@ -227,6 +227,26 @@ export function getBuiltins(): Map<string, RuntimeFunction> {
     },
   });
 
+  builtins.set('write_image', {
+    type: 'function',
+    name: 'write_image',
+    params: [{ name: 'path' }, { name: 'base64_content' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (filePath: RuntimeValue, content: RuntimeValue): RuntimeValue => {
+      if (typeof filePath !== 'string' || typeof content !== 'string') return null;
+      try {
+        const absolutePath = path.resolve(process.cwd(), filePath);
+        const buffer = Buffer.from(content, 'base64');
+        fs.writeFileSync(absolutePath, buffer);
+        return true;
+      } catch (e) {
+        throw new Error(`Failed to write image: ${filePath}`);
+      }
+    },
+  });
+
   builtins.set('list_dir', {
     type: 'function',
     name: 'list_dir',

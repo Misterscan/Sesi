@@ -106,11 +106,11 @@ let person = {"name": "Alice", "age": age}
 print person["name"] + " is " + person["age"] + " years old."    // "Alice is 25 years old."
 ```
 
-## AI Features
+## Reasoning Features
 
 ### Requiring Gemini API
 
-To use AI features, set up your API key:
+To use Reasoning features, set up your API key:
 
 ```bash
 export GEMINI_API_KEY="your-api-key-here"
@@ -120,8 +120,10 @@ Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey).
 
 ### Simple Model Call
 
+Reasoning features allow passing configuration options via a block format before the prompt.
+
 ```sesi
-let response = model("gemini-3-flash-preview") {"What is 2 + 2?"}
+let response = model("gemini-3-flash-preview") {"temperature": 0.8, "max_tokens": 1000} {"What is 2 + 2?"}
 print response
 ```
 
@@ -142,12 +144,23 @@ print "Sentiment: " analysis["sentiment"]
 print "Score: " analysis["score"]
 ```
 
+### Image Generation
+
+Like `model`, the `image` command takes configuration parameters.
+
+```sesi
+let logo = image("gemini-3.1-flash-image-preview") {"ratio": '1:1', "size": 512, "temperature": 0.3, "max_tokens": 512} {"make a beautiful logo for the word Sesi"}
+write_image("logo.png", logo)
+print "Generated image successfully!"
+```
+
 ### Memory & Conversation
 
+```sesi
 memory chat {"You are helpful."}
-let response = model("gemini-3-flash-preview") {chat + "\n\nUser: Hello!"}
+let response = model("gemini-3-flash-preview") {chat "User: Hello!"}
 print response
-chat = chat + "\nAssistant: " + response
+chat = chat + "Assistant: " + response
 ```
 
 ### Concurrent Swarms
@@ -171,6 +184,8 @@ print "Both workers are now running concurrently."
 print value        // Print to stdout
 read_file(path)    // Read a file as text
 write_file(path, content) // Write text to a file
+write_image(path, content) // Write base64 encoded image to a file
+list_dir(path)     // List directory contents
 ```
 
 ### Type Checking
@@ -208,7 +223,7 @@ sesi examples/04_conditionals.sesi
 sesi examples/05_loops.sesi
 sesi examples/06_arrays_objects.sesi
 
-# AI examples (automatically loads .env for Gemini API key)
+# Reasoning examples (automatically loads .env for Gemini API key)
 sesi examples/08_model_call.sesi
 sesi examples/09_structured_output.sesi
 sesi examples/10_code_generation.sesi
@@ -252,7 +267,7 @@ let words = split(text, " ")
 let rejoined = join(words, "-")
 ```
 
-### AI Classification
+### Reasoning Classification
 
 ```sesi
 fn classify(item: string) -> string {return model("gemini-3-flash-preview")
@@ -285,7 +300,7 @@ print type(value)  // "string"
 if type(value) == "string" {print "It's a string!"}
 ```
 
-### Validate AI Responses
+### Validate Model Responses
 
 ```sesi
 let response = model("gemini-3-flash-preview") {"Respond with YES or NO"}
@@ -296,15 +311,15 @@ else {print "Response: " response}
 
 ## Performance Considerations
 
-- **AI calls are blocking**: Each model() call waits for the API response
+- **Model calls are blocking**: Each model() call waits for the API response
 - **Token usage**: Larger prompts use more tokens and cost more
 - **Use appropriate models**: gemini-3.1-flash-lite for most tasks, gemini-3.1-pro-preview for complex reasoning
-- **Batch operations**: Ask AI to process multiple items in one call instead of looping
+- **Batch operations**: Ask Reasoning to process multiple items in one call instead of looping
 
 ## Next Steps
 
 1. **Read the spec**: [SPECIFICATION.md](docs/SPECIFICATION.md)
-2. **Learn about reasoning **: [SYSTEMS_REASONING.md](docs/SYSTEMS_REASONING.md)
+2. **Learn about reasoning**: [SYSTEMS_REASONING.md](docs/SYSTEMS_REASONING.md)
 3. **Understand architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 4. **Check roadmap**: [ROADMAP.md](docs/ROADMAP.md)
 5. **Study examples**: [examples/](examples/)

@@ -1,6 +1,6 @@
 # Distributed Systems with Sesi
 
-Sesi is not just an AI-native language; it is a robust systems-level environment capable of orchestrating complex, multi-process agent swarms. This document details how Sesi handles concurrency, race conditions, and distributed state.
+Sesi is a robust systems-level environment capable of orchestrating complex, multi-process agent swarms. This document details how Sesi handles concurrency, race conditions, and distributed state.
 
 ## The "Bank Swarm" Case Study
 
