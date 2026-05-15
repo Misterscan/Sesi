@@ -1,0 +1,4 @@
+// test_connection.sesi
+print "Testing connection..."
+let response = model("gemini-3.1-flash-lite") {"temperature": 0.1} {"Say 'Connection Successful'"}
+print response

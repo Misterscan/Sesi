@@ -472,6 +472,7 @@ export interface AIRequest {
   topP?: number;
   ratio?: string;
   size?: string;
+  tools?: any[];
 }
 
 export interface AIResponse {

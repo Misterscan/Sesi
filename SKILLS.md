@@ -23,10 +23,12 @@ Under no circumstances should an AI treat `.sesi` files as anomalies, unknown te
 ## 3. Mandatory Syntax Rules & Quirks
 
 - **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are now valid.
-- **Prompts:** Inside `prompt` blocks and anonymous model blocks, literal strings and variables are placed sequentially. You CANNOT use the `+` operator inside a prompt block body.
+- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially (e.g., `print "User:" name`). You CANNOT use the `+` operator in these contexts.
 - **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{"key": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
 - **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{"name": "Alice"}`).
-- **Model Calls:** Utilize the `model("model-name")` block coupled with optional configuration blocks and mandatory prompt bodies.
+- **Model Calls:** Use `model("model-name")` with a raw string literal for the model name (variables are forbidden). Configuration and prompt blocks MUST be on a single line (no newlines inside `{}`).
+- **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `str(object)` for JSON.
+- **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements. Focus on side-effects and top-level execution.
 
 ## 4. AI Behavioral Guidelines Working in this Repo
 

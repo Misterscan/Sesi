@@ -56,19 +56,19 @@ In Sesi, there are no SDK imports, no manual API key initializations, no complex
 
 ```sesi
 fn escalateTicket(customerId: string, reason: string) {
-  print "ESCALATION: Customer " + customerId + " for " + reason
+  print "ESCALATION: Customer" customerId "for" reason
   return "Escalation logged."
 }
-memory processingLog { "Pipeline Start:" }
+memory processingLog {"Pipeline Start:"}
 let rawFeedback = ["My account was charged twice for the pro plan! Fix this now!", "The new dashboard is really clean, great job team.", "I can't figure out how to export my data to CSV, it just spins."]
-for feedback in rawFeedback 
-{processingLog = processingLog + "Processing: " + feedback
+for feedback in rawFeedback
+{processingLog = processingLog + "Processing:" + feedback
 let analysis = structured_output({sentiment: string, category: string, isUrgent: bool, summary: string})
 (model("gemini-3.1-flash-lite") {"Analyze the customer feedback. Category should be Billing, UI, or Technical. Feedback:" feedback})
-print "Result for: " + analysis["summary"]
-if analysis["isUrgent"] 
+print "Result for:" analysis["summary"]
+if analysis["isUrgent"]
 {let resolution = tool_call(escalateTicket)(model("gemini-3.1-flash-lite") {"Call escalateTicket for customer '1234' with an exact reason based on:" feedback})
-processingLog = processingLog + "Urgent action taken: " + resolution} else {processingLog = processingLog + "Logged routinely."}}
+processingLog = processingLog + "Urgent action taken:" + resolution} else {processingLog = processingLog + "Logged routinely."}}
 print "--- Final Processing Log ---"
 print processingLog
 ```
@@ -98,36 +98,39 @@ const escalateToolDeclaration = {
         type: Type.OBJECT,
         properties: {
           customerId: { type: Type.STRING, description: "ID of the customer" },
-          reason: { type: Type.STRING, description: "Reason for escalation" }
+          reason: { type: Type.STRING, description: "Reason for escalation" },
         },
-        required: ["customerId", "reason"]
-      }
-    }
-  ]
+        required: ["customerId", "reason"],
+      },
+    },
+  ],
 };
 
 async function processFeedback() {
   let processingLog = "Pipeline Start:\n";
-  
+
   const rawFeedback = [
     "My account was charged twice for the pro plan! Fix this now!",
     "The new dashboard is really clean, great job team.",
-    "I can't figure out how to export my data to CSV, it just spins."
+    "I can't figure out how to export my data to CSV, it just spins.",
   ];
 
   for (const feedback of rawFeedback) {
     processingLog += `Processing: ${feedback}\n`;
-    
+
     // 2. Structured Data Extraction (Boilerplate Schema)
     const schema = {
       type: Type.OBJECT,
       properties: {
         sentiment: { type: Type.STRING },
-        category: { type: Type.STRING, description: "Billing, UI, or Technical" },
+        category: {
+          type: Type.STRING,
+          description: "Billing, UI, or Technical",
+        },
         isUrgent: { type: Type.BOOLEAN },
-        summary: { type: Type.STRING }
+        summary: { type: Type.STRING },
       },
-      required: ["sentiment", "category", "isUrgent", "summary"]
+      required: ["sentiment", "category", "isUrgent", "summary"],
     };
 
     const analysisResponse = await ai.models.generateContent({
@@ -136,7 +139,7 @@ async function processFeedback() {
       config: {
         responseMimeType: "application/json",
         responseSchema: schema,
-      }
+      },
     });
 
     // 3. Manual JSON parsing and error handling
@@ -156,12 +159,15 @@ async function processFeedback() {
         model: "gemini-3.1-flash-lite",
         contents: `Call escalateTicket for customer '1234' with an exact reason based on:\n${feedback}`,
         config: {
-          tools: [escalateToolDeclaration]
-        }
+          tools: [escalateToolDeclaration],
+        },
       });
 
       // 5. Manual extraction of the function call from the response object
-      if (escalationResponse.functionCalls && escalationResponse.functionCalls.length > 0) {
+      if (
+        escalationResponse.functionCalls &&
+        escalationResponse.functionCalls.length > 0
+      ) {
         const call = escalationResponse.functionCalls[0];
         if (call.name === "escalateTicket") {
           const args = call.args as any;
@@ -170,7 +176,7 @@ async function processFeedback() {
           processingLog += `Urgent action taken: ${resolution}\n`;
         }
       } else {
-         processingLog += `Urgent action failed to trigger tool.\n`;
+        processingLog += `Urgent action failed to trigger tool.\n`;
       }
     } else {
       processingLog += "Logged routinely.\n";
@@ -182,7 +188,6 @@ async function processFeedback() {
 }
 
 processFeedback().catch(console.error);
-
 ```
 
 ### 3. The Python Implementation (45 Lines)

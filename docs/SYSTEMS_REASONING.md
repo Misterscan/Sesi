@@ -166,8 +166,6 @@ print cheap
 - `Midjourney` integration
 - `Newer Reasoning Models` - Native upgrades
 
-
-
 ## 3. Structured Output
 
 Get typed responses from Reasoning with field validation.
@@ -268,11 +266,11 @@ print response2  // Has context from turn 1
 ```sesi
 memory conversation {"Chat history: "}
 fn chat(userMessage: string) -> string
-{let fullPrompt = conversation + "User: " + userMessage
+{let fullPrompt = conversation + "User:" + userMessage
 let response = model("gemini-3-flash-preview") {fullPrompt}
 
 // Append to memory
-conversation = conversation + "User: " + userMessage + "Assistant: " + response
+conversation = conversation + "User:" + userMessage + "Assistant:" + response
 return response}
 let msg = "What is the capital of France? "
 print "User:" msg
@@ -293,7 +291,7 @@ memory conversation {"User: Hello! Assistant: Hi there! User: How are you? Assis
 fn summarizeMemory()
 {let oldConversation = conversation
 let summary = model("gemini-3.1-flash-lite") {"Summarize this conversation concisely:" oldConversation}
-conversation = "Previous summary: " + summary + " Recent messages: " + oldConversation}
+conversation = "Previous summary:" + summary + "Recent messages: " + oldConversation}
 print "Original Memory:" conversation
 summarizeMemory()
 print "Summarized!"
@@ -378,7 +376,7 @@ Reasoning operations can fail. Handle gracefully.
 ```sesi
 try
 {let response = model("gemini-3-flash-preview") {"Analyze" text}
-print response} 
+print response}
 catch (e) {print "Reasoning call failed"
 print e}
 ```
@@ -394,12 +392,12 @@ print e}
 ```sesi
 let text = "Coding is evolving rapidly!"
 fn safeAnalyze(text: string) {
-try 
+try
 {let result = structured_output({sentiment: string, score: number})(model("gemini-3.1-flash-lite") {"Analyze sentiment and return JSON for:" text})
 if len(keys(result)) == 0 {print "Structured parsing failed"
 return null}
-return result} 
-catch (e) 
+return result}
+catch (e)
 {print e
 return null}}
 print "Analysis Result: " safeAnalyze(text)
@@ -412,7 +410,7 @@ print "Analysis Result: " safeAnalyze(text)
 ```sesi
 // Bad: Calls API 3 times
 for item in items
-{let analysis = model("gemini-3.1-flash-lite") {"Analyze: " + item}}
+{let analysis = model("gemini-3.1-flash-lite") {"Analyze:" item}}
 print analysis
 
 // Better: Batch into one call (v2: parallel calls)
@@ -424,7 +422,7 @@ print analyses
 
 ```sesi
 // Simple classification → flash-lite
-let category = model("gemini-3.1-flash-lite") {"Classify:"  item}
+let category = model("gemini-3.1-flash-lite") {"Classify:" item}
 print category
 
 // Complex reasoning → pro

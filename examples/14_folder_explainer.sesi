@@ -3,8 +3,7 @@
 
 let targetDir = "docs"
 let files = list_dir(targetDir)
-if type(files) == "null" {print "Error: Could not list directory" targetDir} 
-else {print "Analyzing directory:" targetDir
+if type(files) == "null" {print "Error: Could not list directory" targetDir} else {print "Analyzing directory:" targetDir}
 print "Files found in directory:" len(files)
 let reports = []
 fn analyzeFile(fullPath: string) -> object {

@@ -2,9 +2,9 @@
 // Requires GEMINI_API_KEY environment variable
 memory conversation {"You are a helpful programming assistant. Respond concisely."}
 fn askBot(question: string) -> string {
-  let message = conversation + " User: " + question
+  let message = conversation + "User:" + question
   let response = model("gemini-3.1-flash-lite") {message}
-  conversation = message + " Assistant: " + response
+  conversation = message + "Assistant:" + response
   return response
 }
 print "Starting conversation..."

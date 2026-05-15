@@ -4,10 +4,10 @@
 let reviews = ["This product is amazing! Highly recommended.", "Terrible quality. Waste of money.", "It's okay. Nothing special.", "Love it! Best purchase ever.", "Disappointed. Poor customer service."]
 // Function to analyze single review
 fn analyzeReview(review: string) -> object {
-  return structured_output({sentiment: string, confidence: number})(model("gemini-3.1-flash-lite") {"temperature": 0.3} {"Analyze sentiment. Return JSON with sentiment (positive/negative/neutral) and confidence (0-1). Review: " review})
+  return structured_output({sentiment: string, confidence: number})(model("gemini-3.1-flash-lite") {"temperature": 0.3} {"Analyze sentiment. Return JSON with sentiment (positive/negative/neutral) and confidence (0-1). Review:" review})
 }
 // Process all reviews
-print "Processing" len(reviews) "reviews..."
+print ("Processing " + len(reviews) + " reviews...")
 let results = []
 let positiveCount = 0
 let negativeCount = 0
@@ -30,6 +30,6 @@ print "Neutral:" neutralCount
 let totalConfidence = 0
 for result in results {totalConfidence = totalConfidence + result["confidence"]}
 let avgConfidence = totalConfidence / len(results)
-print "Average confidence: " avgConfidence
+print "Average confidence:" avgConfidence
 // Overall recommendation
 if positiveCount > negativeCount {print "Overall: RECOMMENDED (more positive reviews)"} else if negativeCount > positiveCount {print "Overall: NOT RECOMMENDED (more negative reviews)"} else {print "Overall: MIXED (balanced reviews)"}

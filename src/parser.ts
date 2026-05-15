@@ -1172,4 +1172,9 @@ export class Parser {
       this.advance();
     }
   }
+
+  private checkNext(type: TokenType): boolean {
+    if (this.current + 1 >= this.tokens.length) return false;
+    return this.tokens[this.current + 1].type === type;
+  }
 }

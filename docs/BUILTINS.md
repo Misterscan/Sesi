@@ -52,6 +52,24 @@ str({ "a": 1 })        // "{'a': 1}"
 
 ---
 
+### to_json(value) -> string
+
+Convert an array or object into a valid, formatted JSON string.
+
+```sesi
+to_json({ "a": 1, "b": [1, 2] })
+/*
+{
+  "a": 1,
+  "b": [1, 2]
+}
+*/
+```
+
+**Returns**: `string` (valid JSON)
+
+---
+
 ### num(value) -> number
 
 Convert a value to a number.
@@ -190,7 +208,7 @@ keys(obj)          // ["name", "age"]
 Get all values of an object.
 
 ```sesi
-let obj = { "name": "Alice", "age": 30 }
+let obj = {"name": "Alice", "age": 30}
 values(obj)        // ["Alice", 30]
 ```
 
@@ -221,7 +239,7 @@ Write string content to a file. Overwrites the file if it exists.
 
 ```sesi
 let success = write_file("output.txt", "Hello, Sesi!")
-if success { print "File written successfully" }
+if success {print "File written successfully"}
 ```
 
 **Note**: Paths are resolved relative to the current working directory.
@@ -236,7 +254,7 @@ Write base64 encoded string content as an image file. Overwrites the file if it 
 
 ```sesi
 let success = write_image("logo.png", logo_data)
-if success { print "Image safely stored" }
+if success {print "Image safely stored"}
 ```
 
 **Note**: Paths are resolved relative to the current working directory.
@@ -266,7 +284,7 @@ Create a new directory recursively. Returns `true` on success, `false` or throws
 
 ```sesi
 let success = make_dir("new_directory")
-if success { print "Directory created successfully" }
+if success {print "Directory created successfully"}
 ```
 
 **Note**: Paths are resolved relative to the current working directory.
@@ -283,7 +301,7 @@ Launch a Sesi script as a concurrent background process. Returns the process ID 
 
 ```sesi
 let pid = spawn("worker.sesi")
-print "Launched worker with PID:", pid
+print "Launched worker with PID:" pid
 ```
 
 **Returns**: `number` (PID)
@@ -310,7 +328,7 @@ Returns the current Unix timestamp in milliseconds.
 ```sesi
 let start = time()
 // ... do work ...
-print "Elapsed time:", time() - start, "ms"
+print "Elapsed time:" time() - start "ms"
 ```
 
 **Returns**: `number`
@@ -323,7 +341,7 @@ Returns a random floating-point number between 0 (inclusive) and 1 (exclusive).
 
 ```sesi
 let rand = random()
-if rand > 0.5 { print "Heads" } else { print "Tails" }
+if rand > 0.5 {print "Heads"} else {print "Tails"}
 ```
 
 **Returns**: `number`
@@ -422,25 +440,12 @@ flatten(array) -> array          // Flatten one level
 Sesi supports structured error handling via `try/catch` blocks.
 
 ```sesi
-try {
-  let data = read_file("missing.txt")
-} catch (e) {
-  print "Caught error:", e
-}
-```
+try
+{let data = read_file("missing.txt")
+}catch (e) {
+print "Caught error:", e}
 
----
 
----
-
-## JSON Functions (std library, future)
-
-```sesi
-// Planned for std/json module:
-import { parse, stringify } from "std/json"
-
-let obj = parse('{"name": "Alice"}')
-let json = stringify({ "name": "Alice" })
 ```
 
 ---

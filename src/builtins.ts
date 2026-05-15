@@ -66,6 +66,22 @@ export function getBuiltins(): Map<string, RuntimeFunction> {
     builtin: (value: RuntimeValue): RuntimeValue => stringify(value),
   });
 
+  builtins.set('to_json', {
+    type: 'function',
+    name: 'to_json',
+    params: [{ name: 'value' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => {
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch (e) {
+        return null;
+      }
+    },
+  });
+
   builtins.set('num', {
     type: 'function',
     name: 'num',

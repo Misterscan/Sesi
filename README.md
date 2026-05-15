@@ -133,8 +133,8 @@ sesi-programming-lang/
 
 ### Core Language ✅
 
-- **Variables & Bindings**: Immutable `const` and mutable `let`.
-- **Functions**: Typed parameters and return values.
+- **Variables & Bindings**: `let` for all bindings (const is deprecated).
+- **Functions**: Side-effect driven functions with typed parameters.
 - **Control Flow**: `if/else`, `while`, `for`, and `try/catch`.
 - **Collections**: Robust Arrays and Objects.
 - **Error Handling**: Structured `try/catch` for both runtime and Reasoning-level errors.
@@ -147,7 +147,7 @@ sesi-programming-lang/
 - `structured_output()` for typed Reasoning responses
 - `tool_call()` for function calling
 - Basic memory for multi-turn reasoning
-- `read_file()`, `write_file()`, `write_image()`, and `list_dir()` for local file I/O
+- `read_file()`, `write_file()`, `to_json()`, `write_image()`, and `list_dir()` for local file I/O
 - **Native Orchestration**: `spawn()` and `exec()` for concurrent process management
 - **Async Polling**: Native looping to auto-resume generation when hitting `MAX_TOKENS` limit
 - **Utility Builtins**: `time()` and `random()` for robust coordination

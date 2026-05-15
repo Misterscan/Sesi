@@ -1,1 +1,3 @@
 // Use this file to test controlled Sesi scripts, with logging and prompts to test model interactions.
+
+print "Value:", 10 + 20

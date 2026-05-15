@@ -1,0 +1,21 @@
+// Systems Primitive Validation Script
+print "--- Sesi Primitive Validation ---"
+
+// 1. to_json test
+let data = {"key": "value", "items": [1, 2, 3]}
+let json = to_json(data)
+print "to_json output:"
+print json
+
+// 2. Side-effect function test (No return)
+let state = "initial"
+fn update_state(new_val) {
+    state = new_val
+}
+
+print "State before:" state
+update_state("updated")
+print "State after:" state
+
+// 3. Sequential string test (No +)
+print "Final Status:" "Validation Complete"

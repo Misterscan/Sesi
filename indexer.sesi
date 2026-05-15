@@ -1,0 +1,42 @@
+// Database Indexer for Sesi Script Generator
+
+make_dir("sesi-db")
+let md_files = []
+
+// Scan root directory
+for f in list_dir(".") {
+  let parts = split(f, ".")
+  if len(parts) > 1 {
+    if parts[len(parts) - 1] == "md" { push(md_files, f) }
+  }
+}
+
+// Scan docs directory
+try {
+  for f in list_dir("./docs") {
+    let parts = split(f, ".")
+    if len(parts) > 1 {
+      if parts[len(parts) - 1] == "md" { push(md_files, "./docs/" + f) }
+    }
+  }
+} catch (e) {
+  print "⚠️ Skipping ./docs (not found or inaccessible)"
+}
+
+print "📂 Extracting knowledge from " len(md_files) " documentation files..."
+
+for file in md_files {
+  try {
+    let content = read_file(file)
+    let extracted = structured_output({summary: string, key_rules: string})(model("gemini-3.1-flash-lite") {"temperature": 0.3} {"Extract essential programming rules and syntax patterns from this file for a Sesi database. Return correctly formatted JSON object with 'summary' and 'key_rules' fields: " content})
+    
+    // Robust filename extraction
+    let path_parts = split(file, "/")
+    let filename = path_parts[len(path_parts) - 1]
+    
+    write_file("sesi-db/" + filename + ".json", to_json(extracted))
+    print "✅ Processed:" file
+  } catch (e) {
+    print "⚠️ Failed to process" file ": " e
+  }
+}

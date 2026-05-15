@@ -1,3 +1,2 @@
-fn add(a, b) { return a + b }
-let x = add(5, 3)
-print x
+fn add(a, b) {print a + b}
+add(5, 3)

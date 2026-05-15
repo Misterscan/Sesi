@@ -162,7 +162,7 @@ RuntimeValue =
 
 ```
 "Hello" + 5        → "Hello5"
-"Age: " + 30       → "Age: 30"
+"Age:" 30          → "Age: 30"
 any + string       → toString(any) + string
 string + any       → string + toString(any)
 ```
@@ -172,6 +172,7 @@ string + any       → string + toString(any)
 ```
 10 + 20            → 30
 "10" + 20          → "1020" (not numeric!)
+10 20              → "10 20" (not numeric!)
 ```
 
 **Truthiness**:
@@ -322,7 +323,7 @@ bin/
 
 main/                     # Main user scripts and debugging
 ├── playground.sesi       # Main playground script
-├── start.sesi            # Beginner script 
+├── start.sesi            # Beginner script
 ├── build_website.sesi    # Sesi-generated landing page builder
 └── tests/                # Additional syntax validation scripts
 

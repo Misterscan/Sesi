@@ -92,22 +92,51 @@ export class AIRuntime {
       ];
 
       while (!isComplete && currentPoll < maxPolls) {
-        const response = await client.models.generateContent({
-          model: request.model,
-          contents: contents,
-          config: {
+        const genConfig: any = {
             temperature: request.temperature ?? 0.3,
             maxOutputTokens: request.maxTokens ?? 2048,
             topK: request.topK,
             topP: request.topP,
-          },
+        };
+
+        if (request.tools) {
+            genConfig.tools = request.tools;
+        }
+
+        const response = await client.models.generateContent({
+          model: request.model,
+          contents: contents,
+          config: genConfig,
         });
 
         const candidate = response.candidates?.[0];
         const rawFinishReason = candidate?.finishReason ?? response.finishReason ?? 'UNKNOWN';
         const finishReason = String(rawFinishReason).toUpperCase();
         
-        const text = typeof response.text === 'string' ? response.text : '';
+        // Handle tool calls
+        if (candidate?.content?.parts) {
+            for (const part of candidate.content.parts) {
+                if (part.call) {
+                    return {
+                        text: JSON.stringify(part.call),
+                        finishReason: 'TOOL_CALL',
+                        usage: {
+                            inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+                            outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+                        },
+                    };
+                }
+            }
+        }
+
+        let text = '';
+        if (candidate?.content?.parts) {
+            for (const part of candidate.content.parts) {
+                if (part.text) {
+                    text += part.text;
+                }
+            }
+        }
         accumulatedText += text;
 
         totalInputTokens += response.usageMetadata?.promptTokenCount ?? 0;

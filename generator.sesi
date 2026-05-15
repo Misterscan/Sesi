@@ -1,0 +1,74 @@
+// Sesi Script Generator
+// Multi-Stage Reasoning Pipeline for automating Sesi scripts for niche markets.
+
+let md_files = []
+
+// Scan root directory
+for f in list_dir(".") {
+  let parts = split(f, ".")
+  if len(parts) > 1 {
+    if parts[len(parts) - 1] == "md" { push(md_files, f) }
+  }
+}
+
+// Scan docs directory
+try {
+  for f in list_dir("./docs") {
+    let parts = split(f, ".")
+    if len(parts) > 1 {
+      if parts[len(parts) - 1] == "md" { push(md_files, "./docs/" f) }
+    }
+  }
+} catch (e) {
+  print "⚠️ Skipping ./docs (not found or inaccessible)"
+}
+print "⚙️  Starting .sesi script generator..."
+print "------------------------------------------"
+
+// 1. Build Context Brain
+print "🧠 Building Context Brain from sesi-db..."
+let brain_content = ""
+let db_files = list_dir("sesi-db")
+for f in db_files {
+  let c = read_file("sesi-db/" + f)
+  brain_content = brain_content + "\nSource " + f + ":\n" + c
+}
+memory context_brain {brain_content md_files}
+
+// 2. Creative Niche Agent (No Context Brain)
+print "💡 Agent 1 (Creative): Scouting underserved markets..."
+let creative_output = model("gemini-3.1-flash-lite") {"temperature": 0.5, "max_tokens": 1500} {"Identify 3 highly overlooked niches in underserved market. Provide a detailed description of the niches."}
+print "🌟 Niche Found:" creative_output
+
+// 3. Reasoning Chain
+print "🔬 Agent 2 (Analyzer): Processing concept against Sesi constraints..."
+let analysis = model("gemini-3-flash-preview") {"temperature": 0.3, "max_tokens": 2048} {"Sesi-Rules:" context_brain "Analyze the following niche concepts and choose the most promising one. Return your choice and translate it into a technical specification for a Sesi script." "Concept:" creative_output}
+print "💻 Agent 3 (Coder): Generating strictly formatted Sesi code..."
+let raw_code = model("gemini-3.1-flash-lite") {"temperature": 0.3, "max_tokens": 2048} {"Sesi-Rules:" context_brain "Create a functional .sesi script for the following specification." "STRICT REQUIREMENT: Everything inside {} MUST be on a single line. No newlines inside model() calls, object literals, or structured_output schema definitions. NO NEWLINES between the closing brace and catch keyword. Use sequential prompts in model calls (e.g., model() {} {}). ALWAYS include make_dir() for any subdirectories before writing files." "Specification: " analysis "Provide ONLY raw code. No backticks."}
+
+// 4. Verification Phase
+print "🛡️ Agent 4 (Verifier): Auditing code for inconsistencies..."
+let example_ref = read_file("examples/13_data_pipeline.sesi")
+let example_ref2 = read_file("main/call_retrorender.sesi")
+let example_ref3 = read_file("main/build_website.sesi")
+let final_code = ""
+try 
+{final_code = model("gemini-3.1-flash-lite") {"temperature": 0, "max_tokens": 4096} {"Sesi-Rules:" context_brain "Verify the following Sesi code against these official rules and examples." "Example References:" example_ref example_ref2 example_ref3 "CRITICAL FIX: Ensure NO newlines exist inside any {}. All object fields and model configurations MUST be on one line. Ensure 'catch' is on its own line after '}'. USE ONLY 'gemini-3.1-flash-lite' OR 'gemini-3-flash-preview' MODELS as raw string literals—DO NOT use variables for model names. FORBID all '+' operators inside prompt blocks and in print statements. FORBID 'const', 'main()', and 'return'. FORBID parameterized prompt blocks. USE 'to_json(object)' for writing JSON files instead of 'str(object)'. MANDATORY: Ensure all directories referenced in list_dir(), read_file(), or write_file() are bootstrapped using make_dir() at the start of the script. Return ONLY the final corrected code. No preamble." "Code to audit:" raw_code}
+} catch (e) {
+  print "⚠️ Verification failed, falling back to raw code."
+  final_code = raw_code
+}
+
+// 5. Deployment
+make_dir("coded-by-sesi")
+let rand = random() * 999999
+let final_path = "coded-by-sesi/" + "niche_" + rand + ".sesi"
+try {
+  write_file(final_path, final_code)
+  print "🚀 Master Pipeline Complete. Solution deployed to:" final_path
+  print "------------------------------------------"
+  print final_code
+  print "------------------------------------------"
+} catch (e) {
+  print "❌ Final deployment failed:" e
+}

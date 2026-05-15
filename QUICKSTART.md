@@ -57,18 +57,17 @@ sesi hello.sesi
 ```sesi
 let x = 10
 let name = "Alice"
-const PI = 3.14159
+let score = 95.5
 print x
 print name
-print PI
+print score
 ```
 
 ### Functions
 
 ```sesi
-fn add(a: number, b: number) -> number {return a + b}
-let result = add(5, 3)
-print result  // 8
+fn add(a: number, b: number) {print a + b}
+add(5, 3)  // 8
 ```
 
 ### Control Flow
@@ -103,7 +102,7 @@ print numbers[0]        // 1
 print len(numbers)      // 5
 let age = numbers[4] * 5   // 5 * 5 = 25
 let person = {"name": "Alice", "age": age}
-print person["name"] + " is " + person["age"] + " years old."    // "Alice is 25 years old."
+print person["name"] "is" person["age"] "years old."    // "Alice is 25 years old."
 ```
 
 ## Reasoning Features
@@ -138,8 +137,7 @@ print greeting
 ### Structured Output
 
 ```sesi
-let analysis = structured_output({sentiment: string, score: number})
-(model("gemini-3.1-flash-lite") {"Analyze sentiment of: This product is great!"})
+let analysis = structured_output({sentiment: string, score: number})(model("gemini-3.1-flash-lite") {"Analyze sentiment of: This product is great!"})
 print "Sentiment: " analysis["sentiment"]
 print "Score: " analysis["score"]
 ```
@@ -160,7 +158,7 @@ print "Generated image successfully!"
 memory chat {"You are helpful."}
 let response = model("gemini-3-flash-preview") {chat "User: Hello!"}
 print response
-chat = chat + "Assistant: " + response
+chat = chat "Assistant:" response
 ```
 
 ### Concurrent Swarms
@@ -193,6 +191,7 @@ list_dir(path)     // List directory contents
 ```sesi
 type(value)        // Get type name
 str(value)         // Convert to string
+to_json(value)      // Convert to valid JSON string
 num(value)         // Convert to number
 bool(value)        // Convert to boolean
 ```
@@ -253,7 +252,7 @@ print doubled  // [2, 4, 6, 8, 10]
 let text = "hello world"
 
 // Concatenation
-let greeting = "Hello, " + "World!"
+let greeting = "Hello," + "World!"
 
 // Length
 let len = len(text)
@@ -270,11 +269,11 @@ let rejoined = join(words, "-")
 ### Reasoning Classification
 
 ```sesi
-fn classify(item: string) -> string {return model("gemini-3-flash-preview")
+fn classify(item: string) {print model("gemini-3-flash-preview")
 {"Classify as: FRUIT, VEGETABLE, or GRAIN. Item: " item}}
-print "apple -> " classify("apple")
-print "carrot -> " classify("carrot")
-print "wheat -> " classify("wheat")
+classify("apple")
+classify("carrot")
+classify("wheat")
 ```
 
 ## Debugging Tips
@@ -284,12 +283,11 @@ print "wheat -> " classify("wheat")
 ```sesi
 fn complex(x: number) {
   let step1 = x * 2
-  print "Step 1: " + str(step1)
+  print "Step 1:" str(step1)
   let step2 = step1 + 10
-  print "Step 2: " + str(step2)
-  return step2
+  print "Step 2:" str(step2)
 }
-print complex(5)
+complex(5)
 ```
 
 ### Check Types

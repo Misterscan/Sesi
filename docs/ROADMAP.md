@@ -9,7 +9,7 @@
 
 ### Core Language Features ✅
 
-- [x] Variables and bindings (let, const)
+- [x] Variables and bindings (let) (const is deprecated)
 - [x] Functions with parameters and types
 - [x] Control flow (if/else, while, for, try/catch)
 - [x] Operators (arithmetic, logical, comparison)

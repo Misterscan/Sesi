@@ -14,12 +14,14 @@ Sesi is built on these core principles:
 
 **Primary**: Developers building resilient, stateful applications that require systems-level orchestration alongside integrated reasoning.
 
-**Secondary**: 
+**Secondary**:
+
 - Engineers transitioning from traditional languages (TypeScript, Python, Go)
 - Developers building agentic swarms and distributed systems
 - Teams requiring complex logic with a fraction of the boilerplate
 
 **Use Cases**:
+
 - Stateful multi-agent swarm orchestration
 - High-performance data pipelines with structured extraction
 - Concurrent process management and distributed locking
@@ -28,7 +30,8 @@ Sesi is built on these core principles:
 ## 3. V1.1 Feature Set (Current)
 
 ### Core Language Features
-- ✅ Variables and bindings (`let`, `const`)
+
+- ✅ Variables and bindings (`let`)
 - ✅ Functions (named, anonymous)
 - ✅ Conditionals (`if/else`)
 - ✅ Loops (`while`, `for`)
@@ -40,6 +43,7 @@ Sesi is built on these core principles:
 - ✅ Standard library (print, len, range, etc.)
 
 ### Reasoning-Native Features
+
 - ✅ `prompt` blocks (composable message templates)
 - ✅ `model()` calls (native model with configuration)
 - ✅ `image()` calls (native image generation with configuration)
@@ -48,6 +52,7 @@ Sesi is built on these core principles:
 - ✅ Simple memory (conversation context)
 
 ### Type System
+
 - ✅ Primitive types: `number`, `string`, `bool`, `null`
 - ✅ Collection types: `array<T>`, `object<T>`
 - ✅ Type inference
@@ -55,6 +60,7 @@ Sesi is built on these core principles:
 - ✅ Optional types: `T?`
 
 ### Module System
+
 - ✅ `import` / `export`
 - ✅ Namespace support
 - ✅ Built-in modules
@@ -64,12 +70,14 @@ Sesi is built on these core principles:
 ### 4.1 Lexical Elements
 
 #### Keywords
+
 ```
-let const if else while for fn return print import export 
+let if else while for fn print import export
 prompt model image memory structured_output tool_call break continue try catch true false null
 ```
 
 #### Identifiers & Literals
+
 ```
 identifier: [a-zA-Z_][a-zA-Z0-9_]*
 number: [0-9]+ | [0-9]*\.[0-9]+
@@ -87,79 +95,89 @@ statement := declaration | expression_statement | block_statement
 ### 4.3 Declarations
 
 #### Variable Declaration
+
 ```
 let_stmt := 'let' identifier ('=' expression)? (';' | newline)
-const_stmt := 'const' identifier '=' expression (';' | newline)
 ```
 
 Example:
+
 ```sesi
 let x = 10
-const y = 20
+let y = 20
 let z  // z is null initially
 ```
 
 #### Function Declaration
+
 ```
 fn_stmt := 'fn' identifier '(' parameters ')' '->' type? block
 parameters := (identifier ':' type ('=' expr)?)? (',' identifier ':' type ('=' expr)?)*
 ```
 
 Example:
+
 ```sesi
-fn add(a: number, b: number) -> number {return a + b}
-fn greet(name: string = "World") {print "Hello, " + name}
+fn add(a: number, b: number) {print a + b}
+fn greet(name: string = "World") {print "Hello," name}
 ```
 
 #### Import/Export
+
 ```
 import_stmt := 'import' (identifier | '{' identifiers '}') 'from' string
-export_stmt := 'export' (fn_stmt | let_stmt | const_stmt)
+export_stmt := 'export' (fn_stmt | let_stmt)
 ```
 
 Example:
+
 ```sesi
-import { add, subtract } from "math"
-export fn multiply(a, b) { return a * b }
+import {add, subtract} from "math"
+export fn multiply(a, b) {print a * b}
 ```
 
 ### 4.4 Control Flow
 
 #### If Statement
+
 ```
 if_stmt := 'if' expression block ('else' block)?
 ```
 
 #### Loops
+
 ```
 while_stmt := 'while' expression block
 for_stmt := 'for' identifier 'in' expression block | 'for' identifier '=' expr 'to' expr block
 ```
 
 #### Error Handling
+
 ```
 try_stmt := 'try' block 'catch' '(' identifier ')' block
 ```
 
 #### Loop Control
+
 ```
 break_stmt := 'break'
 continue_stmt := 'continue'
 ```
 
 Example:
+
 ```sesi
 for i = 0 to 10 {print i}
-try {
-  let result = model("Hello")
+try
+{let result = model("Hello")
 } catch (e) {
-  print e
-}
+print e}
 ```
 
 ### 4.5 Expressions
 
 #### Literals
+
 ```
 literal := number | string | bool | null | array | object
 array := '[' (expression (',' expression)*)? ']'
@@ -167,6 +185,7 @@ object := '{' (string ':' expression (',' string ':' expression)*)? '}'
 ```
 
 #### Operators (Left to Right, Lowest to Highest Precedence)
+
 ```
 expr := assignment
 assignment := logical_or ('=' assignment)?
@@ -177,67 +196,77 @@ comparison := addition (('<' | '>' | '<=' | '>=' | '<>') addition)*
 addition := multiplication (('+' | '-') multiplication)*
 multiplication := unary (('*' | '/' | '%') unary)*
 unary := ('!' | '-') unary | postfix
-postfix := primary ('[' expression ']' | '.' identifier | '(' args? ')')*
-primary := identifier | literal | '(' expression ')' | prompt | model | image | memory | call
+postfix := primary ('['expression']' | '.'identifier | '('args?')' | primary)*
+primary := identifier | literal | '('expression')' | prompt | model | image | memory | call
 ```
 
 #### Function Call
+
 ```
 call := identifier '(' (expression (',' expression)*)? ')'
 ```
 
 #### Prompt Block
+
 ```
-prompt := 'prompt' identifier '{' content '}'
-content := (string | expression | newline)+
+prompt := 'prompt' identifier '{'content'}'
+content := (string | expression | newline)
 ```
 
 Example:
+
 ```sesi
 prompt codeReview {"Review this code for bugs:" code "Provide specific issues found."}
 ```
 
 #### Model & Image Calls
+
 ```
-model_call := 'model' '(' STRING ')' '{' config (optional) '}' '{' prompt '}'
-            | 'model' '(' STRING ')' '{' prompt '}'
-image_call := 'image' '(' STRING ')' '{' config (optional) '}' '{' prompt '}'
-            | 'image' '(' STRING ')' '{' prompt '}'
+model_call := 'model' '('STRING')' '{'config (optional)'}' '{'prompt'}'
+            | 'model' '('STRING')' '{'prompt'}'
+image_call := 'image' '('STRING')' '{'config (optional)'}' '{'prompt'}'
+            | 'image' '('STRING')' '{'prompt'}'
 config := ((STRING | identifier) ':' expression (',' (STRING | identifier) ':' expression)*)?
 ```
 
 Example:
+
 ```sesi
 let result = model("gemini-3.1-flash-lite") {codeReview}
 let output = model("gemini-3.1-flash-lite") {"temperature": 0.4, "max_tokens": 2000} {prompt}
 ```
 
 #### Structured Output
+
 ```
-structured_output := 'structured_output' '(' schema ')' '(' expression ')'
+structured_output := 'structured_output' '('schema')' '('expression')'
 schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 ```
 
 Example:
+
 ```sesi
 let analysis = structured_output({sentiment: string, score: number, keywords: array<string>})(model("gemini-3.1-flash-lite") { analyzeText })
 ```
 
 #### Tool Call
+
 ```
-tool_call := 'tool_call' '(' function_name ')' '(' model_call ')'
+tool_call := 'tool_call' '('function_name')' '('model_call')'
 ```
 
 #### Memory (State Management)
+
 ```
-memory := 'memory' identifier ('{' expressions '}')?
+memory := 'memory' identifier ('{'expressions'}')?
 ```
 
 Example:
+
 ```sesi
 memory conversation {"Previous messages here"}
 let response = model("gemini-3-flash-preview") {prompt {conversation "New question:" userInput}}
-conversation = conversation + "Assistant: " + response
+conversation = conversation "Assistant:" response
 ```
 
 ### 4.6 Type Annotations
@@ -246,7 +275,7 @@ conversation = conversation + "Assistant: " + response
 type := primitive_type | collection_type | union_type | optional_type
 primitive_type := 'number' | 'string' | 'bool' | 'null'
 collection_type := 'array' '<' type '>' | 'object' '<' type '>'
-union_type := type ('|' type)+
+union_type := type ('|' type)
 optional_type := type '?'
 ```
 
@@ -268,17 +297,20 @@ optional_type := type '?'
 ## 7. Runtime Semantics
 
 ### Execution Order
+
 1. Tokenize (lexer)
 2. Parse (parser) → AST
 3. Evaluate (interpreter)
 4. Model calls are **blocking** (no async in v1)
 
 ### Memory Model
+
 - **Stack**: Local variables, function parameters
 - **Heap**: Arrays, objects, strings
 - **Reasoning Context**: Implicit conversation history per `memory` binding
 
 ### Error Handling (V1 Simple)
+
 - Runtime and model errors can be caught with `try/catch`
 - Model errors throw when Gemini returns no text or a non-`STOP` finish reason
 - `read_file()`, `write_file()`, and `list_dir()` throw on filesystem failure
@@ -316,20 +348,23 @@ random() -> number                // Random float (0.0 to 1.0)
 Parser support for `import` / `export` syntax exists in v1.1, but runtime module execution is not implemented yet.
 
 ### Defining Modules
+
 ```sesi
 // math.sesi
-export fn add(a, b) { return a + b }
-export fn multiply(a, b) { return a * b }
-export const PI = 3.14159
+export fn add(a, b) {print a + b}
+export fn multiply(a, b) {print a * b}
+export let PI = 3.14159
 ```
 
 ### Importing Modules
+
 ```sesi
-import { add, multiply, PI } from "math"
+import {add, multiply, PI} from "math"
 let result = add(10, 20)
 ```
 
 ### Built-in Modules
+
 ```sesi
 import time from "std/time"    // Time/date functions
 import math from "std/math"    // Math operations
@@ -370,23 +405,24 @@ print result.confidence  // Type-safe access
 ### Tool Calling
 
 ```sesi
-fn calculateTax(amount: number, rate: number) {return amount * rate}
+fn calculateTax(amount: number, rate: number) {print amount * rate}
 let taxAmount = tool_call(calculateTax)(model("gemini-3.1-flash-lite") {"Calculate 8% tax on $100"})
+taxAmount
 ```
 
 ### Memory
 
 ```sesi
 memory chat {"System: You are a helpful assistant."}
-fn askQuestion(question: string) -> string 
-{let response = model("gemini-3-flash-preview") {chat "User: " + question}
-chat = chat + "Assistant: " + response
-return response}
+fn askQuestion(question: string)
+{let response = model("gemini-3-flash-preview") {chat "User:" question}
+chat = chat "Assistant:" response}
 ```
 
 ## 11. Examples
 
 ### Example 1: Simple Computation
+
 ```sesi
 let x = 10
 let y = 20
@@ -394,12 +430,14 @@ print x + y  // Output: 30
 ```
 
 ### Example 2: Function with Reasoning
+
 ```sesi
 fn analyzeText(text: string) -> string {return model("gemini-3.1-pro-preview") {"temperature": 0} {"Analyze this text and return key insights:" text}}
 print analyzeText("Reasoning is transforming industries")
 ```
 
 ### Example 3: Structured Output
+
 ```sesi
 let sentiment = structured_output({label: string, score: number})(model("gemini-3-flash-preview") {"Analyze sentiment of:" userInput})
 print sentiment.label
@@ -420,5 +458,5 @@ print sentiment.score
 ## 13. Compatibility Notes
 
 - Sesi programs run on Node.js 18+
-- Requires `@google/genai` SDK v1.33.0+
+- Requires `@google/genai` SDK v2.0.1+
 - Requires valid Gemini API key (GEMINI_API_KEY env var)

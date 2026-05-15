@@ -414,7 +414,7 @@ export class Interpreter {
     const callee = await this.evaluateExpression(expr.callee);
 
     if (typeof callee !== 'object' || !callee || (callee as any).type !== 'function') {
-      throw new Error(`Not a function: ${expr.callee}`);
+      throw new Error(`Not a function: ${stringify(callee)}`);
     }
 
     const fn = callee as RuntimeFunction;
@@ -555,7 +555,7 @@ export class Interpreter {
     return structured;
   }
 
-  private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> {
+private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> {
     const fn = this.currentEnv.get(expr.functionName);
 
     if (typeof fn !== 'object' || !fn || (fn as any).type !== 'function') {

@@ -43,7 +43,7 @@ sesi-programming-lang/
 │
 ├── main/                             # Playgrounds & debugging
 │   ├── playground.sesi               # Main playground script
-│   ├── start.sesi                    # Beginner script 
+│   ├── start.sesi                    # Beginner script
 │   ├── build_website.sesi            # Sesi-powered systems site generator
 │   └── tests/                        # Additional syntax validation scripts
 │
@@ -79,15 +79,15 @@ sesi-programming-lang/
 
 ## 🔧 Technology Stack
 
-| Component  | Technology               | Rationale                                |
-| ---------- | ------------------------ | ---------------------------------------- |
-| Language   | TypeScript               | Type safety, IDE support, easy debugging |
-| Runtime    | Node.js 18+              | Wide availability, async support         |
-| Reasoning  | Gemini 3.1               | Latest models, 1M token context, fast    |
-| SDK        | @google/genai            | Official, well-maintained, async-first   |
-| Parser     | Recursive descent        | Simple, readable, extensible             |
-| Execution  | Tree-walking interpreter | Easy to understand and modify            |
-| Testing    | Typescript               | Standard Node.js test framework          |
+| Component | Technology               | Rationale                                |
+| --------- | ------------------------ | ---------------------------------------- |
+| Language  | TypeScript               | Type safety, IDE support, easy debugging |
+| Runtime   | Node.js 18+              | Wide availability, async support         |
+| Reasoning | Gemini 3.1               | Latest models, 1M token context, fast    |
+| SDK       | @google/genai            | Official, well-maintained, async-first   |
+| Parser    | Recursive descent        | Simple, readable, extensible             |
+| Execution | Tree-walking interpreter | Easy to understand and modify            |
+| Testing   | Typescript               | Standard Node.js test framework          |
 
 **Why this stack?**
 
@@ -104,7 +104,7 @@ sesi-programming-lang/
 
 ```sesi
 let x = 10
-const PI = 3.14159
+let PI = 3.14159
 let y  // null initially
 ```
 
@@ -375,8 +375,8 @@ npm test
 | 04_conditionals.sesi        | If/else logic                   |
 | 05_loops.sesi               | While, for, for-in              |
 | 06_arrays_objects.sesi      | Collections and indexing        |
-| 07_prompts.sesi               | Reasoning blocks                |
-| 08_model_call.sesi            | Basic reasoning calls           |
+| 07_prompts.sesi             | Reasoning blocks                |
+| 08_model_call.sesi          | Basic reasoning calls           |
 | 09_structured_output.sesi   | Schema-guided output            |
 | 10_code_generation.sesi     | Reasoning code generation       |
 | 11_memory_conversation.sesi | Multi-turn with memory          |
