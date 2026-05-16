@@ -346,6 +346,8 @@ write_image("logo.png", logo)
 print "Image generated!"
 ```
 
+![Sesi Logo](logo.png)
+
 ### Code Generation
 
 ```sesi

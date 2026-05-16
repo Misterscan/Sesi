@@ -32,6 +32,7 @@ if success {print "Saved bakery_logo.png successfully."}}
 catch (e) {print "Failed to generate image:"
 print e}
 ```
+<img src="bakery_logo.png" alt="Bakery Logo" style="width:480px;">
 
 ### Advanced Example: Batch Asset Generation Workflow
 
@@ -60,6 +61,9 @@ catch (e) {print "Failed processing" product ":"
 print e}}
 print "Asset generation complete."
 ```
+<img src="coffee_mug.png" alt="Coffee Mug" style="width:340px;">
+<img src="desk_lamp.png" alt="Desk Lamp" style="width:340px;">
+<img src="notebook.png" alt="Notebook" style="width:340px;">
 
 ## Configuration Options
 
