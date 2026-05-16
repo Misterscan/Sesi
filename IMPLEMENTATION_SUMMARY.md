@@ -17,7 +17,7 @@ Sesi follows these core principles:
 ## 📁 Complete Project Structure
 
 ```
-sesi-programming-lang/
+Sesi/
 ├── SKILLS.md                        # Workspace context and repo guardrails
 ├── index.html                       # Sesi-generated systems landing page
 ├── eslint.config.mjs                # ESLint configuration
@@ -256,7 +256,7 @@ print("Reasoning Response:", response)
 ### Installation
 
 ```bash
-cd sesi-programming-lang
+cd Sesi
 npm install
 npm run build
 npm install -g .

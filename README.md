@@ -113,7 +113,7 @@ The root-level `SKILLS.md` file is a workspace context file for AI agents. It re
 ## Project Structure
 
 ```
-sesi-programming-lang/
+Sesi/
 ├── SKILLS.md             # AI-agent workspace context and repo guardrails
 ├── index.html            # Sesi-generated landing page
 ├── eslint.config.mjs     # ESLint configuration

@@ -10,7 +10,7 @@ To start developing Sesi locally, you'll need Node.js and TypeScript installed.
 
    ```bash
    git clone https://github.com/Misterscan/sesi.git
-   cd sesi-programming-lang
+   cd Sesi
    ```
 
 2. **Install dependencies:**
