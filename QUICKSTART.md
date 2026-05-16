@@ -36,6 +36,22 @@ npm run build
 npm install -g .
 ```
 
+### Build Native Installers
+
+Windows MSI installer:
+
+```bash
+npm run build:installer
+```
+
+macOS PKG installer (run on macOS):
+
+```bash
+npm run build:mac:installer
+```
+
+The generated installer files are written to `releases/`.
+
 ### Run a program
 
 Once Sesi is installed, you can run Sesi files globally:

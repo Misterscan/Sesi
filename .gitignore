@@ -53,3 +53,9 @@ docs/README.md
 mock-sqlite.js
 /releases
 /landing-pages/
+
+# Installer build outputs (generated)
+SesiInstaller.msi
+SesiInstaller.wixpdb
+cab1.cab
+*.wixpdb

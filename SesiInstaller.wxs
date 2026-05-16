@@ -1,0 +1,18 @@
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Sesi" Language="1033" Version="1.1.2" Manufacturer="Misterscan" UpgradeCode="{E4A9B31A-BDA8-4C86-9BA6-6D3D5E8F8D31}" Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Sesi is already installed." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Sesi">
+        <Component Id="SesiExeComponent" Guid="*">
+          <File Id="SesiExeFile" Source="releases\sesi.bundled-win.exe" Name="sesi.exe" KeyPath="yes" />
+          <Environment Id="AddSesiToPath" Name="PATH" Value="[INSTALLFOLDER]" Part="last" Action="set" System="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="Sesi" Level="1">
+      <ComponentRef Id="SesiExeComponent" />
+    </Feature>
+  </Package>
+</Wix>

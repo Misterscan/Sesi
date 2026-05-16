@@ -30,6 +30,15 @@ npm install -g sesi
 ### 2. Standalone Executables
 Don't want to install Node.js? Download the standalone executables bundled for Windows, Mac, and Linux directly from the [Releases page](https://github.com/Misterscan/Sesi/releases). Drop the executable in your system PATH and you're good to go!
 
+For macOS users, Sesi also supports a native PKG installer flow when building from source:
+
+```bash
+npm run build:exe
+npm run build:mac:pkg
+```
+
+This generates installer packages in `releases/` (for available architectures) that install `sesi` to `/usr/local/bin`.
+
 ### 3. Build from Source (For contributors)
 ```bash
 git clone https://github.com/Misterscan/Sesi.git
