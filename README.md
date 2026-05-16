@@ -15,7 +15,13 @@
   <img alt="Framework" src="https://img.shields.io/badge/Node.js-Engine-success?logo=node.js">
 </p>
 
-**Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It provides first-class primitives for process management, filesystem orchestration, and integrated reasoning—enabling developers to build complex logic with a fraction of the boilerplate required by traditional languages.
+<p align="center">
+  <strong>Sesi</strong> is a high-performance <strong>Systems Language</strong> designed for building resilient, stateful applications. It provides first-class primitives for process management, filesystem orchestration, and integrated reasoning, enabling developers to build complex logic with a fraction of the boilerplate required by traditional languages.
+</p>
+
+<p align="center">
+  <a href="https://code-with-sesi.netlify.app/">Homepage</a>
+</p>
 
 ## Installation
 
@@ -28,7 +34,7 @@ npm install -g sesi
 ```
 
 ### 2. Standalone Executables
-Don't want to install Node.js? Download the standalone executables bundled for Windows, Mac, and Linux directly from the [Releases page](https://github.com/Misterscan/Sesi/releases). Drop the executable in your system PATH and you're good to go!
+Don't want to install Node.js? Download the standalone executables bundled for Windows, Mac, and Linux directly from our [Downloads page](https://code-with-sesi.netlify.app/downloads). Drop the executable in your system PATH and you're good to go!
 
 For macOS users, Sesi also supports a native PKG installer flow when building from source:
 
