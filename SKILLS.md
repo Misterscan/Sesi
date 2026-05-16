@@ -53,3 +53,36 @@ Under no circumstances should an AI treat `.sesi` files as anomalies, unknown te
   3. Wait micro-delay (empty `while` loop).
   4. Verify ID is still in lock file before entering critical section.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
+
+## 7. Script Creativity Standards (MANDATORY FOR ALL AI AGENTS)
+
+**This is a non-negotiable quality bar.** Sesi's identity is a language where AI reasoning is a first-class primitive. Every script you write should reflect that.
+
+### ❌ FORBIDDEN — Never generate these as Sesi examples or demos:
+- Math solvers, calculators, arithmetic pipelines
+- Prime number finders, Fibonacci sequences, sorting algorithms
+- Unit converters, currency converters, grade calculators
+- Budget trackers, invoice generators, tax tools
+- Generic "Hello World" clones with no AI interaction
+- Compliance checkers, OSHA reports, logistics routers
+- Any script whose core loop is just arithmetic with a `print` at the end
+
+These are lazy defaults. They don't demonstrate what makes Sesi unique.
+
+### ✅ REQUIRED — Sesi scripts must showcase the language's actual superpowers:
+Every script you write must use **at least one** of:
+- `model()` — reasoning, analysis, generation, conversation
+- `image()` — visual generation, art, diagrams
+- `structured_output()` — typed AI responses, schema extraction
+- `memory` — stateful multi-turn context
+- `spawn()` / `exec()` — concurrent process orchestration
+
+### 💡 Creative Direction:
+When asked to write a Sesi example or demo script, draw ideas from:
+- Human experiences: nostalgia, relationships, rituals, emotion
+- Creative domains: music, writing, film, visual art, poetry
+- Cultural contexts: food, travel, local history, subcultures
+- Practical-but-interesting: dream journals, playlist curators, recipe inventors, mood-based storytellers, letter writers, worldbuilders
+- Systems that feel alive: self-healing scripts, multi-agent conversations, generative worlds
+
+The bar is: **"Would this impress someone seeing Sesi for the first time?"** If the answer is no, rewrite it.

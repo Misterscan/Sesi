@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 require('@dotenvx/dotenvx').config();
 const { runSesiFile } = require('../dist/index.js');
 const fs = require('fs');

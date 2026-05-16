@@ -33,7 +33,7 @@ if (binaries.length === 0) {
 }
 
 try {
-  execFileSync('pkgbuild', ['--version'], { stdio: 'ignore' });
+  execFileSync('which', ['pkgbuild'], { stdio: 'ignore' });
 } catch {
   console.error('pkgbuild was not found. Install Xcode Command Line Tools and try again.');
   process.exit(1);

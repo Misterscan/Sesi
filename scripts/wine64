@@ -1,0 +1,21 @@
+#!/bin/bash
+# Suppress debug noise
+export WINEDEBUG=-all
+export MVK_CONFIG_LOG_LEVEL=0
+
+# Convert Unix paths to Windows paths for Wine
+args=()
+for arg in "$@"; do
+    if [[ "$arg" == /* ]] || [[ "$arg" == */* ]]; then
+        # If it looks like a path and exists, convert it
+        if [ -e "$arg" ]; then
+            args+=("$(winepath -w "$arg")")
+        else
+            args+=("$arg")
+        fi
+    else
+        args+=("$arg")
+    fi
+done
+
+wine "${args[@]}"
