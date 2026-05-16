@@ -4,6 +4,7 @@ dist
 *-lock.json
 *.log
 .DS_Store
+.env.keys
 
 # Sesi specific folders and files
 
@@ -40,3 +41,15 @@ main/call_retrorender.sesi
 retro_output.png
 weather_report.html
 main/weather_check.sesi
+build_website.sesi
+create-docs-page.sesi
+fix.sesi
+logo-to-favicon.sesi
+orchestrator_demo.sesi
+test-index.html
+docs/IMPLEMENTATION_SUMMARY.md
+docs/QUICKSTART.md
+docs/README.md
+mock-sqlite.js
+/releases
+/landing-pages/

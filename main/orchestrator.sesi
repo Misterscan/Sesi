@@ -12,4 +12,4 @@ let finished = false
 while !finished {let countStr = read_file("bank/done_count.txt")
 if countStr != "" {if num(countStr) >= 5 {finished = true}}}
 print "🏦 Vault: Swarm Finished."
-print "Final Balance: " + read_file("bank/balance.txt")
+print "Final Balance:" read_file("bank/balance.txt")

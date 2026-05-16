@@ -12,12 +12,12 @@ for feedback in rawFeedback
 
 // 1. Structured Data Extraction (Native syntax)
 let analysis = structured_output({sentiment: string, category: string, isUrgent: bool, summary: string})
-(model("gemini-3.1-flash-lite") {"Analyze the customer feedback. Category should be Billing, UI, or Technical. Feedback:" + feedback})
+(model("gemini-3.1-flash-lite") {"Analyze the customer feedback. Category should be Billing, UI, or Technical. Feedback: " feedback})
 print "Result for:" analysis["summary"]
   
 // 2. Conditional Tool Calling (Native syntax)
 if analysis["isUrgent"] 
-{let resolution = tool_call(escalateTicket)(model("gemini-3.1-flash-lite") {"Call escalateTicket for customer '1234' with an exact reason based on:" feedback})
-processingLog = processingLog + "Urgent action taken:" + resolution} else {processingLog = processingLog + "Logged routinely."}}
+{let resolution = tool_call(escalateTicket)(model("gemini-3.1-flash-lite") {"Call escalateTicket for customer '1234' with an exact reason based on: " feedback})
+processingLog = processingLog + "Urgent action taken: " + resolution} else {processingLog = processingLog + "Logged routinely."}}
 print "--- Final Processing Log ---"
 print processingLog

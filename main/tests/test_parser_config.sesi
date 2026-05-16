@@ -1,1 +1,2 @@
-let result = model("gemini-3.1-flash-lite") {} { "Hello" }; print result;
+let result = model("gemini-3.1-flash-lite"){"Hello"}
+print result

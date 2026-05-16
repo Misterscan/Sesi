@@ -1,17 +1,25 @@
 {
-  "name": "sesi",
-  "version": "1.1.1",
+  "name": "@misterscan/sesi",
+  "version": "1.1.2",
   "description": "Sesi: A High-Performance Systems Language",
   "main": "dist/index.js",
   "bin": {
     "sesi": "bin/sesi.js"
   },
+  "files": [
+    "dist",
+    "bin",
+    "docs",
+    "examples",
+    "main"
+  ],
   "scripts": {
     "lint": "npx eslint --fix",
     "build": "tsc",
     "dev": "npm run lint &&dotenvx run -- npm run build --watch",
     "test": "npx ts-node tests/basic.test.ts",
     "test:watch": "npm run lint && npx ts-node tests/basic.test.ts --watch",
+    "build:exe": "npx esbuild bin/sesi.js --bundle --platform=node --alias:node:sqlite=./mock-sqlite.js --outfile=dist/sesi.bundled.js && npx pkg dist/sesi.bundled.js --targets node18-win-x64,node18-macos-x64,node18-linux-x64 --out-path releases && node -e \"setTimeout(() => { const { rcedit } = require('rcedit'); rcedit('releases/sesi.bundled-win.exe', { icon: 'favicon.ico' }); }, 1000)\"",
     "repl": "node dist/repl.js",
     "example": "node --no-deprecation example.js",
     "example:ai": "node --no-deprecation example-ai.js",
@@ -36,6 +44,7 @@
     "@types/node": "^25.7.0",
     "eslint": "^10.3.0",
     "globals": "^17.6.0",
+    "rcedit": "^5.0.2",
     "typescript": "6.0.3",
     "typescript-eslint": "^8.59.3"
   }

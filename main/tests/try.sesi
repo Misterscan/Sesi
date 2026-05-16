@@ -1,8 +1,7 @@
-try {
-    print "Inside Try Block"
-    print noSuchVariable
-    print "This should not print"
+try 
+{print "Inside Try Block"
+print noSuchVariable
+print "This should not print"
 } catch (e) {
-    print "Inside Catch Block!"
-    print e
-}
+print "Inside Catch Block!"
+print e}

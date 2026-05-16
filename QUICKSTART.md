@@ -2,36 +2,51 @@
 
 ## Installation
 
-### Prerequisites
+You can install Sesi in three ways: via npm (easiest for Node.js users), downloading a standalone executable (no Node.js required), or building from source.
 
-- Node.js 18+
-- npm or yarn
+### Option 1: Install via npm (Recommended)
 
-### Setup
-
-1. **Clone and install**:
+If you already have Node.js installed, you can install Sesi globally with a single command:
 
 ```bash
-cd sesi-programming-lang
-npm install -g
+npm install -g sesi
 ```
 
-2. **Build from TypeScript**:
+### Option 2: Standalone Executable
+
+If you don't want to install Node.js, you can download a standalone binary:
+
+1. Go to the [GitHub Releases](https://github.com/Misterscan/Sesi/releases) page.
+2. Download the executable for your OS (`sesi-win.exe`, `sesi-macos`, or `sesi-linux`).
+3. Add the folder containing the executable to your system's `PATH` variable, or run it directly from the folder (`.\sesi-win.exe`).
+
+### Option 3: Build from Source (For Contributors)
+
+**Prerequisites:** Node.js 18+ and npm
 
 ```bash
+git clone https://github.com/Misterscan/Sesi.git
+cd Sesi
+npm install
+
+# Compile the TypeScript files
 npm run build
+
+# Link the `sesi` command globally to your local source folder
+npm install -g .
 ```
 
-3. **Run a program (if installed globally)**:
+### Run a program
+
+Once Sesi is installed, you can run Sesi files globally:
 
 ```bash
 sesi main/start.sesi
 ```
 
-_(If not installed globally, you can use `npm run example 01_hello.sesi`)_
-
 ### Run Tests
 
+For devs working on Sesi, you can verify your backend edits with the built-in test suite:
 ```bash
 npm test
 ```
@@ -113,6 +128,12 @@ To use Reasoning features, set up your API key:
 
 ```bash
 export GEMINI_API_KEY="your-api-key-here"
+```
+
+Or you can set it up in an `.env` file:
+
+```env
+GEMINI_API_KEY="your-api-key-here"
 ```
 
 Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey).
@@ -228,6 +249,11 @@ sesi examples/09_structured_output.sesi
 sesi examples/10_code_generation.sesi
 sesi examples/11_memory_conversation.sesi
 sesi examples/12_classification.sesi
+sesi examples/13_data_pipeline.sesi
+sesi examples/14_folder_explainer.sesi
+
+# Image generation example
+sesi example/15_image_generation.sesi
 ```
 
 ## Common Patterns

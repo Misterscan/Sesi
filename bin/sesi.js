@@ -1,6 +1,3 @@
-#!/usr/bin/env node
-
-// CLI executable for Sesi
 require('@dotenvx/dotenvx').config();
 const { runSesiFile } = require('../dist/index.js');
 const fs = require('fs');
@@ -10,7 +7,7 @@ const args = process.argv.slice(2);
 
 if (args.length === 0) {
   console.log(`
-Sesi Programming Language v1.1.1
+Sesi Programming Language v1.1.2
 
 Usage:
   sesi <file>          Run a Sesi program
@@ -25,7 +22,7 @@ Examples:
 
 if (args[0] === '--help' || args[0] === '-h') {
   console.log(`
-Sesi Programming Language v1.1.1
+Sesi Programming Language v1.1.2
 
 Usage:
   sesi <file>          Run a Sesi program
@@ -42,7 +39,7 @@ Examples:
 }
 
 if (args[0] === '--version') {
-  console.log('Sesi v1.1.1');
+  console.log('Sesi v1.1.2');
   process.exit(0);
 }
 

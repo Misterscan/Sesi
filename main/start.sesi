@@ -5,10 +5,9 @@ print "Initializing..."
 // You can start with a simple calculation
 let a = 10
 let b = 5
-print("Math check: ", a + b)
+print "Math check:" a + b
 
 // Or jump straight into reasoning tasks
 let topic = "building a new programming language"
 let response = model("gemini-3.1-flash-lite") {"temperature": 0.3} {"Write a motivational 2-sentence intro about" topic}
-print "Sesi:"
-print response
+print "Sesi:" response

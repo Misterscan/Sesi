@@ -17,20 +17,34 @@
 
 **Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It provides first-class primitives for process management, filesystem orchestration, and integrated reasoning—enabling developers to build complex logic with a fraction of the boilerplate required by traditional languages.
 
+## Installation
+
+You can install Sesi in three ways:
+
+### 1. Global Installation via npm (Recommended)
+If you have Node.js installed, download Sesi directly from the npm registry:
+```bash
+npm install -g sesi
+```
+
+### 2. Standalone Executables
+Don't want to install Node.js? Download the standalone executables bundled for Windows, Mac, and Linux directly from the [Releases page](https://github.com/Misterscan/Sesi/releases). Drop the executable in your system PATH and you're good to go!
+
+### 3. Build from Source (For contributors)
+```bash
+git clone https://github.com/Misterscan/Sesi.git
+cd Sesi
+npm install
+npm run build
+npm install -g .  # Unlock the `sesi` command locally
+```
+
 ## Quick Start
 
-You'll need a [Gemini API Key](https://aistudio.google.com/app/apikey). Create a `.env` file referencing your key:
+You'll need a [Gemini API Key](https://aistudio.google.com/app/apikey) for the reasoning features. Create a `.env` file referencing your key where you run your scripts:
 
 ```env
 GEMINI_API_KEY="AIzaSy..."
-```
-
-# Global Installation (Recommended)
-
-You can install Sesi globally to use the `sesi` command anywhere on your system:
-
-```bash
-npm install -g .
 ```
 
 Then run any program directly:
@@ -48,7 +62,7 @@ sesi examples.sesi
 
 # Local Execution (Development)
 
-If you don't install it globally, use the helper npm scripts:
+If you choose not install `sesi` globally, use the helper npm scripts:
 
 ```bash
 npm run example 01_hello.sesi
@@ -83,13 +97,14 @@ print code
 
 ## Documentation
 
+- [Getting Started](./QUICKSTART.md)
+- [Examples](./examples/)
 - [Language Specification](./docs/SPECIFICATION.md)
 - [Language Comparison Showcase](./docs/COMPARISON.md)
 - [Built-in Functions](./docs/BUILTINS.md)
 - [Reasoning Guide](./docs/SYSTEMS_REASONING.md)
 - [Distributed Systems](./docs/DISTRIBUTED_SYSTEMS.md)
 - [Runtime Architecture](./docs/ARCHITECTURE.md)
-- [Examples](./examples/)
 
 ## AI Agent Context
 

@@ -1,8 +1,7 @@
 // Math Swarm: Generator
 print "🔢 Generator: Creating data set..."
 let data = []
-for i = 1 to 100 {
-  push(data, str(i))
-}
+for i = 1 to 100 
+{push(data, str(i))}
 write_file("swarm/input.txt", join(data, ","))
 print "Generator: Data set of 100 numbers published."

@@ -1,14 +1,13 @@
 // Complex Tax Calculator in Sesi
-fn calculate_income_tax(income: number, dependents: number) -> number {
-  let standard_deduction = 14600
-  let dependent_deduction = dependents * 2000
-  let taxable_income = income - standard_deduction - dependent_deduction
-  if taxable_income <= 0 {return 0}
-  let tax = 0
-  if taxable_income <= 11600 {tax = taxable_income * 0.10} else if taxable_income <= 47150 {tax = (11600 * 0.10) + ((taxable_income - 11600) * 0.12)} else if taxable_income <= 100525 {tax = (11600 * 0.10) + ((47150 - 11600) * 0.12) + ((taxable_income - 47150) * 0.22)} else {tax = (11600 * 0.10) + ((47150 - 11600) * 0.12) + ((100525 - 47150) * 0.22) + ((taxable_income - 100525) * 0.24)}
-  let self_employment_tax = income * 0.153
-  return tax + self_employment_tax
-}
+fn calculate_income_tax(income: number, dependents: number) -> number 
+{let standard_deduction = 14600
+let dependent_deduction = dependents * 2000
+let taxable_income = income - standard_deduction - dependent_deduction
+if taxable_income <= 0 {return 0}
+let tax = 0
+if taxable_income <= 11600 {tax = taxable_income * 0.10} else if taxable_income <= 47150 {tax = (11600 * 0.10) + ((taxable_income - 11600) * 0.12)} else if taxable_income <= 100525 {tax = (11600 * 0.10) + ((47150 - 11600) * 0.12) + ((taxable_income - 47150) * 0.22)} else {tax = (11600 * 0.10) + ((47150 - 11600) * 0.12) + ((100525 - 47150) * 0.22) + ((taxable_income - 100525) * 0.24)}
+let self_employment_tax = income * 0.153
+return tax + self_employment_tax}
 let income = 85000
 let dependents = 2
 let total_tax = calculate_income_tax(income, dependents)

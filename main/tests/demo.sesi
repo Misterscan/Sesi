@@ -4,43 +4,21 @@ let userName = "Tony"
 
 // Define a prompt for generating a quote
 // NOTE: No '+' operator inside prompt block body
-prompt quotePrompt {
-  "Generate a short, motivational quote for "
-  userName
-  ". Only return the quote text."
-}
+prompt quotePrompt {"Generate a short, motivational quote for " userName ". Only return the quote text."}
 
 // Function to analyze sentiment using structured output
-fn analyzeSentiment(text: string) {
-  return structured_output({
-    sentiment: string,
-    score: number,
-    explanation: string
-  })(
-    model("gemini-3.1-flash-lite") {
-      "Analyze the sentiment of the following quote and return JSON:\n"
-      text
-    }
-  )
-}
-
-print("--- Sesi Demo ---")
-print("Hello, ", userName)
+fn analyzeSentiment(text: string) {return structured_output({sentiment: string, score: number, explanation: string})(model("gemini-3.1-flash-lite") {"Analyze the sentiment of the following quote, score it, and give an explanation. Return the result as JSON:" text})}
+print "--- Sesi Demo ---"
+print "Hello," userName
 
 // Call the model to get a quote
-let quote = model("gemini-3.1-flash-lite") {
-  quotePrompt
-}
-
-print("\nYour quote for today:")
-print("\"", quote, "\"")
+let quote = model("gemini-3.1-flash-lite") {quotePrompt}
+print "Your quote for today:" quote
 
 // Analyze the quote's sentiment
-print("\nAnalyzing sentiment...")
+print "Analyzing sentiment..."
 let analysis = analyzeSentiment(quote)
-
-print("Sentiment: ", analysis.sentiment)
-print("Score: ", str(analysis.score))
-print("Explanation: ", analysis.explanation)
-
-print("\nDone.")
+print "Sentiment:" analysis.sentiment
+print "Score:" str(analysis.score)
+print "Explanation:" analysis.explanation
+print "Done."

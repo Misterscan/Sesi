@@ -1,5 +1,0 @@
-let context = "Sesi is a systems language where AI is a native primitive and the filesystem is a message bus."
-make_dir("dist")
-let analysis = model("gemini-3.1-flash-lite") {context " Analyze why simplicity is Sesi's ultimate primitive."}
-write_file("dist/design.txt", analysis)
-print analysis
