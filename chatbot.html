@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset='UTF-8'>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sesi Support Chatbot | The Future of Programming</title>
+  <style>
+    :root {
+      --bg-base: #030811;
+      --bg-grid: #0a1526;
+      --accent-cyan: #00e5ff;
+      --accent-blue: #0077ff;
+      --accent-green: #39ff14;
+      --silver-light: #e2e8f0;
+      --silver-mid: #94a3b8;
+      --silver-dark: #475569;
+      --glass-bg: rgba(15, 23, 42, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.15);
+      --glass-highlight: rgba(255, 255, 255, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      background-image:
+        linear-gradient(0deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+        radial-gradient(circle at 50% 0%, #0f2540 0%, transparent 60%);
+      background-size: 24px 24px, 24px 24px, 100% 100%;
+      background-attachment: fixed;
+      color: var(--silver-light);
+      font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+      line-height: 1.6;
+      font-size: 14px;
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    /* Y2K Scanline Overlay */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 30px;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      padding: 20px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.05), transparent);
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-family: 'Arial Black', Impact, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: -0.5px;
+      font-size: 24px;
+      background: linear-gradient(180deg, #fff 0%, var(--silver-mid) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .glow-text {
+      color: #fff;
+      text-shadow: 0 0 10px var(--accent-cyan), 0 0 20px var(--accent-blue);
+    }
+
+    /* Glassmorphism Panels */
+    .panel {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-top: 1px solid var(--glass-highlight);
+      border-left: 1px solid var(--glass-highlight);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 15px rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Sidebar / Telemetry */
+    .sidebar {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+    }
+
+    .panel-title {
+      font-family: 'Arial Black', sans-serif;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      margin-bottom: 15px;
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 8px;
+    }
+
+    .log-stream {
+      flex-grow: 1;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+      color: var(--silver-mid);
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      margin-bottom: 10px;
+      padding-left: 8px;
+      border-left: 1px solid var(--accent-blue);
+    }
+
+    .log-time {
+      color: var(--accent-blue);
+    }
+
+    /* Chat Console */
+    .chat-console {
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+    }
+
+    .terminal-header {
+      background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+      padding: 10px 15px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #000;
+    }
+
+    .term-btn {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+
+    .term-btn.r {
+      background: #ff5f56;
+    }
+
+    .term-btn.y {
+      background: #ffbd2e;
+    }
+
+    .term-btn.g {
+      background: #27c93f;
+    }
+
+    .chat-status {
+      margin-left: 15px;
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--silver-mid);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    .status-dot.loading {
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.4;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.4;
+      }
+    }
+
+    .chat-messages {
+      flex-grow: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      position: relative;
+    }
+
+    .message.system {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      align-self: flex-start;
+      color: var(--silver-light);
+    }
+
+    .message.user {
+      background: linear-gradient(135deg, rgba(0, 119, 255, 0.2), rgba(0, 229, 255, 0.1));
+      border: 1px solid var(--accent-blue);
+      align-self: flex-end;
+      color: #fff;
+    }
+
+    .message pre {
+      background: #000;
+      padding: 10px;
+      border: 1px solid var(--silver-dark);
+      border-radius: 4px;
+      margin-top: 10px;
+      font-family: 'Consolas', monospace;
+      font-size: 12px;
+      color: #a6accd;
+      overflow-x: auto;
+    }
+
+    .message code {
+      color: var(--accent-cyan);
+    }
+
+    /* Input Area */
+    .input-area {
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.3);
+      display: flex;
+      gap: 10px;
+      border-top: 1px solid var(--glass-border);
+    }
+
+    .query-input {
+      flex-grow: 1;
+      background: #000;
+      border: 1px solid var(--silver-dark);
+      border-radius: 20px;
+      padding: 10px 20px;
+      color: var(--accent-cyan);
+      font-family: 'Consolas', monospace;
+      outline: none;
+    }
+
+    .query-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+    }
+
+    /* Glossy Button */
+    .btn {
+      display: inline-block;
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 49%, #020617 50%, #0f172a 100%);
+      border: 1px solid var(--silver-dark);
+      border-top: 1px solid var(--silver-mid);
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      font-weight: bold;
+      letter-spacing: 1px;
+      padding: 10px 24px;
+      border-radius: 20px;
+      cursor: pointer;
+      text-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 10px rgba(0, 0, 0, 0.6);
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+      font-size: 12px;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 10%;
+      width: 80%;
+      height: 40%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+      border-radius: 20px 20px 0 0;
+      pointer-events: none;
+    }
+
+    .btn:hover {
+      background: linear-gradient(180deg, #2dd4bf 0%, #0d9488 49%, #0f766e 50%, #115e59 100%);
+      color: #fff;
+      border-color: var(--accent-cyan);
+      text-shadow: 0 0 10px #fff;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 20px rgba(0, 229, 255, 0.4);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      filter: grayscale(1);
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        height: 200px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class='container'>
+    <header>
+      <div class="logo" style="display: flex; align-items: center; gap: 8px;">
+        <img src="favicon.ico" alt="Sesi logo" width="30px" height="30px">
+        <h1>SESI <span class="glow-text">SUPPORT</span></h1>
+      </div>
+      <nav style="display: flex; gap: 10px;">
+        <div style="font-size: 10px; color: var(--silver-dark); text-align: right;">
+          SYSTEM STATUS: <span style="color: var(--accent-green);">ONLINE</span><br>
+          VERSION: 1.2.0
+        </div>
+      </nav>
+    </header>
+
+    <!-- Left Column: Compiler Telemetry -->
+    <div class='panel sidebar'>
+      <div class='panel-title'>Server logs</div>
+      <div class='log-stream' id='logStream'>
+        <div class='log-entry'>
+          <span class='log-time'>[08:00:01]</span><br>
+          [SYSTEM] Sesi Support Chatbot server booted.
+        </div>
+        <div class='log-entry'>
+          <span class='log-time'>[08:00:02]</span><br>
+          [WMI] Binding physical display controller...
+        </div>
+        <div class='log-entry'>
+          <span class='log-time'>[08:00:05]</span><br>
+          [AI] Model active: gemini-3.1-flash-lite
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Interactive Console -->
+    <div class='panel chat-console'>
+      <div class='terminal-header'>
+        <div class='term-btn r'></div>
+        <div class='term-btn y'></div>
+        <div class='term-btn g'></div>
+        <div class='chat-status'>
+          <div class='status-dot' id='statusDot'></div>
+          <span id='statusText'>Sesi Support</span>
+        </div>
+      </div>
+
+      <div class='chat-messages' id='chatMessages'>
+        <div class='message system'>
+          Hello, I am <strong class="glow-text">Sesi Support</strong>, the official chatbot for the Sesi
+          Programming Language.
+          <br><br>
+          How can I assist your development today?
+        </div>
+      </div>
+
+      <div class='input-area'>
+        <input type='text' id='queryInput' class='query-input' placeholder='Enter command or question...'
+          autocomplete='off' />
+        <button id='sendBtn' class='btn'>ASK</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const queryInput = document.getElementById('queryInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const chatMessages = document.getElementById('chatMessages');
+    const logStream = document.getElementById('logStream');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+
+    function appendLog(message, tag = "SYSTEM") {
+      const now = new Date().toTimeString().split(' ')[0];
+      const logEntry = document.createElement('div');
+      logEntry.className = 'log-entry';
+      logEntry.innerHTML = `<span class='log-time'>[${now}]</span><br>[${tag}] ${message}`;
+      logStream.appendChild(logEntry);
+      logStream.scrollTop = logStream.scrollHeight;
+    }
+
+    function appendMessage(text, isUser = false) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${isUser ? 'user' : 'system'}`;
+
+      let formattedText = text
+        .replace(/\*\*([^*]+)\*\*/g, '<strong class="glow-text">$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/```([\s\S]+?)```/g, '<pre>$1</pre>')
+        .replace(/\n/g, '<br>');
+
+      msgDiv.innerHTML = formattedText;
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function performQuery() {
+      const query = queryInput.value.trim();
+      if (!query) return;
+
+      queryInput.value = '';
+      queryInput.disabled = true;
+      sendBtn.disabled = true;
+
+      appendMessage(query, true);
+      appendLog(`Query received: "${query}"`, "USER");
+
+      statusDot.className = 'status-dot loading';
+      statusText.innerText = 'Compiling reasoning context...';
+      appendLog("Invoking model('gemini-3.1')...", "COMPILER");
+
+      try {
+        const response = await fetch(`http://localhost:8000/chat?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        if (data.error) {
+          appendMessage(`Error: ${data.details || data.error}`);
+          appendLog(`Execution error: ${data.error}`, "ERROR");
+        } else {
+          appendMessage(data.response);
+          appendLog("Response rendered successfully.", "UI");
+        }
+      } catch (error) {
+        appendMessage("Failed to connect to the Sesi Support Gateway. Ensure the local server is running on port 8000.");
+        appendLog("Gateway connection timeout.", "ERROR");
+      } finally {
+        queryInput.disabled = false;
+        sendBtn.disabled = false;
+        queryInput.focus();
+        statusDot.className = 'status-dot';
+        statusText.innerText = 'Sesi Support Active';
+      }
+    }
+
+    sendBtn.addEventListener('click', performQuery);
+    queryInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') performQuery();
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,29 @@
+// Example 17: HTTP Network Client
+// Demonstrates:
+// 1. web_get for fetching external JSON resources.
+// 2. web_send for posting raw JSON strings to APIs.
+// 3. std/json parsing to query structural details.
+
+import {parse} from "std/json"
+print "=== 1. Executing HTTP GET ==="
+let get_url = "https://jsonplaceholder.typicode.com/posts/1"
+print "Fetching from:" get_url
+let response_str = web_get(get_url)
+print "Raw Response string (truncated):"
+print response_str
+let post = parse(response_str)
+print "\nParsed Fields:"
+print "Post ID:" + str(post["id"])
+print "Title:" post["title"]
+print "Body:" post["body"]
+print "\n=== 2. Executing HTTP POST ==="
+let post_url = "https://jsonplaceholder.typicode.com/posts"
+let payload = "{\"title\": \"Sesi HTTP Client\", \"body\": \"Natively supported in v1.2!\", \"userId\": 42}"
+print "Posting payload to:" post_url
+let post_response = web_send(post_url, payload)
+print "POST Response:"
+print post_response
+let result = parse(post_response)
+print "\nCreated Post Details:"
+print "Assigned ID:" + str(result["id"])
+print "Confirmed Title:" result["title"]

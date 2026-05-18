@@ -51,20 +51,19 @@
 - No async/await
 - Blocking Reasoning calls
 - Limited error messages
-- No module system (imports/exports planned)
 - No pattern matching
 - No generics or custom types
 
 ---
 
-## Version 1.1 - Stability & Systems Logic (Complete)
+## Version 1.2 - Stability & Systems Logic (In Progress)
 
-**Status**: Complete V1.1 implementation  
+**Status**: In Progress V1.2 implementation  
 **Ready for**: Distributed systems orchestration and prototypes  
 **Not ready for**: Massive-scale production (until v2.0 bytecode)  
 **Next milestone**: V2.0 (Async & advanced reasoning)
 
-### Improvements & Features ✅
+### Improvements & Features ⌛
 
 - [x] Systems Builtins: `spawn`, `exec`, `time`, `random`
 - [x] Concurrency: Async polling via file locks for completion and MAX_TOKENS
@@ -99,14 +98,14 @@
 ### Async/Await Support
 
 - [ ] async/await syntax (language level)
-- [ ] Parallel reasoning calls (native)
+- [x] Parallel reasoning calls (native)
 - [ ] Promise-like operations
 - [x] Concurrent execution (Multi-process via `spawn`)
 
 ### Advanced Reasoning Features
 
 - [ ] Streaming responses
-- [ ] Extended thinking/reasoning budget
+- [x] Extended thinking/reasoning budget
 - [ ] Multi-step reasoning workflows
 - [ ] Tool composition and piping
 - [ ] Custom tool definitions
@@ -131,7 +130,7 @@
 ### Performance
 
 - [ ] Bytecode compilation
-- [ ] Logic caching
+- [x] Logic caching
 - [ ] Token counting and cost estimation
 - [ ] Lazy evaluation
 
@@ -142,12 +141,12 @@
 - [ ] Math functions (sqrt, sin, cos, floor, ceil, etc.)
 - [ ] Date/time functions
 - [ ] JSON parsing and serialization
-- [ ] HTTP client (get, post)
+- [x] HTTP client (get, post)
 
 ### Module System
 
-- [ ] import/export statements
-- [ ] Standard library modules (std/math, std/time, etc.)
+- [x] import/export statements
+- [x] Standard library modules (std/math, std/time, etc.)
 - [ ] Third-party package management
 - [ ] Namespace support
 
@@ -273,7 +272,7 @@
 
 ```
 2026 Q2
-└─ v1.1 - Polish & stabilize
+└─ v1.2 - Polish & stabilize
 
 2026 Q3-Q4
 └─ v2.0 - Advanced Reasoning & async

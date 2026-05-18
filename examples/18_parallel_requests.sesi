@@ -1,0 +1,37 @@
+// Example 18: Parallel Requests and Concurrency
+// Demonstrates:
+// 1. multi_req builtin to trigger multiple functions in parallel.
+// 2. Concurrency duration benchmarking.
+// 3. Dynamic array resolution.
+
+import {sleep, now} from "std/time"
+print "=== 1. Defining Concurrently Run Closures ==="
+fn slowTask1() {
+  print "Starting Task 1 (sleeping 150ms)..."
+  sleep(150)
+  print "Task 1 complete!"
+  return "result_from_task_1"
+}
+fn slowTask2() {
+  print "Starting Task 2 (sleeping 150ms)..."
+  sleep(150)
+  print "Task 2 complete!"
+  return "result_from_task_2"
+}
+print "=== 2. Sequential Execution (Demonstration) ==="
+let seq_start = now()
+let r1 = slowTask1()
+let r2 = slowTask2()
+let seq_elapsed = now() - seq_start
+print "Sequential took: " + str(seq_elapsed) "ms (should be >= 300ms)"
+print "=== 3. Parallel Execution via multi_req ==="
+let start_time = now()
+// multi_req accepts an array of Sesi functions and executes them concurrently.
+let results = multi_req([slowTask1, slowTask2])
+let elapsed = now() - start_time
+print "Returned Results array:"
+print str(results)
+print "Parallel took: " + str(elapsed) "ms (should be ~150ms - physically parallel!)"
+if elapsed < 220 
+{print "✓ Success! Native Sesi concurrency verified: jobs ran in parallel."
+} else {print "✗ Failure: jobs ran sequentially."}

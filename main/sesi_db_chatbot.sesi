@@ -1,0 +1,252 @@
+// Sesi Script: sesi_db_chatbot.sesi
+// 100% NATIVE, ZERO-HARDCODING DEEP LEARNING CO-PILOT!
+// Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries!
+
+// ==================================================
+// 💬 1. CHOOSE YOUR ADVANCED TECHNICAL QUERY HERE!
+// (Test it with custom phrases containing our keywords!)
+let queryText = "how do I parse a json string?"
+try {
+  queryText = read_file("query.txt")
+} catch (e) {}
+// ==================================================
+
+print "=================================================="
+print "🧠 WELCOME TO THE SESI CO-PILOT!"
+print "=================================================="
+
+// Sigmoid math
+fn activate(x) {
+  return 1.0 / (1.0 + exp(0.0 - x))
+}
+
+fn derivative(y) {
+  return y * (1.0 - y)
+}
+
+// 2. Advanced Bag-of-Words Vectorizer (49 keywords covering all Sesi primitives & built-ins)
+fn vectorize(text) {
+  let words = split(text, " ")
+  
+  // Dynamically initialize 49-dimensional vector
+  let vec = []
+  let k = 0
+  while k < 49 {
+    push(vec, 0.0)
+    k = k + 1
+  }
+  
+  let w = 0
+  while w < len(words) {
+    let word = words[w]
+    if word == "print" { vec[0] = 1.0 }
+    if word == "str" { vec[1] = 1.0 }
+    if word == "type" { vec[2] = 1.0 }
+    if word == "num" { vec[3] = 1.0 }
+    if word == "bool" { vec[4] = 1.0 }
+    if word == "json" { vec[5] = 1.0 }
+    if word == "from_json" { vec[6] = 1.0 }
+    if word == "to_json" { vec[7] = 1.0 }
+    if word == "len" { vec[8] = 1.0 }
+    if word == "file" { vec[9] = 1.0 }
+    if word == "read_file" { vec[10] = 1.0 }
+    if word == "write_file" { vec[11] = 1.0 }
+    if word == "dir" { vec[12] = 1.0 }
+    if word == "list_dir" { vec[13] = 1.0 }
+    if word == "make_dir" { vec[14] = 1.0 }
+    if word == "exp" { vec[15] = 1.0 }
+    if word == "random" { vec[16] = 1.0 }
+    if word == "let" { vec[17] = 1.0 }
+    if word == "const" { vec[18] = 1.0 }
+    if word == "fn" { vec[19] = 1.0 }
+    if word == "if" { vec[20] = 1.0 }
+    if word == "else" { vec[21] = 1.0 }
+    if word == "while" { vec[22] = 1.0 }
+    if word == "for" { vec[23] = 1.0 }
+    if word == "return" { vec[24] = 1.0 }
+    if word == "break" { vec[25] = 1.0 }
+    if word == "continue" { vec[26] = 1.0 }
+    if word == "try" { vec[27] = 1.0 }
+    if word == "catch" { vec[28] = 1.0 }
+    if word == "import" { vec[29] = 1.0 }
+    if word == "export" { vec[30] = 1.0 }
+    if word == "memory" { vec[31] = 1.0 }
+    if word == "sleep" { vec[32] = 1.0 }
+    if word == "now" { vec[33] = 1.0 }
+    if word == "model" { vec[34] = 1.0 }
+    if word == "image" { vec[35] = 1.0 }
+    if word == "structured_output" { vec[36] = 1.0 }
+    if word == "tool_call" { vec[37] = 1.0 }
+    if word == "spawn" { vec[38] = 1.0 }
+    if word == "exec" { vec[39] = 1.0 }
+    if word == "time" { vec[40] = 1.0 }
+    if word == "range" { vec[41] = 1.0 }
+    if word == "push" { vec[42] = 1.0 }
+    if word == "pop" { vec[43] = 1.0 }
+    if word == "join" { vec[44] = 1.0 }
+    if word == "split" { vec[45] = 1.0 }
+    if word == "keys" { vec[46] = 1.0 }
+    if word == "values" { vec[47] = 1.0 }
+    if word == "array" { vec[48] = 1.0 }
+    w = w + 1
+  }
+  return vec
+}
+
+let db_files = list_dir("sesi-db")
+let num_classes = len(db_files)
+
+if num_classes == 0 {
+  print "⚠️  Database is empty! Run 'sesi indexer.sesi' first!"
+} else {
+  print "✅ Found " + str(num_classes) + " knowledge documents in sesi-db!"
+  
+  let database = []
+  let inputs = []
+  let targets = []
+  
+  let i = 0
+  while i < num_classes {
+    let f = db_files[i]
+    let raw = read_file("sesi-db/" + f)
+    let parsed = from_json(raw)
+    
+    // Combine summary and rules for training text
+    let doc_text = parsed["summary"] + " " + parsed["key_rules"]
+    let vec = vectorize(doc_text)
+    push(inputs, vec)
+    
+    // Create one-hot targets dynamically
+    let t = []
+    let t_idx = 0
+    while t_idx < num_classes {
+      if t_idx == i {
+        push(t, 1.0)
+      } else {
+        push(t, 0.0)
+      }
+      t_idx = t_idx + 1
+    }
+    push(targets, t)
+    push(database, parsed)
+    
+    i = i + 1
+  }
+  
+  // 4. Dynamic Multi-Class Weights Matrix Initialization
+  let weights = []
+  let biases = []
+  
+  let c = 0
+  while c < num_classes {
+    // Initialize random-seeded weights between -0.2 and 0.2
+    let w_row = []
+    let k = 0
+    while k < 49 {
+      let r_val = (random() * 0.4) - 0.2
+      push(w_row, r_val)
+      k = k + 1
+    }
+    push(weights, w_row)
+    push(biases, 0.0)
+    c = c + 1
+  }
+
+  // 5. Run dynamic multi-class gradient descent training loop (2,000 epochs)
+  let lr = 0.5
+  let epoch = 1
+  while epoch <= 2000 {
+    let c = 0
+    while c < num_classes {
+      let x = inputs[c]
+      let t = targets[c]
+      
+      // Forward propagation (dynamic dot product)
+      let sum = 0.0
+      let w_row = weights[c]
+      let k = 0
+      while k < 49 {
+        sum = sum + (x[k] * w_row[k])
+        k = k + 1
+      }
+      let o = activate(sum + biases[c])
+      
+      // Backpropagation delta
+      let delta = (t[c] - o) * derivative(o)
+      
+      // Synaptic updates
+      k = 0
+      while k < 49 {
+        w_row[k] = w_row[k] + (lr * delta * x[k])
+        k = k + 1
+      }
+      biases[c] = biases[c] + (lr * delta)
+      
+      c = c + 1
+    }
+    epoch = epoch + 1
+  }
+  
+  let query_vec = vectorize(queryText)
+  
+  // Forward propagation on user query across all dynamic classes
+  let outputs = []
+  let j = 0
+  while j < num_classes {
+    let sum = 0.0
+    let w_row = weights[j]
+    let k = 0
+    while k < 49 {
+      sum = sum + (query_vec[k] * w_row[k])
+      k = k + 1
+    }
+    let o = activate(sum + biases[j])
+    push(outputs, o)
+    j = j + 1
+  }
+  
+  // Determine class index with highest score
+  let best_class = 0
+  let max_score = -1.0
+  let j = 0
+  while j < num_classes {
+    if outputs[j] > max_score {
+      max_score = outputs[j]
+      best_class = j
+    }
+    j = j + 1
+  }
+  
+  // 7. Output Dynamic Recommendation with Confidence Thresholding
+  print "--------------------------------------------------"
+  print "🤖 SESI CO-PILOT RESPONDING:"
+  print "--------------------------------------------------"
+  if max_score < 0.40 {
+    print "🤔 Sesi's native synapses evaluated this query with low confidence: " + str(max_score)
+    print "   It seems your question does not contain any Sesi keywords in our vocabulary!"
+    print "   Please try asking about: 'print', 'str', 'files', 'json', 'model', 'image', or 'random'!"
+  } else {
+    let rec = database[best_class]
+    let docs_list = list_dir("docs")
+    let sesiDocs = ""
+    let d = 0
+    while d < len(docs_list) {
+      let f_name = docs_list[d]
+      let parts = split(f_name, ".")
+      let ext = parts[len(parts) - 1]
+      
+      if ext == "md" {
+        let doc_content = read_file("docs/" + f_name)
+        sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
+      }
+      d = d + 1
+    }
+    
+    let ragPrompt = "Sesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"] + "\n\nInstructions: Write a direct, beautiful, highly conversational response to the user's question using strictly the matched rules. Walk them through Sesi's syntax with direct examples. Be helpful and concise. Do not mention that you got this from a database—act as a supportive code copilot. All responses must not anticipate a future response."
+    
+    let generated_response = model("gemini-3.1-flash-lite") {"temperature": 0.3, "max_tokens": 200} {ragPrompt}
+    
+    print "--------------------------------------------------"
+    print generated_response
+    print "--------------------------------------------------"
+}

@@ -1,0 +1,40 @@
+print "=== Image Input Tests ==="
+print ""
+print "Test 1: Single image (literal path)..."
+try 
+{let result = model("gemini-3-flash-preview") {images: "docs/logo.png"} {"In one sentence, describe the dominant shape and color in this image."}
+print "PASS — model() single image:"
+print result
+} catch (e) {print "FAIL — Test 1 error:"
+print e}
+print ""
+print "Test 2: Single image (variable path)..."
+try 
+{let imgPath = "docs/logo.png"
+let reading = model("gemini-3-flash-preview") {images: imgPath} {"What text, if any, is visible in this image? Reply in one line."}
+print "PASS — model() variable path:"
+print reading
+} catch (e) {print "FAIL — Test 2 error:"
+print e}
+print ""
+print "Test 3: Multiple images (array)..."
+try 
+{let shots = ["docs/logo.png", "docs/logo.png"]
+let comparison = model("gemini-3-flash-preview") {images: shots} {"Are these two images identical? Answer yes or no and give one reason."}
+print "PASS — model() array of images:"
+print comparison
+} catch (e) 
+{print "FAIL — Test 3 error:"
+print e}
+print ""
+print "Test 4: images combined with temperature and max_tokens..."
+try 
+{let ref = "docs/logo.png"
+let analysis = model("gemini-3.1-flash-lite") {images: ref, temperature: 0, max_tokens: 128} {"What programming language or brand does this logo represent? One word answer."}
+print "PASS — model() with mixed config:"
+print analysis
+} catch (e) 
+{print "FAIL — Test 4 error:"
+print e}
+print ""
+print "=== All image input tests complete ==="

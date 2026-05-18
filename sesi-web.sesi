@@ -1,0 +1,62 @@
+import { sleep } from "std/time"
+fn is_windows() -> bool {
+  try {
+    exec("ver")
+    return true
+  } catch (e) {
+    return false
+  }
+}
+print "Launcing Sesi Support Chatbot"
+let server_started = false
+if is_windows() {
+  try {
+    exec("powershell -Command \"Start-Process python -ArgumentList 'chatbot_server.py' -WindowStyle Hidden\"")
+    server_started = true
+  } catch (e) {}
+  if !server_started {
+    try {
+      exec("powershell -Command \"Start-Process python3 -ArgumentList 'chatbot_server.py' -WindowStyle Hidden\"")
+      server_started = true
+    } catch (e2) {
+      print "Error running chatbot server:" e2
+    }
+  }
+} else {
+  try {
+    exec("python3 chatbot_server.py &")
+    server_started = true
+  } catch (e) {}
+  if !server_started {
+    try {
+      exec("python chatbot_server.py &")
+      server_started = true
+    } catch (e2) {
+      print "Error running chatbot server:" e2
+    }
+  }
+}
+
+// Allow the server 1.5 seconds to bind to port 8000 before opening browser
+sleep(1500)
+print "Chatbot server launched on http://localhost:8000"
+print "Opening web browser..."
+let opened = false
+try {
+  exec("start http://localhost:8000/chatbot.html")
+  opened = true
+} catch (e3) {}
+if !opened {
+  try {
+    exec("open http://localhost:8000/chatbot.html")
+    opened = true
+  } catch (e4) {}
+}
+if !opened {
+  try {
+    exec("xdg-open http://localhost:8000/chatbot.html")
+    opened = true
+  } catch (e5) {}
+}
+if !opened {
+  print "Website built, but could not auto-open Chatbot. Open it here: http://localhost:8000/chatbot.html"}

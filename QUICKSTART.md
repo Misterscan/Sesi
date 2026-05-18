@@ -218,9 +218,14 @@ print "Both workers are now running concurrently."
 ```sesi
 print value        // Print to stdout
 read_file(path)    // Read a file as text
+from_json(path)    // Read a JSON file
 write_file(path, content) // Write text to a file
 write_image(path, content) // Write base64 encoded image to a file
 list_dir(path)     // List directory contents
+spawn(path)        // Launch concurrent background process
+exec(command)      // Synchronous shell execution
+time()             // Unix timestamp (ms)
+random()           // Random number (0-1)
 ```
 
 ### Type Checking
@@ -246,6 +251,24 @@ values(object)     // Get object values
 range(n)           // Create [0, 1, ..., n-1]
 ```
 
+### Network & Concurrency
+
+```sesi
+web_get(url, headers = {})     // Natively fetch from URL via HTTP GET
+web_send(url, body, headers = {}) // Natively post body to URL via HTTP POST
+multi_req(array<function>)     // Run multiple tasks/requests physically in parallel
+```
+
+### Standard Library Modules
+
+Standard library features are available natively in **v1.2.0** using imports:
+
+```sesi
+import { PI, sqrt } from "std/math"
+import { sleep, now } from "std/time"
+import { stringify, parse } from "std/json"
+```
+
 ## Running Examples
 
 Try the included examples:
@@ -269,7 +292,12 @@ sesi examples/13_data_pipeline.sesi
 sesi examples/14_folder_explainer.sesi
 
 # Image generation example
-sesi example/15_image_generation.sesi
+sesi examples/15_image_generation.sesi
+
+# Advanced Version 1.2 features
+sesi examples/16_modules.sesi
+sesi examples/17_http_client.sesi
+sesi examples/18_parallel_requests.sesi
 ```
 
 ## Common Patterns
@@ -366,6 +394,18 @@ else {print "Response: " response}
 
 ## Getting Help
 
+Sesi comes with an advanced, built-in **Interactive RAG Co-Pilot** right in your command line! Instead of static help messages, you can query Sesi directly about how to use any statement, standard library, or architectural pattern:
+
+```bash
+# Ask the Sesi Co-Pilot for help directly
+sesi -help "how do I parse a JSON string?"
+sesi --help "explain structured_output and give an example"
+sesi -h "how to spawn background processes?"
+```
+
+The co-pilot will dynamically index and train on Sesi's native repository database and retrieve full RAG context from our standard specification docs to generate a syntactically correct, 100% accurate, conversational answer in real-time!
+
+You can also:
 - Check documentation in [docs/](docs/)
 - Review examples in [examples/](examples/)
 - Read error messages carefully

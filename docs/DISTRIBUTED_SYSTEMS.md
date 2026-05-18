@@ -53,7 +53,7 @@ try {
 
 ## Concurrency via `spawn()`
 
-Sesi v1.1+ introduces the `spawn()` builtin, allowing a single **Master Orchestrator** to launch an entire swarm of agents from one file.
+Sesi v1.1 introduced the `spawn()` builtin, allowing a single **Master Orchestrator** to launch an entire swarm of agents from one file.
 
 ```sesi
 // Master: Launching 5-Agent Swarm

@@ -86,7 +86,7 @@ print greeting  // "Hello, Alice! How are you?"
 
 ```sesi
 prompt part1 {"First part"}
-prompt part2 {part1 " " "Second part"}
+prompt part2 {part1 " Second part"}
 print part2  // "First part Second part"
 ```
 
@@ -96,7 +96,7 @@ print part2  // "First part Second part"
 let text = "Testing"
 let language = "Spanish"
 fn translatePrompt(text: string, language: string) -> string
-{prompt translate {"Translate the following text to "language": " text} return translate}
+{prompt translate {"Translate " text " to " language ": "} return translate}
 print translatePrompt(text, language)
 ```
 
@@ -129,7 +129,7 @@ print creative
 ```sesi
 // Fast model for simple tasks
 let text = " Coding with Reasoning systems language is fun!"
-let quick = model("gemini-3.1-flash-lite") {"Summarize this in one sentence:" text}
+let quick = model("gemini-3-flash-preview") {"Summarize this in one sentence:" text}
 
 // Powerful model for complex reasoning
 let code = "def calculate_sum(n):
@@ -148,16 +148,16 @@ print smart
 print cheap
 ```
 
-### Available Models (v1.1)
+### Available Models (v1.2)
 
 - `gemini-2.5-flash` - Legacy, but supported. 1M tokens.
 - `gemini-2.5-pro` - Legacy, but supported. 1M tokens.
-- `gemini-2.5-flash-image` - Legacy, but reliable.
+- `gemini-2.5-flash-image` - Standard image model. (No `512` image size support for this model. Only `1K` is supported.)
 - `gemini-3-flash-preview` - Fast, balanced, 1M tokens
-- `gemini-3.1-pro-preview` - Most capable, 1M tokens
+- `gemini-3.1-pro-preview` - Most capable, 1M tokens (Doesn't support `minimal` thinking. Only `low`, `medium`, and `high` are supported.)
 - `gemini-3.1-flash-lite` - Fastest, cost-efficient
 - `gemini-3.1-flash-image-preview` - Cost efficient while maintaining quality images.
-- `gemini-3-pro-image-preview` - High quality image generation.
+- `gemini-3-pro-image-preview` - High quality image generation. (No `512` image size support for this model.)
 
 #### Planned for (v2+)
 
@@ -165,6 +165,29 @@ print cheap
 - `HuggingFace` integration
 - `Midjourney` integration
 - `Newer Reasoning Models` - Native upgrades
+
+### Passing Images as Input
+
+Pass one or more local image files to `model()` or `image()` via the `images` config key. The runtime reads each file, base64-encodes it, and injects it as a vision part before the prompt text.
+
+```sesi
+// Single image
+let referenceImage = "stills/frame_03.jpg"
+let caption = model("gemini-3-flash-preview") {images: referenceImage} {"What is the subject of this photograph?"}
+print caption
+
+// Multiple images
+let pair = ["ref_a.png", "ref_b.png"]
+let diff = model("gemini-3-flash-preview") {images: pair} {"List every visual difference between these two."}
+print diff
+
+// Mixed with other config keys
+let scannedDocument = "doc_scan.jpg"
+let result = model("gemini-3.1-flash-lite") {images: scannedDocument, temperature: 0, max_tokens: 2048} {"Transcribe all text visible in this scan."}
+write_file("transcript.txt", result)
+```
+
+See [Image Generation & Input](IMAGE_GENERATION.md) for the full reference.
 
 ## 3. Structured Output
 
@@ -373,7 +396,7 @@ print analyzeSentiment(text)
 
 Reasoning operations can fail. Handle gracefully.
 
-### Try/Catch (v1.1)
+### Try/Catch (v1.2)
 
 ```sesi
 try
@@ -494,11 +517,10 @@ let summary = model("gemini-3-flash-preview") {"Summarize with topics " topics "
 print "Summary:" smartSummarize(text)
 ```
 
-### Reasoning Pattern (V2: native support)
+### Reasoning Pattern
 
 ```sesi
-// Future: Extended thinking
-let analysis = model("gemini-3-flash-preview") {"temperature": 0, "thinking_level": "low"} {"Reason carefully about:" problem}
+let analysis = model("gemini-3-flash-preview") {"thinkingLevel": {"thinking": "yes", "level": "medium"}, "temperature": 0, "max_tokens": 8192} {"Reason carefully about:" problem}
 print analysis
 ```
 

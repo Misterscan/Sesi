@@ -71,7 +71,10 @@ Sesi/
 │   ├── 12_classification.sesi        # Systems classification loop
 │   ├── 13_data_pipeline.sesi         # Complete systems pipeline
 │   ├── 14_folder_explainer.sesi      # Directory parsing & reasoning
-│   └── 15_image_generation.sesi      # Image generation API test
+│   ├── 15_image_generation.sesi      # Image generation API test
+│   ├── 16_modules.sesi               # Modules & std library namespaces
+│   ├── 17_http_client.sesi           # Network GET/POST client
+│   └── 18_parallel_requests.sesi     # Parallel requests concurrency
 │
 └── tests/
     └── basic.test.ts                 # Test suite
@@ -214,6 +217,7 @@ print("Reasoning Response:", response)
 - `read_file(path)` - Read file contents
 - `write_file(path, content)` - Write file contents
 - `write_image(path, content)` - Write base64 image data to file
+- `from_json(path)` - Read a JSON file
 - `list_dir(path)` - List directory contents
 - `spawn(path)` - Launch concurrent background process
 - `exec(command)` - Synchronous shell execution
@@ -224,6 +228,7 @@ print("Reasoning Response:", response)
 
 - `type(value)` - Get type name
 - `str(value)` - Convert to string
+- `to_json(value)` - Convert to JSON string
 - `num(value)` - Convert to number
 - `bool(value)` - Convert to boolean
 
@@ -237,6 +242,15 @@ print("Reasoning Response:", response)
 - `keys(object)` - Get keys
 - `values(object)` - Get values
 - `range(n)` - Create range array
+
+### Network
+
+- `web_get(url, headers)` - Perform HTTP GET request
+- `web_send(url, body, headers)` - Perform HTTP POST request
+
+### Concurrency
+
+- `multi_req(fns)` - Concurrently execute multiple closures/functions
 
 ## 📊 Implementation Statistics
 
@@ -383,6 +397,10 @@ npm test
 | 12_classification.sesi      | Reasoning classification loop   |
 | 13_data_pipeline.sesi       | Complete pipeline               |
 | 14_folder_explainer.sesi    | Directory parsing & reasoning   |
+| 15_image_generation.sesi    | Image generation API test      |
+| 16_modules.sesi             | Imports/exports & std namespaces|
+| 17_http_client.sesi         | HTTP GET and POST operations    |
+| 18_parallel_requests.sesi   | Parallel request concurrency    |
 
 ## ✨ Unique Features
 
@@ -400,7 +418,6 @@ npm test
 
 - Async/await for concurrent reasoning calls
 - Streaming responses
-- Extended thinking/reasoning
 - Advanced memory with embeddings
 - finally blocks, custom error types, retry policies, timeout handling, and structured Reasoning error recovery
 
@@ -463,17 +480,13 @@ npm test
 - **Cost**: Competitive pricing
 - **Availability**: Easy to use via official SDK
 
-### Why no module system in v1?
+### Why does v1.2.0 support a module system?
 
-- **Scope**: Keep v1 focused and simple
-- **Feasibility**: Single-file programs first
-- **Future**: Clean architecture for v2
+- **Organization**: As Sesi programs grew, having a single-file system became limiting. Local module imports/exports and standard libraries (`std/math`, `std/time`, `std/json`) are natively supported in v1.2.0.
 
-### Why no async in v1?
+### Why does v1.2.0 support parallel execution?
 
-- **Simplicity**: Single-threaded is easier to understand
-- **Blocking is OK**: Reasoning calls are already slow (2-5s)
-- **v2 ready**: Architecture supports async extension
+- **Concurrency**: While the interpreter remains tree-walking and single-threaded for simplicity, native concurrency is supported via the parallel request executor `multi_req(array<function>)`, executing asynchronous operations physically in parallel.
 
 ## 📖 Learning Path
 
@@ -530,7 +543,7 @@ The language is designed to evolve. V1 provides a solid foundation. V2+ adds pow
 
 ---
 
-**Status**: ✅ Complete V1.1 implementation  
+**Status**: ⏳ Ongoing V1.2 implementation  
 **Ready for**: Distributed systems orchestration and prototypes  
 **Not ready for**: Massive-scale production (until v2.0 bytecode)  
 **Next milestone**: V2.0 (Async & advanced reasoning)

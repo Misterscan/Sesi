@@ -78,3 +78,80 @@ When configuring the `image` call (specifically for models like `gemini-3.1-flas
 The `image()` call evaluates to a `string` (specifically, base64-encoded image data). To convert this into a standard image file on disk, you must use the `write_image(path, base64_content)` builtin. 
 
 **Important:** Do *not* use `write_file` for image payloads—`write_image` is explicitly implemented in the Sesi engine (`src/builtins.ts`) to handle `Buffer.from(content, 'base64')` decoding for writing safe binary formats.
+
+---
+
+## Passing Images as Input (v1.2.0)
+
+Both `model()` and `image()` accept local image files as visual input via the `images` config key. The runtime reads each file from disk, base64-encodes it, and attaches it as an inline data part alongside the prompt. This enables vision tasks such as image description, comparison, OCR, style transfer, and reference-guided generation.
+
+### Supported Formats
+
+`.jpg` / `.jpeg`, `.png`, `.gif`, `.webp`, `.bmp`
+
+### Syntax
+
+```
+model("model-name") {images: pathExpr} {prompt}
+image("model-name") {images: pathExpr} {prompt}
+```
+
+`pathExpr` is any Sesi expression that evaluates to a `string` (single file) or an `array` of strings (multiple files).
+
+### Single Image — Describe a File
+
+```sesi
+let caption = model("gemini-3-flash-preview") {images: "shots/frame_01.jpg"} {"Describe what is happening in this photograph in one paragraph."}
+print caption
+```
+
+### Multiple Images — Side-by-Side Comparison
+
+```sesi
+let frames = ["take_a.jpg", "take_b.jpg"]
+let notes = model("gemini-3-flash-preview") {images: frames} {"These are two alternate takes of the same scene. List the differences in composition and lighting."}
+print notes
+```
+
+### Dynamic Path from a Variable
+
+```sesi
+let src = "scans/print_neg_04.png"
+let reading = model("gemini-3-flash-preview") {images: src} {"Read and transcribe all visible text in this image."}
+write_file("output/transcription.txt", reading)
+print "Transcription saved."
+```
+
+### Reference-Guided Image Generation
+
+Pass a reference image to an image-generation model to ground its output.
+
+```sesi
+let ref = "references/grille_detail.jpg"
+let render = image("gemini-3.1-flash-image-preview") {images: ref, ratio: "16:9"} {"Render a full front elevation in the same visual style as the reference."}
+write_image("output/elevation.png", render)
+print "Render saved."
+```
+
+### Pipeline: Batch Description from a Directory
+
+```sesi
+let dir = "frames/"
+let files = list_dir(dir)
+
+for f in files {
+  prompt p {dir f}
+  let desc = model("gemini-3.1-flash-lite") {images: p} {"Describe this frame in one sentence."}
+  print f desc
+}
+```
+
+### Config Reference
+
+When used inside `model()` or `image()` config blocks, `images` is resolved at runtime — it is **not** a static string key passed to the Gemini SDK. All other config keys (`temperature`, `max_tokens`, `ratio`, `size`, etc.) work alongside it normally.
+
+| Key | Accepted Value | Notes |
+|-----|---------------|-------|
+| `images` | `string` or `array<string>` | One or more local file paths. Resolved relative to `process.cwd()`. |
+
+> **Note:** Multimodal input requires a vision-capable model (e.g. `gemini-3-flash-preview`, `gemini-3.1-flash-lite`, `gemini-3.1-pro-preview`). Image-generation models that accept reference images are listed in their respective model documentation.

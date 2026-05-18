@@ -323,6 +323,7 @@ export interface ModelCallExpression {
   modelName: string;
   config?: Record<string, Expression>;
   prompt: Expression;
+  images?: Expression; // string path or array of string paths
   line: number;
 }
 
@@ -331,6 +332,7 @@ export interface ImageCallExpression {
   modelName: string;
   config?: Record<string, Expression>;
   prompt: Expression;
+  images?: Expression; // string path or array of string paths
   line: number;
 }
 
@@ -412,7 +414,7 @@ export interface RuntimeFunction {
   body: BlockStatement;
   closure: Environment;
   isBuiltin?: boolean;
-  builtin?: (...args: RuntimeValue[]) => RuntimeValue;
+  builtin?: (...args: RuntimeValue[]) => RuntimeValue | Promise<RuntimeValue>;
 }
 
 export interface RuntimeModule {
@@ -473,6 +475,9 @@ export interface AIRequest {
   ratio?: string;
   size?: string;
   tools?: any[];
+  images?: string[]; // base64-encoded image data URIs or file paths resolved at runtime
+  thinkingLevel?: { thinking?: string; level?: string };
+  cache?: boolean;
 }
 
 export interface AIResponse {

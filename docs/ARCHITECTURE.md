@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It uses a tree-walking interpreter model with asynchronous host-side model execution, but no language-level `async/await` syntax in v1.1 The architecture is optimized for coordination, distributed state management, and first-class reasoning primitives.
+**Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It uses a tree-walking interpreter model with asynchronous host-side model execution, but no language-level `async/await` syntax in v1.2 The architecture is optimized for coordination, distributed state management, and first-class reasoning primitives.
 
 ## Component Stack
 
@@ -112,15 +112,15 @@ Sesi uses **lexical scoping** with an environment chain:
 ```
 ┌─────────────────────────┐
 │  Global Environment     │
-│  - Built-in functions  │
-│  - Global variables    │
+│  - Built-in functions   │
+│  - Global variables     │
 └────────┬────────────────┘
          │
     ┌────▼────────────────┐
-    │ Function Environment │
-    │ - Parameters         │
-    │ - Local variables    │
-    └────┬─────────────────┘
+    │ Function Environment│
+    │ - Parameters        │
+    │ - Local variables   │
+    └────┬────────────────┘
          │
     ┌────▼────────────────┐
     │  Block Environment  │
@@ -213,7 +213,7 @@ false  → false
 ModelCallExpression (AST)
     │
     ├─ Evaluate prompt expression
-    ├─ Extract configuration ("temperature", "max_tokens")
+    ├─ Extract configuration ("temperature", "max_tokens", "thinking", "top_p", etc.)
     ├─ Call AIRuntime.callModel()
     │   │
     │   ├─ Create Gemini interaction request
@@ -333,7 +333,7 @@ examples/
 ├── 03_functions.sesi     # Functions with parameters
 ├── 04_conditionals.sesi  # If/else control flow
 ├── 05_loops.sesi         # Loops & iteration
-├── 06_arrays_objects.sesi# Arrays & objects
+├── 06_arrays_objects.sesi # Arrays & objects
 ├── 07_prompts.sesi       # Prompts and string templating
 ├── 08_model_call.sesi    # Basic Reasoning model calls
 ├── 09_structured_output.sesi # Schema-guided structured output with JSON recovery and empty-object fallback on failure

@@ -70,6 +70,20 @@ to_json({ "a": 1, "b": [1, 2] })
 
 ---
 
+### from_json(string) -> any
+
+Parse a valid JSON string back into a native Sesi primitive, array, or object.
+
+```sesi
+let raw = "{\"a\": 1, \"b\": [1, 2]}"
+let obj = from_json(raw)
+print obj["a"]     // 1
+```
+
+**Returns**: `any` - native Sesi primitive, array, or object, or `null` if parsing fails
+
+---
+
 ### num(value) -> number
 
 Convert a value to a number.
@@ -293,6 +307,35 @@ if success {print "Directory created successfully"}
 
 ---
 
+## Network Functions
+
+### web_get(url, headers = {}) -> string
+
+Perform a synchronous HTTP GET request and return the response body as a string.
+
+```sesi
+let response = web_get("https://jsonplaceholder.typicode.com/posts/1")
+print response
+```
+
+**Returns**: `string`
+
+---
+
+### web_send(url, body, headers = {}) -> string
+
+Perform a synchronous HTTP POST request with a request body and return the response as a string.
+
+```sesi
+let payload = "{\"title\": \"foo\"}"
+let response = web_send("https://jsonplaceholder.typicode.com/posts", payload)
+print response
+```
+
+**Returns**: `string`
+
+---
+
 ## System Functions
 
 ### spawn(path) -> number
@@ -335,6 +378,27 @@ print "Elapsed time:" time() - start "ms"
 
 ---
 
+### multi_req(fns) -> array
+
+Concurrently execute multiple Sesi function closures or builtins in parallel and return their results as an array.
+
+```sesi
+fn job1() {
+  sleep(100)
+  return "a"
+}
+fn job2() {
+  sleep(100)
+  return "b"
+}
+let results = multi_req([job1, job2])
+print results // ["a", "b"]
+```
+
+**Returns**: `array<any>` containing the returned values of each function in original index order.
+
+---
+
 ### random() -> number
 
 Returns a random floating-point number between 0 (inclusive) and 1 (exclusive).
@@ -348,11 +412,26 @@ if rand > 0.5 {print "Heads"} else {print "Tails"}
 
 ---
 
+## Math Functions
+
+### exp(x) -> number
+
+Returns Euler's number $e$ (approx. `2.71828`) raised to the power of $x$.
+
+```sesi
+exp(0)             // 1.0
+exp(1)             // 2.718281828459045
+let sigmoid = 1.0 / (1.0 + exp(0.0 - 0.5))
+print sigmoid      // 0.6224593312018546
+```
+
+**Returns**: `number`
+
 ---
 
 ## Math-like Functions (v2 planned)
 
-These are not yet implemented in v1.1 but will be added:
+These are not yet implemented in v1.2 but will be added:
 
 ```sesi
 // Planned for v2:
@@ -514,9 +593,11 @@ keys(obj) contains "a"    // Future: not yet supported
 
 ---
 
-## Standard Library Modules (v2 planned)
+## Standard Library Modules (Supported natively in v1.1.2)
 
 ### std/math
+
+Includes math constants and functions: `PI`, `E`, `sin`, `cos`, `tan`, `sqrt`, `floor`, `ceil`, `abs`, `pow`, `log`, `exp`.
 
 ```sesi
 import { PI, E, sqrt, sin, cos } from "std/math"
@@ -524,20 +605,18 @@ import { PI, E, sqrt, sin, cos } from "std/math"
 
 ### std/time
 
+Includes time and sleep functions: `now()`, `sleep(ms)`.
+
 ```sesi
 import { now, sleep } from "std/time"
 ```
 
 ### std/json
 
+Includes JSON serialization: `parse(str)`, `stringify(val)`.
+
 ```sesi
 import { parse, stringify } from "std/json"
-```
-
-### std/http
-
-```sesi
-import { get, post } from "std/http"
 ```
 
 ---

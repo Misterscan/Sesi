@@ -1,5 +1,7 @@
 // AI Runtime - Integration with Gemini API
 import { AIRequest, AIResponse, StructuredOutput } from './types';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class AIRuntime {
   private _client: any = null;
@@ -22,13 +24,108 @@ export class AIRuntime {
     return this._client;
   }
 
+  private getCacheFile(): string {
+    return path.resolve(process.cwd(), '.sesi_cache.json');
+  }
+
+  private readCache(): Record<string, AIResponse> {
+    const file = this.getCacheFile();
+    if (fs.existsSync(file)) {
+      try {
+        return JSON.parse(fs.readFileSync(file, 'utf-8'));
+      } catch (e) {
+        return {};
+      }
+    }
+    return {};
+  }
+
+  private writeCache(cache: Record<string, AIResponse>): void {
+    const file = this.getCacheFile();
+    try {
+      fs.writeFileSync(file, JSON.stringify(cache, null, 2), 'utf-8');
+    } catch (e) {
+      // Ignore write errors gracefully
+    }
+  }
+
+  private computeCacheHash(request: AIRequest): string {
+    const crypto = require('crypto');
+    const hash = crypto.createHash('sha256');
+    const input = {
+      model: request.model,
+      prompt: request.prompt,
+      temperature: request.temperature,
+      maxTokens: request.maxTokens,
+      topK: request.topK,
+      topP: request.topP,
+      ratio: request.ratio,
+      size: request.size,
+      images: request.images,
+      thinkingLevel: request.thinkingLevel,
+    };
+    hash.update(JSON.stringify(input));
+    return hash.digest('hex');
+  }
+
+  private resolveImageParts(imagePaths: string[]): any[] {
+    const mimeMap: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.bmp': 'image/bmp',
+    };
+
+    const parts: any[] = [];
+    for (const imgPath of imagePaths) {
+      const abs = path.isAbsolute(imgPath) ? imgPath : path.resolve(process.cwd(), imgPath);
+      const ext = path.extname(abs).toLowerCase();
+      const mimeType = mimeMap[ext] ?? 'image/jpeg';
+      const data = fs.readFileSync(abs).toString('base64');
+      parts.push({ inlineData: { mimeType, data } });
+    }
+    return parts;
+  }
+
   async callModel(request: AIRequest): Promise<AIResponse> {
+    const useCache = request.cache !== false;
+    let cacheHash = '';
+    if (useCache) {
+      cacheHash = this.computeCacheHash(request);
+      const cache = this.readCache();
+      if (cache[cacheHash]) {
+        console.log('⚡ [Sesi Logic Cache] Served from local cache');
+        return cache[cacheHash];
+      }
+    }
+
     try {
       const client = this.client;
       
       // Inject current date/time for context
       const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
       const fullPrompt = timeContext + request.prompt;
+
+      // Build thinkingConfig if requested
+      let thinkingConfig: any = undefined;
+      if (request.thinkingLevel) {
+        const thinking = request.thinkingLevel.thinking !== 'no';
+        const level = request.thinkingLevel.level || 'low';
+        
+        const isGemini3 = request.model.includes('gemini-3');
+        if (isGemini3) {
+          const isPro = request.model.includes('pro');
+          thinkingConfig = {
+            thinkingLevel: thinking ? level : (isPro ? 'low' : 'minimal')
+          };
+        } else {
+          thinkingConfig = {
+            thinkingBudget: thinking ? (level === 'low' ? 1024 : level === 'medium' ? 2048 : 4096) : 0
+          };
+        }
+      }
 
       // Handle image generation models dynamically
       if (request.model.includes('image')) {
@@ -48,10 +145,13 @@ export class AIRuntime {
         if (request.maxTokens !== undefined) configObj.maxOutputTokens = request.maxTokens;
         if (request.topK !== undefined) configObj.topK = request.topK;
         if (request.topP !== undefined) configObj.topP = request.topP;
+        if (thinkingConfig) configObj.thinkingConfig = thinkingConfig;
 
         const response = await client.models.generateContent({
           model: request.model,
-          contents: request.prompt,
+          contents: request.images && request.images.length > 0
+            ? [{ role: 'user', parts: [...this.resolveImageParts(request.images), { text: request.prompt }] }]
+            : request.prompt,
           config: configObj
         });
         
@@ -69,7 +169,7 @@ export class AIRuntime {
           throw new Error("Image generation failed or returned no image output.");
         }
         
-        return {
+        const resObj: AIResponse = {
           text: base64String, // Return the base64 string directly
           finishReason: 'STOP',
           usage: {
@@ -77,6 +177,14 @@ export class AIRuntime {
             outputTokens: 0,
           },
         };
+
+        if (useCache) {
+          const cache = this.readCache();
+          cache[cacheHash] = resObj;
+          this.writeCache(cache);
+        }
+
+        return resObj;
       }
 
       let accumulatedText = '';
@@ -87,9 +195,17 @@ export class AIRuntime {
       let maxPolls = 10;
       let currentPoll = 0;
 
-      const contents: any[] = [
-        { role: 'user', parts: [{ text: fullPrompt }] }
-      ];
+      const contents: any[] = [];
+
+      // Prepend image parts if provided
+      const imageParts: any[] = request.images && request.images.length > 0
+        ? this.resolveImageParts(request.images)
+        : [];
+
+      contents.push({
+        role: 'user',
+        parts: [...imageParts, { text: fullPrompt }],
+      });
 
       while (!isComplete && currentPoll < maxPolls) {
         const genConfig: any = {
@@ -101,6 +217,10 @@ export class AIRuntime {
 
         if (request.tools) {
             genConfig.tools = request.tools;
+        }
+
+        if (thinkingConfig) {
+          genConfig.thinkingConfig = thinkingConfig;
         }
 
         const response = await client.models.generateContent({
@@ -117,7 +237,7 @@ export class AIRuntime {
         if (candidate?.content?.parts) {
             for (const part of candidate.content.parts) {
                 if (part.call) {
-                    return {
+                    const toolRes: AIResponse = {
                         text: JSON.stringify(part.call),
                         finishReason: 'TOOL_CALL',
                         usage: {
@@ -125,6 +245,7 @@ export class AIRuntime {
                             outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
                         },
                     };
+                    return toolRes;
                 }
             }
         }
@@ -163,7 +284,7 @@ export class AIRuntime {
         throw new Error(`Generation did not complete successfully (finish reason: ${currentFinishReason})`);
       }
 
-      return {
+      const resObj: AIResponse = {
         text: accumulatedText,
         finishReason: currentFinishReason,
         usage: {
@@ -171,6 +292,14 @@ export class AIRuntime {
           outputTokens: totalOutputTokens,
         },
       };
+
+      if (useCache) {
+        const cache = this.readCache();
+        cache[cacheHash] = resObj;
+        this.writeCache(cache);
+      }
+
+      return resObj;
     } catch (error: any) {
       throw new Error(`Sesi: ${error.message}`);
     }

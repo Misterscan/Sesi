@@ -4,6 +4,8 @@
 import { Lexer } from '../src/lexer';
 import { Parser } from '../src/parser';
 import { Interpreter } from '../src/interpreter';
+import type { ModelCallExpression, ImageCallExpression, ExpressionStatement, ArrayLiteral, Literal, Identifier } from '../src/types';
+
 
 async function runTest(name: string, source: string, expected?: any): Promise<void> {
   try {
@@ -24,7 +26,7 @@ async function main() {
 
   // Lexer tests
   console.log('=== Lexer Tests ===');
-  
+
   const lexer1 = new Lexer('let x = 10');
   const tokens1 = lexer1.scanTokens();
   if (tokens1[0].type === 'LET') {
@@ -110,6 +112,98 @@ async function main() {
   console.log('\n=== Summary ===');
   console.log('All basic tests completed!');
   console.log('Note: AI feature tests require GEMINI_API_KEY environment variable');
+
+  let passed = 0;
+  let failed = 0;
+
+  function assert(name: string, condition: boolean, detail?: string): void {
+    if (condition) {
+      console.log(`  ✓ ${name}`);
+      passed++;
+    } else {
+      console.error(`  ✗ ${name}${detail ? ': ' + detail : ''}`);
+      failed++;
+    }
+  }
+
+  function parseFirstExpr(src: string): any {
+    const tokens = new Lexer(src).scanTokens();
+    const program = new Parser(tokens).parse();
+    return (program.statements[0] as ExpressionStatement).expression;
+  }
+
+  console.log('\n=== Image Input — Parser / AST Tests ===\n');
+
+  // 1. model() with a literal string images key
+  console.log('1. model() — literal string path');
+  try {
+    const expr = parseFirstExpr(`model("gemini-3-flash-preview") {images: "docs/logo.png"} {"describe it"}`) as ModelCallExpression;
+    assert('type is ModelCallExpression', expr.type === 'ModelCallExpression');
+    assert('images field is present', expr.images !== undefined);
+    const imgNode = expr.images as Literal;
+    assert('images is a string literal', imgNode.type === 'Literal' && imgNode.rawType === 'string');
+    assert('images value matches path', imgNode.value === 'docs/logo.png');
+  } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
+
+  // 2. model() with an images variable (identifier)
+  console.log('\n2. model() — identifier path');
+  try {
+    const expr = parseFirstExpr(`model("gemini-3-flash-preview") {images: myPath} {"describe it"}`) as ModelCallExpression;
+    assert('type is ModelCallExpression', expr.type === 'ModelCallExpression');
+    assert('images field is present', expr.images !== undefined);
+    const imgNode = expr.images as Identifier;
+    assert('images is an Identifier', imgNode.type === 'Identifier');
+    assert('images identifier name matches', imgNode.name === 'myPath');
+  } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
+
+  // 3. model() with an array of paths
+  console.log('\n3. model() — array of paths');
+  try {
+    const expr = parseFirstExpr(`model("gemini-3-flash-preview") {images: ["a.png", "b.png"]} {"compare"}`) as ModelCallExpression;
+    assert('type is ModelCallExpression', expr.type === 'ModelCallExpression');
+    assert('images field is present', expr.images !== undefined);
+    const arr = expr.images as ArrayLiteral;
+    assert('images is an ArrayLiteral', arr.type === 'ArrayLiteral');
+    assert('array has two elements', arr.elements.length === 2);
+    assert('first element is a.png', (arr.elements[0] as Literal).value === 'a.png');
+    assert('second element is b.png', (arr.elements[1] as Literal).value === 'b.png');
+  } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
+
+  // 4. model() with images + other config keys
+  console.log('\n4. model() — images mixed with temperature and max_tokens');
+  try {
+    const expr = parseFirstExpr(`model("gemini-3.1-flash-lite") {images: "ref.jpg", temperature: 0, max_tokens: 256} {"analyze"}`) as ModelCallExpression;
+    assert('type is ModelCallExpression', expr.type === 'ModelCallExpression');
+    assert('images field is present', expr.images !== undefined);
+    assert('config.temperature is present', expr.config?.temperature !== undefined);
+    assert('config.max_tokens is present', expr.config?.max_tokens !== undefined);
+    const imgNode = expr.images as Literal;
+    assert('images value is ref.jpg', imgNode.value === 'ref.jpg');
+  } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
+
+  // 5. image() with a literal images key
+  console.log('\n5. image() — literal reference path');
+  try {
+    const expr = parseFirstExpr(`image("gemini-3.1-flash-image-preview") {images: "ref.jpg", ratio: "16:9"} {"render in same style"}`) as ImageCallExpression;
+    assert('type is ImageCallExpression', expr.type === 'ImageCallExpression');
+    assert('images field is present', expr.images !== undefined);
+    assert('config.ratio is present', expr.config?.ratio !== undefined);
+    const imgNode = expr.images as Literal;
+    assert('images value matches', imgNode.value === 'ref.jpg');
+  } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
+
+  // 6. model() without images — field should be absent / undefined
+  console.log('\n6. model() — no images key (backward-compat)');
+  try {
+    const expr = parseFirstExpr(`model("gemini-3-flash-preview") {"temperature": 0.3} {"hello"}`) as ModelCallExpression;
+    assert('type is ModelCallExpression', expr.type === 'ModelCallExpression');
+    assert('images field is absent', expr.images === undefined || expr.images === null);
+  } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
+
+  // ---------------------------------------------------------------------------
+  console.log(`\n=== Summary ===`);
+  console.log(`Passed: ${passed}  Failed: ${failed}`);
+  if (failed > 0) process.exit(1);
 }
 
 main().catch(console.error);

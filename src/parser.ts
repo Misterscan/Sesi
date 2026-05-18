@@ -908,6 +908,7 @@ export class Parser {
       modelName: modelName as string,
       config,
       prompt,
+      images: config?.images,
       line,
     };
   }
@@ -997,6 +998,7 @@ export class Parser {
       modelName: modelName as string,
       config,
       prompt,
+      images: config?.images,
       line,
     };
   }

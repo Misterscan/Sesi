@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, execSync } from 'child_process';
 
-export function getBuiltins(): Map<string, RuntimeFunction> {
+export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
   const builtins = new Map<string, RuntimeFunction>();
 
   builtins.set('print', {
@@ -79,6 +79,36 @@ export function getBuiltins(): Map<string, RuntimeFunction> {
       } catch (e) {
         return null;
       }
+    },
+  });
+
+  builtins.set('from_json', {
+    type: 'function',
+    name: 'from_json',
+    params: [{ name: 'string' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (str: RuntimeValue): RuntimeValue => {
+      if (typeof str !== 'string') return null;
+      try {
+        return JSON.parse(str);
+      } catch (e) {
+        return null;
+      }
+    },
+  });
+
+  builtins.set('exp', {
+    type: 'function',
+    name: 'exp',
+    params: [{ name: 'x' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (x: RuntimeValue): RuntimeValue => {
+      if (typeof x !== 'number') return null;
+      return Math.exp(x);
     },
   });
 
@@ -366,6 +396,89 @@ export function getBuiltins(): Map<string, RuntimeFunction> {
     closure: {} as any,
     isBuiltin: true,
     builtin: (): RuntimeValue => Math.random(),
+  });
+
+  builtins.set('web_get', {
+    type: 'function',
+    name: 'web_get',
+    params: [{ name: 'url' }, { name: 'headers', defaultValue: {} as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const [urlVal, headersVal] = args;
+      const url = typeof urlVal === 'string' ? urlVal : '';
+      const headersObj: Record<string, string> = {};
+      if (headersVal && typeof headersVal === 'object' && !Array.isArray(headersVal)) {
+        for (const [k, v] of Object.entries(headersVal)) {
+          headersObj[k] = String(v);
+        }
+      }
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: headersObj,
+        });
+        return await response.text();
+      } catch (e: any) {
+        throw new Error(`web_get failed: ${e.message}`);
+      }
+    }
+  });
+
+  builtins.set('web_send', {
+    type: 'function',
+    name: 'web_send',
+    params: [{ name: 'url' }, { name: 'body' }, { name: 'headers', defaultValue: {} as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const [urlVal, bodyVal, headersVal] = args;
+      const url = typeof urlVal === 'string' ? urlVal : '';
+      const body = typeof bodyVal === 'string' ? bodyVal : JSON.stringify(bodyVal);
+      const headersObj: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (headersVal && typeof headersVal === 'object' && !Array.isArray(headersVal)) {
+        for (const [k, v] of Object.entries(headersVal)) {
+          headersObj[k] = String(v);
+        }
+      }
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: headersObj,
+          body,
+        });
+        return await response.text();
+      } catch (e: any) {
+        throw new Error(`web_send failed: ${e.message}`);
+      }
+    }
+  });
+
+  builtins.set('multi_req', {
+    type: 'function',
+    name: 'multi_req',
+    params: [{ name: 'fns' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const [fnsVal] = args;
+      if (!Array.isArray(fnsVal)) {
+        throw new Error('multi_req expects an array of functions');
+      }
+      if (!interpreter) {
+        throw new Error('multi_req interpreter reference is missing');
+      }
+      const promises = fnsVal.map(async (fn) => {
+        if (typeof fn !== 'object' || fn === null || (fn as any).type !== 'function') {
+          throw new Error('multi_req elements must be functions');
+        }
+        return await interpreter.callSesiFunction(fn, []);
+      });
+      return await Promise.all(promises);
+    }
   });
 
   return builtins;

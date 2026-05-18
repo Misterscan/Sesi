@@ -149,7 +149,7 @@ Sesi/
 │   └── index.ts          # Main entry point
 ├── bin/
 │   └── sesi.js           # CLI executable
-├── examples/             # 15 sample programs demonstrating all features
+├── examples/             # 18 sample programs demonstrating all features
 ├── main/                 # Main entry and specialized tests
 │   ├── playground.sesi   # Main playground script
 │   ├── start.sesi        # Beginner script 
@@ -159,7 +159,7 @@ Sesi/
 └── docs/                 # Documentation (ARCHITECTURE, BUILTINS, SPECIFICATION, etc.)
 ```
 
-## Version 1.1 Features (Complete)
+## Version 1.2 Features (In Progress)
 
 ### Core Language ✅
 
@@ -168,6 +168,11 @@ Sesi/
 - **Control Flow**: `if/else`, `while`, `for`, and `try/catch`.
 - **Collections**: Robust Arrays and Objects.
 - **Error Handling**: Structured `try/catch` for both runtime and Reasoning-level errors.
+- **Local Module Imports/Exports**: Import custom local `.sesi` modules cleanly using relative import/export syntax!
+- **Standard Library Modules**: Native support for imported standard libraries, including:
+  - `std/math` (providing `PI`, `E`, `sqrt`, `pow`, `sin`, `cos`, etc.)
+  - `std/time` (providing `sleep` and `now`)
+  - `std/json` (providing JSON serialization/deserialization)
 
 ### Reasoning-Native Features ✅
 
@@ -178,7 +183,10 @@ Sesi/
 - `tool_call()` for function calling
 - Basic memory for multi-turn reasoning
 - `read_file()`, `write_file()`, `to_json()`, `write_image()`, and `list_dir()` for local file I/O
-- **Native Orchestration**: `spawn()` and `exec()` for concurrent process management
+- **Native Concurrency**: `spawn()` and `exec()` for concurrent process management, and `multi_req(array<function>)` for physical parallel request execution.
+- **Logic Caching**: High-efficiency Sesi Logic Caching (`.sesi_cache.json`) for local call caching.
+- **Thinking Scale**: Scaled Gemini reasoning configurations using the `thinking` parameters.
+- **HTTP Client**: Built-in, native HTTP client support using `web_get(url)` and `web_send(url, body, headers)` with zero external dependencies.
 - **Async Polling**: Native looping to auto-resume generation when hitting `MAX_TOKENS` limit
 - **Utility Builtins**: `time()` and `random()` for robust coordination
 
@@ -193,8 +201,6 @@ Sesi/
 ### V2: Advanced Reasoning
 
 - Long-term memory and context management
-- Parallel model calls
-- Advanced error handling with Reasoning fallbacks
 - Custom tool definitions
 - Streaming responses
 

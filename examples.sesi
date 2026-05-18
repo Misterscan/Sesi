@@ -1,4 +1,5 @@
-print "Launching example .sesi files..."
+try 
+{print "Launching example .sesi files..."
 print exec("sesi examples/01_hello.sesi")
 print exec("sesi examples/02_variables.sesi")
 print exec("sesi examples/03_functions.sesi")
@@ -6,14 +7,20 @@ print exec("sesi examples/04_conditionals.sesi")
 print exec("sesi examples/05_loops.sesi")
 print exec("sesi examples/06_arrays_objects.sesi")
 print exec("sesi examples/07_prompts.sesi")
-print "Halfway there..."
 print exec("sesi examples/08_model_call.sesi")
+print "Halfway there..."
 print exec("sesi examples/09_structured_output.sesi")
 print exec("sesi examples/10_code_generation.sesi")
 print exec("sesi examples/11_memory_conversation.sesi")
 print exec("sesi examples/12_classification.sesi")
 print exec("sesi examples/13_data_pipeline.sesi")
 print exec("sesi examples/14_folder_explainer.sesi")
-print "Last one! This one might take a while..."
+print "Image generation example may take a while..."
 print exec("sesi examples/15_image_generation.sesi")
-print "All done!"
+print "Done! Moving on with final examples!"
+print exec("sesi examples/16_modules.sesi")
+print exec("sesi examples/17_http_client.sesi")
+print exec("sesi examples/18_parallel_requests.sesi")
+print "All done! No errors means Sesi is ready!"}
+catch (error) {
+print "An error occurred:" error}

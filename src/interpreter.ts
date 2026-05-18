@@ -45,13 +45,14 @@ export class Interpreter {
   private currentEnv: Environment;
   private prompts: Map<string, string> = new Map();
   private memory: Map<string, string> = new Map();
+  public exports: Map<string, RuntimeValue> = new Map();
 
   constructor() {
     this.globalEnv = new Environment();
     this.currentEnv = this.globalEnv;
 
     // Add built-in functions
-    const builtins = getBuiltins();
+    const builtins = getBuiltins(this);
     for (const [name, fn] of builtins) {
       this.globalEnv.define(name, fn);
     }
@@ -106,10 +107,10 @@ export class Interpreter {
         await this.executeMemory(statement);
         break;
       case 'ImportStatement':
-        console.log('Import not yet implemented');
+        await this.executeImport(statement);
         break;
       case 'ExportStatement':
-        console.log('Export not yet implemented');
+        await this.executeExport(statement);
         break;
     }
   }
@@ -424,34 +425,7 @@ export class Interpreter {
       args.push(await this.evaluateExpression(arg));
     }
 
-    if (fn.isBuiltin && fn.builtin) {
-      return fn.builtin(...args);
-    }
-
-    // User-defined function
-    const callEnv = new Environment(fn.closure);
-
-    // Bind parameters
-    for (let i = 0; i < fn.params.length; i++) {
-      const param = fn.params[i];
-      const value = i < args.length ? args[i] : (param.defaultValue ? await this.evaluateExpression(param.defaultValue) : null);
-      callEnv.define(param.name, value);
-    }
-
-    const previous = this.currentEnv;
-    this.currentEnv = callEnv;
-
-    try {
-      await this.executeBlock(fn.body, callEnv);
-      return null;
-    } catch (e) {
-      if (e instanceof ReturnValue) {
-        return e.value;
-      }
-      throw e;
-    } finally {
-      this.currentEnv = previous;
-    }
+    return await this.callSesiFunction(fn, args);
   }
 
   private async evaluateMember(expr: MemberExpression): Promise<RuntimeValue> {
@@ -513,6 +487,32 @@ export class Interpreter {
       promptText = stringify(promptText);
     }
 
+    let imagePaths: string[] | undefined;
+    if (expr.images) {
+      const raw = await this.evaluateExpression(expr.images);
+      if (Array.isArray(raw)) {
+        imagePaths = (raw as any[]).map(v => stringify(v));
+      } else if (typeof raw === 'string' && raw.trim() !== '') {
+        imagePaths = [raw];
+      }
+    }
+
+    let thinkingLevel: { thinking?: string; level?: string } | undefined;
+    if (expr.config?.thinkingLevel) {
+      const raw = await this.evaluateExpression(expr.config.thinkingLevel);
+      if (typeof raw === 'object' && raw !== null) {
+        thinkingLevel = raw as any;
+      }
+    }
+
+    let cache: boolean | undefined;
+    if (expr.config?.cache) {
+      const raw = await this.evaluateExpression(expr.config.cache);
+      if (typeof raw === 'boolean') {
+        cache = raw;
+      }
+    }
+
     const response = await aiRuntime.callModel({
       model: expr.modelName,
       prompt: promptText,
@@ -522,6 +522,9 @@ export class Interpreter {
       topP: expr.config?.top_p ? (await this.evaluateExpression(expr.config.top_p) as number) : undefined,
       ratio: expr.config?.ratio ? (await this.evaluateExpression(expr.config.ratio) as string) : undefined,
       size: expr.config?.size ? (await this.evaluateExpression(expr.config.size) as string) : undefined,
+      images: imagePaths,
+      thinkingLevel,
+      cache,
     });
 
     return response.text;
@@ -533,11 +536,40 @@ export class Interpreter {
       promptText = stringify(promptText);
     }
 
+    let imagePaths: string[] | undefined;
+    if (expr.images) {
+      const raw = await this.evaluateExpression(expr.images);
+      if (Array.isArray(raw)) {
+        imagePaths = (raw as any[]).map(v => stringify(v));
+      } else if (typeof raw === 'string' && raw.trim() !== '') {
+        imagePaths = [raw];
+      }
+    }
+
+    let thinkingLevel: { thinking?: string; level?: string } | undefined;
+    if (expr.config?.thinkingLevel) {
+      const raw = await this.evaluateExpression(expr.config.thinkingLevel);
+      if (typeof raw === 'object' && raw !== null) {
+        thinkingLevel = raw as any;
+      }
+    }
+
+    let cache: boolean | undefined;
+    if (expr.config?.cache) {
+      const raw = await this.evaluateExpression(expr.config.cache);
+      if (typeof raw === 'boolean') {
+        cache = raw;
+      }
+    }
+
     const response = await aiRuntime.callModel({
       model: expr.modelName,
       prompt: promptText,
       temperature: expr.config?.temperature ? (await this.evaluateExpression(expr.config.temperature) as number) : undefined,
       maxTokens: expr.config?.max_tokens ? (await this.evaluateExpression(expr.config.max_tokens) as number) : undefined,
+      images: imagePaths,
+      thinkingLevel,
+      cache,
     });
 
     return response.text;
@@ -567,14 +599,20 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       args.push(await this.evaluateExpression(arg));
     }
 
-    const runtimeFn = fn as RuntimeFunction;
-    if (runtimeFn.isBuiltin && runtimeFn.builtin) {
-      return runtimeFn.builtin(...args);
+    return await this.callSesiFunction(fn as RuntimeFunction, args);
+  }
+
+  public async callSesiFunction(fn: RuntimeFunction, args: RuntimeValue[]): Promise<RuntimeValue> {
+    if (fn.isBuiltin && fn.builtin) {
+      return await fn.builtin(...args);
     }
 
-    const callEnv = new Environment(runtimeFn.closure);
-    for (let i = 0; i < runtimeFn.params.length; i++) {
-      const param = runtimeFn.params[i];
+    // User-defined function
+    const callEnv = new Environment(fn.closure);
+
+    // Bind parameters
+    for (let i = 0; i < fn.params.length; i++) {
+      const param = fn.params[i];
       const value = i < args.length ? args[i] : (param.defaultValue ? await this.evaluateExpression(param.defaultValue) : null);
       callEnv.define(param.name, value);
     }
@@ -583,7 +621,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     this.currentEnv = callEnv;
 
     try {
-      await this.executeBlock(runtimeFn.body, callEnv);
+      await this.executeBlock(fn.body, callEnv);
       return null;
     } catch (e) {
       if (e instanceof ReturnValue) {
@@ -593,5 +631,148 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     } finally {
       this.currentEnv = previous;
     }
+  }
+
+  private async executeExport(stmt: import('./types').ExportStatement): Promise<void> {
+    await this.executeStatement(stmt.statement);
+    const name = stmt.statement.name;
+    const val = this.currentEnv.get(name);
+    this.exports.set(name, val);
+  }
+
+  private async executeImport(stmt: import('./types').ImportStatement): Promise<void> {
+    const source = stmt.source;
+    let moduleExports: Map<string, RuntimeValue> | null = null;
+
+    if (source.startsWith('std/')) {
+      moduleExports = this.loadStdModule(source);
+    } else {
+      const fs = require('fs');
+      const path = require('path');
+      let filePath = source;
+      if (!filePath.endsWith('.sesi')) {
+        filePath += '.sesi';
+      }
+      const resolvedPath = path.resolve(process.cwd(), filePath);
+      if (!fs.existsSync(resolvedPath)) {
+        throw new Error(`Module not found: ${source}`);
+      }
+      
+      const content = fs.readFileSync(resolvedPath, 'utf-8');
+      const { Lexer } = require('./lexer');
+      const { Parser } = require('./parser');
+      const lexer = new Lexer(content);
+      const parser = new Parser(lexer.scanTokens());
+      const program = parser.parse();
+      
+      const subInterpreter = new Interpreter();
+      await subInterpreter.interpret(program);
+      moduleExports = subInterpreter.exports;
+    }
+
+    if (!moduleExports) {
+      throw new Error(`Failed to load module: ${source}`);
+    }
+
+    if (stmt.names.length === 1 && stmt.names[0] === stmt.names[0].toLowerCase() && !moduleExports.has(stmt.names[0])) {
+      const nsObj: any = {};
+      for (const [key, val] of moduleExports.entries()) {
+        nsObj[key] = val;
+      }
+      this.currentEnv.define(stmt.names[0], nsObj);
+    } else {
+      for (const name of stmt.names) {
+        if (!moduleExports.has(name)) {
+          throw new Error(`Module "${source}" does not export "${name}"`);
+        }
+        this.currentEnv.define(name, moduleExports.get(name)!);
+      }
+    }
+  }
+
+  public loadStdModule(source: string): Map<string, RuntimeValue> | null {
+    const exports = new Map<string, RuntimeValue>();
+    if (source === 'std/math') {
+      exports.set('PI', Math.PI);
+      exports.set('E', Math.E);
+      
+      const mathFns = ['sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'exp'];
+      for (const name of mathFns) {
+        exports.set(name, {
+          type: 'function',
+          name,
+          params: name === 'pow' ? [{ name: 'x' }, { name: 'y' }] : [{ name: 'x' }],
+          body: {} as any,
+          closure: {} as any,
+          isBuiltin: true,
+          builtin: (...args: RuntimeValue[]): RuntimeValue => {
+            const x = typeof args[0] === 'number' ? args[0] : 0;
+            if (name === 'pow') {
+              const y = typeof args[1] === 'number' ? args[1] : 0;
+              return Math.pow(x, y);
+            }
+            return (Math as any)[name](x);
+          }
+        });
+      }
+      return exports;
+    } else if (source === 'std/time') {
+      exports.set('now', {
+        type: 'function',
+        name: 'now',
+        params: [],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => Date.now()
+      });
+      exports.set('sleep', {
+        type: 'function',
+        name: 'sleep',
+        params: [{ name: 'ms' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+          const [ms] = args;
+          const duration = typeof ms === 'number' ? ms : 0;
+          await new Promise(resolve => setTimeout(resolve, duration));
+          return null;
+        }
+      });
+      return exports;
+    } else if (source === 'std/json') {
+      exports.set('stringify', {
+        type: 'function',
+        name: 'stringify',
+        params: [{ name: 'val' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const [val] = args;
+          return JSON.stringify(val);
+        }
+      });
+      exports.set('parse', {
+        type: 'function',
+        name: 'parse',
+        params: [{ name: 'str' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const [str] = args;
+          if (typeof str !== 'string') return null;
+          try {
+            return JSON.parse(str);
+          } catch (e) {
+            return null;
+          }
+        }
+      });
+      return exports;
+    }
+    return null;
   }
 }

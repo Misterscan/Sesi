@@ -1,4 +1,4 @@
-# Sesi Systems Language Specification (v1.1)
+# Sesi Systems Language Specification (v1.2)
 
 ## 1. Philosophy & Design Principles
 
@@ -27,7 +27,7 @@ Sesi is built on these core principles:
 - Concurrent process management and distributed locking
 - Multi-stage reasoning workflows with stateful memory
 
-## 3. V1.1 Feature Set (Current)
+## 3. V1.2 Feature Set (Current)
 
 ### Core Language Features
 
@@ -47,6 +47,7 @@ Sesi is built on these core principles:
 - ✅ `prompt` blocks (composable message templates)
 - ✅ `model()` calls (native model with configuration)
 - ✅ `image()` calls (native image generation with configuration)
+- ✅ `images` config key (multimodal vision input for `model()` and `image()`)
 - ✅ `structured_output()` (schema-guided structured output with JSON recovery and empty-object fallback on failure)
 - ✅ `tool_call()` (Fully functional function calling via models)
 - ✅ Simple memory (conversation context)
@@ -222,17 +223,28 @@ prompt codeReview {"Review this code for bugs:" code "Provide specific issues fo
 #### Model & Image Calls
 
 ```
-model_call := 'model' '('STRING')' '{'config (optional)'}' '{'prompt'}'
-            | 'model' '('STRING')' '{'prompt'}'
-image_call := 'image' '('STRING')' '{'config (optional)'}' '{'prompt'}'
-            | 'image' '('STRING')' '{'prompt'}'
-config := ((STRING | identifier) ':' expression (',' (STRING | identifier) ':' expression)*)?
+model_call := 'model' '('STRING')' config_block? '{'prompt'}'
+image_call := 'image' '('STRING')' config_block? '{'prompt'}'
+config_block := '{' config_entry (',' config_entry)* '}'
+config_entry := (STRING | identifier) ':' expression
 ```
+
+**Config keys:**
+
+| Key | Applies to | Type | Description |
+|-----|-----------|------|-------------|
+| `temperature` | `model`, `image` | `number` | Sampling temperature (0.0–1.0) |
+| `max_tokens` | `model` | `number` | Max output token count |
+| `top_k` | `model` | `number` | Top-K diversity |
+| `top_p` | `model` | `number` | Nucleus sampling |
+| `ratio` | `image` | `string` | Aspect ratio e.g. `"16:9"` |
+| `size` | `image` | `string` | `"512"`, `"1K"`, `"2K"`, `"4K"` |
+| `images` | `model`, `image` | `string \| array<string>` | Local file path(s) passed as visual input |
 
 Example:
 
 ```sesi
-let result = model("gemini-3.1-flash-lite") {codeReview}
+let result = model("gemini-3-flash-preview") {images: "scan.png", temperature: 0} {"Transcribe all visible text."}
 let output = model("gemini-3.1-flash-lite") {"temperature": 0.4, "max_tokens": 2000} {prompt}
 ```
 
@@ -283,7 +295,7 @@ optional_type := type '?'
 
 1. **Short-circuit evaluation**: `&&` and `||` short-circuit
 2. **Type coercion**: Automatic for numeric operations; explicit for string/number
-3. **Null propagation**: Operations on `null` return `null` (no exceptions in v1.1)
+3. **Null propagation**: Operations on `null` return `null` (no exceptions in v1.2)
 4. **Model responses**: Always returned as strings initially; structured_output provides type safety
 
 ## 6. Scope and Binding
@@ -345,7 +357,7 @@ random() -> number                // Random float (0.0 to 1.0)
 
 ## 9. Module System
 
-Parser support for `import` / `export` syntax exists in v1.1, but runtime module execution is not implemented yet.
+Runtime module execution and standard namespace modules are fully implemented and natively supported in v1.1.2.
 
 ### Defining Modules
 
@@ -378,21 +390,32 @@ import json from "std/json"    // JSON parsing
 Prompts are composable message templates:
 
 ```sesi
-prompt translate {"Translate the following to Spanish:" sourceText}
+prompt translate {"translate the following to Spanish:" sourceText}
 prompt summarize {"Summarize this in 3 sentences:" text}
-prompt combined {summarize "Now translate:" translate}
+prompt combined {summarize " Now " translate}
 ```
 
 ### Model & Image Calls
 
+Model calls can take optional configuration parameters (written on a single line) followed by one or more prompts/strings.
+
 ```sesi
-let response = model("gemini-3-flash-preview") {"temperature": 0} {"Say hello"}
+// Model call with temperature and thinking scale configuration
+let response = model("gemini-3.1-pro-preview") {"thinkingLevel": {"thinking": "yes", "level": "low"}, "temperature": 0} {"Say hello"}
 print response  // Returns string
 
 let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512"} {"A vector logo"}
 write_image("logo.png", logo)
 print "Image written to logo.png"
 ```
+
+#### Config Block Options:
+- **`temperature`**: `number` (0.0 to 1.0)
+- **`max_tokens`**: `number` (maximum response tokens)
+- **`images`**: `string` or `array<string>` (paths to multimodal vision input files)
+- **`thinkingLevel`**: `object` with keys `"thinking"` (`"yes"` | `"no"`) and `"level"` (`"low"` | `"medium"` | `"high"`) - natively configures and scales Gemini's reasoning budget.
+- **`cache`**: `bool` (set to `false` to explicitly bypass Sesi Logic Caching)
+
 
 ### Structured Output
 
@@ -444,7 +467,7 @@ print sentiment.label
 print sentiment.score
 ```
 
-## 12. Undefined Behavior & Limitations (V1.1)
+## 12. Undefined Behavior & Limitations (V1.2)
 
 - **No async/await**: All operations within a script are blocking (including model calls). Concurrency must be achieved via `spawn()`.
 - **No custom types**: Only built-in types are supported natively.

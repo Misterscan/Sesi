@@ -1,0 +1,48 @@
+// Sesi Native V2.0 Upgrades Test Script
+
+print "=== 1. Testing Standard Math Module (std/math) ==="
+import { PI, sqrt, pow } from "std/math"
+print "PI:" + str(PI)
+print "sqrt(100):" + str(sqrt(100))
+print "pow(3, 3):" + str(pow(3, 3))
+
+print "\n=== 2. Testing Standard JSON Module (std/json) ==="
+import { stringify, parse } from "std/json"
+let data = { "message": "hello from native Sesi", "code": 200 }
+let serialized = stringify(data)
+print "Serialized JSON:" + serialized
+let parsed = parse(serialized)
+print "Parsed Message:" + parsed["message"]
+
+print "\n=== 3. Testing HTTP Client web_get ==="
+let response = web_get("https://jsonplaceholder.typicode.com/posts/1")
+print "Fetched Title:" + parse(response)["title"]
+
+print "\n=== 4. Testing Concurrency with multi_req ==="
+import { sleep, now } from "std/time"
+
+fn job1() {
+  sleep(100)
+  return "job1_done"
+}
+
+fn job2() {
+  sleep(100)
+  return "job2_done"
+}
+
+let start_t = now()
+let parallel_results = multi_req([job1, job2])
+let elapsed = now() - start_t
+
+print "Parallel Results:" + str(parallel_results)
+print "Elapsed time for parallel jobs:" + str(elapsed) + "ms"
+
+print "\n=== 5. Testing Executable Sesi Module Import/Export ==="
+// Note: Since importing relative path loads and interprets that module,
+// we will import our helper module "tests/temp_math_mod".
+// First, the host test runner will write the temp module file, or we can write a let binding check.
+import { magic_number } from "tests/temp_math_mod"
+print "Imported magic number from local module:" + str(magic_number)
+
+print "\n=== All Native Sesi Tests Completed Successfully! ==="
