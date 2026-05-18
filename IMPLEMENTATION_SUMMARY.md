@@ -480,11 +480,11 @@ npm test
 - **Cost**: Competitive pricing
 - **Availability**: Easy to use via official SDK
 
-### Why does v1.2.0 support a module system?
+### Why does v1.2.1 support a module system?
 
-- **Organization**: As Sesi programs grew, having a single-file system became limiting. Local module imports/exports and standard libraries (`std/math`, `std/time`, `std/json`) are natively supported in v1.2.0.
+- **Organization**: As Sesi programs grew, having a single-file system became limiting. Local module imports/exports and standard libraries (`std/math`, `std/time`, `std/json`) are natively supported in v1.2.1.
 
-### Why does v1.2.0 support parallel execution?
+### Why does v1.2.1 support parallel execution?
 
 - **Concurrency**: While the interpreter remains tree-walking and single-threaded for simplicity, native concurrency is supported via the parallel request executor `multi_req(array<function>)`, executing asynchronous operations physically in parallel.
 
@@ -501,9 +501,7 @@ npm test
 9. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
 10. **Roadmap**: [ROADMAP.md](docs/ROADMAP.md) - Future vision
 
-## 🤝 Contributing Path (Future)
-
-When open source:
+## 🤝 Contributing Path
 
 1. Report bugs with minimal examples
 2. Suggest language features via RFCs
@@ -520,7 +518,7 @@ When open source:
 - ✅ API reference (450+ lines)
 - ✅ Systems reasoning guide (500+ lines)
 - ✅ Development roadmap (400+ lines)
-- ✅ 15 example programs
+- ✅ 15+ example programs
 - ✅ CLI executable
 - ✅ Test suite
 - ✅ Quick start guide

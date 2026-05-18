@@ -81,7 +81,7 @@ The `image()` call evaluates to a `string` (specifically, base64-encoded image d
 
 ---
 
-## Passing Images as Input (v1.2.0)
+## Passing Images as Input (v1.2.1)
 
 Both `model()` and `image()` accept local image files as visual input via the `images` config key. The runtime reads each file from disk, base64-encodes it, and attaches it as an inline data part alongside the prompt. This enables vision tasks such as image description, comparison, OCR, style transfer, and reference-guided generation.
 

@@ -8,7 +8,7 @@ const args = process.argv.slice(2);
 
 if (args.length === 0) {
   console.log(`
-Sesi Programming Language v1.2.0
+Sesi Programming Language v1.2.1
 
 Usage:
   sesi <file>          Run a Sesi program
@@ -36,11 +36,11 @@ if (args[0] === '--help' || args[0] === '-help' || args[0] === '-h') {
 
   const copilotPath = path.join(__dirname, '../main/sesi_db_chatbot.sesi');
   runSesiFile(copilotPath).catch((error) => {
-    console.error('Fatal error in RAG Co-Pilot:', error.message);
+    console.error('Fatal error in Sesi Co-Pilot:', error.message);
     process.exit(1);
   });
 } else if (args[0] === '--version') {
-  console.log('Sesi v1.2.0');
+  console.log('Sesi v1.2.1');
   process.exit(0);
 } else {
   const filePath = args[0];
