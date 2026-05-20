@@ -71,7 +71,7 @@ When configuring the `image` call (specifically for models like `gemini-3.1-flas
 
 - `"ratio"`: The aspect ratio of the image (e.g., `"1:1"`, `"16:9"`, `"9:16"`).
 - `"size"`: Dimensional sizing constraints (Must be `"512"`, `"1K"`, `"2K"`, or `"4K"`).
-- `"temperature"`: Controls variance (e.g., `0.3`).
+- `"temperature"`: *Deprecated in Gemini 3.x+* — controls variance.
 
 ## File I/O Integration: `write_image`
 
@@ -148,7 +148,7 @@ for f in files {
 
 ### Config Reference
 
-When used inside `model()` or `image()` config blocks, `images` is resolved at runtime — it is **not** a static string key passed to the Gemini SDK. All other config keys (`temperature`, `max_tokens`, `ratio`, `size`, etc.) work alongside it normally.
+When used inside `model()` or `image()` config blocks, `images` is resolved at runtime — it is **not** a static string key passed to the Gemini SDK. All other config keys (`thinkingLevel`, `max_tokens`, `ratio`, `size`, etc.) work alongside it normally.
 
 | Key | Accepted Value | Notes |
 |-----|---------------|-------|

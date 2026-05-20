@@ -475,7 +475,13 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         if (typeof fn !== 'object' || fn === null || (fn as any).type !== 'function') {
           throw new Error('multi_req elements must be functions');
         }
-        return await interpreter.callSesiFunction(fn, []);
+        // Create an isolated sub-interpreter to prevent lexical scope and currentEnv corruption
+        const InterpreterClass = interpreter.constructor;
+        const subInterpreter = new InterpreterClass();
+        (subInterpreter as any).prompts = (interpreter as any).prompts;
+        (subInterpreter as any).memory = (interpreter as any).memory;
+
+        return await subInterpreter.callSesiFunction(fn as any, []);
       });
       return await Promise.all(promises);
     }

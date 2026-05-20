@@ -213,7 +213,7 @@ false  → false
 ModelCallExpression (AST)
     │
     ├─ Evaluate prompt expression
-    ├─ Extract configuration ("temperature", "max_tokens", "thinking", "top_p", etc.)
+    ├─ Extract configuration ("thinkingLevel", "max_tokens", "cache", etc.)
     ├─ Call AIRuntime.callModel()
     │   │
     │   ├─ Create Gemini interaction request

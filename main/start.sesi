@@ -9,5 +9,5 @@ print "Math check:" a + b
 
 // Or jump straight into reasoning tasks
 let topic = "building a new programming language"
-let response = model("gemini-3.1-flash-lite") {"temperature": 0.3} {"Write a motivational 2-sentence intro about" topic}
+let response = model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Write a motivational 2-sentence intro about" topic}
 print "Sesi:" response

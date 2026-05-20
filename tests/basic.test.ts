@@ -80,9 +80,11 @@ async function main() {
   await runTest('Function definition', 'fn add(a, b) { return a + b }');
   await runTest('Function call', 'fn add(a, b) { return a + b }\nlet x = add(5, 3)');
   await runTest('Array literal', 'let arr = [1, 2, 3]');
+  await runTest('Multi-line array literal', 'let arr = [\n  1,\n  2,\n  3\n]');
   await runTest('Array indexing', 'let arr = [1, 2, 3]\nlet x = arr[0]');
   await runTest('Array length', 'let arr = [1, 2, 3]\nlet len = len(arr)');
   await runTest('Object literal', 'let obj = { "x": 10 }');
+  await runTest('Multi-line object literal', 'let obj = {\n  "readme.txt": "This is a mock document.",\n  "data.json": "{\\"status\\": \\"active\\"}"\n}');
   await runTest('Object access', 'let obj = { "x": 10 }\nlet val = obj["x"]');
   await runTest('Type function', 'let t = type(42)');
   await runTest('String function', 'let s = str(42)');

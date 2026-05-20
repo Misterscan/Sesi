@@ -6,6 +6,14 @@ dist
 .DS_Store
 .env.keys
 
+# Installer build outputs (generated)
+SesiInstaller.msi
+SesiInstaller.wixpdb
+cab1.cab
+*.wixpdb
+*.exe
+*.pkg
+
 # Sesi specific folders and files
 
 data.txt
@@ -53,9 +61,10 @@ docs/README.md
 mock-sqlite.js
 /releases
 /landing-pages/
-
-# Installer build outputs (generated)
-SesiInstaller.msi
-SesiInstaller.wixpdb
-cab1.cab
-*.wixpdb
+SesiStudio.command
+NEW-GEMINI-MODEL.md
+guides.sesi
+profiles.sesi
+prompts.sesi
+retrorender.sesi
+sesi-studio/index.html

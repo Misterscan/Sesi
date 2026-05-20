@@ -1,5 +1,3 @@
-// Sesi Script: sesi_db_chatbot.sesi
-// 100% NATIVE, ZERO-HARDCODING DEEP LEARNING CO-PILOT!
 // Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries!
 
 // ==================================================
@@ -14,6 +12,23 @@ try {
 print "=================================================="
 print "🧠 WELCOME TO THE SESI CO-PILOT!"
 print "=================================================="
+
+
+// Maintains context across multiple queries so the co-pilot remembers what you previously asked.
+memory chatHistory {"You are the Sesi Co-Pilot, an expert assistant for the Sesi programming language. You help users write correct, idiomatic Sesi code. Be concise and conversational."}
+
+// Load persisted history from disk if it exists
+try {
+  chatHistory = read_file("sesi-db/chat_history.txt")
+  print "📝 Loaded previous conversation context."
+} catch (e) {}
+
+// Auto-summarize when history gets too long (saves tokens)
+fn summarizeHistory() {
+  let summary = model("gemini-3.1-flash-lite") {"temperature": 0, "max_tokens": 300} {"Summarize this conversation history into key facts and context. Be very concise: " chatHistory}
+  chatHistory = "Previous conversation summary: " + summary
+  print "🗜️  Memory auto-summarized to save tokens."
+}
 
 // Sigmoid math
 fn activate(x) {
@@ -242,11 +257,24 @@ if num_classes == 0 {
       d = d + 1
     }
     
-    let ragPrompt = "Sesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"] + "\n\nInstructions: Write a direct, beautiful, highly conversational response to the user's question using strictly the matched rules. Walk them through Sesi's syntax with direct examples. Be helpful and concise. Do not mention that you got this from a database—act as a supportive code copilot. All responses must not anticipate a future response."
+    // Auto-summarize if history exceeds ~3000 characters
+    if len(chatHistory) > 3000 {
+      summarizeHistory()
+    }
+    
+    let ragPrompt = "Conversation History:\n" + chatHistory + "\n\nSesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"] + "\n\nInstructions: Write a direct, beautiful, highly conversational response to the user's question using strictly the matched rules. Walk them through Sesi's syntax with direct examples. Be helpful and concise. Do not mention that you got this from a database—act as a supportive code copilot. Reference any relevant prior conversation context when applicable."
     
     let generated_response = model("gemini-3.1-flash-lite") {"temperature": 0.3, "max_tokens": 200} {ragPrompt}
+    
+    // Append this turn to conversational memory
+    chatHistory = chatHistory + "\nUser: " + queryText + "\nAssistant: " + generated_response
+    
+    // Persist memory to disk for next session
+    try {
+      write_file("sesi-db/chat_history.txt", chatHistory)
+    } catch (e) {}
     
     print "--------------------------------------------------"
     print generated_response
     print "--------------------------------------------------"
-}
+}}

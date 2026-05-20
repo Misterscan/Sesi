@@ -1,0 +1,17 @@
+{
+  "name": "sesi-studio",
+  "version": "1.0.0",
+  "description": "Sesi Studio — IDE for the Sesi Programming Language",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "node-pty": "^1.0.0",
+    "ws": "^8.18.0",
+    "xterm": "^5.3.0",
+    "xterm-addon-fit": "^0.8.0"
+  }
+}

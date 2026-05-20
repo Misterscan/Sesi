@@ -756,11 +756,15 @@ export class Parser {
     const line = this.previous().line;
     const elements: Expression[] = [];
 
+    this.skipNewlines();
     if (!this.check('RIGHT_BRACKET')) {
       do {
+        this.skipNewlines();
         elements.push(this.assignment());
+        this.skipNewlines();
       } while (this.match('COMMA'));
     }
+    this.skipNewlines();
 
     this.consume('RIGHT_BRACKET', 'Expected ] after array elements');
 
@@ -775,14 +779,18 @@ export class Parser {
     const line = this.previous().line;
     const properties: Array<{ key: string; value: Expression }> = [];
 
+    this.skipNewlines();
     if (!this.check('RIGHT_BRACE')) {
       do {
+        this.skipNewlines();
         const key = this.consume('STRING', 'Expected string key').literal;
         this.consume('COLON', 'Expected : after object key');
         const value = this.assignment();
         properties.push({ key: key as string, value });
+        this.skipNewlines();
       } while (this.match('COMMA'));
     }
+    this.skipNewlines();
 
     this.consume('RIGHT_BRACE', 'Expected } after object properties');
 

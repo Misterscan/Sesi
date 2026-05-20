@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Sesi: A High-Performance Systems Language",
   "main": "dist/index.js",
   "bin": {
@@ -16,7 +16,7 @@
   "scripts": {
     "lint": "npx eslint --fix",
     "build": "tsc",
-    "dev": "npm run lint &&dotenvx run -- npm run build --watch",
+    "dev": "npm run lint && dotenvx run -- npm run build --watch",
     "test": "npx ts-node tests/basic.test.ts && npx ts-node tests/module.test.ts && npx ts-node tests/cache.test.ts && npx ts-node tests/http.test.ts",
     "test:watch": "npm run lint && npx ts-node tests/basic.test.ts --watch",
     "build:exe": "node ./scripts/build-binaries.mjs",
@@ -53,11 +53,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "25.8.0",
+    "@types/node": "25.9.1",
     "eslint": "10.4.0",
     "globals": "^17.6.0",
     "rcedit": "^5.0.2",
     "typescript": "6.0.3",
-    "typescript-eslint": "^8.59.3"
+    "typescript-eslint": "^8.59.4"
   }
 }

@@ -231,21 +231,22 @@ config_entry := (STRING | identifier) ':' expression
 
 **Config keys:**
 
-| Key | Applies to | Type | Description |
-|-----|-----------|------|-------------|
-| `temperature` | `model`, `image` | `number` | Sampling temperature (0.0–1.0) |
-| `max_tokens` | `model` | `number` | Max output token count |
-| `top_k` | `model` | `number` | Top-K diversity |
-| `top_p` | `model` | `number` | Nucleus sampling |
-| `ratio` | `image` | `string` | Aspect ratio e.g. `"16:9"` |
-| `size` | `image` | `string` | `"512"`, `"1K"`, `"2K"`, `"4K"` |
-| `images` | `model`, `image` | `string \| array<string>` | Local file path(s) passed as visual input |
+| Key             | Applies to       | Type                      | Description                                                                |
+| --------------- | ---------------- | ------------------------- | -------------------------------------------------------------------------- |
+| `thinkingLevel` | `model`          | `string \| object`        | **Recommended**: Effort level (`"minimal"`, `"low"`, `"medium"`, `"high"`) |
+| `temperature`   | `model`, `image` | `number`                  | _Deprecated in Gemini 3.x+_ (Sampling temperature)                         |
+| `max_tokens`    | `model`          | `number`                  | Max output token count                                                     |
+| `top_k`         | `model`          | `number`                  | _Deprecated in Gemini 3.x+_                                                |
+| `top_p`         | `model`          | `number`                  | _Deprecated in Gemini 3.x+_                                                |
+| `ratio`         | `image`          | `string`                  | Aspect ratio e.g. `"16:9"`                                                 |
+| `size`          | `image`          | `string`                  | `"512"`, `"1K"`, `"2K"`, `"4K"`                                            |
+| `images`        | `model`, `image` | `string \| array<string>` | Local file path(s) passed as visual input                                  |
 
 Example:
 
 ```sesi
-let result = model("gemini-3-flash-preview") {images: "scan.png", temperature: 0} {"Transcribe all visible text."}
-let output = model("gemini-3.1-flash-lite") {"temperature": 0.4, "max_tokens": 2000} {prompt}
+let result = model("gemini-3.5-flash") {images: "scan.png", thinkingLevel: "low"} {"Transcribe all visible text."}
+let output = model("gemini-3.5-flash") {thinkingLevel: "medium"} {prompt}
 ```
 
 #### Structured Output
@@ -400,8 +401,8 @@ prompt combined {summarize " Now " translate}
 Model calls can take optional configuration parameters (written on a single line) followed by one or more prompts/strings.
 
 ```sesi
-// Model call with temperature and thinking scale configuration
-let response = model("gemini-3.1-pro-preview") {"thinkingLevel": {"thinking": "yes", "level": "low"}, "temperature": 0} {"Say hello"}
+// Model call with native thinking effort level
+let response = model("gemini-3.5-flash") {thinkingLevel: "low"} {"Say hello"}
 print response  // Returns string
 
 let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512"} {"A vector logo"}
@@ -410,12 +411,13 @@ print "Image written to logo.png"
 ```
 
 #### Config Block Options:
-- **`temperature`**: `number` (0.0 to 1.0)
+
+- **`thinkingLevel`**: `string` (`"minimal"`, `"low"`, `"medium"`, `"high"`) or legacy `object` with keys `"thinking"` and `"level"`. Natively configures Gemini's reasoning budget.
 - **`max_tokens`**: `number` (maximum response tokens)
 - **`images`**: `string` or `array<string>` (paths to multimodal vision input files)
-- **`thinkingLevel`**: `object` with keys `"thinking"` (`"yes"` | `"no"`) and `"level"` (`"low"` | `"medium"` | `"high"`) - natively configures and scales Gemini's reasoning budget.
 - **`cache`**: `bool` (set to `false` to explicitly bypass Sesi Logic Caching)
-
+- **`temperature`**: _Deprecated in Gemini 3.x+_ — reasoning is pre-optimized for defaults.
+- **`top_k` / `top_p`**: _Deprecated in Gemini 3.x+_ — reasoning is pre-optimized for defaults.
 
 ### Structured Output
 
@@ -455,7 +457,7 @@ print x + y  // Output: 30
 ### Example 2: Function with Reasoning
 
 ```sesi
-fn analyzeText(text: string) -> string {return model("gemini-3.1-pro-preview") {"temperature": 0} {"Analyze this text and return key insights:" text}}
+fn analyzeText(text: string) -> string {return model("gemini-3.5-flash") {thinkingLevel: "low"} {"Analyze this text and return key insights:" text}}
 print analyzeText("Reasoning is transforming industries")
 ```
 

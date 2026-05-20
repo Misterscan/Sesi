@@ -114,14 +114,13 @@ print response
 ### Model Configuration
 
 ```sesi
-let creative = model("gemini-3-flash-preview") {"temperature": 0.9, "max_tokens": 500} {"Write a creative poem about technology."}
+let creative = model("gemini-3.5-flash") {thinkingLevel: "low"} {"Write a creative poem about technology."}
 print creative
 
 // Config options:
-// - "temperature": 0.0-1.0 (higher = more creative) (OPTIONAL: if not specified, will use the model's default temperature=0.3)
+// - thinkingLevel: "minimal", "low", "medium", "high" (natively configures Gemini's reasoning budget)
 // - max_tokens: max length of response (OPTIONAL: if not specified, will use the model's default max tokens=2048)
-// - top_k: diversity parameter (OPTIONAL)
-// - top_p: nucleus sampling parameter (OPTIONAL)
+// - temperature / top_k / top_p: Deprecated in Gemini 3.x+ (reasoning is mathematically optimized for default settings)
 ```
 
 ### Model Selection
@@ -129,7 +128,7 @@ print creative
 ```sesi
 // Fast model for simple tasks
 let text = " Coding with Reasoning systems language is fun!"
-let quick = model("gemini-3-flash-preview") {"Summarize this in one sentence:" text}
+let quick = model("gemini-3.1-flash-lite") {"Summarize this in one sentence:" text}
 
 // Powerful model for complex reasoning
 let code = "def calculate_sum(n):
@@ -141,7 +140,7 @@ let smart = model("gemini-3.1-pro-preview") {"Analyze this code for bugs:" code}
 
 // Efficient model for many calls
 let item = " Programming Languages"
-let cheap = model("gemini-3.1-flash-lite") {"temperature": 0} {"Classify:" item}
+let cheap = model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Classify:" item}
 
 print quick
 print smart
@@ -153,11 +152,12 @@ print cheap
 - `gemini-2.5-flash` - Legacy, but supported. 1M tokens.
 - `gemini-2.5-pro` - Legacy, but supported. 1M tokens.
 - `gemini-2.5-flash-image` - Standard image model. (No `512` image size support for this model. Only `1K` is supported.)
-- `gemini-3-flash-preview` - Fast, balanced, 1M tokens
-- `gemini-3.1-pro-preview` - Most capable, 1M tokens (Doesn't support `minimal` thinking. Only `low`, `medium`, and `high` are supported.)
-- `gemini-3.1-flash-lite` - Fastest, cost-efficient
-- `gemini-3.1-flash-image-preview` - Cost efficient while maintaining quality images.
-- `gemini-3-pro-image-preview` - High quality image generation. (No `512` image size support for this model.)
+- `gemini-3-flash-preview` - Fast, balanced, legacy preview.
+- `gemini-3.1-flash-lite` - Fastest, most cost-efficient.
+- `gemini-3.5-flash` - Standard GA Model. Fast, balanced, supports all native thinking effort levels (`minimal`, `low`, `medium`, `high`).
+- `gemini-3.1-pro-preview` - Most powerful reasoning model, doesn't support `minimal` thinking (falls back to `low`).
+- `gemini-3.1-flash-image-preview` - Cost efficient image generation model.
+- `gemini-3-pro-image-preview` - High quality image generation model. (No `512` image size support for this model.)
 
 #### Planned for (v2+)
 
@@ -183,7 +183,7 @@ print diff
 
 // Mixed with other config keys
 let scannedDocument = "doc_scan.jpg"
-let result = model("gemini-3.1-flash-lite") {images: scannedDocument, temperature: 0, max_tokens: 2048} {"Transcribe all text visible in this scan."}
+let result = model("gemini-3.5-flash") {images: scannedDocument, thinkingLevel: "low", max_tokens: 2048} {"Transcribe all text visible in this scan."}
 write_file("transcript.txt", result)
 ```
 
@@ -216,12 +216,12 @@ print bookInfo["title"]
 
 - Always include instructions for JSON format
 - Specify the exact schema in the prompt
-- Use "temperature": 0 for consistency
+- Use "thinkingLevel": "low" for fast, consistent parsing
 - Validate output structure in code
 
 ```sesi
 let listText = "eggs, milk, bread, cheese, fruit, vegetables"
-let output = structured_output({items: string})(model("gemini-3-flash-preview") {"temperature": 0}{"Return JSON with items array containing: " listText})
+let output = structured_output({items: string})(model("gemini-3.5-flash") {thinkingLevel: "minimal"}{"Return JSON with items array containing: " listText})
 
 // Validate
 if type(output["items"]) == "array" {print "Got" str(len(output["items"])) "items"} // Got 6 items
@@ -329,7 +329,7 @@ print conversation
 let categories = "fruit, vegetable, grain"
 let item = "banana"
 fn classify(item: string, categories: string) -> string
-{return model("gemini-3.1-flash-lite") {"temperature": 0}
+{return model("gemini-3.5-flash") {thinkingLevel: "minimal"}
 {"Classify this item into one category. Categories: " categories " Item: " item " Return only the category name."}}
 print "Item: " item //banana
 print "Category: " classify(item, categories) //fruit
@@ -341,7 +341,7 @@ print "Category: " classify(item, categories) //fruit
 let text = "Elon Musk is the CEO of Tesla and SpaceX."
 fn extractEntities(text: string) -> object
 {let result = structured_output({people: string, places: string, organizations: string})
-(model("gemini-3.1-flash-lite") {"temperature": 0}{"Extract named entities from:" text})
+(model("gemini-3.5-flash") {thinkingLevel: "minimal"}{"Extract named entities from:" text})
 print "Name(s) found: result"
 return result}
 print extractEntities(text)
@@ -364,7 +364,7 @@ print translate(text, language)
 Like `model`, the `image` command evaluates prompts and accepts configuration variables mapping accurately to backend SDKs requirements.
 
 ```sesi
-let logo = image("gemini-3.1-flash-image-preview") {"ratio": "1:1", "size": "512", "temperature": 0.3} {"A high quality vector logo representing a new programming language named Sesi"}
+let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512"} {"A high quality vector logo representing a new programming language named Sesi"}
 write_image("logo.png", logo)
 print "Image generated!"
 ```
@@ -376,7 +376,7 @@ print "Image generated!"
 ```sesi
 let requirement = "Write a function that reverses a string."
 fn generateCode(requirement: string) -> string
-{return model("gemini-3.1-flash-lite") {"temperature": 0.2} {"Generate JavaScript code for:" requirement "Only provide code, no explanation."}}
+{return model("gemini-3.5-flash") {thinkingLevel: "low"} {"Generate JavaScript code for:" requirement "Only provide code, no explanation."}}
 print "Code generation:"
 print generateCode(requirement)
 ```
@@ -507,10 +507,10 @@ fn smartSummarize(text: string) -> string
 
 // Chain multiple Reasoning operations
 // Step 1: Extract key points
-{let keyPoints = model("gemini-3.1-pro-preview") {"temperature": 0} {"Extract 5 key points from:" text}
+{let keyPoints = model("gemini-3.1-pro-preview") {thinkingLevel: "low"} {"Extract 5 key points from:" text}
 
 // Step 2: Analyze topics
-let topics = structured_output({ topics: string })(model("gemini-3.1-flash-lite") {"Identify topics in:" keyPoints})
+let topics = structured_output({ topics: string })(model("gemini-3.5-flash") {thinkingLevel: "low"} {"Identify topics in:" keyPoints})
 
 // Step 3: Generate summary
 let summary = model("gemini-3-flash-preview") {"Summarize with topics " topics ":" keyPoints} return summary}
@@ -520,7 +520,7 @@ print "Summary:" smartSummarize(text)
 ### Reasoning Pattern
 
 ```sesi
-let analysis = model("gemini-3-flash-preview") {"thinkingLevel": {"thinking": "yes", "level": "medium"}, "temperature": 0, "max_tokens": 8192} {"Reason carefully about:" problem}
+let analysis = model("gemini-3.5-flash") {thinkingLevel: "medium", max_tokens: 8192} {"Reason carefully about:" problem}
 print analysis
 ```
 
@@ -529,7 +529,7 @@ print analysis
 ```sesi
 let text = "banana"
 fn classifyWithExamples(text: string) -> string
-{return model("gemini-3.1-flash-lite") {"temperature": 0} {"Classify as A, B, or C" "Examples:" "'apple' -> A" "'dog' -> B" "'happy' -> C" "Classify: " text}}
+{return model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Classify as A, B, or C" "Examples:" "'apple' -> A" "'dog' -> B" "'happy' -> C" "Classify: " text}}
 print "Classification:" classifyWithExamples(text)
 ```
 

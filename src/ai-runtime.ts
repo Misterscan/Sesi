@@ -111,14 +111,21 @@ export class AIRuntime {
       // Build thinkingConfig if requested
       let thinkingConfig: any = undefined;
       if (request.thinkingLevel) {
-        const thinking = request.thinkingLevel.thinking !== 'no';
-        const level = request.thinkingLevel.level || 'low';
-        
+        let level = 'low';
+        let thinking = true;
+        if (typeof request.thinkingLevel === 'object' && request.thinkingLevel !== null) {
+          thinking = (request.thinkingLevel as any).thinking !== 'no';
+          level = (request.thinkingLevel as any).level || 'low';
+        } else if (typeof request.thinkingLevel === 'string') {
+          level = request.thinkingLevel;
+          thinking = level.toLowerCase() !== 'no';
+        }
+
         const isGemini3 = request.model.includes('gemini-3');
         if (isGemini3) {
           const isPro = request.model.includes('pro');
           thinkingConfig = {
-            thinkingLevel: thinking ? level : (isPro ? 'low' : 'minimal')
+            thinkingLevel: thinking ? level.toLowerCase() : (isPro ? 'low' : 'minimal')
           };
         } else {
           thinkingConfig = {

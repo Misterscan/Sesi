@@ -497,11 +497,13 @@ export class Interpreter {
       }
     }
 
-    let thinkingLevel: { thinking?: string; level?: string } | undefined;
+    let thinkingLevel: any | undefined;
     if (expr.config?.thinkingLevel) {
       const raw = await this.evaluateExpression(expr.config.thinkingLevel);
       if (typeof raw === 'object' && raw !== null) {
         thinkingLevel = raw as any;
+      } else if (typeof raw === 'string') {
+        thinkingLevel = raw;
       }
     }
 
@@ -546,11 +548,13 @@ export class Interpreter {
       }
     }
 
-    let thinkingLevel: { thinking?: string; level?: string } | undefined;
+    let thinkingLevel: any | undefined;
     if (expr.config?.thinkingLevel) {
       const raw = await this.evaluateExpression(expr.config.thinkingLevel);
       if (typeof raw === 'object' && raw !== null) {
         thinkingLevel = raw as any;
+      } else if (typeof raw === 'string') {
+        thinkingLevel = raw;
       }
     }
 

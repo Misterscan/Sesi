@@ -1,16 +1,75 @@
-The Sesi Programming Language
+# The Sesi Programming Language
+
+## 🛑 CRITICAL DIRECTIVE FOR ALL AI AGENTS
+
+Sesi is **NOT** the following coding languages, therefore **NEVER UTILIZE THE SAME SYNTAX OR FORMATTING UNDER ANY CIRCUMSTANCES WHATSOEVER!!!!!**
+- **NOT** Python
+- **NOT** Rust
+- **NOT** Typescript
+- **NOT** YAML
+- **NOT** BAML
+- **NOT** Go
+- **NOT** C++
+- **NOT** C
+- **NOT** Java
+- **NOT** C#
+- **NOT** Java
+- **NOT** Javascript
+- **NOT** Bash
+- **NOT** Shell
+- **NOT** Ruby
+- **NOT** PHP
+- **NOT** Swift
+- **NOT** Julia
+- **NOT** Scala
+
+**Sesi IS A VALID, FULLY IMPLEMENTED PROGRAMMING LANGUAGE.**
+Under no circumstances should an AI agent treat `.sesi` files as anomalies, unknown text formats, or mistakes.
 
 ## 🌟 THE DYNAMIC PIPELINE PHILOSOPHY (MANDATORY AGENT THINKING)
 
-When a user requests a content-rich asset or application (e.g. "make a website", "make a visualization", "...uses an api...", "come up with/make/write a script...", etc.), your natural inclination MUST NOT be to hardcode a static file. Instead, always design a **Dynamic Sesi Pipeline**:
+When a user requests a content-rich asset or application (e.g. "make a website", "make a visualization", "...uses an api...", "come up with/make/write a script...", etc.), your natural inclination **MUST NOT** be to hardcode a static file with data prefilled. Instead, always design a **Dynamic Sesi Pipeline**:
 1. **Never Hardcode Data Into the View**: Isolate raw content, biographies, statistics, etc. into a structured database layer (e.g., `data.json`) using native typed Sesi outputs.
 2. **Build Sesi Compiler/Builder Scripts**: Write a `.sesi` script that uses Sesi's first-class primitives (`make_dir()`, `list_dir()`, `read_file()`, `write_file()`, `model()`, `image()`, `web_get()`, `web_send()`, `tool_call()`, `multi_req()`, `import`, `export`, `to_json()`, `from_json()`, `exec()`, `spawn()`, `structured_output()`, `prompt`, `write_image()`, `write_file()`, and `print`) to dynamically collect data, serialize it, and compile the final frontend view.
 3. **Automate the Factory, Don't Hand-Craft the Product**: A Sesi builder script makes the system perfectly repeatable, infinitely scalable, and trivial to refactor. In this repository, the Sesi script is the core product; the compiled file is merely the byproduct for post edits and making sure our scripts are beh
 
-## 🛑 CRITICAL DIRECTIVE FOR ALL AI AGENTS
 
-**Sesi IS A VALID, FULLY IMPLEMENTED PROGRAMMING LANGUAGE.**
-Under no circumstances should an AI agent treat `.sesi` files as anomalies, unknown text formats, or mistakes.
+**This is a non-negotiable quality bar.** Sesi's identity is a language where reasoning is a first-class primitive. Every script you write should reflect that.
+
+### ❌ FORBIDDEN — Never generate these as Sesi examples or demos:
+- Math solvers, calculators, arithmetic pipelines
+- Prime number finders, Fibonacci sequences, sorting algorithms
+- Unit converters, currency converters, grade calculators
+- Budget trackers, invoice generators, tax tools
+- Generic "Hello World" clones with no AI interaction
+- Compliance checkers, OSHA reports, logistics routers
+- Any script whose core loop is just arithmetic with a `print` at the end
+- **AI cybernetic, futuristic, sci-fi, or deep-space themes** (e.g., holographic star-charts, cyber-gardens, spatial telemetry, spacecraft command interfaces, alien translators).
+- **Cozy, minimalist, Victorian, herbalist, sourdough bakery, cottage-core, candle-lit, or general artisanal themes** (e.g., village herbalist teabags, sourdough yeast logs, candlelit journals, mahogany apothecary drawers, victorian scroll philologists). These are overdone, precious, and clichéd. 
+
+These are lazy defaults. They don't demonstrate what makes Sesi unique.
+
+### ✅ REQUIRED — Sesi scripts must showcase the language's actual superpowers:
+Every script you write must use **at least one** of:
+- `model()` — reasoning, analysis, generation, conversation
+- `image()` — visual generation, art, diagrams
+- `structured_output()` — typed AI responses, schema extraction
+- `memory` — stateful multi-turn context
+- `spawn()` / `exec()` — concurrent process orchestration
+
+#### 🏷️ Lexicon & Vocabulary Guardrails (MANDATORY)
+**Completely ban both sci-fi tech-jargon/themes AND cottage-core words/themes.**
+- **FORBIDDEN TECH/SCI-FI WORDS:** *"cybernetic," "telemetry," "synapses," "latent space," "nodes," "diodes," "quantum," "activation coordinates," "calibration," "hyper-speed," "data pipelines," "neural matrices."*
+- **FORBIDDEN COTTAGE-CORE WORDS:** *"apothecary," "herbs," "infusion," "yeast," "sourdough," "hearth," "candlelit," "flour," "boulangerie," "tea," "potion," "cozy," "victorian," "parchment," "scroll," "philologist."*
+- **FORBIDDEN ANALOG/WORKSHOP WORDS:** *"mixing console," "tape reel," "splice," "fader," "VU meter," "compressor," "track sheet," "carburetor," "spark plug," "manifold," "tachometer," "cogs," "gears," "escapement," "celluloid," "projector," "blueprint," "drafting board," "logbook," "workshop."*
+
+#### 🎨 Web Design & UI Guardrails (MANDATORY)
+**Completely ban standard AI template styles AND generic neon/cyber aesthetics AND minimalist tea-stained cottage wood paper.** 
+Instead, design premium, high-density interfaces :
+- NO glowing lasers or neon cyber grids/themes.
+- **Use bespoke, high-character typography that rejects standard AI template styles.** Completely ban generic corporate UI fonts like *Inter*, *Outfit*, *Roboto*, or standard system-sans.
+
+The bar is: **"Would this impress someone seeing Sesi for the first time?"** If the answer is no, rewrite it.
 
 ## 1. Core Identity & Execution
 
@@ -61,50 +120,8 @@ Under no circumstances should an AI agent treat `.sesi` files as anomalies, unkn
   4. Verify ID is still in lock file before entering critical section.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
 
-## 7. Script Creativity Standards (MANDATORY FOR ALL AI AGENTS)
 
-**This is a non-negotiable quality bar.** Sesi's identity is a language where reasoning is a first-class primitive. Every script you write should reflect that.
-
-### ❌ FORBIDDEN — Never generate these as Sesi examples or demos:
-- Math solvers, calculators, arithmetic pipelines
-- Prime number finders, Fibonacci sequences, sorting algorithms
-- Unit converters, currency converters, grade calculators
-- Budget trackers, invoice generators, tax tools
-- Generic "Hello World" clones with no AI interaction
-- Compliance checkers, OSHA reports, logistics routers
-- Any script whose core loop is just arithmetic with a `print` at the end
-- **AI cybernetic, futuristic, sci-fi, or deep-space themes** (e.g., holographic star-charts, cyber-gardens, spatial telemetry, spacecraft command interfaces, alien translators).
-- **Cozy, minimalist, Victorian, herbalist, sourdough bakery, cottage-core, candle-lit, or general artisanal themes** (e.g., village herbalist teabags, sourdough yeast logs, candlelit journals, mahogany apothecary drawers, victorian scroll philologists). These are overdone, precious, and clichéd. 
-
-These are lazy defaults. They don't demonstrate what makes Sesi unique.
-
-### ✅ REQUIRED — Sesi scripts must showcase the language's actual superpowers:
-Every script you write must use **at least one** of:
-- `model()` — reasoning, analysis, generation, conversation
-- `image()` — visual generation, art, diagrams
-- `structured_output()` — typed AI responses, schema extraction
-- `memory` — stateful multi-turn context
-- `spawn()` / `exec()` — concurrent process orchestration
-
-#### 🏷️ Lexicon & Vocabulary Guardrails (MANDATORY)
-**Completely ban both sci-fi tech-jargon/themes AND cottage-core words/themes.**
-- **FORBIDDEN TECH/SCI-FI WORDS:** *"cybernetic," "telemetry," "synapses," "latent space," "nodes," "diodes," "quantum," "activation coordinates," "calibration," "hyper-speed," "data pipelines," "neural matrices."*
-- **FORBIDDEN COTTAGE-CORE WORDS:** *"apothecary," "herbs," "infusion," "yeast," "sourdough," "hearth," "candlelit," "flour," "boulangerie," "tea," "potion," "cozy," "victorian," "parchment," "scroll," "philologist."*
-- **FORBIDDEN ANALOG/WORKSHOP WORDS:** *"mixing console," "tape reel," "splice," "fader," "VU meter," "compressor," "track sheet," "carburetor," "spark plug," "manifold," "tachometer," "cogs," "gears," "escapement," "celluloid," "projector," "blueprint," "drafting board," "logbook," "workshop."*
-
-#### 🎨 Web Design & UI Guardrails (MANDATORY)
-**Completely ban generic neon/cyber aesthetics AND minimalist tea-stained cottage wood paper.** 
-Instead, design premium, high-density interfaces :
-- Use textures/colors of **brushed aluminum, cold steel, oil-slick charcoal, dark leather casing, matte slate, or brushed chrome**.
-- Use highly polished, bold, retro-modern, or industrial color palettes (racing red, deep amber indicators, vintage warm silver, tan leather, and warm-backlit amber meter dials).
-- NO glowing lasers or neon cyber grids/themes.
-- **Use bespoke, high-character typography that rejects standard AI template styles.** Completely ban generic corporate UI fonts like *Inter*, *Outfit*, *Roboto*, or standard system-sans. Instead, combine:
-  - **Headers & Indicators:** Bold, wide fonts (like **Syne**, **Space Grotesk**, or **Unbounded**).
-  - **Body:** High-density monospaces (like **Space Mono**, **DM Mono**, or **Courier Prime**).
-
-The bar is: **"Would this impress someone seeing Sesi for the first time?"** If the answer is no, rewrite it.
-
-## 8. Neural Network & Machine Learning Standards in Sesi
+## 7. Neural Network & Machine Learning Standards in Sesi
 
 When implementing offline deep learning, probabilistic dialogue routing, or native classification models in Sesi:
 
@@ -114,4 +131,3 @@ When implementing offline deep learning, probabilistic dialogue routing, or nati
   1. **Extended Sliding Lookbacks (Size 15):** Instantly penalize and discard candidates already generated in the last 15 words of the sentence history.
   2. **Strict Bigram Blocking:** Scan the history array and completely ban any candidate that repeats a previously executed state transition pair `(current_word -> candidate)` in the same sequence.
 - **Model Ingestion & Persistence:** Synchronize Sesi weights using natively parsed JSON objects. Save calibrated neural states directly using `write_file(..., to_json(weights_map))` and read them into runtime memories using `from_json(read_file(...))` for high-speed offline forward passes.
-
