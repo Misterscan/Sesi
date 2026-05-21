@@ -261,7 +261,7 @@ multi_req(array<function>)     // Run multiple tasks/requests physically in para
 
 ### Standard Library Modules
 
-Standard library features are available natively in **v1.2.1** using imports:
+Standard library features are available natively in **v1.2+** using imports:
 
 ```sesi
 import { PI, sqrt } from "std/math"

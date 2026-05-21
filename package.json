@@ -48,8 +48,8 @@
   "license": "MIT",
   "dependencies": {
     "@dotenvx/dotenvx": "1.66.0",
-    "@dotenvx/dotenvx-ops": "^0.46.1",
-    "@google/genai": "2.4.0"
+    "@dotenvx/dotenvx-ops": "0.47.0",
+    "@google/genai": "2.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -65,6 +65,7 @@ Sesi is built on these core principles:
 - ✅ `import` / `export`
 - ✅ Namespace support
 - ✅ Built-in modules
+- ✅ Multi-path module resolution (`SESI_PATH`, `~/.sesi/lib` global library)
 
 ## 4. Target Language (Syntax)
 
@@ -234,10 +235,10 @@ config_entry := (STRING | identifier) ':' expression
 | Key             | Applies to       | Type                      | Description                                                                |
 | --------------- | ---------------- | ------------------------- | -------------------------------------------------------------------------- |
 | `thinkingLevel` | `model`          | `string \| object`        | **Recommended**: Effort level (`"minimal"`, `"low"`, `"medium"`, `"high"`) |
-| `temperature`   | `model`, `image` | `number`                  | _Deprecated in Gemini 3.x+_ (Sampling temperature)                         |
+| `temperature`   | `model`, `image` | `number`                  | *Will be deprecated in Gemini 3.x+_ (Sampling temperature)                 |
 | `max_tokens`    | `model`          | `number`                  | Max output token count                                                     |
-| `top_k`         | `model`          | `number`                  | _Deprecated in Gemini 3.x+_                                                |
-| `top_p`         | `model`          | `number`                  | _Deprecated in Gemini 3.x+_                                                |
+| `top_k`         | `model`          | `number`                  | *Will be deprecated in Gemini 3.x+_                                        |
+| `top_p`         | `model`          | `number`                  | *Will be deprecated in Gemini 3.x+_                                        |
 | `ratio`         | `image`          | `string`                  | Aspect ratio e.g. `"16:9"`                                                 |
 | `size`          | `image`          | `string`                  | `"512"`, `"1K"`, `"2K"`, `"4K"`                                            |
 | `images`        | `model`, `image` | `string \| array<string>` | Local file path(s) passed as visual input                                  |
@@ -358,7 +359,7 @@ random() -> number                // Random float (0.0 to 1.0)
 
 ## 9. Module System
 
-Runtime module execution and standard namespace modules are fully implemented and natively supported in v1.1.2.
+Runtime module execution and standard namespace modules are fully implemented and natively supported in v1.2+.
 
 ### Defining Modules
 
@@ -376,13 +377,66 @@ import {add, multiply, PI} from "math"
 let result = add(10, 20)
 ```
 
-### Built-in Modules
+### Built-in Standard Library Modules
 
 ```sesi
 import time from "std/time"    // Time/date functions
 import math from "std/math"    // Math operations
 import json from "std/json"    // JSON parsing
 ```
+
+### Module Resolution Order (v1.2.2+)
+
+When you write `import {x} from "mymodule"`, Sesi searches for `mymodule.sesi` in the following order, stopping at the first match:
+
+| Priority | Location | Description |
+| -------- | -------- | ----------- |
+| 1 | **Script's own directory** | Same folder as the currently running `.sesi` file |
+| 2 | **Current working directory** | The directory you ran `sesi` from |
+| 3 | **`SESI_PATH`** | Semicolon-separated (Windows) or colon-separated (Unix) list of additional directories |
+| 4 | **`~/.sesi/lib`** | Global shared library directory — available system-wide |
+
+This means imports always resolve correctly regardless of where you run `sesi` from.
+
+### Global Library: `~/.sesi/lib`
+
+The global library directory (`C:\Users\<you>\.sesi\lib` on Windows, `~/.sesi/lib` on Unix) lets you maintain shared modules that are importable from **any project on your system**.
+
+To install a module globally, copy it to the lib directory:
+
+```powershell
+# Windows
+copy mymodule.sesi $env:USERPROFILE\.sesi\lib\
+
+# Unix / macOS
+cp mymodule.sesi ~/.sesi/lib/
+```
+
+Then import it from any project without copying the file:
+
+```sesi
+// Works from any folder anywhere on your system
+import {callAPI, saveImage} from "retrorender"
+import {GetProfile} from "profiles"
+```
+
+### Custom Library Paths: `SESI_PATH`
+
+For team or monorepo setups, set the `SESI_PATH` environment variable to point to one or more shared library directories:
+
+```powershell
+# Windows — add to your shell profile for persistence
+$env:SESI_PATH = "C:\MyLibs\sesi-shared;C:\Projects\common"
+
+# Unix / macOS
+export SESI_PATH="/mylibs/sesi-shared:/projects/common"
+```
+
+Multiple paths are separated by `;` on Windows and `:` on Unix.
+
+### Sub-module Resolution
+
+When a module is loaded from any search path, its own imports are resolved **relative to that module's directory first**. This means modules can safely import their own siblings without any path configuration.
 
 ## 10. Reasoning Features Details
 
@@ -416,8 +470,8 @@ print "Image written to logo.png"
 - **`max_tokens`**: `number` (maximum response tokens)
 - **`images`**: `string` or `array<string>` (paths to multimodal vision input files)
 - **`cache`**: `bool` (set to `false` to explicitly bypass Sesi Logic Caching)
-- **`temperature`**: _Deprecated in Gemini 3.x+_ — reasoning is pre-optimized for defaults.
-- **`top_k` / `top_p`**: _Deprecated in Gemini 3.x+_ — reasoning is pre-optimized for defaults.
+- **`temperature`**: *  Will be deprecated in Gemini 3.x+, use thinkingLevel instead.* — reasoning is pre-optimized for defaults.
+- **`top_k` / `top_p`**: *Will be deprecated in Gemini 3.x+, use thinkingLevel instead.* — reasoning is pre-optimized for defaults.
 
 ### Structured Output
 

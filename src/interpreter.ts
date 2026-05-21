@@ -46,16 +46,59 @@ export class Interpreter {
   private prompts: Map<string, string> = new Map();
   private memory: Map<string, string> = new Map();
   public exports: Map<string, RuntimeValue> = new Map();
+  private scriptDir: string | undefined;
 
-  constructor() {
+  constructor(scriptDir?: string) {
     this.globalEnv = new Environment();
     this.currentEnv = this.globalEnv;
+    this.scriptDir = scriptDir;
 
     // Add built-in functions
     const builtins = getBuiltins(this);
     for (const [name, fn] of builtins) {
       this.globalEnv.define(name, fn);
     }
+  }
+
+  /**
+   * Resolves a local module path by searching in priority order:
+   *   1. Relative to the script's own directory (if known)
+   *   2. Relative to the current working directory
+   *   3. Each directory listed in the SESI_PATH environment variable (colon/semicolon separated)
+   *   4. The global Sesi library directory: ~/.sesi/lib
+   */
+  private resolveModulePath(source: string): string | null {
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+
+    let filePath = source;
+    if (!filePath.endsWith('.sesi')) filePath += '.sesi';
+
+    const searchDirs: string[] = [];
+
+    // 1. Script's own directory
+    if (this.scriptDir) searchDirs.push(this.scriptDir);
+
+    // 2. Current working directory
+    searchDirs.push(process.cwd());
+
+    // 3. SESI_PATH environment variable (semicolon or colon separated)
+    const sesiPath = process.env.SESI_PATH || '';
+    if (sesiPath) {
+      const sep = process.platform === 'win32' ? ';' : ':';
+      sesiPath.split(sep).filter(Boolean).forEach(p => searchDirs.push(p));
+    }
+
+    // 4. Global library: ~/.sesi/lib
+    searchDirs.push(path.join(os.homedir(), '.sesi', 'lib'));
+
+    for (const dir of searchDirs) {
+      const resolved = path.resolve(dir, filePath);
+      if (fs.existsSync(resolved)) return resolved;
+    }
+
+    return null;
   }
 
   async interpret(program: Program): Promise<void> {
@@ -652,24 +695,36 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       moduleExports = this.loadStdModule(source);
     } else {
       const fs = require('fs');
-      const path = require('path');
-      let filePath = source;
-      if (!filePath.endsWith('.sesi')) {
-        filePath += '.sesi';
+      const resolvedPath = this.resolveModulePath(source);
+
+      if (!resolvedPath) {
+        const searchedDirs: string[] = [];
+        const os = require('os');
+        const path = require('path');
+        if (this.scriptDir) searchedDirs.push(this.scriptDir);
+        searchedDirs.push(process.cwd());
+        const sesiPath = process.env.SESI_PATH || '';
+        if (sesiPath) {
+          const sep = process.platform === 'win32' ? ';' : ':';
+          sesiPath.split(sep).filter(Boolean).forEach(p => searchedDirs.push(p));
+        }
+        searchedDirs.push(path.join(os.homedir(), '.sesi', 'lib'));
+        throw new Error(
+          `Module not found: "${source}"\nSearched in:\n  ${searchedDirs.join('\n  ')}\n` +
+          `Tip: add a folder to SESI_PATH, or place shared modules in ~/.sesi/lib`
+        );
       }
-      const resolvedPath = path.resolve(process.cwd(), filePath);
-      if (!fs.existsSync(resolvedPath)) {
-        throw new Error(`Module not found: ${source}`);
-      }
-      
+
       const content = fs.readFileSync(resolvedPath, 'utf-8');
+      const path = require('path');
       const { Lexer } = require('./lexer');
       const { Parser } = require('./parser');
       const lexer = new Lexer(content);
       const parser = new Parser(lexer.scanTokens());
       const program = parser.parse();
-      
-      const subInterpreter = new Interpreter();
+
+      // Sub-interpreter inherits the resolved module's own directory so its imports also resolve correctly
+      const subInterpreter = new Interpreter(path.dirname(resolvedPath));
       await subInterpreter.interpret(program);
       moduleExports = subInterpreter.exports;
     }

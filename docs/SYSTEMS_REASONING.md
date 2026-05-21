@@ -120,7 +120,7 @@ print creative
 // Config options:
 // - thinkingLevel: "minimal", "low", "medium", "high" (natively configures Gemini's reasoning budget)
 // - max_tokens: max length of response (OPTIONAL: if not specified, will use the model's default max tokens=2048)
-// - temperature / top_k / top_p: Deprecated in Gemini 3.x+ (reasoning is mathematically optimized for default settings)
+// - temperature / top_k / top_p: *Will be deprecated in Gemini 3.x+, use thinkingLevel instead (reasoning is mathematically optimized for default settings)*
 ```
 
 ### Model Selection

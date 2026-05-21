@@ -480,11 +480,11 @@ npm test
 - **Cost**: Competitive pricing
 - **Availability**: Easy to use via official SDK
 
-### Why does v1.2.1 support a module system?
+### Why does v1.2+ support a module system?
 
-- **Organization**: As Sesi programs grew, having a single-file system became limiting. Local module imports/exports and standard libraries (`std/math`, `std/time`, `std/json`) are natively supported in v1.2.1.
+- **Organization**: As Sesi programs grew, having a single-file system became limiting. Local module imports/exports and standard libraries (`std/math`, `std/time`, `std/json`) are natively supported in v1.2+.
 
-### Why does v1.2.1 support parallel execution?
+### Why does v1.2+ support parallel execution?
 
 - **Concurrency**: While the interpreter remains tree-walking and single-threaded for simplicity, native concurrency is supported via the parallel request executor `multi_req(array<function>)`, executing asynchronous operations physically in parallel.
 

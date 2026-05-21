@@ -71,7 +71,7 @@ When configuring the `image` call (specifically for models like `gemini-3.1-flas
 
 - `"ratio"`: The aspect ratio of the image (e.g., `"1:1"`, `"16:9"`, `"9:16"`).
 - `"size"`: Dimensional sizing constraints (Must be `"512"`, `"1K"`, `"2K"`, or `"4K"`).
-- `"temperature"`: *Deprecated in Gemini 3.x+* — controls variance.
+- `"temperature"`: *Will be deprecated in Gemini 3.x+, use thinkingLevel instead.* — controls variance.
 
 ## File I/O Integration: `write_image`
 
@@ -81,7 +81,7 @@ The `image()` call evaluates to a `string` (specifically, base64-encoded image d
 
 ---
 
-## Passing Images as Input (v1.2.1)
+## Passing Images as Input (v1.2+)
 
 Both `model()` and `image()` accept local image files as visual input via the `images` config key. The runtime reads each file from disk, base64-encodes it, and attaches it as an inline data part alongside the prompt. This enables vision tasks such as image description, comparison, OCR, style transfer, and reference-guided generation.
 

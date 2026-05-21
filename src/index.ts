@@ -6,7 +6,7 @@ import { Interpreter } from './interpreter';
 import * as fs from 'fs';
 import * as path from 'path';
 
-export async function runSesi(source: string): Promise<void> {
+export async function runSesi(source: string, scriptDir?: string): Promise<void> {
   try {
     // Lex
     const lexer = new Lexer(source);
@@ -17,7 +17,7 @@ export async function runSesi(source: string): Promise<void> {
     const program = parser.parse();
 
     // Interpret
-    const interpreter = new Interpreter();
+    const interpreter = new Interpreter(scriptDir);
     await interpreter.interpret(program);
   } catch (error: any) {
     console.error('Error:', error.message);
@@ -28,8 +28,9 @@ export async function runSesi(source: string): Promise<void> {
 export async function runSesiFile(filePath: string): Promise<void> {
   try {
     const filepath = path.resolve(filePath);
+    const scriptDir = path.dirname(filepath);
     const source = fs.readFileSync(filepath, 'utf-8');
-    await runSesi(source);
+    await runSesi(source, scriptDir);
   } catch (error: any) {
     console.error(`Error reading file ${filePath}:`, error.message);
     process.exit(1);

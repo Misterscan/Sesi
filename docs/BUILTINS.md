@@ -593,7 +593,7 @@ keys(obj) contains "a"    // Future: not yet supported
 
 ---
 
-## Standard Library Modules (Supported natively in v1.1.2)
+## Standard Library Modules (Supported natively in v1.2+)
 
 ### std/math
 
@@ -617,6 +617,67 @@ Includes JSON serialization: `parse(str)`, `stringify(val)`.
 
 ```sesi
 import { parse, stringify } from "std/json"
+```
+
+---
+
+## Module Resolution (v1.2.2+)
+
+Sesi resolves local module imports by searching directories in priority order:
+
+| Priority | Location | Notes |
+| -------- | -------- | ----- |
+| 1 | Script's own directory | Same folder as the running `.sesi` file |
+| 2 | Current working directory | Where you ran `sesi` from |
+| 3 | `SESI_PATH` env var | Semicolon (Windows) or colon (Unix) separated paths |
+| 4 | `~/.sesi/lib` | Global shared library, available system-wide |
+
+### Global Library (`~/.sesi/lib`)
+
+Place any `.sesi` module in `~/.sesi/lib` (Windows: `%USERPROFILE%\.sesi\lib`) to make it importable from any project on your system:
+
+```powershell
+# Install a module globally (Windows)
+copy mymodule.sesi $env:USERPROFILE\.sesi\lib\
+```
+
+```bash
+# Install a module globally (Linux/Unix)
+cp mymodule.sesi ~/.sesi/lib/
+```
+
+```sesi
+// Now importable from any folder
+import {callAPI, saveImage} from "retrorender"
+import {GetProfile} from "profiles"
+import {GetGuide} from "guides"
+```
+
+### `SESI_PATH` Environment Variable
+
+Point `SESI_PATH` to one or more additional directories for shared modules:
+
+```powershell
+# Windows
+$env:SESI_PATH = "C:\MyLibs;C:\Projects\shared"
+```
+
+```bash
+# Unix / macOS
+export SESI_PATH="/mylibs:/projects/shared"
+```
+
+### Error Output
+
+If a module cannot be found in any search location, Sesi prints a detailed error showing exactly where it looked:
+
+```
+Module not found: "retrorender"
+Searched in:
+  C:\MyApp
+  C:\MyApp
+  C:\Users\owner\.sesi\lib
+Tip: add a folder to SESI_PATH, or place shared modules in ~/.sesi/lib
 ```
 
 ---
