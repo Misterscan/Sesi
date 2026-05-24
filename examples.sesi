@@ -21,6 +21,7 @@ print "Done! Moving on with final examples!"
 print exec("sesi examples/16_modules.sesi")
 print exec("sesi examples/17_http_client.sesi")
 print exec("sesi examples/18_parallel_requests.sesi")
+print exec("sesi examples/19_search_web.sesi")
 print "All done! No errors means Sesi is ready!"}
 catch (error) {
 print "An error occurred:" error}

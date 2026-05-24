@@ -5,25 +5,37 @@ const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
-// Load .env from project root
+// Ensure standard macOS local installation directories are in the environment PATH
+const standardPaths = '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+process.env.PATH = process.env.PATH ? `${standardPaths}:${process.env.PATH}` : standardPaths;
+
+// Load .env from project root using dotenvx for decryption
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const envPath = path.join(PROJECT_ROOT, '.env');
-if (fs.existsSync(envPath)) {
-  const envContent = fs.readFileSync(envPath, 'utf-8');
-  envContent.split('\n').forEach(line => {
-    const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#')) {
-      const eqIdx = trimmed.indexOf('=');
-      if (eqIdx > 0) {
-        const key = trimmed.slice(0, eqIdx).trim();
-        let val = trimmed.slice(eqIdx + 1).trim();
-        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-          val = val.slice(1, -1);
+
+try {
+  const dotenvx = require('@dotenvx/dotenvx');
+  dotenvx.config({ path: envPath });
+  console.log('Decrypted .env variables loaded successfully via dotenvx.');
+} catch (err) {
+  console.warn('dotenvx not found or decryption failed, falling back to manual parsing:', err.message);
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf-8');
+    envContent.split('\n').forEach(line => {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#')) {
+        const eqIdx = trimmed.indexOf('=');
+        if (eqIdx > 0) {
+          const key = trimmed.slice(0, eqIdx).trim();
+          let val = trimmed.slice(eqIdx + 1).trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          if (!process.env[key]) process.env[key] = val;
         }
-        if (!process.env[key]) process.env[key] = val;
       }
-    }
-  });
+    });
+  }
 }
 
 const app = express();
@@ -113,7 +125,7 @@ app.post('/api/chat', (req, res) => {
     const logsDir = path.join(PROJECT_ROOT, 'main', 'logs');
     if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
 
-    const output = execSync('node bin/sesi.js main/sesi_db_chatbot.sesi', {
+    const output = execSync(`"${process.execPath}" bin/sesi.js main/sesi_db_chatbot.sesi`, {
       cwd: PROJECT_ROOT,
       encoding: 'utf-8',
       timeout: 120000,
@@ -139,6 +151,97 @@ app.post('/api/chat', (req, res) => {
   } catch (err) {
     const errMsg = err.stderr || err.stdout || err.message;
     res.json({ response: '⚠️ Co-pilot error: ' + errMsg });
+  }
+});
+
+// API: Autocomplete (AI inline suggestions)
+app.post('/api/autocomplete', async (req, res) => {
+  const { filePath, prefix, suffix } = req.body;
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey || !prefix) {
+    return res.json({ suggestion: '' });
+  }
+
+  const fileName = filePath ? filePath.split('/').pop() : 'unsaved.sesi';
+  
+  // 1. Instantly read all local Sesi markdown specifications for RAG context
+  let docsContext = '';
+  try {
+    const docsDir = path.join(PROJECT_ROOT, 'docs');
+    if (fs.existsSync(docsDir)) {
+      const docFiles = fs.readdirSync(docsDir);
+      docFiles.forEach(file => {
+        if (file.endsWith('.md')) {
+          const content = fs.readFileSync(path.join(docsDir, file), 'utf-8');
+          docsContext += `\n\n=== DOCUMENT: ${file} ===\n${content}`;
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Failed to read Sesi docs:', e.message);
+  }
+
+  // 2. Build the context prompt
+  const prompt = `You are a professional software engineering AI. Your job is to act as an inline code completion engine (like GitHub Copilot) for the Sesi programming language.
+
+Sesi Official Reference Documentation:
+${docsContext}
+
+Here is the context of the active file:
+File name: ${fileName}
+
+Prefix (code before cursor):
+${prefix}
+
+Suffix (code after cursor):
+${suffix}
+
+Task: Complete the code exactly from where the cursor left off.
+Rules:
+- Respond ONLY with the raw code completion that immediately continues the prefix.
+- Do NOT wrap your response in markdown code blocks (\`\`\`).
+- Do NOT include the prefix or suffix in your response.
+- Do NOT provide explanations, commentary, or comments.
+- Complete only the immediate logical block, line, or expression.
+- If no completion makes sense, return absolutely nothing.`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 1024
+        }
+      })
+    });
+
+    if (!response.ok) throw new Error(`Gemini API returned status ${response.status}`);
+    const data = await response.json();
+    
+    let suggestion = '';
+    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+      suggestion = data.candidates[0].content.parts[0].text;
+    }
+
+    // Clean up any accidental code block formatting from the LLM
+    if (suggestion.startsWith('```')) {
+      const lines = suggestion.split('\n');
+      if (lines[0].startsWith('```')) lines.shift();
+      if (lines[lines.length - 1] === '```') lines.pop();
+      suggestion = lines.join('\n');
+    }
+
+    res.json({ suggestion });
+  } catch (err) {
+    console.error('Autocomplete error:', err.message);
+    res.json({ suggestion: '' });
   }
 });
 
@@ -255,8 +358,8 @@ server.listen(PORT, () => {
   console.log('');
   console.log('  ╔══════════════════════════════════════════╗');
   console.log('  ║                                          ║');
-  console.log('  ║   🧠 Sesi Studio v1.0                    ║');
-  console.log(`  ║   → http://localhost:${PORT}             ║`);
+  console.log('  ║   🧠 Sesi Studio v1.1                    ║');
+  console.log(`  ║   → http://localhost:${PORT}                ║`);
   console.log('  ║                                          ║');
   console.log('  ╚══════════════════════════════════════════╝');
   console.log('');

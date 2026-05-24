@@ -164,6 +164,12 @@ prompt greeting {"Hello, " name "!"}
 let response = model("gemini-3-flash-preview") {"temperature": 0.7, "max_tokens": 1000} {"Your prompt here"}
 ```
 
+**Web Search Grounding**
+
+```sesi
+let response = model("gemini-3.1-flash-lite") {search, max_tokens: 1000} {"What is the weather in Tokyo?"}
+```
+
 **Structured Output**
 
 ```sesi

@@ -3,6 +3,20 @@ import { AIRequest, AIResponse, StructuredOutput } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 
+function stripPrototypes(val: any): any {
+  if (val === null || typeof val !== 'object') {
+    return val;
+  }
+  if (Array.isArray(val)) {
+    return val.map(stripPrototypes);
+  }
+  const cleanObj = Object.create(null);
+  for (const key of Object.keys(val)) {
+    cleanObj[key] = stripPrototypes(val[key]);
+  }
+  return cleanObj;
+}
+
 export class AIRuntime {
   private _client: any = null;
   private conversationHistory: Map<string, string[]> = new Map();
@@ -32,7 +46,7 @@ export class AIRuntime {
     const file = this.getCacheFile();
     if (fs.existsSync(file)) {
       try {
-        return JSON.parse(fs.readFileSync(file, 'utf-8'));
+        return stripPrototypes(JSON.parse(fs.readFileSync(file, 'utf-8')));
       } catch (e) {
         return {};
       }
@@ -63,6 +77,7 @@ export class AIRuntime {
       size: request.size,
       images: request.images,
       thinkingLevel: request.thinkingLevel,
+      search: request.search,
     };
     hash.update(JSON.stringify(input));
     return hash.digest('hex');
@@ -226,6 +241,11 @@ export class AIRuntime {
             genConfig.tools = request.tools;
         }
 
+        if (request.search) {
+            genConfig.tools = genConfig.tools || [];
+            genConfig.tools.push({ googleSearch: {} });
+        }
+
         if (thinkingConfig) {
           genConfig.thinkingConfig = thinkingConfig;
         }
@@ -320,9 +340,9 @@ export class AIRuntime {
       // Try to extract JSON from the response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+        const parsed = stripPrototypes(JSON.parse(jsonMatch[0]));
         // Validate against schema
-        const result: StructuredOutput = {};
+        const result: StructuredOutput = Object.create(null);
         for (const [key] of Object.entries(schema)) {
           result[key] = parsed[key];
         }
@@ -339,7 +359,7 @@ export class AIRuntime {
 
       const jsonMatch2 = structuredResponse.text.match(/\{[\s\S]*\}/);
       if (jsonMatch2) {
-        return JSON.parse(jsonMatch2[0]);
+        return stripPrototypes(JSON.parse(jsonMatch2[0]));
       }
 
       throw new Error('Could not parse structured output');

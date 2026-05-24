@@ -42,7 +42,7 @@
 - [x] Lexer and parser
 - [x] Tree-walking interpreter
 - [x] CLI executable (sesi)
-- [x] Examples (13 programs)
+- [x] Examples (19 programs)
 - [x] Documentation
 
 ### Limitations
@@ -110,6 +110,7 @@
 - [ ] Tool composition and piping
 - [ ] Custom tool definitions
 - [ ] Function calling with automatic orchestration
+- [x] Web search grounding
 
 ### Memory System
 
@@ -160,7 +161,7 @@
 
 ### Examples
 
-- [ ] Web scraper with reasoning analysis
+- [x] Web scraper with reasoning analysis
 - [ ] Document processor (PDF, DOCX)
 - [ ] Chatbot with memory
 - [ ] Data pipeline with reasoning

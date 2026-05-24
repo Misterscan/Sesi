@@ -25,7 +25,7 @@ try {
 
 // Auto-summarize when history gets too long (saves tokens)
 fn summarizeHistory() {
-  let summary = model("gemini-3.1-flash-lite") {"temperature": 0, "max_tokens": 300} {"Summarize this conversation history into key facts and context. Be very concise: " chatHistory}
+  let summary = model("gemini-3.1-flash-lite") {temperature: 0, max_tokens: 300} {"Summarize this conversation history into key facts and context. Be very concise: " chatHistory}
   chatHistory = "Previous conversation summary: " + summary
   print "🗜️  Memory auto-summarized to save tokens."
 }
@@ -262,9 +262,9 @@ if num_classes == 0 {
       summarizeHistory()
     }
     
-    let ragPrompt = "Conversation History:\n" + chatHistory + "\n\nSesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"] + "\n\nInstructions: Write a direct, beautiful, highly conversational response to the user's question using strictly the matched rules. Walk them through Sesi's syntax with direct examples. Be helpful and concise. Do not mention that you got this from a database—act as a supportive code copilot. Reference any relevant prior conversation context when applicable."
+    let ragPrompt = "Conversation History:\n" + chatHistory + "\n\nSesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"] + "\n\nInstructions: Write a direct, beautiful, highly conversational response to the user's question using strictly the matched rules. Be helpful and concise. Do not mention that you got this from a database—act as a supportive code copilot. Reference any relevant prior conversation context when applicable."
     
-    let generated_response = model("gemini-3.1-flash-lite") {"temperature": 0.3, "max_tokens": 200} {ragPrompt}
+    let generated_response = model("gemini-3-flash-preview") {temperature: 0.3, max_tokens: 2048} {ragPrompt}
     
     // Append this turn to conversational memory
     chatHistory = chatHistory + "\nUser: " + queryText + "\nAssistant: " + generated_response

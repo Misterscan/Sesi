@@ -478,6 +478,7 @@ export interface AIRequest {
   images?: string[]; // base64-encoded image data URIs or file paths resolved at runtime
   thinkingLevel?: { thinking?: string; level?: string };
   cache?: boolean;
+  search?: boolean;
 }
 
 export interface AIResponse {

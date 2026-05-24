@@ -4,6 +4,33 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, execSync } from 'child_process';
 
+function ensureSafePath(filePath: string, interpreter?: any, baseDir: string = process.cwd()): string {
+  const resolved = path.resolve(baseDir, filePath);
+  const allowUnsafeFs = interpreter?.allowUnsafeFs ?? (process.env.SESI_UNSAFE_FS === 'true');
+  const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
+
+  // If in safe mode, allowUnsafeFs is strictly disabled.
+  if (allowUnsafeFs && !safeMode) {
+    return resolved;
+  }
+
+  const allowedDirs = [...(interpreter?.allowedPaths || [process.cwd()])];
+  if (interpreter?.scriptDir && !allowedDirs.includes(interpreter.scriptDir)) {
+    allowedDirs.push(interpreter.scriptDir);
+  }
+
+  const isSafe = allowedDirs.some((dir: string) => {
+    const resolvedDir = path.resolve(dir);
+    const relative = path.relative(resolvedDir, resolved);
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  });
+
+  if (!isSafe) {
+    throw new Error(`Security Violation: Path traversal detected. Access to "${filePath}" outside of allowed directories is forbidden.`);
+  }
+  return resolved;
+}
+
 export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
   const builtins = new Map<string, RuntimeFunction>();
 
@@ -92,7 +119,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (str: RuntimeValue): RuntimeValue => {
       if (typeof str !== 'string') return null;
       try {
-        return JSON.parse(str);
+        return stripPrototypes(JSON.parse(str));
       } catch (e) {
         return null;
       }
@@ -246,10 +273,10 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (filePath: RuntimeValue): RuntimeValue => {
       if (typeof filePath !== 'string') return null;
       try {
-        const absolutePath = path.resolve(process.cwd(), filePath);
+        const absolutePath = ensureSafePath(filePath, interpreter);
         return fs.readFileSync(absolutePath, 'utf-8');
-      } catch (e) {
-        throw new Error(`Failed to read file: ${filePath}`);
+      } catch (e: any) {
+        throw new Error(`Failed to read file: ${filePath}. Reason: ${e.message}`);
       }
     },
   });
@@ -264,11 +291,11 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (filePath: RuntimeValue, content: RuntimeValue): RuntimeValue => {
       if (typeof filePath !== 'string' || typeof content !== 'string') return null;
       try {
-        const absolutePath = path.resolve(process.cwd(), filePath);
+        const absolutePath = ensureSafePath(filePath, interpreter);
         fs.writeFileSync(absolutePath, content, 'utf-8');
         return true;
-      } catch (e) {
-        throw new Error(`Failed to write file: ${filePath}`);
+      } catch (e: any) {
+        throw new Error(`Failed to write file: ${filePath}. Reason: ${e.message}`);
       }
     },
   });
@@ -283,12 +310,12 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (filePath: RuntimeValue, content: RuntimeValue): RuntimeValue => {
       if (typeof filePath !== 'string' || typeof content !== 'string') return null;
       try {
-        const absolutePath = path.resolve(process.cwd(), filePath);
+        const absolutePath = ensureSafePath(filePath, interpreter);
         const buffer = Buffer.from(content, 'base64');
         fs.writeFileSync(absolutePath, buffer);
         return true;
-      } catch (e) {
-        throw new Error(`Failed to write image: ${filePath}`);
+      } catch (e: any) {
+        throw new Error(`Failed to write image: ${filePath}. Reason: ${e.message}`);
       }
     },
   });
@@ -303,13 +330,13 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (dirPath: RuntimeValue): RuntimeValue => {
       if (typeof dirPath !== 'string') return null;
       try {
-        const absolutePath = path.resolve(process.cwd(), dirPath);
+        const absolutePath = ensureSafePath(dirPath, interpreter);
         if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isDirectory()) {
           return null;
         }
         return fs.readdirSync(absolutePath).filter(f => !f.startsWith('.'));
-      } catch (e) {
-        throw new Error(`Failed to list directory: ${dirPath}`);
+      } catch (e: any) {
+        throw new Error(`Failed to list directory: ${dirPath}. Reason: ${e.message}`);
       }
     },
   });
@@ -324,13 +351,13 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (dirPath: RuntimeValue): RuntimeValue => {
       if (typeof dirPath !== 'string') return null;
       try {
-        const absolutePath = path.resolve(process.cwd(), dirPath);
+        const absolutePath = ensureSafePath(dirPath, interpreter);
         if (!fs.existsSync(absolutePath)) {
           fs.mkdirSync(absolutePath, { recursive: true });
         }
         return true;
-      } catch (e) {
-        throw new Error(`Failed to create directory: ${dirPath}`);
+      } catch (e: any) {
+        throw new Error(`Failed to create directory: ${dirPath}. Reason: ${e.message}`);
       }
     },
   });
@@ -343,9 +370,13 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     closure: {} as any,
     isBuiltin: true,
     builtin: (filePath: RuntimeValue): RuntimeValue => {
+      const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
+      if (safeMode) {
+        throw new Error('Security Violation: spawn is disabled in Sesi safe mode.');
+      }
       if (typeof filePath !== 'string') return null;
       try {
-        const absolutePath = path.resolve(process.cwd(), filePath);
+        const absolutePath = ensureSafePath(filePath, interpreter);
         // Use 'node' to run the local sesi executable if it's in the bin folder
         const sesiBin = path.resolve(__dirname, '../bin/sesi.js');
         const child = spawn('node', [sesiBin, absolutePath], {
@@ -355,8 +386,8 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         });
         child.unref();
         return child.pid || true;
-      } catch (e) {
-        throw new Error(`Failed to spawn process: ${filePath}`);
+      } catch (e: any) {
+        throw new Error(`Failed to spawn process: ${filePath}. Reason: ${e.message}`);
       }
     },
   });
@@ -369,11 +400,15 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     closure: {} as any,
     isBuiltin: true,
     builtin: (command: RuntimeValue): RuntimeValue => {
+      const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
+      if (safeMode) {
+        throw new Error('Security Violation: exec is disabled in Sesi safe mode.');
+      }
       if (typeof command !== 'string') return null;
       try {
         return execSync(command, { encoding: 'utf-8' });
-      } catch (e) {
-        throw new Error(`Failed to execute command: ${command}`);
+      } catch (e: any) {
+        throw new Error(`Failed to execute command: ${command}. Reason: ${e.message}`);
       }
     },
   });
@@ -477,9 +512,13 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         }
         // Create an isolated sub-interpreter to prevent lexical scope and currentEnv corruption
         const InterpreterClass = interpreter.constructor;
-        const subInterpreter = new InterpreterClass();
-        (subInterpreter as any).prompts = (interpreter as any).prompts;
-        (subInterpreter as any).memory = (interpreter as any).memory;
+        const subInterpreter = new InterpreterClass(undefined, {
+          safeMode: interpreter.safeMode,
+          allowUnsafeFs: interpreter.allowUnsafeFs,
+          allowedPaths: interpreter.allowedPaths
+        });
+        (subInterpreter as any).prompts = new Map((interpreter as any).prompts);
+        (subInterpreter as any).memory = new Map((interpreter as any).memory);
 
         return await subInterpreter.callSesiFunction(fn as any, []);
       });
@@ -494,6 +533,20 @@ export function isTruthy(value: RuntimeValue): boolean {
   if (value === null || value === false) return false;
   if (value === 0 || value === '') return false;
   return true;
+}
+
+export function stripPrototypes(val: any): any {
+  if (val === null || typeof val !== 'object') {
+    return val;
+  }
+  if (Array.isArray(val)) {
+    return val.map(stripPrototypes);
+  }
+  const cleanObj = Object.create(null);
+  for (const key of Object.keys(val)) {
+    cleanObj[key] = stripPrototypes(val[key]);
+  }
+  return cleanObj;
 }
 
 export function isEqual(a: RuntimeValue, b: RuntimeValue): boolean {

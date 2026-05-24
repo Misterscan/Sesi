@@ -28,12 +28,15 @@
 You can install Sesi in three ways:
 
 ### 1. Global Installation via npm (Recommended)
+
 If you have Node.js installed, download Sesi directly from the npm registry:
+
 ```bash
 npm install -g sesi
 ```
 
 ### 2. Standalone Executables
+
 Don't want to install Node.js? Download the standalone executables bundled for Windows, Mac, and Linux directly from our [Downloads page](https://code-with-sesi.netlify.app/downloads). Drop the executable in your system PATH and you're good to go!
 
 For macOS users, Sesi also supports a native PKG installer flow when building from source:
@@ -46,6 +49,7 @@ npm run build:mac:pkg
 This generates installer packages in `releases/` (for available architectures) that install `sesi` to `/usr/local/bin`.
 
 ### 3. Build from Source (For contributors)
+
 ```bash
 git clone https://github.com/Misterscan/Sesi.git
 cd Sesi
@@ -110,6 +114,40 @@ let code = model("gemini-3.1-pro-preview") {generateCode}
 print code
 ```
 
+## Security & Sandboxing
+
+Sesi is designed to run and orchestrate untrusted AI reasoning pipelines. Because code can be influenced by prompt injections or generated model instructions, Sesi incorporates a **safe-by-default, zero-trust sandboxing engine**.
+
+### 🛡️ Core Security Features
+
+1. **Safe-by-Default Execution**:
+   - Sesi's sandbox is **enabled by default**. Any standard Sesi interpreter execution blocks system command lines (`exec`, `spawn`) and locks down imports and paths.
+   - *Overriding Safety:* Developers can explicitly bypass safe mode programmatically by initializing the interpreter with options, or on the command line by setting `SESI_SAFE_MODE=false`.
+
+2. **Absolute Prototype Pollution Immunity**:
+   - Sesi uses **prototype-free objects (`Object.create(null)`)** for all object literals, JSON parses (`from_json` or `std/json`), and structured model responses inside the interpreter.
+   - Because these objects do not inherit from standard JavaScript prototypes and possess no `__proto__` or prototype chain, **prototype pollution is physically and architecturally impossible**.
+
+3. **Strict Path Whitelisting**:
+   - Sesi validates all filesystem and subprocess paths against a **strict directory whitelist** (by default, only the Current Working Directory and the Script's base directory are allowed).
+   - Any path traversal resolving outside the whitelist is instantly rejected with a `Security Violation` exception.
+
+4. **Automated LLM Tool Call Sanitization**:
+   - Even if safe mode is explicitly turned off for developer automation, Sesi **strictly blocks automated tool execution** of sensitive commands (like `exec` and `spawn`) when requested dynamically by the model via `tool_call`. This completely isolates the host from prompt-injection RCE.
+
+5. **Deep isolation & Map Cloning**:
+   - Sub-interpreters loaded via concurrent workflows (`multi_req`) are fully isolated. Sesi **deep-clones** prompts and memories, preventing concurrent agent tasks from leaking state or polluting each other.
+
+### ⚙️ Programmatic Embedding Configurations
+When embedding Sesi inside a host application, you can statically configure safety settings directly in code:
+```typescript
+const interpreter = new Interpreter(scriptDir, {
+  safeMode: true,        // Enable full sandbox limits (on by default)
+  allowUnsafeFs: false,  // Block directory escapes (on by default)
+  allowedPaths: ['/var/tmp/sandbox'] // Custom strict whitelist directories
+});
+```
+
 ## Documentation
 
 - [Getting Started](./QUICKSTART.md)
@@ -152,7 +190,7 @@ Sesi/
 ├── examples/             # 18 sample programs demonstrating all features
 ├── main/                 # Main entry and specialized tests
 │   ├── playground.sesi   # Main playground script
-│   ├── start.sesi        # Beginner script 
+│   ├── start.sesi        # Beginner script
 │   ├── build_website.sesi # Sesi-powered landing page generator
 │   └── tests/            # Debug and syntax scripts
 ├── tests/                # Test suite

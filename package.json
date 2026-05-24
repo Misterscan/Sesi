@@ -17,7 +17,7 @@
     "lint": "npx eslint --fix",
     "build": "tsc",
     "dev": "npm run lint && dotenvx run -- npm run build --watch",
-    "test": "npx ts-node tests/basic.test.ts && npx ts-node tests/module.test.ts && npx ts-node tests/cache.test.ts && npx ts-node tests/http.test.ts",
+    "test": "npx ts-node tests/basic.test.ts && npx ts-node tests/module.test.ts && npx ts-node tests/cache.test.ts && npx ts-node tests/http.test.ts && npx ts-node tests/security.test.ts",
     "test:watch": "npm run lint && npx ts-node tests/basic.test.ts --watch",
     "build:exe": "node ./scripts/build-binaries.mjs",
     "msi:eula": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& 'C:\\Program Files\\WiX Toolset v7.0\\bin\\wix.exe' eula accept wix7\"",
@@ -48,7 +48,7 @@
   "license": "MIT",
   "dependencies": {
     "@dotenvx/dotenvx": "1.66.0",
-    "@dotenvx/dotenvx-ops": "0.47.0",
+    "@dotenvx/dotenvx-ops": "^0.47.0",
     "@google/genai": "2.5.0"
   },
   "devDependencies": {

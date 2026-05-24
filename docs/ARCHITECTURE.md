@@ -342,7 +342,11 @@ examples/
 ├── 12_classification.sesi    # Classification
 ├── 13_data_pipeline.sesi     # Pipeline demo
 ├── 14_folder_explainer.sesi  # Directory parsing & reasoning
-└── 15_image_generation.sesi  # Image generation API test
+├── 15_image_generation.sesi  # Image generation API test
+├── 16_modules.sesi          # Modules & std library namespaces
+├── 17_http_client.sesi      # HTTP GET/POST client
+├── 18_parallel_requests.sesi # Parallel requests concurrency
+└── 19_search_web.sesi        # Web search
 
 docs/
 ├── SPECIFICATION.md      # Language spec

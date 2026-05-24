@@ -298,6 +298,7 @@ sesi examples/15_image_generation.sesi
 sesi examples/16_modules.sesi
 sesi examples/17_http_client.sesi
 sesi examples/18_parallel_requests.sesi
+sesi examples/19_search_web.sesi
 ```
 
 ## Common Patterns

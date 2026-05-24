@@ -831,6 +831,36 @@ export class Parser {
     };
   }
 
+  private hasSecondBlock(): boolean {
+    let braceCount = 0;
+    let i = this.current;
+
+    if (i >= this.tokens.length || this.tokens[i].type !== 'LEFT_BRACE') {
+      return false;
+    }
+
+    while (i < this.tokens.length) {
+      const token = this.tokens[i];
+      if (token.type === 'LEFT_BRACE') {
+        braceCount++;
+      } else if (token.type === 'RIGHT_BRACE') {
+        braceCount--;
+        if (braceCount === 0) {
+          let nextIdx = i + 1;
+          while (nextIdx < this.tokens.length && this.tokens[nextIdx].type === 'NEWLINE') {
+            nextIdx++;
+          }
+          if (nextIdx < this.tokens.length && this.tokens[nextIdx].type === 'LEFT_BRACE') {
+            return true;
+          }
+          return false;
+        }
+      }
+      i++;
+    }
+    return false;
+  }
+
   private imageCall(): import('./types').ImageCallExpression {
     const line = this.previous().line;
     this.consume('LEFT_PAREN', 'Expected ( after image');
@@ -841,15 +871,8 @@ export class Parser {
     
     this.skipNewlines();
     let hasConfig = false;
-    if (this.check('LEFT_BRACE')) {
-      const insideToken = this.tokens[this.current + 1];
-      if (insideToken.type === 'RIGHT_BRACE' && this.current + 2 < this.tokens.length && this.tokens[this.current + 2].type === 'LEFT_BRACE') {
-        hasConfig = true;
-      } else if (insideToken.type === 'STRING' || insideToken.type === 'IDENTIFIER') {
-        if (this.current + 2 < this.tokens.length && this.tokens[this.current + 2].type === 'COLON') {
-          hasConfig = true;
-        }
-      }
+    if (this.check('LEFT_BRACE') && this.hasSecondBlock()) {
+      hasConfig = true;
     }
 
     if (hasConfig) {
@@ -860,11 +883,21 @@ export class Parser {
           let key: string;
           if (this.check('STRING')) {
             key = this.consume('STRING', '').literal as string;
+            this.consume('COLON', 'Expected : after config key');
+            config[key] = this.assignment();
           } else {
             key = this.consume('IDENTIFIER', 'Expected config key').lexeme;
+            if (this.match('COLON')) {
+              config[key] = this.assignment();
+            } else {
+              config[key] = {
+                type: 'Literal',
+                value: true,
+                rawType: 'bool',
+                line: this.previous().line,
+              } as import('./types').Literal;
+            }
           }
-          this.consume('COLON', 'Expected : after config key');
-          config[key] = this.assignment();
         } while (this.match('COMMA'));
       }
       this.consume('RIGHT_BRACE', 'Expected } after config');
@@ -931,15 +964,8 @@ export class Parser {
     
     this.skipNewlines();
     let hasConfig = false;
-    if (this.check('LEFT_BRACE')) {
-      const insideToken = this.tokens[this.current + 1];
-      if (insideToken.type === 'RIGHT_BRACE' && this.current + 2 < this.tokens.length && this.tokens[this.current + 2].type === 'LEFT_BRACE') {
-        hasConfig = true;
-      } else if (insideToken.type === 'STRING' || insideToken.type === 'IDENTIFIER') {
-        if (this.current + 2 < this.tokens.length && this.tokens[this.current + 2].type === 'COLON') {
-          hasConfig = true;
-        }
-      }
+    if (this.check('LEFT_BRACE') && this.hasSecondBlock()) {
+      hasConfig = true;
     }
 
     if (hasConfig) {
@@ -950,11 +976,21 @@ export class Parser {
           let key: string;
           if (this.check('STRING')) {
             key = this.consume('STRING', '').literal as string;
+            this.consume('COLON', 'Expected : after config key');
+            config[key] = this.assignment();
           } else {
             key = this.consume('IDENTIFIER', 'Expected config key').lexeme;
+            if (this.match('COLON')) {
+              config[key] = this.assignment();
+            } else {
+              config[key] = {
+                type: 'Literal',
+                value: true,
+                rawType: 'bool',
+                line: this.previous().line,
+              } as import('./types').Literal;
+            }
           }
-          this.consume('COLON', 'Expected : after config key');
-          config[key] = this.assignment();
         } while (this.match('COMMA'));
       }
       this.consume('RIGHT_BRACE', 'Expected } after config');

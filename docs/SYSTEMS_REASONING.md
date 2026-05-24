@@ -359,6 +359,14 @@ print "Translation:"
 print translate(text, language)
 ```
 
+### Web Search Grounding
+
+Access real-time information by enabling the `search` shorthand configuration natively.
+
+```sesi
+let response = model("gemini-3.1-flash-lite") {search, max_tokens: 1000} {"What is the weather in Tokyo right now?"}
+```
+
 ### Image Generation
 
 Like `model`, the `image` command evaluates prompts and accepts configuration variables mapping accurately to backend SDKs requirements.

@@ -6,6 +6,7 @@ import { Parser } from '../src/parser';
 import { Interpreter } from '../src/interpreter';
 import type { ModelCallExpression, ImageCallExpression, ExpressionStatement, ArrayLiteral, Literal, Identifier } from '../src/types';
 
+declare var process: any;
 
 async function runTest(name: string, source: string, expected?: any): Promise<void> {
   try {
@@ -199,7 +200,15 @@ async function main() {
   try {
     const expr = parseFirstExpr(`model("gemini-3-flash-preview") {"temperature": 0.3} {"hello"}`) as ModelCallExpression;
     assert('type is ModelCallExpression', expr.type === 'ModelCallExpression');
-    assert('images field is absent', expr.images === undefined || expr.images === null);
+    assert('images field is absent', expr.images === undefined);
+  } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
+
+  // 7. model() with search parameter
+  console.log('\n7. model() — shorthand search parameter');
+  try {
+    const expr = parseFirstExpr(`model("gemini-3-flash-preview") {search} {"hello"}`) as ModelCallExpression;
+    assert('type is ModelCallExpression', expr.type === 'ModelCallExpression');
+    assert('config.search is present', expr.config?.search !== undefined);
   } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
 
   // ---------------------------------------------------------------------------

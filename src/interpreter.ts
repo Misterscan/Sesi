@@ -37,7 +37,7 @@ import {
   type ToolCallExpression,
 } from './types';
 
-import { getBuiltins, isTruthy, isEqual, stringify, compareValues } from './builtins';
+import { getBuiltins, isTruthy, isEqual, stringify, compareValues, stripPrototypes } from './builtins';
 import { aiRuntime } from './ai-runtime';
 
 export class Interpreter {
@@ -48,7 +48,21 @@ export class Interpreter {
   public exports: Map<string, RuntimeValue> = new Map();
   private scriptDir: string | undefined;
 
-  constructor(scriptDir?: string) {
+  public safeMode: boolean = true;
+  public allowUnsafeFs: boolean = false;
+  public allowedPaths: string[] = [];
+
+  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowUnsafeFs?: boolean; allowedPaths?: string[] }) {
+    this.safeMode = options?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
+    this.allowUnsafeFs = options?.allowUnsafeFs ?? (process.env.SESI_UNSAFE_FS === 'true');
+    this.allowedPaths = options?.allowedPaths || [process.cwd()];
+    if (scriptDir && !this.allowedPaths.includes(scriptDir)) {
+      this.allowedPaths.push(scriptDir);
+    }
+    if (this.safeMode) {
+      this.allowUnsafeFs = false;
+    }
+
     this.globalEnv = new Environment();
     this.currentEnv = this.globalEnv;
     this.scriptDir = scriptDir;
@@ -84,14 +98,18 @@ export class Interpreter {
     searchDirs.push(process.cwd());
 
     // 3. SESI_PATH environment variable (semicolon or colon separated)
-    const sesiPath = process.env.SESI_PATH || '';
-    if (sesiPath) {
-      const sep = process.platform === 'win32' ? ';' : ':';
-      sesiPath.split(sep).filter(Boolean).forEach(p => searchDirs.push(p));
+    if (this.safeMode !== true) {
+      const sesiPath = process.env.SESI_PATH || '';
+      if (sesiPath) {
+        const sep = process.platform === 'win32' ? ';' : ':';
+        sesiPath.split(sep).filter(Boolean).forEach(p => searchDirs.push(p));
+      }
     }
 
     // 4. Global library: ~/.sesi/lib
-    searchDirs.push(path.join(os.homedir(), '.sesi', 'lib'));
+    if (this.safeMode !== true) {
+      searchDirs.push(path.join(os.homedir(), '.sesi', 'lib'));
+    }
 
     for (const dir of searchDirs) {
       const resolved = path.resolve(dir, filePath);
@@ -417,6 +435,12 @@ export class Interpreter {
   private async evaluateAssignment(expr: Assignment): Promise<RuntimeValue> {
     const value = await this.evaluateExpression(expr.right);
 
+    const isDangerousKey = (key: string): boolean => {
+      return key === '__proto__' || key === 'prototype' || key === 'constructor' ||
+             key === '__defineGetter__' || key === '__defineSetter__' ||
+             key === '__lookupGetter__' || key === '__lookupSetter__';
+    };
+
     if (expr.left.type === 'Identifier') {
       const name = (expr.left).name;
       this.currentEnv.set(name, value);
@@ -433,6 +457,10 @@ export class Interpreter {
       const obj = await this.evaluateExpression(indexExpr.object);
       const index = await this.evaluateExpression(indexExpr.index);
 
+      if (typeof index === 'string' && isDangerousKey(index)) {
+        throw new Error(`Prototype pollution attempt blocked: Cannot set property "${index}"`);
+      }
+
       if (Array.isArray(obj) && typeof index === 'number') {
         obj[index] = value;
       } else if (typeof obj === 'object' && obj !== null && typeof index === 'string') {
@@ -444,6 +472,10 @@ export class Interpreter {
     if (expr.left.type === 'MemberExpression') {
       const memberExpr = expr.left;
       const obj = await this.evaluateExpression(memberExpr.object);
+
+      if (isDangerousKey(memberExpr.property)) {
+        throw new Error(`Prototype pollution attempt blocked: Cannot set property "${memberExpr.property}"`);
+      }
 
       if (typeof obj === 'object' && obj !== null) {
         (obj as any)[memberExpr.property] = value;
@@ -505,7 +537,7 @@ export class Interpreter {
   }
 
   private async evaluateObject(expr: ObjectLiteral): Promise<RuntimeValue> {
-    const obj: any = {};
+    const obj: any = Object.create(null);
     for (const prop of expr.properties) {
       obj[prop.key] = await this.evaluateExpression(prop.value);
     }
@@ -609,6 +641,17 @@ export class Interpreter {
       }
     }
 
+    let search: boolean | undefined;
+    if (expr.config?.search) {
+      const raw = await this.evaluateExpression(expr.config.search);
+      if (typeof raw === 'boolean') {
+        search = raw;
+      } else if (typeof raw === 'string') {
+        // Backwards compatibility for truthy string values
+        search = raw === 'google' || raw === 'true';
+      }
+    }
+
     const response = await aiRuntime.callModel({
       model: expr.modelName,
       prompt: promptText,
@@ -617,6 +660,7 @@ export class Interpreter {
       images: imagePaths,
       thinkingLevel,
       cache,
+      search,
     });
 
     return response.text;
@@ -635,10 +679,19 @@ export class Interpreter {
   }
 
 private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> {
+    const sensitiveBuiltins = ['exec', 'spawn'];
+    if (sensitiveBuiltins.includes(expr.functionName)) {
+      throw new Error(`Security Violation: Automated execution of sensitive tool "${expr.functionName}" is forbidden.`);
+    }
+
     const fn = this.currentEnv.get(expr.functionName);
 
     if (typeof fn !== 'object' || !fn || (fn as any).type !== 'function') {
       throw new Error(`Tool not found: ${expr.functionName}`);
+    }
+
+    if ((fn as any).name === 'exec' || (fn as any).name === 'spawn' || ((fn as any).isBuiltin && sensitiveBuiltins.includes((fn as any).name))) {
+      throw new Error(`Security Violation: Automated execution of sensitive tool "${(fn as any).name || expr.functionName}" is forbidden.`);
     }
 
     const args: RuntimeValue[] = [];
@@ -703,16 +756,31 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         const path = require('path');
         if (this.scriptDir) searchedDirs.push(this.scriptDir);
         searchedDirs.push(process.cwd());
-        const sesiPath = process.env.SESI_PATH || '';
-        if (sesiPath) {
-          const sep = process.platform === 'win32' ? ';' : ':';
-          sesiPath.split(sep).filter(Boolean).forEach(p => searchedDirs.push(p));
+        if (this.safeMode !== true) {
+          const sesiPath = process.env.SESI_PATH || '';
+          if (sesiPath) {
+            const sep = process.platform === 'win32' ? ';' : ':';
+            sesiPath.split(sep).filter(Boolean).forEach(p => searchedDirs.push(p));
+          }
+          searchedDirs.push(path.join(os.homedir(), '.sesi', 'lib'));
         }
-        searchedDirs.push(path.join(os.homedir(), '.sesi', 'lib'));
         throw new Error(
           `Module not found: "${source}"\nSearched in:\n  ${searchedDirs.join('\n  ')}\n` +
           `Tip: add a folder to SESI_PATH, or place shared modules in ~/.sesi/lib`
         );
+      }
+
+      if (this.safeMode === true) {
+        const path = require('path');
+        const isSafe = (dir: string) => {
+          const relative = path.relative(dir, resolvedPath);
+          return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+        };
+        const allowed = [process.cwd()];
+        if (this.scriptDir) allowed.push(this.scriptDir);
+        if (!allowed.some(isSafe)) {
+          throw new Error(`Security Violation: Import path "${resolvedPath}" lies outside allowed directories.`);
+        }
       }
 
       const content = fs.readFileSync(resolvedPath, 'utf-8');
@@ -724,7 +792,11 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       const program = parser.parse();
 
       // Sub-interpreter inherits the resolved module's own directory so its imports also resolve correctly
-      const subInterpreter = new Interpreter(path.dirname(resolvedPath));
+      const subInterpreter = new Interpreter(path.dirname(resolvedPath), {
+        safeMode: this.safeMode,
+        allowUnsafeFs: this.allowUnsafeFs,
+        allowedPaths: this.allowedPaths
+      });
       await subInterpreter.interpret(program);
       moduleExports = subInterpreter.exports;
     }
@@ -824,7 +896,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           const [str] = args;
           if (typeof str !== 'string') return null;
           try {
-            return JSON.parse(str);
+            return stripPrototypes(JSON.parse(str));
           } catch (e) {
             return null;
           }

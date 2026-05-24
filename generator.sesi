@@ -1,13 +1,22 @@
 // Sesi Script Generator
 // Multi-Stage Reasoning Pipeline for automating Sesi scripts for niche markets.
-
+make_dir("archive")
 let md_files = []
+let ts_files = []
 
 // Scan root directory
 for f in list_dir(".") {
   let parts = split(f, ".")
   if len(parts) > 1 {
     if parts[len(parts) - 1] == "md" { push(md_files, f) }
+  }
+}
+
+// Scan src directory
+for f in list_dir("./src") {
+  let parts = split(f, ".")
+  if len(parts) > 1 {
+    if parts[len(parts) - 1] == "ts" { push(ts_files, f) }
   }
 }
 
@@ -33,27 +42,31 @@ for f in db_files {
   let c = read_file("sesi-db/" + f)
   brain_content = brain_content + "\nSource " + f + ":\n" + c
 }
-memory context_brain {brain_content md_files}
+memory context_brain {brain_content md_files ts_files}
 
 // 2. Creative Niche Agent (No Context Brain)
 print "💡 Agent 1 (Creative): Scouting underserved markets..."
-let creative_output = model("gemini-3.1-flash-lite") {"temperature": 0.9, "max_tokens": 1500} {"You are a visionary product designer who thinks in surprising directions. Identify 3 highly specific, emotionally resonant, and culturally interesting niche ideas for software scripts. These should feel human, unexpected, and alive — not corporate. FORBIDDEN CATEGORIES (do NOT suggest these under any circumstances): math solvers, calculators, unit converters, tax tools, budget trackers, compliance checkers, OSHA reports, logistics routers, prime number finders, sorting algorithms, grade calculators, invoice generators, or any script whose core purpose is arithmetic. INSTEAD, explore ideas drawn from: human memory and nostalgia, creative arts (music, writing, film), subcultures and communities, personal rituals and habits, cultural traditions, mental health and emotion, unconventional hobbies, local history, food and flavor, relationships and social dynamics, spiritual or philosophical practices, urban life, nature observation, or storytelling. For each idea, describe: what it does, who it's for, why it matters emotionally, and what makes it impossible to replicate with a generic script."}
+let creative_output = model("gemini-3.1-flash-lite") {temperature: 0.3, max_tokens: 2048} {"You are a visionary product designer who thinks in surprising directions. Identify 3 highly specific, emotionally resonant, and culturally interesting niche ideas for software scripts. These should feel human, unexpected, and alive — not corporate. FORBIDDEN CATEGORIES (do NOT suggest these under any circumstances): math solvers, calculators, unit converters, tax tools, budget trackers, compliance checkers, OSHA reports, logistics routers, prime number finders, sorting algorithms, grade calculators, invoice generators, or any script whose core purpose is arithmetic. INSTEAD, explore ideas drawn from: human memory and nostalgia, creative arts (music, writing, film), subcultures and communities, personal rituals and habits, cultural traditions, mental health and emotion, unconventional hobbies, local history, food and flavor, relationships and social dynamics, spiritual or philosophical practices, urban life, nature observation, or storytelling. For each idea, describe: what it does, who it's for, why it matters emotionally, and what makes it impossible to replicate with a generic script."}
 print "🌟 Niche Found:" creative_output
+write_file("archive/niches.md", creative_output)
 
 // 3. Reasoning Chain
 print "🔬 Agent 2 (Analyzer): Processing concept against Sesi constraints..."
-let analysis = model("gemini-3-flash-preview") {"temperature": 0.5, "max_tokens": 2048} {"Sesi-Rules:" context_brain "You are evaluating creative software ideas. From the following concepts, choose the MOST imaginative and emotionally compelling one — not the safest or most business-friendly. Your job is to make Sesi look exciting, not practical. Translate your chosen concept into a detailed technical specification for a Sesi script. The spec MUST leverage at least two of Sesi's unique AI superpowers: model() calls for reasoning, image() for generation, structured_output() for typed data, memory for stateful context, or spawn() for concurrent processes. Do NOT reduce the idea to a math problem, a data table, or a compliance report. Keep the creative vision intact." "Concepts:" creative_output}
+let analysis = model("gemini-3.1-flash-lite") {temperature: 0.5, max_tokens: 2048} {"Sesi-Rules:" context_brain "You are evaluating creative software ideas. From the following concepts, choose the MOST imaginative and emotionally compelling one — not the safest or most business-friendly. Your job is to make Sesi look exciting, not practical. Translate your chosen concept into a detailed technical specification for a Sesi script. The spec MUST leverage at least two of Sesi's unique AI superpowers: model() calls for reasoning, image() for generation, structured_output() for typed data, memory for stateful context, or spawn() for concurrent processes. Do NOT reduce the idea to a math problem, a data table, or a compliance report. Keep the creative vision intact." "Concepts:" creative_output}
 print "💻 Agent 3 (Coder): Generating strictly formatted Sesi code..."
-let raw_code = model("gemini-3.1-flash-lite") {"temperature": 0.5, "max_tokens": 2048} {"Sesi-Rules:" context_brain "Create a functional .sesi script for the following specification. The script must feel creative, alive, and human — not like a homework assignment. Use Sesi's AI primitives (model(), image(), structured_output(), memory) to make the script do something genuinely surprising or beautiful. FORBIDDEN OUTPUTS: do NOT write math solvers, calculators, prime finders, compliance checkers, grade calculators, or scripts whose core logic is arithmetic. The script MUST make at least one model() or image() call that serves the creative concept." "STRICT FORMATTING: Everything inside {} MUST be on a single line. No newlines inside model() calls, object literals, or structured_output schema definitions. NO NEWLINES between the closing brace and catch keyword. Use sequential prompts in model calls (e.g., model() {} {}). ALWAYS include make_dir() for any subdirectories before writing files." "Specification: " analysis "Provide ONLY raw code. No backticks."}
-
+write_file("archive/analysis.txt", analysis)
+let raw_code = model("gemini-3-flash-preview") {temperature: 0.3, thinkingLevel: "medium", max_tokens: 4096} {"Sesi-Rules:" context_brain "Create a functional .sesi script for the following specification. The script must feel creative, alive, and human — not like a homework assignment. Use Sesi's AI primitives (model(), image(), structured_output(), memory) to make the script do something genuinely surprising or beautiful. FORBIDDEN OUTPUTS: do NOT write math solvers, calculators, prime finders, compliance checkers, grade calculators, or scripts whose core logic is arithmetic. The script MUST make at least one model() or image() call that serves the creative concept." "STRICT FORMATTING: Everything inside {} MUST be on a single line. No newlines inside model() calls, object literals, or structured_output schema definitions. NO NEWLINES between the closing brace and catch keyword. Use sequential prompts in model calls (e.g., model() {} {}). ALWAYS include make_dir() for any subdirectories before writing files." "Specification: " analysis "Provide ONLY raw code. No backticks."}
+write_file("archive/raw-code.sesi", raw_code)
 // 4. Verification Phase
 print "🛡️ Agent 4 (Verifier): Auditing code for inconsistencies..."
-let example_ref = read_file("examples/13_data_pipeline.sesi")
-let example_ref2 = read_file("main/call_retrorender.sesi")
+let example_ref = read_file("examples/19_search_web.sesi")
+let example_ref2 = read_file("call_retrorender_native.sesi")
 let example_ref3 = read_file("build_website.sesi")
+let example_ref4 = read_file ("retrorender.sesi")
+let example_ref5 = read_file("main/sesi_db_chatbot.sesi")
 let final_code = ""
 try 
-{final_code = model("gemini-3.1-flash-lite") {"temperature": 0, "max_tokens": 4096} {"Sesi-Rules:" context_brain "Verify the following Sesi code against these official rules and examples." "Example References:" example_ref example_ref2 example_ref3 "CRITICAL FIX: Ensure NO newlines exist inside any {}. All object fields and model configurations MUST be on one line. Ensure 'catch' is on its own line after '}'. USE ONLY 'gemini-3.1-flash-lite' OR 'gemini-3-flash-preview' MODELS as raw string literals—DO NOT use variables for model names. FORBID all '+' operators inside prompt blocks and in print statements. FORBID 'const', 'main()', and 'return'. FORBID parameterized prompt blocks. USE 'to_json(object)' for writing JSON files instead of 'str(object)'. MANDATORY: Ensure all directories referenced in list_dir(), read_file(), or write_file() are bootstrapped using make_dir() at the start of the script. Return ONLY the final corrected code. No preamble." "Code to audit:" raw_code}
+{final_code = model("gemini-3.1-flash-lite") {temperature: 0, max_tokens: 4096} {"Sesi-Rules:" context_brain "Verify the following Sesi code against these official rules and examples. Example References:" example_ref example_ref2 example_ref3 example_ref4 example_ref5 "CRITICAL FIX: Ensure NO newlines exist inside any {}. All object fields and model configurations MUST be on one line. Ensure 'catch' is on its own line after '}'. USE ONLY 'gemini-3.1-flash-lite' OR 'gemini-3-flash-preview' MODELS as raw string literals—DO NOT use variables for model names. FORBID all '+' operators inside prompt blocks and in print statements. FORBID 'const', 'main()', and 'return'. FORBID parameterized prompt blocks. USE 'to_json(object)' for writing JSON files instead of 'str(object)'. MANDATORY: Ensure all directories referenced in list_dir(), read_file(), or write_file() are bootstrapped using make_dir() at the start of the script. Return ONLY the final corrected code. No preamble." "Code to audit:" raw_code}
 } catch (e) {
   print "⚠️ Verification failed, falling back to raw code."
   final_code = raw_code
