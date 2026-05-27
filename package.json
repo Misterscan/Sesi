@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Sesi: A High-Performance Systems Language",
   "main": "dist/index.js",
   "bin": {
@@ -47,9 +47,9 @@
   "author": "Misterscan",
   "license": "MIT",
   "dependencies": {
-    "@dotenvx/dotenvx": "1.66.0",
-    "@dotenvx/dotenvx-ops": "^0.47.0",
-    "@google/genai": "2.5.0"
+    "@dotenvx/dotenvx": "1.69.1",
+    "@dotenvx/dotenvx-ops": "0.51.0",
+    "@google/genai": "2.6.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -58,6 +58,6 @@
     "globals": "^17.6.0",
     "rcedit": "^5.0.2",
     "typescript": "6.0.3",
-    "typescript-eslint": "^8.59.4"
+    "typescript-eslint": "8.60.0"
   }
 }
