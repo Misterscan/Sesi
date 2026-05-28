@@ -294,11 +294,14 @@ sesi examples/14_folder_explainer.sesi
 # Image generation example
 sesi examples/15_image_generation.sesi
 
-# Advanced Version 1.2 features
+# Advanced Version 1.3 features
 sesi examples/16_modules.sesi
 sesi examples/17_http_client.sesi
 sesi examples/18_parallel_requests.sesi
 sesi examples/19_search_web.sesi
+sesi examples/20_model_aliases.sesi
+sesi examples/21_custom_tools.sesi
+sesi examples/22_reasoning_plus_custom_tools.sesi
 ```
 
 ## Common Patterns
@@ -402,6 +405,26 @@ Sesi comes with an advanced, built-in **Interactive RAG Co-Pilot** right in your
 sesi -help "how do I parse a JSON string?"
 sesi --help "explain structured_output and give an example"
 sesi -h "how to spawn background processes?"
+```
+
+You can also pass a file into the help context so the co-pilot can talk about that exact script:
+
+```bash
+sesi main/playground.sesi -h
+sesi main/playground.sesi -h "why is this failing?"
+```
+
+Other useful CLI options:
+
+```bash
+# Run a one-line snippet
+sesi -e "print 'hello'"
+
+# Disable sandbox protections for a run
+sesi main/start.sesi --local
+
+# Add extra allowed filesystem paths
+sesi main/start.sesi --allowed-paths ./docs,./examples
 ```
 
 The co-pilot will dynamically index and train on Sesi's native repository database and retrieve full RAG context from our standard specification docs to generate a syntactically correct, 100% accurate, conversational answer in real-time!

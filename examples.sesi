@@ -17,11 +17,15 @@ print exec("sesi examples/13_data_pipeline.sesi")
 print exec("sesi examples/14_folder_explainer.sesi")
 print "Image generation example may take a while..."
 print exec("sesi examples/15_image_generation.sesi")
-print "Done! Moving on with final examples!"
+print "Done! Moving on..."
 print exec("sesi examples/16_modules.sesi")
 print exec("sesi examples/17_http_client.sesi")
 print exec("sesi examples/18_parallel_requests.sesi")
 print exec("sesi examples/19_search_web.sesi")
+print "Now for the final examples!"
+print exec("sesi examples/20_model_aliases.sesi")
+print exec("sesi examples/21_custom_tools.sesi")
+print exec("sesi examples/22_reasoning_plus_custom_tools.sesi")
 print "All done! No errors means Sesi is ready!"}
 catch (error) {
 print "An error occurred:" error}

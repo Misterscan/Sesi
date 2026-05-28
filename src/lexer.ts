@@ -22,6 +22,7 @@ export class Lexer {
     ['continue', 'CONTINUE'],
     ['try', 'TRY'],
     ['catch', 'CATCH'],
+    ['finally', 'FINALLY'],
     ['true', 'TRUE'],
     ['false', 'FALSE'],
     ['null', 'NULL'],
@@ -175,7 +176,7 @@ export class Lexer {
         } else if (this.isAlpha(c)) {
           this.identifier();
         } else {
-          throw new Error(`Unexpected character: ${c} at line ${this.line}`);
+          throw new Error(`Unexpected character: ${c} at line ${this.line}, column ${this.column - 1}`);
         }
     }
   }
@@ -208,11 +209,15 @@ export class Lexer {
 
   private string(quote: string): void {
     const startLine = this.line;
+    const startColumn = this.column - 1;
     const startPosition = this.position - 1;
     let value = '';
 
     while (this.peek() !== quote && !this.isAtEnd()) {
-      if (this.peek() === '\n') this.line++;
+      if (this.peek() === '\n') {
+        this.line++;
+        this.column = 0;
+      }
       if (this.peek() === '\\') {
         this.advance();
         const escaped = this.advance();
@@ -236,7 +241,7 @@ export class Lexer {
             value += "'";
             break;
           default:
-            value += escaped;
+            throw new Error(`Unknown escape sequence \\${escaped} at line ${this.line}, column ${this.column - 1}`);
         }
       } else {
         value += this.advance();
@@ -244,7 +249,7 @@ export class Lexer {
     }
 
     if (this.isAtEnd()) {
-      throw new Error(`Unterminated string at line ${startLine}`);
+      throw new Error(`Unterminated string at line ${startLine}, column ${startColumn}`);
     }
 
     this.advance(); // closing quote

@@ -20,7 +20,7 @@ function assert(name: string, condition: boolean, detail?: string): void {
   }
 }
 
-async function runExpectError(name: string, source: string, expectedErrorSnippet: string, options?: { safeMode?: boolean; allowUnsafeFs?: boolean }): Promise<void> {
+async function runExpectError(name: string, source: string, expectedErrorSnippet: string, options?: { safeMode?: boolean; allowLocalFs?: boolean }): Promise<void> {
   try {
     const lexer = new Lexer(source);
     const tokens = lexer.scanTokens();
@@ -144,6 +144,12 @@ async function main() {
     'tool_call(spawn)("malicious.sesi")',
     'Security Violation: Automated execution of sensitive tool "spawn" is forbidden.',
     { safeMode: false } // Even if safeMode is explicitly disabled!
+  );
+  await runExpectError(
+    'Block custom tool alias targeting exec',
+    'define_tool("shell", exec, "danger")\ntool_call(shell)("echo hacked")',
+    'Security Violation: Automated execution of sensitive tool "exec" is forbidden.',
+    { safeMode: false }
   );
 
   // Test 7: Gold-Standard Prototype Isolation

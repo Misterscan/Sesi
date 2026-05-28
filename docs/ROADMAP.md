@@ -56,9 +56,9 @@
 
 ---
 
-## Version 1.2 - Stability & Systems Logic (In Progress)
+## Version 1.3 - Stability & Systems Logic (In Progress)
 
-**Status**: In Progress V1.2 implementation  
+**Status**: In Progress V1.3 implementation  
 **Ready for**: Distributed systems orchestration and prototypes  
 **Not ready for**: Massive-scale production (until v2.0 bytecode)  
 **Next milestone**: V2.0 (Async & advanced reasoning)
@@ -81,9 +81,9 @@
 
 ### Deferred to V2.0 ⏳
 
-- [ ] Better error messages with line numbers and stack traces
+- [x] Better error messages with line numbers and stack traces
 - [ ] REPL (Read-Eval-Print Loop)
-- [ ] String escape sequences & Multiline strings
+- [x] String escape sequences & Multiline strings
 - [ ] Comments preservation (for docs)
 - [ ] Type hints in function signatures
 - [ ] Performance optimizations
@@ -106,9 +106,9 @@
 
 - [ ] Streaming responses
 - [x] Extended thinking/reasoning budget
-- [ ] Multi-step reasoning workflows
+- [x] Multi-step reasoning workflows
 - [ ] Tool composition and piping
-- [ ] Custom tool definitions
+- [x] Custom tool definitions
 - [ ] Function calling with automatic orchestration
 - [x] Web search grounding
 
@@ -122,8 +122,8 @@
 
 ### Error Handling
 
-- [ ] finally blocks (try/catch completed in V1)
-- [ ] Custom error types
+- [x] finally blocks (try/catch completed in V1)
+- [x] Custom error types
 - [ ] Error recovery strategies
 - [ ] Retry logic with exponential backoff
 - [ ] Timeout handling

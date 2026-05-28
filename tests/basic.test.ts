@@ -5,6 +5,7 @@ import { Lexer } from '../src/lexer';
 import { Parser } from '../src/parser';
 import { Interpreter } from '../src/interpreter';
 import type { ModelCallExpression, ImageCallExpression, ExpressionStatement, ArrayLiteral, Literal, Identifier } from '../src/types';
+import { SesiRuntimeError } from '../src/types';
 
 declare var process: any;
 
@@ -103,12 +104,40 @@ async function main() {
   await runTest('Break statement', 'while true { break }');
   await runTest('Continue statement', 'for i = 0 to 5 { if i == 2 { continue } }');
   await runTest('Try/Catch block', 'try { let x = missing_var } catch (e) { let y = "caught" }');
+  await runTest(
+    'Try/Catch/Finally block (try path)',
+    'let x = 0\ntry { x = 1 } catch (e) { x = 2 } finally { x = 3 }\nif x != 3 { let y = missing_var }',
+  );
+  await runTest(
+    'Try/Catch/Finally block (catch path)',
+    'let x = 0\ntry { let y = missing_var } catch (e) { x = 2 } finally { x = 3 }\nif x != 3 { let z = missing_var }',
+  );
+  await runTest(
+    'Try/Catch/Finally block (return path)',
+    'let done = false\nfn f() { try { return 1 } catch (e) { return 2 } finally { done = true } }\nlet r = f()\nif r != 1 { let e = missing_var }\nif !done { let e2 = missing_var }',
+  );
+  await runTest(
+    'Custom error types via raise_error(type, message, data)',
+    'try { raise_error("ValidationError", "Invalid field", {"field": "email"}) } catch (e) { if e["type"] != "ValidationError" { let x = missing_var } if e["message"] != "Invalid field" { let y = missing_var } if e["data"]["field"] != "email" { let z = missing_var } }',
+  );
+  await runTest(
+    'Custom error types via error_type object',
+    'let err = error_type("RateLimit", "Too many requests", {"retryIn": 30})\ntry { raise_error(err) } catch (e) { if e["type"] != "RateLimit" { let a = missing_var } if e["data"]["retryIn"] != 30 { let b = missing_var } }',
+  );
   await runTest('Unary negation', 'let x = -5');
   await runTest('Logical not', 'let x = !true');
   await runTest('Short-circuit AND', 'if false && true { }');
   await runTest('Short-circuit OR', 'if true || false { }');
   await runTest('Member access', 'let obj = { "x": { "y": 1 } }\nlet val = obj["x"]["y"]');
   await runTest('Default parameters', 'fn greet(name = "World") { print name }');
+  await runTest(
+    'Custom tool definitions',
+    'fn summarize(x) { return "ok:" + x }\ndefine_tool("summarizer", summarize, "Summarize text")\nlet out = tool_call(summarizer)("hello")\nif out != "ok:hello" { let e = missing_var }',
+  );
+  await runTest(
+    'List custom tools',
+    'fn analyze(x) { return x }\ndefine_tool("analyzer", analyze)\nlet tools = list_tools()\nif len(tools) < 1 { let e = missing_var }',
+  );
   await runTest('Return with value', 'fn test() { return 42 }');
   await runTest('Return without value', 'fn test() { return }');
 
@@ -212,6 +241,58 @@ async function main() {
   } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
 
   // ---------------------------------------------------------------------------
+  console.log('\n=== Diagnostics & String Semantics Tests ===\n');
+
+  // 8. strict unknown escape sequences should fail with location
+  console.log('8. lexer — invalid escape sequence');
+  try {
+    new Lexer('let x = "bad\\qescape"').scanTokens();
+    assert('invalid escape should throw', false, 'lexer did not throw');
+  } catch (e: any) {
+    assert('reports unknown escape sequence', String(e.message).includes('Unknown escape sequence'));
+    assert('reports line and column', /line\s+\d+,\s+column\s+\d+/i.test(String(e.message)));
+  }
+
+  // 9. multiline strings should remain supported
+  console.log('\n9. lexer — multiline string support');
+  try {
+    const tokens = new Lexer('let poem = "line1\nline2"').scanTokens();
+    const stringToken = tokens.find(t => t.type === 'STRING');
+    assert('string token exists', !!stringToken);
+    assert('multiline literal contains newline', String(stringToken?.literal).includes('\n'));
+  } catch (e: any) { console.error('  ✗ Lexer threw:', e.message); failed++; }
+
+  // 10. parser diagnostics should include line+column
+  console.log('\n10. parser — error location includes column');
+  const originalError = console.error;
+  const parserMessages: string[] = [];
+  console.error = (...args: any[]) => {
+    parserMessages.push(args.map(a => String(a)).join(' '));
+  };
+  try {
+    new Parser(new Lexer('let x =').scanTokens()).parse();
+  } finally {
+    console.error = originalError;
+  }
+  const combinedParserMessage = parserMessages.join(' | ');
+  assert('parser emitted diagnostics', parserMessages.length > 0);
+  assert('mentions line', combinedParserMessage.includes('line'));
+  assert('mentions column', combinedParserMessage.includes('column'));
+
+  // 11. runtime errors should carry stack context and location
+  console.log('\n11. interpreter — runtime context stack');
+  try {
+    const source = 'fn boom() { let y = missing_var }\nfn caller() { boom() }\ncaller()';
+    const interpreter = new Interpreter();
+    const program = new Parser(new Lexer(source).scanTokens()).parse();
+    await interpreter.interpret(program);
+    assert('runtime error should throw', false, 'interpreter did not throw');
+  } catch (e: any) {
+    assert('throws SesiRuntimeError', e instanceof SesiRuntimeError);
+    assert('has runtime line number', typeof e.line === 'number');
+    assert('has stack trace frames', Array.isArray(e.stackTrace) && e.stackTrace.length > 0);
+  }
+
   console.log(`\n=== Summary ===`);
   console.log(`Passed: ${passed}  Failed: ${failed}`);
   if (failed > 0) process.exit(1);

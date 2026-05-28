@@ -35,6 +35,7 @@ import {
   type ModelCallExpression,
   type StructuredOutputExpression,
   type ToolCallExpression,
+  SesiRuntimeError,
 } from './types';
 
 import { getBuiltins, isTruthy, isEqual, stringify, compareValues, stripPrototypes } from './builtins';
@@ -45,22 +46,24 @@ export class Interpreter {
   private currentEnv: Environment;
   private prompts: Map<string, string> = new Map();
   private memory: Map<string, string> = new Map();
+  private modelAliases: Map<string, string> = new Map();
+  private customTools: Map<string, { fn: RuntimeFunction; description?: string }> = new Map();
   public exports: Map<string, RuntimeValue> = new Map();
   private scriptDir: string | undefined;
 
   public safeMode: boolean = true;
-  public allowUnsafeFs: boolean = false;
+  public allowLocalFs: boolean = false;
   public allowedPaths: string[] = [];
 
-  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowUnsafeFs?: boolean; allowedPaths?: string[] }) {
+  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[] }) {
     this.safeMode = options?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
-    this.allowUnsafeFs = options?.allowUnsafeFs ?? (process.env.SESI_UNSAFE_FS === 'true');
+    this.allowLocalFs = options?.allowLocalFs ?? (process.env.SESI_LOCAL_FS === 'true');
     this.allowedPaths = options?.allowedPaths || [process.cwd()];
     if (scriptDir && !this.allowedPaths.includes(scriptDir)) {
       this.allowedPaths.push(scriptDir);
     }
     if (this.safeMode) {
-      this.allowUnsafeFs = false;
+      this.allowLocalFs = false;
     }
 
     this.globalEnv = new Environment();
@@ -125,54 +128,141 @@ export class Interpreter {
     }
   }
 
+  private rethrowWithContext(error: unknown, line?: number): never {
+    if (error instanceof SesiRuntimeError) {
+      if (line !== undefined && error.line === undefined) {
+        error.line = line;
+      }
+      if (error.column === undefined) {
+        error.column = 1;
+      }
+      if (line !== undefined) {
+        error.stackTrace.push(`line ${line}`);
+      }
+      throw error;
+    }
+
+    if (error instanceof Error) {
+      throw new SesiRuntimeError(
+        'RuntimeError',
+        error.message,
+        null,
+        line,
+        1,
+        undefined,
+        line !== undefined ? [`line ${line}`] : [],
+      );
+    }
+
+    throw new SesiRuntimeError(
+      'RuntimeError',
+      String(error),
+      null,
+      line,
+      1,
+      undefined,
+      line !== undefined ? [`line ${line}`] : [],
+    );
+  }
+
+  public setModelAlias(alias: string, modelName: string): void {
+    const aliasKey = alias.trim();
+    const modelValue = modelName.trim();
+    if (!aliasKey) {
+      throw new Error('Model alias cannot be empty');
+    }
+    if (!modelValue) {
+      throw new Error('Model name cannot be empty');
+    }
+    this.modelAliases.set(aliasKey, modelValue);
+  }
+
+  public resolveModelName(name: string): string {
+    let current = name;
+    const seen = new Set<string>();
+
+    while (this.modelAliases.has(current)) {
+      if (seen.has(current)) {
+        throw new Error(`Model alias cycle detected for "${name}"`);
+      }
+      seen.add(current);
+      current = this.modelAliases.get(current)!;
+    }
+
+    return current;
+  }
+
+  public defineCustomTool(name: string, fn: RuntimeFunction, description?: string): void {
+    const toolName = name.trim();
+    if (!toolName) {
+      throw new Error('Tool name cannot be empty');
+    }
+    this.customTools.set(toolName, { fn, description: description?.trim() || undefined });
+  }
+
+  public getCustomTool(name: string): RuntimeFunction | null {
+    return this.customTools.get(name)?.fn || null;
+  }
+
+  public listCustomToolNames(): string[] {
+    return Array.from(this.customTools.keys());
+  }
+
   private async executeStatement(statement: Statement): Promise<void> {
-    switch (statement.type) {
-      case 'LetStatement':
-        await this.executeLet(statement);
-        break;
-      case 'ConstStatement':
-        await this.executeConst(statement);
-        break;
-      case 'FunctionStatement':
-        await this.executeFunction(statement);
-        break;
-      case 'ExpressionStatement':
-        await this.executeExpression(statement);
-        break;
-      case 'BlockStatement':
-        await this.executeBlock(statement, new Environment(this.currentEnv));
-        break;
-      case 'IfStatement':
-        await this.executeIf(statement);
-        break;
-      case 'WhileStatement':
-        await this.executeWhile(statement);
-        break;
-      case 'ForStatement':
-        await this.executeFor(statement);
-        break;
-      case 'ReturnStatement':
-        throw new ReturnValue(
-          (statement).value
-            ? await this.evaluateExpression((statement).value)
-            : null
-        );
-      case 'BreakStatement':
-        throw new BreakException();
-      case 'ContinueStatement':
-        throw new ContinueException();
-      case 'TryStatement':
-        await this.executeTry(statement);
-        break;
-      case 'MemoryStatement':
-        await this.executeMemory(statement);
-        break;
-      case 'ImportStatement':
-        await this.executeImport(statement);
-        break;
-      case 'ExportStatement':
-        await this.executeExport(statement);
-        break;
+    try {
+      switch (statement.type) {
+        case 'LetStatement':
+          await this.executeLet(statement);
+          break;
+        case 'ConstStatement':
+          await this.executeConst(statement);
+          break;
+        case 'FunctionStatement':
+          await this.executeFunction(statement);
+          break;
+        case 'ExpressionStatement':
+          await this.executeExpression(statement);
+          break;
+        case 'BlockStatement':
+          await this.executeBlock(statement, new Environment(this.currentEnv));
+          break;
+        case 'IfStatement':
+          await this.executeIf(statement);
+          break;
+        case 'WhileStatement':
+          await this.executeWhile(statement);
+          break;
+        case 'ForStatement':
+          await this.executeFor(statement);
+          break;
+        case 'ReturnStatement':
+          throw new ReturnValue(
+            (statement).value
+              ? await this.evaluateExpression((statement).value)
+              : null
+          );
+        case 'BreakStatement':
+          throw new BreakException();
+        case 'ContinueStatement':
+          throw new ContinueException();
+        case 'TryStatement':
+          await this.executeTry(statement);
+          break;
+        case 'MemoryStatement':
+          await this.executeMemory(statement);
+          break;
+        case 'ImportStatement':
+          await this.executeImport(statement);
+          break;
+        case 'ExportStatement':
+          await this.executeExport(statement);
+          break;
+      }
+    } catch (error) {
+      if (error instanceof ReturnValue || error instanceof BreakException || error instanceof ContinueException) {
+        throw error;
+      }
+      this.rethrowWithContext(error, (statement as any).line);
     }
   }
 
@@ -222,9 +312,23 @@ export class Interpreter {
         throw e;
       }
       const catchEnv = new Environment(this.currentEnv);
-      catchEnv.define(stmt.catchParameter, e instanceof Error ? e.message : String(e));
+      catchEnv.define(stmt.catchParameter, this.normalizeCaughtError(e));
       await this.executeBlock(stmt.catchBlock, catchEnv);
+    } finally {
+      if (stmt.finallyBlock) {
+        await this.executeBlock(stmt.finallyBlock, new Environment(this.currentEnv));
+      }
     }
+  }
+
+  private normalizeCaughtError(error: unknown): RuntimeValue {
+    if (error instanceof SesiRuntimeError) {
+      return error.toRuntimeObject();
+    }
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return String(error);
   }
 
   private async executeIf(stmt: IfStatement): Promise<void> {
@@ -317,57 +421,61 @@ export class Interpreter {
   }
 
   private async evaluateExpression(expr: Expression): Promise<RuntimeValue> {
-    switch (expr.type) {
-      case 'Literal':
-        return (expr).value;
+    try {
+      switch (expr.type) {
+        case 'Literal':
+          return (expr).value;
 
-      case 'Identifier':
-        return this.currentEnv.get((expr).name);
+        case 'Identifier':
+          return this.currentEnv.get((expr).name);
 
-      case 'BinaryOp':
-        return await this.evaluateBinaryOp(expr);
+        case 'BinaryOp':
+          return await this.evaluateBinaryOp(expr);
 
-      case 'UnaryOp':
-        return await this.evaluateUnaryOp(expr);
+        case 'UnaryOp':
+          return await this.evaluateUnaryOp(expr);
 
-      case 'LogicalOp':
-        return await this.evaluateLogicalOp(expr);
+        case 'LogicalOp':
+          return await this.evaluateLogicalOp(expr);
 
-      case 'Assignment':
-        return await this.evaluateAssignment(expr);
+        case 'Assignment':
+          return await this.evaluateAssignment(expr);
 
-      case 'CallExpression':
-        return await this.evaluateCall(expr);
+        case 'CallExpression':
+          return await this.evaluateCall(expr);
 
-      case 'MemberExpression':
-        return await this.evaluateMember(expr);
+        case 'MemberExpression':
+          return await this.evaluateMember(expr);
 
-      case 'IndexExpression':
-        return await this.evaluateIndex(expr);
+        case 'IndexExpression':
+          return await this.evaluateIndex(expr);
 
-      case 'ArrayLiteral':
-        return await this.evaluateArray(expr);
+        case 'ArrayLiteral':
+          return await this.evaluateArray(expr);
 
-      case 'ObjectLiteral':
-        return await this.evaluateObject(expr);
+        case 'ObjectLiteral':
+          return await this.evaluateObject(expr);
 
-      case 'PromptExpression':
-        return await this.evaluatePrompt(expr);
+        case 'PromptExpression':
+          return await this.evaluatePrompt(expr);
 
-      case 'ImageCallExpression':
-        return await this.evaluateImageCall(expr as import('./types').ImageCallExpression);
+        case 'ImageCallExpression':
+          return await this.evaluateImageCall(expr as import('./types').ImageCallExpression);
 
-      case 'ModelCallExpression':
-        return await this.evaluateModelCall(expr);
+        case 'ModelCallExpression':
+          return await this.evaluateModelCall(expr);
 
-      case 'StructuredOutputExpression':
-        return await this.evaluateStructuredOutput(expr);
+        case 'StructuredOutputExpression':
+          return await this.evaluateStructuredOutput(expr);
 
-      case 'ToolCallExpression':
-        return await this.evaluateToolCall(expr);
+        case 'ToolCallExpression':
+          return await this.evaluateToolCall(expr);
 
-      default:
-        return null;
+        default:
+          return null;
+      }
+    } catch (error) {
+      this.rethrowWithContext(error, (expr as any).line);
     }
   }
 
@@ -591,7 +699,7 @@ export class Interpreter {
     }
 
     const response = await aiRuntime.callModel({
-      model: expr.modelName,
+      model: this.resolveModelName(expr.modelName),
       prompt: promptText,
       temperature: expr.config?.temperature ? (await this.evaluateExpression(expr.config.temperature) as number) : undefined,
       maxTokens: expr.config?.max_tokens ? (await this.evaluateExpression(expr.config.max_tokens) as number) : undefined,
@@ -653,7 +761,7 @@ export class Interpreter {
     }
 
     const response = await aiRuntime.callModel({
-      model: expr.modelName,
+      model: this.resolveModelName(expr.modelName),
       prompt: promptText,
       temperature: expr.config?.temperature ? (await this.evaluateExpression(expr.config.temperature) as number) : undefined,
       maxTokens: expr.config?.max_tokens ? (await this.evaluateExpression(expr.config.max_tokens) as number) : undefined,
@@ -684,7 +792,16 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       throw new Error(`Security Violation: Automated execution of sensitive tool "${expr.functionName}" is forbidden.`);
     }
 
-    const fn = this.currentEnv.get(expr.functionName);
+    let fn: RuntimeValue;
+    if (this.currentEnv.exists(expr.functionName)) {
+      fn = this.currentEnv.get(expr.functionName);
+    } else {
+      const custom = this.getCustomTool(expr.functionName);
+      if (!custom) {
+        throw new Error(`Tool not found: ${expr.functionName}`);
+      }
+      fn = custom;
+    }
 
     if (typeof fn !== 'object' || !fn || (fn as any).type !== 'function') {
       throw new Error(`Tool not found: ${expr.functionName}`);
@@ -794,7 +911,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       // Sub-interpreter inherits the resolved module's own directory so its imports also resolve correctly
       const subInterpreter = new Interpreter(path.dirname(resolvedPath), {
         safeMode: this.safeMode,
-        allowUnsafeFs: this.allowUnsafeFs,
+        allowLocalFs: this.allowLocalFs,
         allowedPaths: this.allowedPaths
       });
       await subInterpreter.interpret(program);

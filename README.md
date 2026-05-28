@@ -79,6 +79,22 @@ sesi examples/08_model_call.sesi
 sesi examples.sesi
 ```
 
+Useful CLI shortcuts:
+
+```bash
+# Evaluate a quick snippet
+sesi -e "print 'hello'"
+
+# Ask the built-in co-pilot a question
+sesi -help "how do I use memory?"
+
+# Ask for help about a specific file
+sesi main/playground.sesi -h "why is this failing"
+
+# Run with sandbox restrictions disabled
+sesi main/start.sesi --local
+```
+
 # Local Execution (Development)
 
 If you choose not install `sesi` globally, use the helper npm scripts:
@@ -143,7 +159,7 @@ When embedding Sesi inside a host application, you can statically configure safe
 ```typescript
 const interpreter = new Interpreter(scriptDir, {
   safeMode: true,        // Enable full sandbox limits (on by default)
-  allowUnsafeFs: false,  // Block directory escapes (on by default)
+  allowLocalFs: false,  // Block directory escapes (on by default)
   allowedPaths: ['/var/tmp/sandbox'] // Custom strict whitelist directories
 });
 ```
@@ -187,7 +203,7 @@ Sesi/
 │   └── index.ts          # Main entry point
 ├── bin/
 │   └── sesi.js           # CLI executable
-├── examples/             # 18 sample programs demonstrating all features
+├── examples/             # 22 sample programs demonstrating all features
 ├── main/                 # Main entry and specialized tests
 │   ├── playground.sesi   # Main playground script
 │   ├── start.sesi        # Beginner script
@@ -197,7 +213,7 @@ Sesi/
 └── docs/                 # Documentation (ARCHITECTURE, BUILTINS, SPECIFICATION, etc.)
 ```
 
-## Version 1.2 Features (In Progress)
+## Version 1.3 Features (In Progress)
 
 ### Core Language ✅
 

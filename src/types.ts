@@ -19,6 +19,7 @@ export type TokenType =
   | 'CONTINUE'
   | 'TRY'
   | 'CATCH'
+  | 'FINALLY'
   | 'TRUE'
   | 'FALSE'
   | 'NULL'
@@ -193,6 +194,7 @@ export interface TryStatement {
   tryBlock: BlockStatement;
   catchParameter: string;
   catchBlock: BlockStatement;
+  finallyBlock?: BlockStatement;
   line: number;
 }
 
@@ -513,7 +515,56 @@ export class ContinueException extends Error {
   }
 }
 
+export class SesiRuntimeError extends Error {
+  public errorType: string;
+  public data: RuntimeValue;
+  public line?: number;
+  public column?: number;
+  public output?: string;
+  public stackTrace: string[];
+
+  constructor(
+    errorType: string,
+    message: string,
+    data: RuntimeValue = null,
+    line?: number,
+    column?: number,
+    output?: string,
+    stackTrace: string[] = [],
+  ) {
+    super(message);
+    this.name = 'SesiRuntimeError';
+    this.errorType = errorType;
+    this.data = data;
+    this.line = line;
+    this.column = column;
+    this.output = output;
+    this.stackTrace = stackTrace;
+  }
+
+  toRuntimeObject(): RuntimeObject {
+    const obj: RuntimeObject = Object.create(null);
+    obj.type = this.errorType;
+    obj.message = this.message;
+    obj.data = this.data;
+    if (this.line !== undefined) {
+      obj.line = this.line;
+    }
+    if (this.column !== undefined) {
+      obj.column = this.column;
+    }
+    if (this.output !== undefined) {
+      obj.output = this.output;
+    }
+    if (this.stackTrace.length > 0) {
+      obj.stack_trace = this.stackTrace;
+    }
+    return obj;
+  }
+}
+
 export type InterpreterError = {
   message: string;
   line?: number;
+  column?: number;
 };

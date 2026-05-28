@@ -302,11 +302,19 @@ export class Parser {
     this.skipNewlines();
     const catchBlock = this.blockStatement();
 
+    this.skipNewlines();
+    let finallyBlock: BlockStatement | undefined;
+    if (this.match('FINALLY')) {
+      this.skipNewlines();
+      finallyBlock = this.blockStatement();
+    }
+
     return {
       type: 'TryStatement',
       tryBlock,
       catchParameter,
       catchBlock,
+      finallyBlock,
       line,
     };
   }
@@ -347,7 +355,7 @@ export class Parser {
     } else if (this.match('CONST')) {
       statement = this.constStatement();
     } else {
-      throw new Error('Expected function or variable declaration after export');
+      throw new Error(`Expected function or variable declaration after export ${this.formatLocation(this.peek())}`);
     }
 
     return {
@@ -749,7 +757,7 @@ export class Parser {
       return expr;
     }
 
-    throw new Error(`Unexpected token: ${this.peek().lexeme} at line ${this.peek().line}`);
+    throw new Error(`Unexpected token: ${this.peek().lexeme} ${this.formatLocation(this.peek())}`);
   }
 
   private arrayLiteral(): ArrayLiteral {
@@ -941,7 +949,7 @@ export class Parser {
         prompt = result;
       }
     } else {
-      throw new Error('Expected prompt block after image call');
+      throw new Error(`Expected prompt block after image call ${this.formatLocation(this.peek())}`);
     }
 
     return {
@@ -1034,7 +1042,7 @@ export class Parser {
         prompt = result;
       }
     } else {
-      throw new Error('Expected prompt block after model call');
+      throw new Error(`Expected prompt block after model call ${this.formatLocation(this.peek())}`);
     }
 
     return {
@@ -1148,11 +1156,11 @@ export class Parser {
           return { type: 'PrimitiveType', name: 'any' };
 
         default:
-          throw new Error(`Unknown type: ${name}`);
+          throw new Error(`Unknown type: ${name} ${this.formatLocation(this.previous())}`);
       }
     }
 
-    throw new Error('Expected type annotation');
+    throw new Error(`Expected type annotation ${this.formatLocation(this.peek())}`);
   }
 
   private skipNewlines(): void {
@@ -1193,7 +1201,7 @@ export class Parser {
 
   private consume(type: TokenType, message: string): Token {
     if (this.check(type)) return this.advance();
-    throw new Error(`${message} at line ${this.peek().line}, got ${this.peek().type}`);
+    throw new Error(`${message} ${this.formatLocation(this.peek())}, got ${this.peek().type}`);
   }
 
   private consumeStatementEnd(): void {
@@ -1203,7 +1211,11 @@ export class Parser {
     // Allow implicit end of statement after a block-ending expression
     if (this.previous().type === 'RIGHT_BRACE') return;
     
-    throw new Error(`Expected end of statement, got ${this.peek().lexeme}`);
+    throw new Error(`Expected end of statement, got ${this.peek().lexeme} ${this.formatLocation(this.peek())}`);
+  }
+
+  private formatLocation(token: Token): string {
+    return `at line ${token.line}, column ${token.column}`;
   }
 
   private synchronize(): void {

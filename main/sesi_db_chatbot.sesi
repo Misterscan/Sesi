@@ -7,6 +7,10 @@ let queryText = "how do I parse a json string?"
 try {
   queryText = read_file("query.txt")
 } catch (e) {}
+let fileContext = ""
+try {
+  fileContext = read_file("help_context.txt")
+} catch (e) {}
 // ==================================================
 
 print "=================================================="
@@ -262,7 +266,7 @@ if num_classes == 0 {
       summarizeHistory()
     }
     
-    let ragPrompt = "Conversation History:\n" + chatHistory + "\n\nSesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"] + "\n\nInstructions: Write a direct, beautiful, highly conversational response to the user's question using strictly the matched rules. Be helpful and concise. Do not mention that you got this from a database—act as a supportive code copilot. Reference any relevant prior conversation context when applicable."
+    let ragPrompt = "Conversation History:\n" + chatHistory + "\n\nSesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nActive File Context:\n" + fileContext + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"] + "\n\nInstructions: Write a direct, beautiful, highly conversational response to the user's question using strictly the matched rules. If Active File Context is present, use it directly and talk about that file concretely. Be helpful and concise. Do not mention that you got this from a database—act as a supportive code copilot. Reference any relevant prior conversation context when applicable."
     
     let generated_response = model("gemini-3-flash-preview") {temperature: 0.3, max_tokens: 2048} {ragPrompt}
     

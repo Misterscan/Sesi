@@ -1,0 +1,2 @@
+let raw = model("gemini-3.1-flash-lite") {search} {"What are the next technological advancements made by Apple? Return JSON with company and advancement"}
+print raw

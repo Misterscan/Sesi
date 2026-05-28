@@ -87,6 +87,13 @@ string: "..." | '...'
 comment: // ... | /* ... */
 ```
 
+#### String Escapes & Multiline Rules
+
+- Supported escape sequences: `\\n`, `\\t`, `\\r`, `\\\\`, `\\"`, `\\'`
+- Unknown escape sequences are runtime errors during lexing with line and column context
+- Strings can span multiple lines when a literal newline appears before the closing quote
+- Unterminated strings report the starting line and column of the string literal
+
 ### 4.2 Program Structure
 
 ```
@@ -385,7 +392,7 @@ import math from "std/math"    // Math operations
 import json from "std/json"    // JSON parsing
 ```
 
-### Module Resolution Order (v1.2.2+)
+### Module Resolution Order (v1.3+)
 
 When you write `import {x} from "mymodule"`, Sesi searches for `mymodule.sesi` in the following order, stopping at the first match:
 

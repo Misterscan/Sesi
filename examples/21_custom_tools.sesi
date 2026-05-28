@@ -1,0 +1,27 @@
+// Example 21: Custom Tool Definitions
+// Demonstrates:
+// 1. define_tool(name, fn, description)
+// 2. list_tools()
+// 3. tool_call(customTool)(...)
+
+fn normalizeText(text) {
+  return "normalized: " + text
+}
+fn classifyLength(text) {
+  if len(text) > 30 {
+    return "long"
+  } else {
+    return "short"
+  }
+}
+print "=== Registering custom tools ==="
+define_tool("normalize_text", normalizeText, "Normalize input text for downstream steps")
+define_tool("classify_length", classifyLength, "Classify text by length")
+print "=== Custom tool names ==="
+let names = list_tools()
+print names
+let raw = "Sesi can define and call custom tools at runtime."
+let normalized = tool_call(normalize_text)(raw)
+let label = tool_call(classify_length)(normalized)
+print "normalized -> " normalized
+print "label -> " label

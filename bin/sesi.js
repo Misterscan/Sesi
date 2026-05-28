@@ -1,57 +1,126 @@
 #!/usr/bin/env node
 require('@dotenvx/dotenvx').config();
-const { runSesiFile } = require('../dist/index.js');
+const { runSesiFile, runSesi } = require('../dist/index.js');
 const fs = require('fs');
 const path = require('path');
 
 const args = process.argv.slice(2);
 
-if (args.length === 0) {
-  console.log(`
-Sesi Programming Language v1.2.2
+const argsHeader = `
+Sesi Programming Language v1.3.0
 
 Usage:
-  sesi <file>          Run a Sesi program
-  sesi -help <query>   Ask for help from our Sesi Co-Pilot
-  sesi --help <query>  
-  sesi -h <query>      
+  sesi <file> [options]  Run a Sesi program
+  sesi -e "code"         Evaluate Sesi code directly
+  sesi -help <query>    Ask for help from our Sesi Co-Pilot
 
   Options:
-  --version            Show version
+  --local               Disable safe mode (careful!)
+  --allowed-paths <p>    Comma-separated list of allowed directories
+  --version              Show version
+  --help, -h             Show this help
 
 Examples:
   sesi main/start.sesi
-  sesi examples/01_hello.sesi
-  sesi -help "how do I parse a json string?"
-  `);
-  process.exit(0);
+  sesi -e "print 'hello'"
+  sesi -help "how do I use memory?"
+`;
+
+function parseArgs(args) {
+  const options = {
+    file: null,
+    eval: null,
+    helpQuery: null,
+    helpFile: null,
+    sesiOptions: {
+      safeMode: true,
+      allowedPaths: [process.cwd()]
+    }
+  };
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
+
+    if (arg === '--version') {
+      console.log('Sesi v1.3.0');
+      process.exit(0);
+    } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
+      if (args[i + 1] && !args[i + 1].startsWith('-')) {
+        options.helpQuery = args.slice(i + 1).join(' ').trim();
+        break;
+      } else {
+        console.log(argsHeader);
+        process.exit(0);
+      }
+    } else if (isHelpFlag && options.file) {
+      options.helpFile = options.file;
+      options.helpQuery = args[i + 1] && !args[i + 1].startsWith('-')
+        ? args.slice(i + 1).join(' ').trim()
+        : 'Help me understand this file.';
+      break;
+    } else if (arg === '-e' || arg === '--eval') {
+      options.eval = args[++i];
+    } else if (arg === '--local') {
+      options.sesiOptions.safeMode = false;
+      options.sesiOptions.allowLocalFs = true;
+    } else if (arg === '--allowed-paths') {
+      const paths = args[++i].split(',');
+      options.sesiOptions.allowedPaths.push(...paths.map(p => path.resolve(p)));
+    } else if (!arg.startsWith('-') && !options.file) {
+      options.file = arg;
+    }
+  }
+
+  return options;
 }
 
-if (args[0] === '--help' || args[0] === '-help' || args[0] === '-h') {
-  let queryText = args.slice(1).join(' ').trim();
-  if (!queryText) {
-    queryText = "how do I parse a json string?";
-  }
-  fs.writeFileSync('query.txt', queryText, 'utf-8');
+const parsed = parseArgs(args);
 
-  const copilotPath = path.join(__dirname, '../main/sesi_db_chatbot.sesi');
-  runSesiFile(copilotPath).catch((error) => {
-    console.error('Fatal error in Sesi Co-Pilot:', error.message);
-    process.exit(1);
-  });
-} else if (args[0] === '--version') {
-  console.log('Sesi v1.2.2');
-  process.exit(0);
-} else {
-  const filePath = args[0];
-
-  if (!fs.existsSync(filePath)) {
-    console.error(`Error: File not found: ${filePath}`);
-    process.exit(1);
+async function main() {
+  if (!parsed.file && !parsed.eval && !parsed.helpQuery) {
+    console.log(argsHeader);
+    process.exit(0);
   }
 
-  runSesiFile(filePath).catch((error) => {
-    console.error('Fatal error:', error.message);
-    process.exit(1);
-  });
+  if (parsed.helpQuery) {
+    fs.writeFileSync('query.txt', parsed.helpQuery, 'utf-8');
+    if (parsed.helpFile) {
+      const resolvedFile = path.resolve(parsed.helpFile);
+      const fileContext = fs.readFileSync(resolvedFile, 'utf-8');
+      fs.writeFileSync('help_context.txt', `File: ${resolvedFile}\n\n${fileContext}`, 'utf-8');
+    } else if (fs.existsSync('help_context.txt')) {
+      fs.unlinkSync('help_context.txt');
+    }
+    const copilotPath = path.join(__dirname, '../main/sesi_db_chatbot.sesi');
+    await runSesiFile(copilotPath).catch((error) => {
+      console.error('Fatal error in Sesi Co-Pilot:', error.message);
+      process.exit(1);
+    });
+  } else if (parsed.eval) {
+    await runSesi(parsed.eval, process.cwd(), parsed.sesiOptions).catch((error) => {
+      console.error('Fatal error:', error.message);
+      process.exit(1);
+    });
+  } else if (parsed.file === '-') {
+    let input = '';
+    process.stdin.on('data', data => { input += data; });
+    process.stdin.on('end', async () => {
+      await runSesi(input, process.cwd(), parsed.sesiOptions).catch((error) => {
+        console.error('Fatal error:', error.message);
+        process.exit(1);
+      });
+    });
+  } else if (parsed.file) {
+    if (!fs.existsSync(parsed.file)) {
+      console.error(`Error: File not found: ${parsed.file}`);
+      process.exit(1);
+    }
+    await runSesiFile(parsed.file, parsed.sesiOptions).catch((error) => {
+      console.error('Fatal error:', error.message);
+      process.exit(1);
+    });
+  }
 }
+
+main();

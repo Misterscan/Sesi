@@ -1,16 +1,17 @@
 // Built-in functions for Sesi
-import { RuntimeValue, RuntimeFunction } from './types';
+import { RuntimeValue, RuntimeFunction, SesiRuntimeError } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, execSync } from 'child_process';
+import { aiRuntime } from './ai-runtime';
 
 function ensureSafePath(filePath: string, interpreter?: any, baseDir: string = process.cwd()): string {
   const resolved = path.resolve(baseDir, filePath);
-  const allowUnsafeFs = interpreter?.allowUnsafeFs ?? (process.env.SESI_UNSAFE_FS === 'true');
+  const allowLocalFs = interpreter?.allowLocalFs ?? (process.env.SESI_LOCAL_FS === 'true');
   const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
 
-  // If in safe mode, allowUnsafeFs is strictly disabled.
-  if (allowUnsafeFs && !safeMode) {
+  // If in safe mode, allowLocalFs is strictly disabled.
+  if (allowLocalFs && !safeMode) {
     return resolved;
   }
 
@@ -433,6 +434,122 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (): RuntimeValue => Math.random(),
   });
 
+  builtins.set('set_alias', {
+    type: 'function',
+    name: 'set_alias',
+    params: [{ name: 'alias' }, { name: 'model' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (alias: RuntimeValue, model: RuntimeValue): RuntimeValue => {
+      if (typeof alias !== 'string' || typeof model !== 'string') {
+        throw new Error('set_alias expects (string alias, string model)');
+      }
+      if (!interpreter || typeof (interpreter as any).setModelAlias !== 'function') {
+        throw new Error('set_alias interpreter reference is missing');
+      }
+      (interpreter as any).setModelAlias(alias, model);
+      return true;
+    },
+  });
+
+  builtins.set('error_type', {
+    type: 'function',
+    name: 'error_type',
+    params: [{ name: 'type' }, { name: 'message' }, { name: 'data', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (typeVal: RuntimeValue, messageVal: RuntimeValue, dataVal: RuntimeValue = null): RuntimeValue => {
+      if (typeof typeVal !== 'string' || typeVal.trim() === '') {
+        throw new Error('error_type expects a non-empty string type');
+      }
+      if (typeof messageVal !== 'string') {
+        throw new Error('error_type expects a string message');
+      }
+      const obj: Record<string, RuntimeValue> = Object.create(null);
+      obj.type = typeVal;
+      obj.message = messageVal;
+      obj.data = dataVal;
+      return obj;
+    },
+  });
+
+  builtins.set('raise_error', {
+    type: 'function',
+    name: 'raise_error',
+    params: [
+      { name: 'type_or_error' },
+      { name: 'message', defaultValue: '' as any },
+      { name: 'data', defaultValue: null as any },
+    ],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (typeOrError: RuntimeValue, messageVal: RuntimeValue = '', dataVal: RuntimeValue = null): RuntimeValue => {
+      if (typeof typeOrError === 'object' && typeOrError !== null && !Array.isArray(typeOrError)) {
+        const type = (typeOrError as any).type;
+        const message = (typeOrError as any).message;
+        const data = (typeOrError as any).data ?? null;
+        if (typeof type !== 'string' || type.trim() === '' || typeof message !== 'string') {
+          throw new Error('raise_error expects error object with string type and message');
+        }
+        throw new SesiRuntimeError(type, message, data as RuntimeValue);
+      }
+
+      if (typeof typeOrError !== 'string' || typeOrError.trim() === '') {
+        throw new Error('raise_error expects first argument to be error object or non-empty string type');
+      }
+
+      if (typeof messageVal !== 'string' || messageVal.trim() === '') {
+        throw new Error('raise_error expects a non-empty string message');
+      }
+
+      throw new SesiRuntimeError(typeOrError, messageVal, dataVal);
+    },
+  });
+
+    builtins.set('define_tool', {
+      type: 'function',
+      name: 'define_tool',
+      params: [{ name: 'name' }, { name: 'fn' }, { name: 'description', defaultValue: '' as any }],
+      body: {} as any,
+      closure: {} as any,
+      isBuiltin: true,
+      builtin: (name: RuntimeValue, fn: RuntimeValue, description: RuntimeValue = ''): RuntimeValue => {
+        if (typeof name !== 'string') {
+          throw new Error('define_tool expects first argument to be a string name');
+        }
+        if (typeof fn !== 'object' || !fn || (fn as any).type !== 'function') {
+          throw new Error('define_tool expects second argument to be a function');
+        }
+        if (description !== null && typeof description !== 'string') {
+          throw new Error('define_tool description must be a string');
+        }
+        if (!interpreter || typeof (interpreter as any).defineCustomTool !== 'function') {
+          throw new Error('define_tool interpreter reference is missing');
+        }
+
+        (interpreter as any).defineCustomTool(name, fn as RuntimeFunction, typeof description === 'string' ? description : '');
+        return true;
+      },
+    });
+
+    builtins.set('list_tools', {
+      type: 'function',
+      name: 'list_tools',
+      params: [],
+      body: {} as any,
+      closure: {} as any,
+      isBuiltin: true,
+      builtin: (): RuntimeValue => {
+        if (!interpreter || typeof (interpreter as any).listCustomToolNames !== 'function') {
+          throw new Error('list_tools interpreter reference is missing');
+        }
+        return (interpreter as any).listCustomToolNames();
+      },
+    });
+
   builtins.set('web_get', {
     type: 'function',
     name: 'web_get',
@@ -514,7 +631,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         const InterpreterClass = interpreter.constructor;
         const subInterpreter = new InterpreterClass(undefined, {
           safeMode: interpreter.safeMode,
-          allowUnsafeFs: interpreter.allowUnsafeFs,
+          allowLocalFs: interpreter.allowLocalFs,
           allowedPaths: interpreter.allowedPaths
         });
         (subInterpreter as any).prompts = new Map((interpreter as any).prompts);
@@ -526,7 +643,103 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     }
   });
 
+  const workflowBuiltin: RuntimeFunction = {
+    type: 'function',
+    name: 'workflow',
+    params: [{ name: 'steps' }, { name: 'input', defaultValue: '' as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const [stepsVal, inputVal] = args;
+      if (!Array.isArray(stepsVal)) {
+        throw new Error('workflow expects steps to be an array of objects');
+      }
+
+      const initialInput = stringify(inputVal ?? '');
+      let previous = initialInput;
+      const outputs: string[] = [];
+
+      for (let i = 0; i < stepsVal.length; i++) {
+        const step = stepsVal[i];
+        if (typeof step !== 'object' || step === null || Array.isArray(step)) {
+          throw new Error(`workflow step ${i + 1} must be an object`);
+        }
+
+        const stepObj = step as Record<string, RuntimeValue>;
+        const rawPrompt = stepObj.prompt;
+        if (typeof rawPrompt !== 'string' || rawPrompt.trim() === '') {
+          throw new Error(`workflow step ${i + 1} requires a non-empty string prompt`);
+        }
+
+        let prompt = rawPrompt;
+        const fromRef = typeof stepObj.from === 'string' ? stepObj.from.trim() : '';
+        if (fromRef !== '') {
+          const context = resolveWorkflowReference(fromRef, initialInput, previous, outputs);
+          prompt = context === '' ? rawPrompt : `${rawPrompt} ${context}`;
+        } else {
+          // Intuitive default wiring: first step uses input, later steps use previous output.
+          const defaultRef = i === 0 ? 'input' : 'previous';
+          const context = resolveWorkflowReference(defaultRef, initialInput, previous, outputs);
+          prompt = context === '' ? rawPrompt : `${rawPrompt} ${context}`;
+        }
+
+        const modelName = typeof stepObj.model === 'string' && stepObj.model.trim() !== ''
+          ? stepObj.model
+          : 'gemini-3.1-flash-lite';
+        const model = interpreter && typeof (interpreter as any).resolveModelName === 'function'
+          ? (interpreter as any).resolveModelName(modelName)
+          : modelName;
+
+        const response = await aiRuntime.callModel({
+          model,
+          prompt,
+          temperature: typeof stepObj.temperature === 'number' ? stepObj.temperature : undefined,
+          maxTokens: typeof stepObj.max_tokens === 'number' ? stepObj.max_tokens : undefined,
+          topK: typeof stepObj.top_k === 'number' ? stepObj.top_k : undefined,
+          topP: typeof stepObj.top_p === 'number' ? stepObj.top_p : undefined,
+          thinkingLevel:
+            typeof stepObj.thinkingLevel === 'object' || typeof stepObj.thinkingLevel === 'string'
+              ? (stepObj.thinkingLevel as any)
+              : undefined,
+          cache: typeof stepObj.cache === 'boolean' ? stepObj.cache : undefined,
+          search: typeof stepObj.search === 'boolean' ? stepObj.search : undefined,
+        });
+
+        previous = response.text;
+        outputs.push(response.text);
+      }
+
+      const result: Record<string, RuntimeValue> = Object.create(null);
+      result.input = initialInput;
+      result.steps = outputs;
+      result.final = previous;
+      return result;
+    },
+  };
+
+  builtins.set('workflow', workflowBuiltin);
+
   return builtins;
+}
+
+function resolveWorkflowReference(
+  key: string,
+  input: string,
+  previous: string,
+  outputs: string[],
+): string {
+  if (key === 'input') return input;
+  if (key === 'previous') return previous;
+  const stepMatch = /^step(\d+)$/.exec(key);
+  if (stepMatch) {
+    const index = Number(stepMatch[1]) - 1;
+    if (index >= 0 && index < outputs.length) {
+      return outputs[index];
+    }
+    throw new Error(`workflow reference ${key} is out of range`);
+  }
+  throw new Error(`workflow reference ${key} is invalid`);
 }
 
 export function isTruthy(value: RuntimeValue): boolean {

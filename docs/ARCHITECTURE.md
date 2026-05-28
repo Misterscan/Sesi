@@ -346,7 +346,10 @@ examples/
 ├── 16_modules.sesi          # Modules & std library namespaces
 ├── 17_http_client.sesi      # HTTP GET/POST client
 ├── 18_parallel_requests.sesi # Parallel requests concurrency
-└── 19_search_web.sesi        # Web search
+├── 19_search_web.sesi        # Web search
+├── 20_model_aliases.sesi     # Custom model naming via aliases
+├── 21_custom_tools.sesi      # Runtime custom tool definitions
+└── 22_reasoning_plus_custom_tools.sesi # Compose reasoning with custom tools
 
 docs/
 ├── SPECIFICATION.md      # Language spec

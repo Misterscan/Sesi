@@ -9,7 +9,7 @@ let reports = []
 fn analyzeFile(fullPath: string) -> object {
 try 
 {let source = read_file(fullPath)
-return structured_output({fileName: string, summary: string, complexity: string})(model("gemini-3.1-flash-lite") {"temperature": 0.2} {"Analyze this file and summarize its purpose. Return JSON with fileName, summary, and complexity (low/medium/high). File path: " fullPath " Contents: " source})}
+return structured_output({fileName: string, summary: string, complexity: string})(model("gemini-3.1-flash-lite") {temperature: 0.2} {"Analyze this file and summarize its purpose. Return JSON with fileName, summary, and complexity (low/medium/high). File path: " fullPath " Contents: " source})}
 catch (e) 
 {return {"fileName": fullPath, "summary": "Failed to read or analyze file", "complexity": "unknown"}}}
 for file in files {
@@ -24,7 +24,7 @@ push(reports, report)
 print "Summary:" report["summary"]
 print "Complexity:" report["complexity"]}}}
 print "Generating folder overview..."
-let folderSummary = structured_output({folderOverview: string, keyThemes: array<string>})(model("gemini-3.1-flash-lite") {"temperature": 0.2} {"You are summarizing the contents of a documentation folder based on file analyses. Return JSON with folderOverview and keyThemes. Analysis:" reports})
+let folderSummary = structured_output({folderOverview: string, keyThemes: array<string>})(model("gemini-3.1-flash-lite") {temperature: 0.2} {"You are summarizing the contents of a documentation folder based on file analyses. Return JSON with folderOverview and keyThemes. Analysis:" reports})
 print "=== Final Folder Summary ==="
 print "Overview:" folderSummary["folderOverview"]
 print "Key Themes:" join(folderSummary["keyThemes"], ", ")

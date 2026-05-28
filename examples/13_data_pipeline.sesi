@@ -4,7 +4,7 @@
 let reviews = ["This product is amazing! Highly recommended.", "Terrible quality. Waste of money.", "It's okay. Nothing special.", "Love it! Best purchase ever.", "Disappointed. Poor customer service."]
 // Function to analyze single review
 fn analyzeReview(review: string) -> object {
-  return structured_output({sentiment: string, confidence: number})(model("gemini-3.1-flash-lite") {"temperature": 0.3} {"Analyze sentiment. Return JSON with sentiment (positive/negative/neutral) and confidence (0-1). Review:" review})
+  return structured_output({sentiment: string, confidence: number})(model("gemini-3.1-flash-lite") {temperature: 0.3} {"Analyze sentiment. Return JSON with sentiment (positive/negative/neutral) and confidence (0-1). Review:" review})
 }
 // Process all reviews
 print ("Processing " + len(reviews) + " reviews...")

@@ -1,6 +1,6 @@
 // Prompt blocks - composable message templates
 prompt greetingTemplate {"Hello! " "How are you today?"}
-prompt responseTemplate {greetingTemplate " " "I hope you're having a great day!"}
+prompt responseTemplate {greetingTemplate " I hope you're having a great day!"}
 // Prompts evaluate to strings
 let greeting = responseTemplate
 print greeting

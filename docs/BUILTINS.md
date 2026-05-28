@@ -399,6 +399,114 @@ print results // ["a", "b"]
 
 ---
 
+### workflow(steps, input = "") -> object
+
+Run a multi-step reasoning workflow where each step can reference prior outputs.
+
+Default behavior is automatic and requires no special syntax:
+
+- Step 1 gets the workflow input appended to its prompt
+- Step 2+ gets the previous step output appended to its prompt
+
+Each step is an object with at minimum a `"prompt"` string. Optional keys include:
+
+- `"model"` (default: `"gemini-3.1-flash-lite"`)
+- `"temperature"`, `"max_tokens"`, `"top_k"`, `"top_p"`
+- `"thinkingLevel"`, `"cache"`, `"search"`
+
+```sesi
+let steps = [
+  {"prompt": "Summarize:"},
+  {"prompt": "Critique:"},
+  {"prompt": "Finalize:"}
+]
+
+let result = workflow(steps, "Design a landing page brief")
+print result["final"]
+```
+
+**Returns**: `object` with keys `"input"`, `"steps"` (array of step outputs), and `"final"`.
+
+---
+
+### set_alias(alias, model) -> bool
+
+Register a custom local name for a model string. Aliases are resolved automatically by `model()`, `image()`, and `workflow()`.
+
+```sesi
+set_alias("fast", "gemini-3.1-flash-lite")
+let answer = model("fast") {"Summarize this paragraph."}
+```
+
+**Returns**: `bool` (`true` when the alias is registered)
+
+---
+
+### define_tool(name, fn, description = "") -> bool
+
+Register a custom tool name that can be called through `tool_call(name)(...)`.
+
+```sesi
+fn summarize(text) {
+  return "Summary: " + text
+}
+
+define_tool("summarizer", summarize, "Summarizes text")
+let result = tool_call(summarizer)("Hello")
+```
+
+**Returns**: `bool` (`true` when the tool is registered)
+
+---
+
+### list_tools() -> array
+
+List custom tool names registered by `define_tool`.
+
+```sesi
+let tools = list_tools()
+print tools
+```
+
+**Returns**: `array<string>`
+
+---
+
+### error_type(type, message, data = null) -> object
+
+Create a custom typed error object you can throw with `raise_error`.
+
+```sesi
+let err = error_type("ValidationError", "Missing email", {"field": "email"})
+```
+
+**Returns**: `object` with keys `"type"`, `"message"`, and `"data"`.
+
+---
+
+### raise_error(type_or_error, message = "", data = null) -> never
+
+Throw a custom typed error that can be handled in `try/catch`.
+
+```sesi
+try {
+  raise_error("RateLimit", "Too many requests", {"retryIn": 30})
+} catch (e) {
+  print "type:" e["type"] "message:" e["message"]
+}
+```
+
+You can also pass an `error_type(...)` object directly:
+
+```sesi
+let err = error_type("ValidationError", "Invalid payload", {"field": "email"})
+raise_error(err)
+```
+
+**Returns**: never (always throws)
+
+---
+
 ### random() -> number
 
 Returns a random floating-point number between 0 (inclusive) and 1 (exclusive).
@@ -621,7 +729,7 @@ import { parse, stringify } from "std/json"
 
 ---
 
-## Module Resolution (v1.2.2+)
+## Module Resolution (v1.3+)
 
 Sesi resolves local module imports by searching directories in priority order:
 
