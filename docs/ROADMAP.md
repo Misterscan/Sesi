@@ -1,4 +1,4 @@
-# Sesi Systems Language Roadmap
+# Sesi Programming Language Roadmap
 
 ## Version 1.0 - Foundation (Complete)
 
@@ -42,7 +42,7 @@
 - [x] Lexer and parser
 - [x] Tree-walking interpreter
 - [x] CLI executable (sesi)
-- [x] Examples (19 programs)
+- [x] Examples (22 programs)
 - [x] Documentation
 
 ### Limitations
@@ -59,7 +59,7 @@
 ## Version 1.3 - Stability & Systems Logic (In Progress)
 
 **Status**: In Progress V1.3 implementation  
-**Ready for**: Distributed systems orchestration and prototypes  
+**Ready for**: File manipulation and process orchestration  
 **Not ready for**: Massive-scale production (until v2.0 bytecode)  
 **Next milestone**: V2.0 (Async & advanced reasoning)
 
@@ -74,10 +74,10 @@
 - [x] Simple error recovery (Parser synchronization)
 - [x] Implicit statement termination for blocks ending in `}`
 - [x] Temporal Context Injection for reasoning calls
-- [x] Distributed Systems capabilities (Double-Check Write lock pattern)
+- [x] Concurrency capabilities (File-based lock pattern)
 - [x] API reference (`BUILTINS.md`)
 - [x] Tutorial: Getting started (`QUICKSTART.md`)
-- [x] Cookbook: Common patterns (`SYSTEMS_REASONING.md`)
+- [x] Cookbook: Common patterns (`PROCESS_EXECUTION.md`)
 
 ### Deferred to V2.0 ⏳
 
@@ -87,7 +87,7 @@
 - [ ] Comments preservation (for docs)
 - [ ] Type hints in function signatures
 - [ ] Performance optimizations
-- [ ] Tutorial: Writing systems logic
+- [ ] Tutorial: Writing scripts
 
 ---
 
@@ -105,8 +105,8 @@
 ### Advanced Reasoning Features
 
 - [ ] Streaming responses
-- [x] Extended thinking/reasoning budget
-- [x] Multi-step reasoning workflows
+- [x] Extended thinking
+- [x] Multi-step workflows
 - [ ] Tool composition and piping
 - [x] Custom tool definitions
 - [ ] Function calling with automatic orchestration
@@ -169,16 +169,16 @@
 
 ---
 
-## Version 3.0 - Autonomous Systems Framework (2027)
+## Version 3.0 - Robust Logic Frameworks (2027)
 
-**Focus**: Full autonomous systems support
+**Focus**: Complete language tooling
 
-### Autonomous Framework
+### Technical Frameworks
 
-- [ ] Framework definitions with state machines
+- [ ] Advanced scripting definition models
 - [ ] Logic composition and chaining
-- [ ] Multi-process collaboration
-- [ ] Communication protocol
+- [ ] Extended process collaboration
+- [ ] Communication protocols
 - [ ] Persistence layer
 
 ### Knowledge Base
@@ -191,11 +191,11 @@
 
 ### Advanced Patterns
 
-- [ ] Plan-and-execute workflows
-- [ ] Hierarchical task decomposition
-- [ ] Autonomous loop with safety checks
-- [ ] Reflection and self-improvement
-- [ ] Human-in-the-loop approval
+- [ ] Sub-process execution workflows
+- [ ] Modular scripting decomposition
+- [ ] Retry safety check loops
+- [ ] Deep AST reflection
+- [ ] Human-in-the-loop prompts
 
 ### Ecosystem
 
@@ -207,8 +207,8 @@
 
 ### Examples
 
-- [ ] Autonomous research process
-- [ ] Customer support automation
+- [ ] Automated code formatting process
+- [ ] Command line utility expansion
 - [ ] Code generation and testing
 - [ ] Data analysis pipeline
 - [ ] Multi-process reasoning debate
@@ -260,7 +260,7 @@
 | Error handling  | 🔴 High   | ✅  | ⏳  |     |     |
 | Async/await     | 🔴 High   |     | ⏳  |     |     |
 | Streaming       | 🟡 Medium |     | ⏳  |     |     |
-| Systems Logic   | 🟡 Medium |     |     | ⏳  |     |
+| Process Logic   | 🟡 Medium |     |     | ⏳  |     |
 | Knowledge base  | 🟡 Medium |     |     | ⏳  |     |
 | Module system   | 🟡 Medium |     | ⏳  |     |     |
 | Debugger        | 🟢 Low    |     | ⏳  |     |     |
@@ -273,16 +273,16 @@
 
 ```
 2026 Q2
-└─ v1.2 - Polish & stabilize
+└─ v1.3 - Polish & stabilize
 
 2026 Q3-Q4
-└─ v2.0 - Advanced Reasoning & async
+└─ v2.0 - Async & advanced APIs
 
 2027 Q1-Q2
-└─ v3.0 - Autonomous Framework
+└─ v3.0 - Language Ecosystem
 
 2027 Q3+
-└─ v4.0+ - Mature ecosystem
+└─ v4.0+ - Mature compilation
 ```
 
 ---
@@ -352,7 +352,7 @@
 | Startup time           | <100ms     | <100ms | <50ms  |
 | Simple expression eval | <1µs       | <100ns | <10ns  |
 | Function call overhead | <10µs      | <1µs   | <100ns |
-| Reasoning call latency | 2-5s (API) | 2-5s   | 2-5s   |
+| Reasoning latency      | 2-5s (API) | 2-5s   | 2-5s   |
 | Memory usage           | <50MB      | <50MB  | <100MB |
 
 ---
@@ -367,12 +367,11 @@
 - **Go**: Clear error handling
 - **Rust**: Type safety, memory safety
 
-### Systems Reasoning
+### Code Control
 
-- **LangChain**: Composable AI workflows
-- **AutoGPT**: Logic autonomy
-- **Semantic Kernel**: Model abstraction
-- **LLM frameworks**: Best practices
+- **CLI utilities**: Direct data piping
+- **Shell scripting**: Execution transparency
+- **Modern SDKs**: Model abstraction
 
 ### Community
 
@@ -387,9 +386,9 @@
 Sesi is designed to evolve with reasoning needs. The roadmap balances:
 
 - **Simplicity** (v1: core features only)
-- **Power** (v2: advanced reasoning patterns)
-- **Autonomy** (v3: autonomous framework)
-- **Scale** (v4+: production readiness)
+- **Power** (v2: advanced reasoning and extended functionality)
+- **Maturity** (v3: comprehensive libraries and frameworks)
+- **Scale** (v4+: production readiness and compilation)
 
 The journey from v1 (interpreter) to v4+ (distributed compiler) maintains backward compatibility while adding power where needed.
 
@@ -402,7 +401,7 @@ The journey from v1 (interpreter) to v4+ (distributed compiler) maintains backwa
 - [Specification](SPECIFICATION.md)
 - [Architecture](ARCHITECTURE.md)
 - [Built-ins](BUILTINS.md)
-- [Systems Reasoning](SYSTEMS_REASONING.md)
+- [Process Execution](PROCESS_EXECUTION.md)
 - [Image Generation](IMAGE_GENERATION.md)
 - [Compare to other languages](COMPARISON.md)
 - [Examples](../examples)

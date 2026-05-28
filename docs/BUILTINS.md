@@ -539,7 +539,7 @@ print sigmoid      // 0.6224593312018546
 
 ## Math-like Functions (v2 planned)
 
-These are not yet implemented in v1.2 but will be added:
+These are not yet implemented in v1+ but will be added:
 
 ```sesi
 // Planned for v2:
@@ -701,7 +701,7 @@ keys(obj) contains "a"    // Future: not yet supported
 
 ---
 
-## Standard Library Modules (Supported natively in v1.2+)
+## Standard Library Modules (Supported natively in v1.3+)
 
 ### std/math
 
@@ -818,8 +818,8 @@ Tip: add a folder to SESI_PATH, or place shared modules in ~/.sesi/lib
 - [Quick Start](QUICKSTART.md)
 - [Compare to other languages](COMPARISON.md)
 - [Specification](SPECIFICATION.md)
-- [Systems Reasoning Guide](SYSTEMS_REASONING.md)
+- [Reasoning Guide](REASONING.md)
 - [Image Generation](IMAGE_GENERATION.md)
 - [Roadmap](ROADMAP.md)
-- [Distributed Systems](DISTRIBUTED_SYSTEMS.md)
+- [Concurrency Systems](CONCURRENCY.md)
 - [Examples](../examples/)

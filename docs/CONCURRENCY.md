@@ -1,22 +1,22 @@
-# Distributed Systems with Sesi
+# Concurrency with Sesi
 
-Sesi is a robust systems-level environment capable of orchestrating complex, multi-process agent swarms. This document details how Sesi handles concurrency, race conditions, and distributed state.
+This document details how Sesi handles process concurrency and file locks.
 
-## The "Bank Swarm" Case Study
+## The "Bank" Case Study
 
-In this experiment, Sesi was used to solve a classic distributed systems problem: **Concurrent Mutual Exclusion.**
+In this experiment, Sesi was used to solve file contention.
 
 ### The Challenge
 
-Five independent Sesi agents (3 Deposits, 2 Withdrawals) were launched simultaneously. All agents needed to update a single `balance.txt` file without causing data loss through race conditions.
+Five independent Sesi instances (3 Deposits, 2 Withdrawals) were launched simultaneously. All instances needed to update a single `balance.txt` file without causing data loss through race conditions.
 
-### The Sesi Solution (The "Double-Check Write" Pattern)
+### The Solution (Mutex / File Locking)
 
-Sesi solves this using a high-level implementation of a filesystem lock. Even without low-level semaphores, Sesi's `try/catch` and file I/O builtins allow for an "indestructible" locking logic.
+Sesi solves this using file locking via `try/catch` and file I/O builtins.
 
 #### 1. Unique Identity
 
-Each agent generates a globally unique ID using Sesi's native `time()` and `random()` builtins.
+Each instance generates a unique ID using Sesi's native `time()` and `random()` builtins.
 
 ```sesi
 let id = "Agent_" + str(time()) + "_" + str(random())
@@ -40,7 +40,7 @@ while locked {
 
 #### 3. Critical Section Resilience
 
-Using `try/catch`, Sesi agents gracefully handle filesystem contention (when the OS prevents two processes from reading the same file at the exact same micro-second).
+Using `try/catch`, Sesi scripts gracefully handle filesystem contention.
 
 ```sesi
 try {
@@ -53,10 +53,10 @@ try {
 
 ## Concurrency via `spawn()`
 
-Sesi v1.1 introduced the `spawn()` builtin, allowing a single **Master Orchestrator** to launch an entire swarm of agents from one file.
+Sesi v1.1 introduced the `spawn()` builtin, allowing a single **Master Orchestrator** to launch concurrent proccesses of sesi scripts from one main file.
 
 ```sesi
-// Master: Launching 5-Agent Swarm
+// Master: Launching 5 Concurrent Processes...
 spawn("main/atm_deposit.sesi")
 spawn("main/atm_withdraw.sesi")
 spawn("main/atm_deposit.sesi")

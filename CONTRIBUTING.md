@@ -1,6 +1,6 @@
 # Contributing to Sesi
 
-First off, thank you for considering contributing to Sesi! Sesi is building the future of **High Performance Systems Engineering**, and community contributions are incredibly valuable.
+First off, thank you for considering contributing to Sesi! Sesi is building natively concise programming layers, and community contributions are incredibly valuable.
 
 ## Setting Up Your Development Environment
 

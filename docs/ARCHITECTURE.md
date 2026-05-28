@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It uses a tree-walking interpreter model with asynchronous host-side model execution, but no language-level `async/await` syntax in v1.2 The architecture is optimized for coordination, distributed state management, and first-class reasoning primitives.
+**Sesi** is a concise and highly legible programming language. It uses a clean tree-walking interpreter model built in TypeScript. The architecture is optimized for simplicity and eliminating the need for `async/await` syntax or heavy module imports. By acting as a minimal orchestration layer, Sesi allows developers to write clean, straightforward logic that natively handles background processes and API or Reasoning calls without SDK overhead.
 
 ## Component Stack
 
@@ -303,6 +303,7 @@ eslint.config.mjs         # ESLint configuration
 dist/                     # Compiled TypeScript output
 example.js                # Helper script to run basic examples
 example-ai.js             # Helper script to run Reasoning examples
+examples.sesi             # Central execution suite for examples
 package.json              # Dependencies & scripts
 tsconfig.json             # TypeScript configuration
 QUICKSTART.md             # Quick start guide
@@ -357,12 +358,21 @@ docs/
 ├── BUILTINS.md           # Built-in reference
 ├── IMAGE_GENERATION.md   # Image generation guide
 ├── COMPARISON.md         # Language comparison showcase
-├── SYSTEMS_REASONING.md  # Integrated reasoning guide
-├── DISTRIBUTED_SYSTEMS.md # Swarm & coordination guide
-└── ROADMAP.md            # Future plans
+├── CONCURRENCY.md        # Concurrency & coordination guide
+├── REASONING.md          # Reasoning and simple logic guide
+├── ROADMAP.md            # Future plans
+└── sesi_ai_chronicles.md # AI project history & notes
 
 tests/
-└── basic.test.ts         # Test suite
+├── basic.test.ts         # Core parsing & evaluation tests
+├── cache.test.ts         # Execution caching tests
+├── http.test.ts          # Web request builtins testing
+├── module.test.ts        # Imports & module loading tests
+├── parallel.test.ts      # Concurrent execution tests
+├── security.test.ts      # Sandbox & guardrail tests
+├── test-gemini.ts        # Base model integration test
+├── test-gemini2.ts       # Extended model integration test
+└── workflow.test.ts      # Complex sequence workflows tests
 ```
 
 ## Workspace Context File

@@ -2,7 +2,7 @@
   <img src="./sesi-logo.svg" alt="Sesi Logo" width="250" />
 </p>
 
-<h1 align="center">Sesi: A High-Performance Systems Language</h1>
+<h1 align="center">Sesi: A Concise, Legible Programming Language</h1>
 
 <p align="center">
   <em>Pronounced "say-see" — What you say, you'll see.</em>
@@ -10,13 +10,13 @@
 
 <p align="center">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg">
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-Ready-blue?logo=typescript">
-  <img alt="Powered by Gemini" src="https://img.shields.io/badge/Powered%20By-Google%20Gemini-orange">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-Interpreter-blue?logo=typescript">
+  <img alt="Powered by Gemini" src="https://img.shields.io/badge/AI-Native-orange">
   <img alt="Framework" src="https://img.shields.io/badge/Node.js-Engine-success?logo=node.js">
 </p>
 
 <p align="center">
-  <strong>Sesi</strong> is a high-performance <strong>Systems Language</strong> designed for building resilient, stateful applications. It provides first-class primitives for process management, filesystem orchestration, and integrated reasoning, enabling developers to build complex logic with a fraction of the boilerplate required by traditional languages.
+  <strong>Sesi</strong> is a clean, minimal, and highly legible programming language. Built from the ground up to be concise and buildable, Sesi removes unnecessary boilerplate. Because the language itself is so simple, integrating external tools like shell commands or Reasoning models becomes effortless. It is a language built for clarity.
 </p>
 
 <p align="center">
@@ -171,8 +171,8 @@ const interpreter = new Interpreter(scriptDir, {
 - [Language Specification](./docs/SPECIFICATION.md)
 - [Language Comparison Showcase](./docs/COMPARISON.md)
 - [Built-in Functions](./docs/BUILTINS.md)
-- [Reasoning Guide](./docs/SYSTEMS_REASONING.md)
-- [Distributed Systems](./docs/DISTRIBUTED_SYSTEMS.md)
+- [Reasoning](./docs/REASONING.md)
+- [Concurrency Systems](./docs/CONCURRENCY.md)
 - [Runtime Architecture](./docs/ARCHITECTURE.md)
 
 ## AI Agent Context

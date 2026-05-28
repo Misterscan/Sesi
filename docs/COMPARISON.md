@@ -1,16 +1,14 @@
-# The Sesi Advantage: Why We Built a Systems & Orchestration Language
+# The Sesi Advantage: Removing Boilerplate
 
 Integrating Large Language Models (LLMs) into traditional applications today is painful. Standard programming languages treat AI as an external service requiring SDKs, manual prompt string concatenation, complex schema definitions, and fragile JSON parsing.
 
-**Sesi treats Reasoning as a first-class language primitive.**
-
-This document demonstrates exactly how much boilerplate and complexity Sesi eliminates compared to traditional languages like TypeScript, Python, and Go.
+This document demonstrates how much boilerplate Sesi eliminates.
 
 ---
 
 ## 📊 The Cost of Boilerplate: A Data Comparison
 
-When building a simple AI-powered data pipeline (structured data extraction + conditional function calling), traditional languages spend more than half their code managing the SDK rather than executing business logic.
+When building simple API extraction pipelines, traditional languages spend more than half their code managing SDKs.
 
 ```mermaid
 xychart-beta
@@ -248,7 +246,7 @@ In Go, statically typed strictness combined with AI responses creates massive st
 
 ---
 
-## Showcase 3: Distributed Orchestration Swarm
+## Showcase 3: Distributed Orchestration Processes
 
 This example demonstrates a complex distributed task: Spawning a background researcher, polling for completion with fault tolerance, and synthesizing results with AI.
 
@@ -330,5 +328,5 @@ Sesi isn't just syntactic sugar. By embedding the AI runtime directly into the p
 - [Image Generation](IMAGE_GENERATION.md)
 - [Built-in Functions](BUILTINS.md)
 - [Architecture](ARCHITECTURE.md)
-- [Reasoning Features](SYSTEMS_REASONING.md)
-- [Distributed Systems](DISTRIBUTED_SYSTEMS.md)
+- [Reasoning Features](REASONING.md)
+- [Concurrent Processes](CONCURRENCY.md)

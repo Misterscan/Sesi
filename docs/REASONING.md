@@ -1,69 +1,12 @@
-# Systems Reasoning & Logic Guide
+# Reasoning & Simple Logic
 
 ## Overview
 
-Sesi is a **Systems Language** that treats reasoning as a first-class execution primitive. In this paradigm, AI is used to evaluate state, make logical decisions, and handle complex patterns within a systems-level architecture.
+In Sesi, Reasoning is used to evaluate state, make logical decisions, and handle complex patterns. This guide covers how to leverage Sesi's built-in Reasoning functions (`model`, `image` `prompt`, `structured_output`, `tool_call`) to build scripts for your designated needs.
 
-This guide covers how to leverage Sesi's systems-level constructs (`spawn`, `exec`, `try/catch`) alongside its reasoning primitives (`model`, `prompt`, `structured_output`) to build resilient, stateful applications.
+## 1. Prompting
 
-## 1. Concurrency & Systems Coordination
-
-The core of Sesi's power lies in its ability to manage distributed execution. Using the `spawn()` builtin, you can launch multiple concurrent Sesi processes that coordinate via shared state or the filesystem.
-
-A master script can launch concurrent processes and poll for their completion.
-
-```sesi
-spawn("atm_deposit.sesi")
-spawn("atm_withdraw.sesi")
-let finished = false
-while !finished {
-  try {
-    if read_file("bank/done_count.txt") == "2" {
-      finished = true
-    }
-  } catch (e) {
-    // Wait on I/O contention
-    let i = 0 while i < 1000 { i = i + 1 }
-  }
-}
-print "Swarm task completed."
-```
-
-### Coordination & Distributed Locking
-
-When multiple processes access shared resources, use Sesi's `try/catch`, `time()`, and `random()` builtins to implement mutual exclusion (locking) via the **Double-Check Write** pattern.
-
-```sesi
-let id = "With_" + str(time()) + "_" + str(random())
-let locked = true
-while locked {
-  let status = "error"
-  try {
-    status = read_file("bank/lock.txt")
-  } catch (e) {
-    status = "error"
-  }
-  if status == "unlocked" {
-    try {
-      write_file("bank/lock.txt", id)
-      let i = 0 while i < 500 { i = i + 1 }
-      if read_file("bank/lock.txt") == id {
-        locked = false
-      }
-    } catch (e) {
-      status = "error"
-    }
-  } else {
-    let j = 0 while j < 1000 { j = j + 1 }
-  }
-}
-```
-
----
-
-## 2. AI as a Reasoning Primitive
-
-In an orchestrated system, AI is used to make decisions that would be too complex for static logic.
+In Sesi, calling a reasoning model is as simple as defining a string and executing it.
 
 Prompts are **composable message templates** that evaluate to strings.
 
@@ -102,7 +45,7 @@ print translatePrompt(text, language)
 
 ## 2. Model Calls
 
-Call Gemini with a prompt and get back text.
+Call a Reasoning model with a prompt and get back text.
 
 ### Basic Model Call
 
@@ -127,7 +70,7 @@ print creative
 
 ```sesi
 // Fast model for simple tasks
-let text = " Coding with Reasoning systems language is fun!"
+let text = " Coding with Reasoning programming language is fun!"
 let quick = model("gemini-3.1-flash-lite") {"Summarize this in one sentence:" text}
 
 // Powerful model for complex reasoning
@@ -147,14 +90,14 @@ print smart
 print cheap
 ```
 
-### Available Models (v1.2)
+### Available Models (v1.3)
 
 - `gemini-2.5-flash` - Legacy, but supported. 1M tokens.
 - `gemini-2.5-pro` - Legacy, but supported. 1M tokens.
 - `gemini-2.5-flash-image` - Standard image model. (No `512` image size support for this model. Only `1K` is supported.)
-- `gemini-3-flash-preview` - Fast, balanced, legacy preview.
+- `gemini-3-flash-preview` - Fast, most balanced model for coding and minimal tasks.
 - `gemini-3.1-flash-lite` - Fastest, most cost-efficient.
-- `gemini-3.5-flash` - Standard GA Model. Fast, balanced, supports all native thinking effort levels (`minimal`, `low`, `medium`, `high`).
+- `gemini-3.5-flash` - Newest GA model. Balanced, but token hungry (USE WISELY) supports all native thinking effort levels (`minimal`, `low`, `medium`, `high`).
 - `gemini-3.1-pro-preview` - Most powerful reasoning model, doesn't support `minimal` thinking (falls back to `low`).
 - `gemini-3.1-flash-image-preview` - Cost efficient image generation model.
 - `gemini-3-pro-image-preview` - High quality image generation model. (No `512` image size support for this model.)
@@ -404,7 +347,7 @@ print analyzeSentiment(text)
 
 Reasoning operations can fail. Handle gracefully.
 
-### Try/Catch (v1.2)
+### Try/Catch (v1.3)
 
 ```sesi
 try

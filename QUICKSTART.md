@@ -198,7 +198,7 @@ print response
 chat = chat "Assistant:" response
 ```
 
-### Concurrent Swarms
+### Concurrent Processes
 
 Sesi can orchestrate multiple concurrent scripts using the `spawn()` builtin.
 
@@ -391,14 +391,14 @@ else {print "Response: " response}
 ## Next Steps
 
 1. **Read the spec**: [SPECIFICATION.md](docs/SPECIFICATION.md)
-2. **Learn about reasoning**: [SYSTEMS_REASONING.md](docs/SYSTEMS_REASONING.md)
+2. **Learn about reasoning**: [REASONING.md](docs/REASONING.md)
 3. **Understand architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 4. **Check roadmap**: [ROADMAP.md](docs/ROADMAP.md)
 5. **Study examples**: [examples/](examples/)
 
 ## Getting Help
 
-Sesi comes with an advanced, built-in **Interactive RAG Co-Pilot** right in your command line! Instead of static help messages, you can query Sesi directly about how to use any statement, standard library, or architectural pattern:
+Sesi comes with an advanced, built-in **Interactive Co-Pilot** right in your command line! Instead of static help messages, you can query Sesi directly about how to use any statement, standard library, or architectural pattern:
 
 ```bash
 # Ask the Sesi Co-Pilot for help directly

@@ -207,7 +207,7 @@ Rules:
 - If no completion makes sense, return absolutely nothing.`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -216,7 +216,7 @@ Rules:
           parts: [{ text: prompt }]
         }],
         generationConfig: {
-          temperature: 0.1,
+          temperature: 0.3,
           maxOutputTokens: 1024
         }
       })

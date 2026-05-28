@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-**Sesi** is a high-performance **Systems Language** designed for building resilient, stateful applications. It provides first-class primitives for process management and filesystem orchestration, while integrating reasoning as a first-class execution primitive. Unlike traditional languages that rely on external SDKs for AI interaction, Sesi treats reasoning as a native language construct, enabling developers to build context-aware systems with minimal boilerplate.
+**Sesi** is a highly legible, buildable **programming language**. It provides clean primitives for executing robust internal logic and external APIs, acting as the ideal layer to parse text, orchestrate shell commands, and interact with the file system. Unlike traditional languages that require sprawling SDKs for even basic interactions, Sesi integrates command execution naturally, enabling developers to build context-aware scripts with minimal boilerplate.
 
 ## 🎯 Design Philosophy
 
@@ -10,9 +10,9 @@ Sesi follows these core principles:
 
 1. **Reasoning as a Primitive**: Reasoning calls aren't library functions—they're language constructs with dedicated syntax. This allows for deep integration with the interpreter's environment and type system.
 2. **Practical Over Perfect**: Focus on what developers actually need, not theoretical completeness.
-3. **Transparency Over Magic**: Explicit reasoning calls with clear costs and latency.
-4. **Simplicity First**: Tree-walking interpreter for clarity and maintainability.
-5. **Type Safety with Flexibility**: Static types for normal code, runtime checking for reasoning outputs.
+3. **Transparency Over Magic**: Sesi runs exactly what you write with clear costs and execution maps.
+4. **Simplicity First**: A custom tree-walking interpreter for clarity and maintainability.
+5. **Type Safety with Flexibility**: Static types for normal code, runtime checking for integration outputs.
 
 ## 📁 Complete Project Structure
 
@@ -21,63 +21,78 @@ Sesi/
 ├── SKILLS.md                        # Workspace context and repo guardrails
 ├── index.html                       # Sesi-generated systems landing page
 ├── eslint.config.mjs                # ESLint configuration
-├── example.js                        # Helper script to run basic examples
-├── example-ai.js                     # Helper script to run reasoning examples
-├── README.md                         # Project overview
-├── QUICKSTART.md                     # Getting started guide
-├── package.json                      # Dependencies & scripts
-├── tsconfig.json                     # TypeScript configuration
-├── dist/                             # Compiled TypeScript output
+├── example.js                       # Helper script to run basic examples
+├── example-ai.js                    # Helper script to run reasoning examples
+├── examples.sesi                    # Central execution suite for examples
+├── README.md                        # Project overview
+├── QUICKSTART.md                    # Getting started guide
+├── package.json                     # Dependencies & scripts
+├── tsconfig.json                    # TypeScript configuration
+├── dist/                            # Compiled TypeScript output
 │
-├── src/                              # Source code
-│   ├── types.ts                      # Type definitions & AST nodes (400+ lines)
-│   ├── lexer.ts                      # Tokenization (350+ lines)
-│   ├── parser.ts                     # Recursive descent parser (700+ lines)
-│   ├── interpreter.ts                # Tree-walking interpreter (600+ lines)
-│   ├── builtins.ts                   # Built-in functions (250+ lines)
-│   ├── ai-runtime.ts                 # Integrated reasoning integration (120+ lines)
-│   └── index.ts                      # Entry point (30+ lines)
+├── src/                             # Source code
+│   ├── types.ts                     # Type definitions & AST nodes (400+ lines)
+│   ├── lexer.ts                     # Tokenization (350+ lines)
+│   ├── parser.ts                    # Recursive descent parser (700+ lines)
+│   ├── interpreter.ts               # Tree-walking interpreter (600+ lines)
+│   ├── builtins.ts                  # Built-in functions (250+ lines)
+│   ├── ai-runtime.ts                # Integrated reasoning integration (120+ lines)
+│   └── index.ts                     # Entry point (30+ lines)
 │
 ├── bin/
-│   └── sesi.js                       # CLI executable
+│   └── sesi.js                      # CLI executable
 │
-├── main/                             # Playgrounds & debugging
-│   ├── playground.sesi               # Main playground script
-│   ├── start.sesi                    # Beginner script
-│   ├── build_website.sesi            # Sesi-powered systems site generator
-│   └── tests/                        # Additional syntax validation scripts
+├── main/                            # Playgrounds & debugging
+│   ├── playground.sesi              # Main playground script
+│   ├── start.sesi                   # Beginner script
+│   ├── build_website.sesi           # Sesi-powered systems site generator
+│   └── tests/                       # Additional syntax validation scripts
 │
 ├── docs/
-│   ├── SPECIFICATION.md              # Complete language spec (600+ lines)
-│   ├── ARCHITECTURE.md               # Runtime & system design (400+ lines)
-│   ├── BUILTINS.md                   # Built-in functions reference (450+ lines)
-|   ├── IMAGE_GENERATION.md           # Image generation guide (>100 lines)
-│   ├── SYSTEMS_REASONING.md          # Integrated reasoning guide (500+ lines)
-|.  ├── DISTRIBUTED_SYSTEMS.md        # Swarm & coordination guide (>100 lines)
-│   └── ROADMAP.md                    # V2-V4+ development plan (400+ lines)
+│   ├── SPECIFICATION.md             # Complete language spec (600+ lines)
+│   ├── ARCHITECTURE.md              # Runtime & system design (400+ lines)
+│   ├── BUILTINS.md                  # Built-in functions reference (450+ lines)
+│   ├── COMPARISON.md                # Language comparison showcase
+│   ├── CONCURRENCY.md               # Concurrency & coordination guide (>100 lines)
+│   ├── IMAGE_GENERATION.md          # Image generation guide (>100 lines)
+│   ├── REASONING.md                 # Reasoning and simple logic guide (>500 lines)
+│   ├── ROADMAP.md                   # V2-V4+ development plan (400+ lines)
+│   └── sesi_ai_chronicles.md        # AI project history & notes
 │
 ├── examples/
-│   ├── 01_hello.sesi                 # Hello World
-│   ├── 02_variables.sesi             # Variables & operations
-│   ├── 03_functions.sesi             # Functions with parameters
-│   ├── 04_conditionals.sesi          # If/else control flow
-│   ├── 05_loops.sesi                 # While, for, for-in loops
-│   ├── 06_arrays_objects.sesi        # Collections
-│   ├── 07_prompts.sesi               # Reasoning blocks
-│   ├── 08_model_call.sesi            # Basic reasoning calls
-│   ├── 09_structured_output.sesi     # Type-safe reasoning responses
-│   ├── 10_code_generation.sesi       # Systems logic generation
-│   ├── 11_memory_conversation.sesi   # Multi-turn stateful reasoning
-│   ├── 12_classification.sesi        # Systems classification loop
-│   ├── 13_data_pipeline.sesi         # Complete systems pipeline
-│   ├── 14_folder_explainer.sesi      # Directory parsing & reasoning
-│   ├── 15_image_generation.sesi      # Image generation API test
-│   ├── 16_modules.sesi               # Modules & std library namespaces
-│   ├── 17_http_client.sesi           # Network GET/POST client
-│   └── 18_parallel_requests.sesi     # Parallel requests concurrency
+│   ├── 01_hello.sesi                # Hello World
+│   ├── 02_variables.sesi            # Variables & operations
+│   ├── 03_functions.sesi            # Functions with parameters
+│   ├── 04_conditionals.sesi         # If/else control flow
+│   ├── 05_loops.sesi                # While, for, for-in loops
+│   ├── 06_arrays_objects.sesi       # Collections
+│   ├── 07_prompts.sesi              # Reasoning blocks
+│   ├── 08_model_call.sesi           # Basic reasoning calls
+│   ├── 09_structured_output.sesi    # Type-safe reasoning responses
+│   ├── 10_code_generation.sesi      # Systems logic generation
+│   ├── 11_memory_conversation.sesi  # Multi-turn stateful reasoning
+│   ├── 12_classification.sesi       # Systems classification loop
+│   ├── 13_data_pipeline.sesi        # Complete systems pipeline
+│   ├── 14_folder_explainer.sesi     # Directory parsing & reasoning
+│   ├── 15_image_generation.sesi     # Image generation API test
+│   ├── 16_modules.sesi              # Modules & std library namespaces
+│   ├── 17_http_client.sesi          # Network GET/POST client
+│   ├── 18_parallel_requests.sesi    # Parallel requests concurrency
+│   ├── 19_search_web.sesi           # Web search integration
+│   ├── 20_model_aliases.sesi        # Custom model naming aliases
+│   ├── 21_custom_tools.sesi         # Custom runtime tool definitions
+│   └── 22_reasoning_plus_custom_tools.sesi # Reasoning composed with custom tools
 │
-└── tests/
-    └── basic.test.ts                 # Test suite
+└── tests/                           # Engine test suite
+    ├── basic.test.ts                # Core parsing & evaluation tests
+    ├── cache.test.ts                # Execution caching tests
+    ├── http.test.ts                 # Web request builtins testing
+    ├── module.test.ts               # Imports & module loading tests
+    ├── parallel.test.ts             # Concurrent execution tests
+    ├── security.test.ts             # Sandbox & guardrail tests
+    ├── test-gemini.ts               # Base model integration test
+    ├── test-gemini2.ts              # Extended model integration test
+    └── workflow.test.ts             # Complex sequence workflows tests
 ```
 
 ## 🔧 Technology Stack
@@ -185,7 +200,7 @@ write_image("logo.png", logo)
 
 **Temporal Context Injection** ✅
 
-Every reasoning call automatically includes the current UTC date and time in its context, providing the system with a native sense of "now."
+Every reasoning call automatically includes the current UTC date and time in its context, providing the script with a native sense of "now."
 
 **Implicit Statement Termination** ✅
 
@@ -193,7 +208,7 @@ Expressions ending in `}` (such as prompt blocks or reasoning calls) no longer s
 
 **Async Polling for MAX_TOKENS** ✅
 
-The AI runtime natively polls the model if it hits a `MAX_TOKENS` finish reasoning block, automatically appending previous chunks and prompting the model to continue exactly where it left off, seamlessly synthesizing long responses.
+The runtime natively polls the model if it hits a `MAX_TOKENS` finish status during large generation tasks.
 
 **Tool Calling**
 
@@ -364,7 +379,7 @@ npm test
 - Performance notes
 - Standard library plans
 
-✅ **SYSTEMS_REASONING.md** (500+ lines)
+✅ **REASONING.md** (500+ lines)
 
 - Systems reasoning overview
 - Prompt blocks explained
@@ -407,6 +422,10 @@ npm test
 | 16_modules.sesi             | Imports/exports & std namespaces|
 | 17_http_client.sesi         | HTTP GET and POST operations    |
 | 18_parallel_requests.sesi   | Parallel request concurrency    |
+| 19_search_web.sesi          | Web search integration          |
+| 20_model_aliases.sesi       | Custom model naming aliases     |
+| 21_custom_tools.sesi        | Custom runtime tool definitions |
+| 22_reasoning_plus_custom_tools.sesi | Compose reasoning & tools |
 
 ## ✨ Unique Features
 
@@ -501,7 +520,7 @@ npm test
 3. **Prompts**: examples/07 - Prompt blocks
 4. **Reasoning**: examples/08-12 - Reasoning feature exploration
 5. **Specification**: [SPECIFICATION.md](docs/SPECIFICATION.md) - Complete grammar
-6. **Advanced**: [SYSTEMS_REASONING.md](docs/SYSTEMS_REASONING.md) - Patterns and best practices
+6. **Advanced**: [REASONING.md](docs/REASONING.md) - Patterns and best practices
 7. **Builtins**: [BUILTINS.md](docs/BUILTINS.md) - Built-in functions
 8. **Image Generation**: [IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md) examples/15 - Generating images natively
 9. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
@@ -541,18 +560,18 @@ npm test
 
 ## 🚀 Philosophy
 
-> "Sesi demonstrates that systems-level logic and integrated reasoning can be unified into a single, elegant language primitive, eliminating the boilerplate of traditional AI development."
+> "Sesi demonstrates that coding shouldn't need to be hard to understand, eliminating the boilerplate of traditional development and lowering the entry-level for those interested in code or programming."
 
-The language is designed to evolve. V1 provides a solid foundation. V2+ adds power. The architecture supports this gracefully without breaking existing programs.
+The language is designed to evolve. V1+ provides a solid foundation. V2+ adds power. The architecture supports this gracefully without breaking existing programs.
 
 ---
 
-**Status**: ⏳ Ongoing V1.2 implementation  
-**Ready for**: Distributed systems orchestration and prototypes  
+**Status**: ⏳ Ongoing V1.3 implementation  
+**Ready for**: File manipulation and process orchestration  
 **Not ready for**: Massive-scale production (until v2.0 bytecode)  
 **Next milestone**: V2.0 (Async & advanced reasoning)
 
-Sesi is an experiment in language design. Use it to learn, explore, and evolve what integrated reasoning will become.
+Sesi is not just an experiment in language design. Use it to learn, explore, and evolve what the future of coding will become.
 
 ---
 

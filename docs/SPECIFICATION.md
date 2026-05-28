@@ -1,33 +1,33 @@
-# Sesi Systems Language Specification (v1.2)
+# Sesi Language Specification (v1.3)
 
 ## 1. Philosophy & Design Principles
 
 Sesi is built on these core principles:
 
-1. **High-Performance Systems Orchestration**: Designed for building resilient, stateful applications with first-class primitives for process management and filesystem orchestration.
-2. **Reasoning as a First-Class Citizen**: Model calls, schema definitions, and tool orchestration are treated as language primitives rather than external SDK dependencies.
-3. **Transparency Over Magic**: Explicit model calls with clear costs and latency, not hidden inference.
-4. **Distributed State Management**: Optimized for coordination and state integrity using filesystem locking and concurrent `spawn()` patterns.
-5. **Practical Over Perfect**: Focus on reducing boilerplate code for complex reasoning logic, emphasizing what developers actually need over complete generality.
+1. **Conciseness and Legibility**: The syntax is minimal. If a concept can be expressed simply, the language gets out of the way to let you express it.
+2. **Buildable from Scratch**: Sesi is a complete, functioning language with its own lexer, parser, and interpreter.
+3. **Simplicity Enables Power**: Because the core language is simple, complex operations (like hitting APIs or orchestrating processes) become trivial extensions of the language, rather than tangled SDK implementations.
+4. **Transparency Over Magic**: Sesi executes exactly what you write. 
+5. **Practicality**: Focus on reducing boilerplate code, emphasizing what developers actually need over academic completeness.
 
 ## 2. Target Users
 
-**Primary**: Developers building resilient, stateful applications that require systems-level orchestration alongside integrated reasoning.
+**Primary**: Developers who want a clean, fast, and legible language where writing code, whether purely logic-based or calling out to a Reasoning model, is completely frictionless.
 
 **Secondary**:
 
 - Engineers transitioning from traditional languages (TypeScript, Python, Go)
-- Developers building agentic swarms and distributed systems
+- Developers looking for minimal boilerplate.
 - Teams requiring complex logic with a fraction of the boilerplate
 
 **Use Cases**:
 
-- Stateful multi-agent swarm orchestration
-- High-performance data pipelines with structured extraction
-- Concurrent process management and distributed locking
-- Multi-stage reasoning workflows with stateful memory
+- Writing clean CLI tools and scripts
+- Interacting with APIs without SDK boilerplate
+- Quickly orchestrating shell commands
+- Rapid prototyping and scripting
 
-## 3. V1.2 Feature Set (Current)
+## 3. V1.3 Feature Set (Current)
 
 ### Core Language Features
 
@@ -37,7 +37,7 @@ Sesi is built on these core principles:
 - ✅ Loops (`while`, `for`)
 - ✅ Error Handling (`try/catch` blocks)
 - ✅ Data types (number, string, bool, array, object)
-- ✅ Systems Orchestration (`spawn`, `exec`, `time`, `random`)
+- ✅ Process Execution (`spawn`, `exec`, `time`, `random`)
 - ✅ Comments (`//`, `/* */`)
 - ✅ Operators (arithmetic, logical, comparison)
 - ✅ Standard library (print, len, range, etc.)
@@ -304,7 +304,7 @@ optional_type := type '?'
 
 1. **Short-circuit evaluation**: `&&` and `||` short-circuit
 2. **Type coercion**: Automatic for numeric operations; explicit for string/number
-3. **Null propagation**: Operations on `null` return `null` (no exceptions in v1.2)
+3. **Null propagation**: Operations on `null` return `null` (no exceptions in v1.3)
 4. **Model responses**: Always returned as strings initially; structured_output provides type safety
 
 ## 6. Scope and Binding
@@ -366,7 +366,7 @@ random() -> number                // Random float (0.0 to 1.0)
 
 ## 9. Module System
 
-Runtime module execution and standard namespace modules are fully implemented and natively supported in v1.2+.
+Runtime module execution and standard namespace modules are fully implemented and natively supported in v1.3+.
 
 ### Defining Modules
 
@@ -530,7 +530,7 @@ print sentiment.label
 print sentiment.score
 ```
 
-## 12. Undefined Behavior & Limitations (V1.2)
+## 12. Undefined Behavior & Limitations (V1.3)
 
 - **No async/await**: All operations within a script are blocking (including model calls). Concurrency must be achieved via `spawn()`.
 - **No custom types**: Only built-in types are supported natively.
