@@ -198,7 +198,7 @@ false  → false
    - Construct prompt from string concatenation
    - Make async API call to Gemini
 
-- Wait for response (blocking in v1)
+- Wait for response (blocking in v1.x)
 - Validate finish reason and non-empty text
 - Return text response to program or throw
 
@@ -213,7 +213,7 @@ false  → false
 ModelCallExpression (AST)
     │
     ├─ Evaluate prompt expression
-    ├─ Extract configuration ("thinkingLevel", "max_tokens", "cache", etc.)
+    ├─ Extract configuration (`thinkingLevel`, `max_tokens`, `cache`, etc.)
     ├─ Call AIRuntime.callModel()
     │   │
     │   ├─ Create Gemini interaction request
@@ -442,6 +442,6 @@ Sesi's architecture prioritizes **clarity and simplicity** over performance. The
 - Easy debugging
 - Simple extensions
 - Clear control flow
-- Smooth Reasoning (AI) integration
+- Smooth Reasoning integration
 
 As the language matures, optimizations can be added without changing the API.

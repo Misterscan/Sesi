@@ -383,14 +383,12 @@ print "Elapsed time:" time() - start "ms"
 Concurrently execute multiple Sesi function closures or builtins in parallel and return their results as an array.
 
 ```sesi
-fn job1() {
-  sleep(100)
-  return "a"
-}
-fn job2() {
-  sleep(100)
-  return "b"
-}
+fn job1() 
+{sleep(100)
+return "a"}
+fn job2() 
+{sleep(100)
+return "b"}
 let results = multi_req([job1, job2])
 print results // ["a", "b"]
 ```
@@ -415,12 +413,7 @@ Each step is an object with at minimum a `"prompt"` string. Optional keys includ
 - `"thinkingLevel"`, `"cache"`, `"search"`
 
 ```sesi
-let steps = [
-  {"prompt": "Summarize:"},
-  {"prompt": "Critique:"},
-  {"prompt": "Finalize:"}
-]
-
+let steps = [{"prompt": "Summarize:"}, {"prompt": "Critique:"}, {"prompt": "Finalize:"}]
 let result = workflow(steps, "Design a landing page brief")
 print result["final"]
 ```
@@ -447,9 +440,8 @@ let answer = model("fast") {"Summarize this paragraph."}
 Register a custom tool name that can be called through `tool_call(name)(...)`.
 
 ```sesi
-fn summarize(text) {
-  return "Summary: " + text
-}
+fn summarize(text) 
+{return "Summary: " + text}
 
 define_tool("summarizer", summarize, "Summarizes text")
 let result = tool_call(summarizer)("Hello")
@@ -491,9 +483,7 @@ Throw a custom typed error that can be handled in `try/catch`.
 ```sesi
 try {
   raise_error("RateLimit", "Too many requests", {"retryIn": 30})
-} catch (e) {
-  print "type:" e["type"] "message:" e["message"]
-}
+} catch (e) {print "type:" e["type"] "message:" e["message"]}
 ```
 
 You can also pass an `error_type(...)` object directly:

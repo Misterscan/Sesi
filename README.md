@@ -11,7 +11,7 @@
 <p align="center">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-Interpreter-blue?logo=typescript">
-  <img alt="Powered by Gemini" src="https://img.shields.io/badge/AI-Native-orange">
+  <img alt="Powered by Gemini" src="https://img.shields.io/badge/Powered%20By-Google%20Gemini-orange">
   <img alt="Framework" src="https://img.shields.io/badge/Node.js-Engine-success?logo=node.js">
 </p>
 
@@ -90,6 +90,10 @@ sesi -help "how do I use memory?"
 
 # Ask for help about a specific file
 sesi main/playground.sesi -h "why is this failing"
+
+# Encrypt or decrypt a script file
+sesi -encrypt my_script.sesi -p "my-password"
+sesi -decrypt my_script.sesi -p "my-password"
 
 # Run with sandbox restrictions disabled
 sesi main/start.sesi --local
@@ -175,7 +179,7 @@ const interpreter = new Interpreter(scriptDir, {
 - [Concurrency Systems](./docs/CONCURRENCY.md)
 - [Runtime Architecture](./docs/ARCHITECTURE.md)
 
-## AI Agent Context
+## Agent Context
 
 The root-level `SKILLS.md` file is a workspace context file for AI agents. It records repo-specific constraints such as valid Sesi syntax expectations, execution conventions, and the intended meaning of directories like `main/` and `main/tests/`.
 
@@ -183,34 +187,80 @@ The root-level `SKILLS.md` file is a workspace context file for AI agents. It re
 
 ```
 Sesi/
-├── SKILLS.md             # AI-agent workspace context and repo guardrails
-├── index.html            # Sesi-generated landing page
-├── eslint.config.mjs     # ESLint configuration
-├── dist/                 # Compiled TypeScript output
-├── example.js            # Helper script to run basic examples
-├── example-ai.js         # Helper script to run Reasoning examples
-├── package.json          # Dependencies & scripts
-├── tsconfig.json         # TypeScript configuration
-├── QUICKSTART.md         # Quick start guide
-├── IMPLEMENTATION_SUMMARY.md # Progress and tracking
-├── src/
-│   ├── types.ts          # Type system & AST nodes
-│   ├── lexer.ts          # Tokenization
-│   ├── parser.ts         # AST generation
-│   ├── interpreter.ts    # Execution engine
-│   ├── builtins.ts       # Standard library
-│   ├── ai-runtime.ts     # Gemini integration
-│   └── index.ts          # Main entry point
+├── SKILLS.md                        # Workspace context and repo guardrails
+├── index.html                       # Sesi-generated systems landing page
+├── eslint.config.mjs                # ESLint configuration
+├── example.js                       # Helper script to run basic examples
+├── example-ai.js                    # Helper script to run reasoning examples
+├── examples.sesi                    # Central execution suite for examples
+├── README.md                        # Project overview
+├── QUICKSTART.md                    # Getting started guide
+├── package.json                     # Dependencies & scripts
+├── tsconfig.json                    # TypeScript configuration
+├── dist/                            # Compiled TypeScript output
+│
+├── src/                             # Source code
+│   ├── types.ts                     # Type definitions & AST nodes (400+ lines)
+│   ├── lexer.ts                     # Tokenization (350+ lines)
+│   ├── parser.ts                    # Recursive descent parser (700+ lines)
+│   ├── interpreter.ts               # Tree-walking interpreter (600+ lines)
+│   ├── builtins.ts                  # Built-in functions (250+ lines)
+│   ├── ai-runtime.ts                # Integrated reasoning integration (120+ lines)
+│   └── index.ts                     # Entry point (30+ lines)
+│
 ├── bin/
-│   └── sesi.js           # CLI executable
-├── examples/             # 22 sample programs demonstrating all features
-├── main/                 # Main entry and specialized tests
-│   ├── playground.sesi   # Main playground script
-│   ├── start.sesi        # Beginner script
-│   ├── build_website.sesi # Sesi-powered landing page generator
-│   └── tests/            # Debug and syntax scripts
-├── tests/                # Test suite
-└── docs/                 # Documentation (ARCHITECTURE, BUILTINS, SPECIFICATION, etc.)
+│   └── sesi.js                      # CLI executable
+│
+├── main/                            # Playgrounds & debugging
+│   ├── playground.sesi              # Main playground script
+│   ├── start.sesi                   # Beginner script
+│   └── tests/                       # Additional syntax validation scripts
+│
+├── docs/
+│   ├── SPECIFICATION.md             # Complete language spec (600+ lines)
+│   ├── ARCHITECTURE.md              # Runtime & system design (400+ lines)
+│   ├── BUILTINS.md                  # Built-in functions reference (450+ lines)
+│   ├── COMPARISON.md                # Language comparison showcase
+│   ├── CONCURRENCY.md               # Concurrency & coordination guide (>100 lines)
+│   ├── IMAGE_GENERATION.md          # Image generation guide (>100 lines)
+│   ├── REASONING.md                 # Reasoning and simple logic guide (>500 lines)
+│   ├── ROADMAP.md                   # V2-V4+ development plan (400+ lines)
+│   └── sesi_ai_chronicles.md        # AI project history & notes
+│
+├── examples/
+│   ├── 01_hello.sesi                # Hello World
+│   ├── 02_variables.sesi            # Variables & operations
+│   ├── 03_functions.sesi            # Functions with parameters
+│   ├── 04_conditionals.sesi         # If/else control flow
+│   ├── 05_loops.sesi                # While, for, for-in loops
+│   ├── 06_arrays_objects.sesi       # Collections
+│   ├── 07_prompts.sesi              # Reasoning blocks
+│   ├── 08_model_call.sesi           # Basic reasoning calls
+│   ├── 09_structured_output.sesi    # Type-safe reasoning responses
+│   ├── 10_code_generation.sesi      # Systems logic generation
+│   ├── 11_memory_conversation.sesi  # Multi-turn stateful reasoning
+│   ├── 12_classification.sesi       # Systems classification loop
+│   ├── 13_data_pipeline.sesi        # Complete systems pipeline
+│   ├── 14_folder_explainer.sesi     # Directory parsing & reasoning
+│   ├── 15_image_generation.sesi     # Image generation API test
+│   ├── 16_modules.sesi              # Modules & std library namespaces
+│   ├── 17_http_client.sesi          # Network GET/POST client
+│   ├── 18_parallel_requests.sesi    # Parallel requests concurrency
+│   ├── 19_search_web.sesi           # Web search integration
+│   ├── 20_model_aliases.sesi        # Custom model naming aliases
+│   ├── 21_custom_tools.sesi         # Custom runtime tool definitions
+│   └── 22_reasoning_plus_custom_tools.sesi # Reasoning composed with custom tools
+│
+└── tests/                           # Engine test suite
+    ├── basic.test.ts                # Core parsing & evaluation tests
+    ├── cache.test.ts                # Execution caching tests
+    ├── http.test.ts                 # Web request builtins testing
+    ├── module.test.ts               # Imports & module loading tests
+    ├── parallel.test.ts             # Concurrent execution tests
+    ├── security.test.ts             # Sandbox & guardrail tests
+    ├── test-gemini.ts               # Base model integration test
+    ├── test-gemini2.ts              # Extended model integration test
+    └── workflow.test.ts             # Complex sequence workflows tests
 ```
 
 ## Version 1.3 Features (In Progress)

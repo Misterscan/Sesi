@@ -51,8 +51,11 @@ class ChatbotHandler(http.server.SimpleHTTPRequestHandler):
                 
                 print(f"[SERVER] Active query logged: '{user_query}'")
                 
-                # 2. Execute Sesi chatbot script using Powershell bypass and dotenvx env injection
-                cmd = 'powershell -ExecutionPolicy Bypass -Command "npx dotenvx run -- node bin/sesi.js main/chatbot.sesi"'
+                # 2. Execute Sesi chatbot script using cross-platform execution (with Powershell bypass on Windows if needed)
+                if sys.platform == "win32":
+                    cmd = 'powershell -ExecutionPolicy Bypass -Command "npx dotenvx run -- node bin/sesi.js main/chatbot.sesi"'
+                else:
+                    cmd = 'npx dotenvx run -- node bin/sesi.js main/chatbot.sesi'
                 print(f"[SERVER] Spawning native Sesi AI compiler engine...")
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8')
                 

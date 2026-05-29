@@ -159,7 +159,7 @@ Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey).
 Reasoning features allow passing configuration options via a block format before the prompt.
 
 ```sesi
-let response = model("gemini-3-flash-preview") {"temperature": 0.8, "max_tokens": 1000} {"What is 2 + 2?"}
+let response = model("gemini-3-flash-preview") {temperature: 0.8, max_tokens: 1000} {"What is 2 + 2?"}
 print response
 ```
 
@@ -184,7 +184,7 @@ print "Score: " analysis["score"]
 Like `model`, the `image` command takes configuration parameters.
 
 ```sesi
-let logo = image("gemini-3.1-flash-image-preview") {"ratio": '1:1', "size": 512, "temperature": 0.3, "max_tokens": 512} {"make a beautiful logo for the word Sesi"}
+let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512", temperature: 0.3} {"make a beautiful logo for the word Sesi"}
 write_image("logo.png", logo)
 print "Generated image successfully!"
 ```
@@ -222,6 +222,7 @@ from_json(path)    // Read a JSON file
 write_file(path, content) // Write text to a file
 write_image(path, content) // Write base64 encoded image to a file
 list_dir(path)     // List directory contents
+make_dir(path)     // Create a new directory
 spawn(path)        // Launch concurrent background process
 exec(command)      // Synchronous shell execution
 time()             // Unix timestamp (ms)
@@ -233,7 +234,7 @@ random()           // Random number (0-1)
 ```sesi
 type(value)        // Get type name
 str(value)         // Convert to string
-to_json(value)      // Convert to valid JSON string
+to_json(value)     // Convert to valid JSON string
 num(value)         // Convert to number
 bool(value)        // Convert to boolean
 ```
@@ -254,9 +255,31 @@ range(n)           // Create [0, 1, ..., n-1]
 ### Network & Concurrency
 
 ```sesi
-web_get(url, headers = {})     // Natively fetch from URL via HTTP GET
+web_get(url, headers = {})        // Natively fetch from URL via HTTP GET
 web_send(url, body, headers = {}) // Natively post body to URL via HTTP POST
-multi_req(array<function>)     // Run multiple tasks/requests physically in parallel
+multi_req(array<function>)        // Run multiple tasks/requests physically in parallel
+```
+
+### Reasoning
+
+```sesi
+workflow(steps, input)          // Run a multi-step reasoning workflow
+set_alias(alias, model)         // Register a custom local name for a model
+define_tool(name, fn, desc)     // Register a custom tool
+list_tools()                    // List custom tool names
+```
+
+### Error Handling
+
+```sesi
+error_type(type, message, data) // Create a custom error object
+raise_error(error)              // Throw an error
+```
+
+### Math
+
+```sesi
+exp(x)             // Exponential function
 ```
 
 ### Standard Library Modules
@@ -264,9 +287,9 @@ multi_req(array<function>)     // Run multiple tasks/requests physically in para
 Standard library features are available natively in **v1.2+** using imports:
 
 ```sesi
-import { PI, sqrt } from "std/math"
-import { sleep, now } from "std/time"
-import { stringify, parse } from "std/json"
+import {PI, sqrt} from "std/math"
+import {sleep, now} from "std/time"
+import {stringify, parse} from "std/json"
 ```
 
 ## Running Examples
@@ -343,8 +366,8 @@ let rejoined = join(words, "-")
 ### Reasoning Classification
 
 ```sesi
-fn classify(item: string) {print model("gemini-3-flash-preview")
-{"Classify as: FRUIT, VEGETABLE, or GRAIN. Item: " item}}
+fn classify(item: string) 
+{print model("gemini-3-flash-preview"){"Classify as: FRUIT, VEGETABLE, or GRAIN. Item: " item}}
 classify("apple")
 classify("carrot")
 classify("wheat")
@@ -355,12 +378,11 @@ classify("wheat")
 ### Print Intermediate Values
 
 ```sesi
-fn complex(x: number) {
-  let step1 = x * 2
-  print "Step 1:" str(step1)
-  let step2 = step1 + 10
-  print "Step 2:" str(step2)
-}
+fn complex(x: number) 
+{let step1 = x * 2
+print "Step 1:" str(step1)
+let step2 = step1 + 10
+print "Step 2:" str(step2)}
 complex(5)
 ```
 
@@ -419,6 +441,10 @@ Other useful CLI options:
 ```bash
 # Run a one-line snippet
 sesi -e "print 'hello'"
+
+# Encrypt or decrypt a script file
+sesi -encrypt my_script.sesi -p "my-password"
+sesi -decrypt my_script.sesi -p "my-password"
 
 # Disable sandbox protections for a run
 sesi main/start.sesi --local

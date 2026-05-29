@@ -1,6 +1,6 @@
 # The Sesi Advantage: Removing Boilerplate
 
-Integrating Large Language Models (LLMs) into traditional applications today is painful. Standard programming languages treat AI as an external service requiring SDKs, manual prompt string concatenation, complex schema definitions, and fragile JSON parsing.
+Integrating API calls or reasoning blocks into traditional applications today is painful. Standard programming languages treat API calls or reasoning blocks as an external service requiring SDKs, manual prompt string concatenation, complex schema definitions, and fragile JSON parsing.
 
 This document demonstrates how much boilerplate Sesi eliminates.
 

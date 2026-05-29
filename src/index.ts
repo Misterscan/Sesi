@@ -53,6 +53,15 @@ export async function runSesiFile(filePath: string, options?: SesiOptions): Prom
     const filepath = path.resolve(filePath);
     const scriptDir = path.dirname(filepath);
     const source = fs.readFileSync(filepath, 'utf-8');
+
+    // If the file matches the exact signature of our AES-256-CBC encryption (32-char hex IV : hex payload)
+    if (/^[a-fA-F0-9]{32}:[a-fA-F0-9]+$/.test(source.trim())) {
+      console.error(`Error: The file '${path.basename(filePath)}' is encrypted.`);
+      console.error(`Please decrypt it first before running:`);
+      console.error(`  sesi -decrypt ${path.basename(filePath)} -p <password>`);
+      process.exit(1);
+    }
+
     await runSesi(source, scriptDir, options);
   } catch (error: any) {
     console.error(`Error reading file ${filePath}:`, error.message);

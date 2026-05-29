@@ -17,6 +17,9 @@ Usage:
   Options:
   --local               Disable safe mode (careful!)
   --allowed-paths <p>    Comma-separated list of allowed directories
+  -encrypt <file>        Encrypt a file
+  -decrypt <file>        Decrypt a file
+  -p, --password <pass>  Password for encryption/decryption
   --version              Show version
   --help, -h             Show this help
 
@@ -32,6 +35,9 @@ function parseArgs(args) {
     eval: null,
     helpQuery: null,
     helpFile: null,
+    encryptFile: null,
+    decryptFile: null,
+    password: null,
     sesiOptions: {
       safeMode: true,
       allowedPaths: [process.cwd()]
@@ -61,6 +67,12 @@ function parseArgs(args) {
       break;
     } else if (arg === '-e' || arg === '--eval') {
       options.eval = args[++i];
+    } else if (arg === '-encrypt' || arg === '--encrypt') {
+      options.encryptFile = args[++i];
+    } else if (arg === '-decrypt' || arg === '--decrypt') {
+      options.decryptFile = args[++i];
+    } else if (arg === '-p' || arg === '--password') {
+      options.password = args[++i];
     } else if (arg === '--local') {
       options.sesiOptions.safeMode = false;
       options.sesiOptions.allowLocalFs = true;
@@ -78,9 +90,53 @@ function parseArgs(args) {
 const parsed = parseArgs(args);
 
 async function main() {
-  if (!parsed.file && !parsed.eval && !parsed.helpQuery) {
+  if (!parsed.file && !parsed.eval && !parsed.helpQuery && !parsed.encryptFile && !parsed.decryptFile) {
     console.log(argsHeader);
     process.exit(0);
+  }
+
+  if (parsed.encryptFile || parsed.decryptFile) {
+    if (!parsed.password) {
+      console.error('Error: Password is required for encryption/decryption. Use -p <password>.');
+      process.exit(1);
+    }
+    const crypto = require('crypto');
+    const targetFile = parsed.encryptFile || parsed.decryptFile;
+    const isEncrypt = !!parsed.encryptFile;
+    
+    if (!fs.existsSync(targetFile)) {
+      console.error(`Error: File not found: ${targetFile}`);
+      process.exit(1);
+    }
+    
+    const content = fs.readFileSync(targetFile, 'utf-8');
+    try {
+      const algorithm = 'aes-256-cbc';
+      const key = crypto.createHash('sha256').update(String(parsed.password)).digest();
+      
+      if (isEncrypt) {
+        const iv = crypto.randomBytes(16);
+        const cipher = crypto.createCipheriv(algorithm, key, iv);
+        let encrypted = cipher.update(content, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+        const finalOutput = iv.toString('hex') + ':' + encrypted;
+        fs.writeFileSync(targetFile, finalOutput, 'utf-8');
+        console.log(`Successfully encrypted ${targetFile}`);
+      } else {
+        const parts = content.split(':');
+        if (parts.length !== 2) throw new Error('Invalid encrypted format');
+        const iv = Buffer.from(parts[0], 'hex');
+        const decipher = crypto.createDecipheriv(algorithm, key, iv);
+        let decrypted = decipher.update(parts[1], 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        fs.writeFileSync(targetFile, decrypted, 'utf-8');
+        console.log(`Successfully decrypted ${targetFile}`);
+      }
+    } catch (e) {
+      console.error(`Error during ${isEncrypt ? 'encryption' : 'decryption'}:`, e.message);
+      process.exit(1);
+    }
+    return;
   }
 
   if (parsed.helpQuery) {

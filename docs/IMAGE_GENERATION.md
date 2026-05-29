@@ -1,17 +1,17 @@
 # Image Generation in Sesi
 
-Sesi provides a native, language-level primitive for generating images using AI models. This primitive is designed to interoperate seamlessly with Sesi's file system builtins, allowing you to generate and persist images with minimal boilerplate.
+Sesi provides a native, language-level primitive for image generation and manipulation, including image-to-image tasks like style transfer, upscaling, and editing. This primitive is designed to interoperate seamlessly with Sesi's file system builtins, allowing you to generate and persist images with minimal boilerplate.
 
 ## The `image` Primitive
 
-To generate an image, use the `image` keyword followed by the model name, an optional configuration block, and a prompt block.
+To generate or manipulate an image, use the `image` keyword followed by the model name, an optional configuration block, and a prompt block.
 
 ### Syntax
 
 The syntax parallels standard `model` calls:
 
 ```
-image("model-name") {"configKey": "configValue"} {"Prompt text"}
+image("model-name") {configKey: "configValue"} {"Prompt text"}
 ```
 
 ### Basic Example
@@ -23,7 +23,7 @@ Here is a simple example demonstrating how to generate a single image and save i
 prompt request {"A simple minimalist company logo for a bakery"}
 
 // 2. Call the image generation primitive
-let imageData = image("gemini-3.1-flash-image-preview") {"ratio": "1:1", "size": "1K"} {request}
+let imageData = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "1K"} {request}
 
 // 3. Write the payload to disk
 try 
@@ -52,7 +52,7 @@ for product in products
 prompt request {"A clean studio presentation photograph of a " product " on a solid white background."}
 prompt filename { outputDir product ".png" }
 try 
-{let imageData = image("gemini-3.1-flash-image-preview") {"ratio": '1:1', "size": "1K"} {request}
+{let imageData = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "1K"} {request}
 
 // Attempt local file write
 let success = write_image(filename, imageData)
@@ -69,9 +69,9 @@ print "Asset generation complete."
 
 When configuring the `image` call (specifically for models like `gemini-3.1-flash-image-preview`), the configuration block maps directly to backend SDK capabilities:
 
-- `"ratio"`: The aspect ratio of the image (e.g., `"1:1"`, `"16:9"`, `"9:16"`).
-- `"size"`: Dimensional sizing constraints (Must be `"512"`, `"1K"`, `"2K"`, or `"4K"`).
-- `"temperature"`: *Will be deprecated in Gemini 3.x+, use thinkingLevel instead.* — controls variance.
+- `ratio`: The aspect ratio of the image (e.g., `"1:1"`, `"16:9"`, `"9:16"`).
+- `size`: Dimensional sizing constraints (Must be `"512"`, `"1K"`, `"2K"`, or `"4K"`).
+- `temperature`: *Will be deprecated in Gemini 3.x+, use thinkingLevel instead.* — controls variance.
 
 ## File I/O Integration: `write_image`
 
@@ -139,11 +139,10 @@ print "Render saved."
 let dir = "frames/"
 let files = list_dir(dir)
 
-for f in files {
-  prompt p {dir f}
-  let desc = model("gemini-3.1-flash-lite") {images: p} {"Describe this frame in one sentence."}
-  print f desc
-}
+for f in files 
+{prompt p {dir f}
+let desc = model("gemini-3.1-flash-lite") {images: p} {"Describe this frame in one sentence."}
+print f desc}
 ```
 
 ### Config Reference
@@ -154,4 +153,4 @@ When used inside `model()` or `image()` config blocks, `images` is resolved at r
 |-----|---------------|-------|
 | `images` | `string` or `array<string>` | One or more local file paths. Resolved relative to `process.cwd()`. |
 
-> **Note:** Multimodal input requires a vision-capable model (e.g. `gemini-3-flash-preview`, `gemini-3.1-flash-lite`, `gemini-3.1-pro-preview`). Image-generation models that accept reference images are listed in their respective model documentation.
+> **Note:** Multimodal input requires a vision-capable model (e.g. `gemini-3-flash-preview`, `gemini-3.1-flash-lite`, `gemini-3.1-pro-preview`, `gemini-3.5-flash`). Image-generation models that accept reference images are listed in their respective model documentation.

@@ -176,7 +176,7 @@ prompt greeting {"Hello, " name "!"}
 **Reasoning Calls**
 
 ```sesi
-let response = model("gemini-3-flash-preview") {"temperature": 0.7, "max_tokens": 1000} {"Your prompt here"}
+let response = model("gemini-3-flash-preview") {temperature: 0.7, max_tokens: 1000} {"Your prompt here"}
 ```
 
 **Web Search Grounding**
@@ -194,7 +194,7 @@ let result = structured_output({field1: string, field2: number})(model("gemini-3
 **Image Generation**
 
 ```sesi
-let logo = image("gemini-3.1-flash-image-preview") {"ratio": '1:1', "size": 512} {"Your prompt here"}
+let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512"} {"Your prompt here"}
 write_image("logo.png", logo)
 ```
 
@@ -240,6 +240,7 @@ print("Reasoning Response:", response)
 - `write_image(path, content)` - Write base64 image data to file
 - `from_json(path)` - Read a JSON file
 - `list_dir(path)` - List directory contents
+- `make_dir(path)` - Create a new directory
 - `spawn(path)` - Launch concurrent background process
 - `exec(command)` - Synchronous shell execution
 - `time()` - Unix timestamp (ms)
@@ -273,15 +274,31 @@ print("Reasoning Response:", response)
 
 - `multi_req(fns)` - Concurrently execute multiple closures/functions
 
+### Reasoning
+
+- `workflow(steps, input)` - Run a multi-step reasoning workflow
+- `set_alias(alias, model)` - Register a custom local name for a model
+- `define_tool(name, fn, description)` - Register a custom tool
+- `list_tools()` - List custom tool names
+
+### Error Handling
+
+- `error_type(type, message, data)` - Create a custom error object
+- `raise_error(type_or_error, message, data)` - Throw an error
+
+### Math
+
+- `exp(x)` - Exponential function
+
 ## 📊 Implementation Statistics
 
 | Metric              | Value  |
 | ------------------- | ------ |
 | Total lines of code | ~3,000 |
 | Source files        | 7      |
-| Documentation pages | 5      |
-| Example programs    | 15     |
-| Built-in functions  | 23     |
+| Documentation pages | 12     |
+| Example programs    | 22     |
+| Built-in functions  | 34     |
 | Supported operators | 20+    |
 | AST node types      | 30+    |
 | Token types         | 50+    |
@@ -476,7 +493,7 @@ npm test
 
 **Example Coverage**
 
-- 15 complete example programs
+- 22 complete example programs
 - Covers all major language features
 - Demonstrates reasoning integration
 - Real-world use cases
@@ -488,7 +505,7 @@ npm test
 - **Simplicity**: Easy to understand, modify, extend
 - **Debugging**: Can print AST and execution steps
 - **Iteration**: No compilation overhead, fast development
-- **Good enough**: Performance is adequate for v1
+- **Good enough**: Performance is adequate for v1+
 
 ### Why recursive descent parser?
 
@@ -505,26 +522,32 @@ npm test
 - **Cost**: Competitive pricing
 - **Availability**: Easy to use via official SDK
 
-### Why does v1.2+ support a module system?
+### Why does v1+ support a module system?
 
-- **Organization**: As Sesi programs grew, having a single-file system became limiting. Local module imports/exports and standard libraries (`std/math`, `std/time`, `std/json`) are natively supported in v1.2+.
+- **Organization**: As Sesi programs grew, having a single-file system became limiting. Local module imports/exports and standard libraries (`std/math`, `std/time`, `std/json`) are natively supported in v1.x.
 
-### Why does v1.2+ support parallel execution?
+### Why does v1+ support parallel execution?
 
 - **Concurrency**: While the interpreter remains tree-walking and single-threaded for simplicity, native concurrency is supported via the parallel request executor `multi_req(array<function>)`, executing asynchronous operations physically in parallel.
 
 ## 📖 Learning Path
 
 1. **Start**: [QUICKSTART.md](QUICKSTART.md) - Get running in 5 minutes
-2. **Basics**: examples/01-06 - Core language features
-3. **Prompts**: examples/07 - Prompt blocks
-4. **Reasoning**: examples/08-12 - Reasoning feature exploration
-5. **Specification**: [SPECIFICATION.md](docs/SPECIFICATION.md) - Complete grammar
+2. **Builtins**: [BUILTINS.md](docs/BUILTINS.md) - Built-in functions
+3. **Basics**: examples/01-06 - Core language features
+4. **Prompts**: examples/07 - Prompt blocks
+5. **Reasoning**: examples/08-12 - Reasoning feature exploration
 6. **Advanced**: [REASONING.md](docs/REASONING.md) - Patterns and best practices
-7. **Builtins**: [BUILTINS.md](docs/BUILTINS.md) - Built-in functions
-8. **Image Generation**: [IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md) examples/15 - Generating images natively
-9. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
-10. **Roadmap**: [ROADMAP.md](docs/ROADMAP.md) - Future vision
+7. **Systems**: examples/13-14 - Systems reasoning and data pipelines
+8. **Modules**: examples/16 - Modules & std library namespaces
+9. **Image Generation**: [IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md) examples/15 - Generating images natively
+10. **Concurrency**: examples/17-18 - Concurrency & coordination
+11. **Web Search**: examples/19 - Web search integration
+12. **Model Aliases**: examples/20 - Custom model naming aliases
+13. **Custom Tools**: examples/21-22 - Custom runtime tool definitions and compose reasoning with custom tools
+14. **Specification**: [SPECIFICATION.md](docs/SPECIFICATION.md) - Complete grammar
+15. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
+16. **Roadmap**: [ROADMAP.md](docs/ROADMAP.md) - Future vision
 
 ## 🤝 Contributing Path
 
@@ -543,7 +566,7 @@ npm test
 - ✅ API reference (450+ lines)
 - ✅ Systems reasoning guide (500+ lines)
 - ✅ Development roadmap (400+ lines)
-- ✅ 15+ example programs
+- ✅ 20+ example programs
 - ✅ CLI executable
 - ✅ Test suite
 - ✅ Quick start guide

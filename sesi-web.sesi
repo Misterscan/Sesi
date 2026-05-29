@@ -1,4 +1,4 @@
-import { sleep } from "std/time"
+import {sleep} from "std/time"
 fn is_windows() -> bool {
   try {
     exec("ver")

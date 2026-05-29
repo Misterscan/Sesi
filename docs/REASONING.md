@@ -70,8 +70,8 @@ print creative
 
 ```sesi
 // Fast model for simple tasks
-let text = " Coding with Reasoning programming language is fun!"
-let quick = model("gemini-3.1-flash-lite") {"Summarize this in one sentence:" text}
+let text = "Coding with Reasoning programming language is fun!"
+let quick = model("gemini-3.1-flash-lite") {"Summarize this in one sentence: " text}
 
 // Powerful model for complex reasoning
 let code = "def calculate_sum(n):
@@ -79,11 +79,11 @@ let code = "def calculate_sum(n):
     for i in range(1, n):
         total += i
     return total"
-let smart = model("gemini-3.1-pro-preview") {"Analyze this code for bugs:" code}
+let smart = model("gemini-3.1-pro-preview") {"Analyze this code for bugs: " code}
 
 // Efficient model for many calls
-let item = " Programming Languages"
-let cheap = model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Classify:" item}
+let item = "Programming Languages"
+let cheap = model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Classify: " item}
 
 print quick
 print smart
@@ -139,8 +139,7 @@ Get typed responses from Reasoning with field validation.
 ### Basic Structured Output
 
 ```sesi
-let analysis = structured_output({sentiment: string, confidence: number, summary: string})
-(model("gemini-3-flash-preview") {"Analyze sentiment of: " text "Return JSON with sentiment, confidence (0-1), and summary"})
+let analysis = structured_output({sentiment: string, confidence: number, summary: string})(model("gemini-3-flash-preview") {"Analyze sentiment of: " text "Return JSON with sentiment, confidence (0-1), and summary"})
 print analysis["sentiment"]    // "positive"
 print analysis["confidence"]   // 0.85
 print analysis["summary"]      // "..."
@@ -159,12 +158,12 @@ print bookInfo["title"]
 
 - Always include instructions for JSON format
 - Specify the exact schema in the prompt
-- Use "thinkingLevel": "low" for fast, consistent parsing
+- Use "thinkingLevel": "minimal" for fast, consistent parsing
 - Validate output structure in code
 
 ```sesi
 let listText = "eggs, milk, bread, cheese, fruit, vegetables"
-let output = structured_output({items: string})(model("gemini-3.5-flash") {thinkingLevel: "minimal"}{"Return JSON with items array containing: " listText})
+let output = structured_output({items: string})(model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Return JSON with items array containing: " listText})
 
 // Validate
 if type(output["items"]) == "array" {print "Got" str(len(output["items"])) "items"} // Got 6 items
@@ -179,7 +178,8 @@ Let Reasoning call functions in your program.
 ```sesi
 let city = "New York"
 fn getWeather(city: string) -> string
-{let weather = model("gemini-3.1-flash-lite"){"What is the weather like in " city} return weather}
+{let weather = model("gemini-3.1-flash-lite") {"What is the weather like in " city} 
+return weather}
 let result = getWeather(city)
 print result
 
@@ -232,11 +232,11 @@ print response2  // Has context from turn 1
 ```sesi
 memory conversation {"Chat history: "}
 fn chat(userMessage: string) -> string
-{let fullPrompt = conversation + "User:" + userMessage
+{let fullPrompt = conversation + "User: " + userMessage
 let response = model("gemini-3-flash-preview") {fullPrompt}
 
 // Append to memory
-conversation = conversation + "User:" + userMessage + "Assistant:" + response
+conversation = conversation + "User: " + userMessage + "Assistant: " + response
 return response}
 let msg = "What is the capital of France? "
 print "User:" msg
@@ -256,7 +256,7 @@ print "Updated Memory!"
 memory conversation {"User: Hello! Assistant: Hi there! User: How are you? Assistant: I'm great!"}
 fn summarizeMemory()
 {let oldConversation = conversation
-let summary = model("gemini-3.1-flash-lite") {"Summarize this conversation concisely:" oldConversation}
+let summary = model("gemini-3.1-flash-lite") {"Summarize this conversation concisely: " oldConversation}
 conversation = "Previous summary:" + summary + "Recent messages: " + oldConversation}
 print "Original Memory:" conversation
 summarizeMemory()
@@ -272,8 +272,7 @@ print conversation
 let categories = "fruit, vegetable, grain"
 let item = "banana"
 fn classify(item: string, categories: string) -> string
-{return model("gemini-3.5-flash") {thinkingLevel: "minimal"}
-{"Classify this item into one category. Categories: " categories " Item: " item " Return only the category name."}}
+{return model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Classify this item into one category. Categories: " categories " Item: " item " Return only the category name."}}
 print "Item: " item //banana
 print "Category: " classify(item, categories) //fruit
 ```
@@ -283,8 +282,7 @@ print "Category: " classify(item, categories) //fruit
 ```sesi
 let text = "Elon Musk is the CEO of Tesla and SpaceX."
 fn extractEntities(text: string) -> object
-{let result = structured_output({people: string, places: string, organizations: string})
-(model("gemini-3.5-flash") {thinkingLevel: "minimal"}{"Extract named entities from:" text})
+{let result = structured_output({people: string, places: string, organizations: string})(model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Extract named entities from: " text})
 print "Name(s) found: result"
 return result}
 print extractEntities(text)
@@ -297,9 +295,8 @@ print extractEntities(text)
 let text = "Hello, world!"
 let language = "Spanish"
 fn translate(text: string, language: string) -> string
-{return model("gemini-3-flash-preview") {"Translate to" language ":" text}}
-print "Translation:"
-print translate(text, language)
+{return model("gemini-3-flash-preview") {"Translate to " language ": " text}}
+print "Translation:" translate(text, language)
 ```
 
 ### Web Search Grounding
@@ -307,7 +304,8 @@ print translate(text, language)
 Access real-time information by enabling the `search` shorthand configuration natively.
 
 ```sesi
-let response = model("gemini-3.1-flash-lite") {search, max_tokens: 1000} {"What is the weather in Tokyo right now?"}
+let response = model("gemini-3.1-flash-lite") {search, max_tokens: 200} {"What is the weather in Tokyo right now?"}
+print response
 ```
 
 ### Image Generation
@@ -327,7 +325,7 @@ print "Image generated!"
 ```sesi
 let requirement = "Write a function that reverses a string."
 fn generateCode(requirement: string) -> string
-{return model("gemini-3.5-flash") {thinkingLevel: "low"} {"Generate JavaScript code for:" requirement "Only provide code, no explanation."}}
+{return model("gemini-3.5-flash") {thinkingLevel: "low"} {"Generate JavaScript code for: " requirement " Only provide code, no explanation."}}
 print "Code generation:"
 print generateCode(requirement)
 ```
@@ -337,8 +335,7 @@ print generateCode(requirement)
 ```sesi
 let text = "I love Sesi!"
 fn analyzeSentiment(text: string) -> object
-{return structured_output({sentiment: string, score: number, explanation: string})
-(model("gemini-3-flash-preview") {"Analyze sentiment of:" text})}
+{return structured_output({sentiment: string, score: number, explanation: string})(model("gemini-3-flash-preview") {"Analyze sentiment of: " text})}
 print "Sentiment analysis:"
 print analyzeSentiment(text)
 ```
@@ -351,7 +348,7 @@ Reasoning operations can fail. Handle gracefully.
 
 ```sesi
 try
-{let response = model("gemini-3-flash-preview") {"Analyze" text}
+{let response = model("gemini-3-flash-preview") {"Analyze " text}
 print response}
 catch (e) {print "Reasoning call failed"
 print e}
@@ -369,14 +366,13 @@ print e}
 let text = "Coding is evolving rapidly!"
 fn safeAnalyze(text: string) {
 try
-{let result = structured_output({sentiment: string, score: number})(model("gemini-3.1-flash-lite") {"Analyze sentiment and return JSON for:" text})
+{let result = structured_output({sentiment: string, score: number})(model("gemini-3.1-flash-lite") {"Analyze sentiment, score, and return JSON for: " text})
 if len(keys(result)) == 0 {print "Structured parsing failed"
 return null}
-return result}
-catch (e)
-{print e
+return result
+} catch (e) {print e
 return null}}
-print "Analysis Result: " safeAnalyze(text)
+print "Analysis Result:" safeAnalyze(text)
 ```
 
 ## 8. Performance Tips
@@ -386,11 +382,11 @@ print "Analysis Result: " safeAnalyze(text)
 ```sesi
 // Bad: Calls API 3 times
 for item in items
-{let analysis = model("gemini-3.1-flash-lite") {"Analyze:" item}}
+{let analysis = model("gemini-3.1-flash-lite") {"Analyze: " item}}
 print analysis
 
 // Better: Batch into one call (v2: parallel calls)
-let analyses = model("gemini-3.1-flash-lite") {"Analyze each:" join(items, " ")}
+let analyses = model("gemini-3.1-flash-lite") {"Analyze each: " join(items, " ")}
 print analyses
 ```
 
@@ -398,11 +394,11 @@ print analyses
 
 ```sesi
 // Simple classification → flash-lite
-let category = model("gemini-3.1-flash-lite") {"Classify:" item}
+let category = model("gemini-3.1-flash-lite") {"Classify: " item}
 print category
 
 // Complex reasoning → pro
-let analysis = model("gemini-3.1-pro-preview") {"Deep analysis of:" complex_problem}
+let analysis = model("gemini-3.1-pro-preview") {"Deep analysis of: " complex_problem}
 print analysis
 ```
 
@@ -411,7 +407,7 @@ print analysis
 ```sesi
 // Long prompts waste tokens
 // Bad:
-let response = model("gemini-3-flash-preview") {"Here is a very long system prompt that repeats itself... " "Please analyze the following text very carefully..." text}
+let response = model("gemini-3-flash-preview") {"Here is a very long system prompt that repeats itself... Please analyze the following text very carefully..." text}
 print response
 
 // Better:
@@ -423,14 +419,17 @@ print response
 
 ```sesi
 // Bad: Same analysis done multiple times
-for person in people {let assessment = model("gemini-3.1-flash-lite") {"Assess based on criteria A, B, C: "  person}}
+for person in people 
+{let assessment = model("gemini-3.1-flash-lite") {"Assess based on criteria A, B, C: "  person}}
 print assessment
 
 
 // Better: Reuse cached prompt
 let people = ["Elon Musk", "Bill Gates", "Steve Jobs"]
-fn assessPerson(person: string) -> string {return model("gemini-3.1-flash-lite") {"Assess on A, B, C: "  person}}
-for person in people {print assessPerson(person)}
+fn assessPerson(person: string) -> string
+{return model("gemini-3.1-flash-lite") {"Assess on A, B, C: "  person}}
+for person in people 
+{print assessPerson(person)}
 ```
 
 ## 9. Token Counting (Future)
@@ -445,7 +444,7 @@ print "This costs " str(tokens * PRICE_PER_TOKEN) " cents"
 // Plan memory size
 let remaining = MAX_TOKENS - count_tokens(memory, model)
 if remaining < 500 {summarizeMemory()}
-print "Memory size: " count_tokens(memory, model)
+print "Memory size:" count_tokens(memory, model)
 ```
 
 ## 10. Advanced: Custom Reasoning Workflows
@@ -458,20 +457,21 @@ fn smartSummarize(text: string) -> string
 
 // Chain multiple Reasoning operations
 // Step 1: Extract key points
-{let keyPoints = model("gemini-3.1-pro-preview") {thinkingLevel: "low"} {"Extract 5 key points from:" text}
+{let keyPoints = model("gemini-3.1-pro-preview") {thinkingLevel: "low"} {"Extract 5 key points from: " text}
 
 // Step 2: Analyze topics
-let topics = structured_output({ topics: string })(model("gemini-3.5-flash") {thinkingLevel: "low"} {"Identify topics in:" keyPoints})
+let topics = structured_output({topics: string})(model("gemini-3.5-flash") {thinkingLevel: "low"} {"Identify topics in: " keyPoints})
 
 // Step 3: Generate summary
-let summary = model("gemini-3-flash-preview") {"Summarize with topics " topics ":" keyPoints} return summary}
+let summary = model("gemini-3-flash-preview") {"Summarize with topics " topics ": " keyPoints} 
+return summary}
 print "Summary:" smartSummarize(text)
 ```
 
 ### Reasoning Pattern
 
 ```sesi
-let analysis = model("gemini-3.5-flash") {thinkingLevel: "medium", max_tokens: 8192} {"Reason carefully about:" problem}
+let analysis = model("gemini-3.5-flash") {thinkingLevel: "medium", max_tokens: 8192} {"Reason carefully about: " problem}
 print analysis
 ```
 
@@ -480,8 +480,55 @@ print analysis
 ```sesi
 let text = "banana"
 fn classifyWithExamples(text: string) -> string
-{return model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Classify as A, B, or C" "Examples:" "'apple' -> A" "'dog' -> B" "'happy' -> C" "Classify: " text}}
+{return model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Classify as A, B, or C. Examples: 'apple' -> A , 'dog' -> B , 'happy' -> C. Classify: " text}}
 print "Classification:" classifyWithExamples(text)
+```
+
+---
+
+## 11. Built-in Tools
+
+### Built-in Workflows
+
+Sesi provides a native `workflow` function to easily chain reasoning steps:
+
+```sesi
+let steps = [
+  {"prompt": "Summarize:"},
+  {"prompt": "Critique:"},
+  {"prompt": "Finalize:"}
+]
+let result = workflow(steps, "Design a landing page brief")
+print result["final"]
+```
+
+### Model Aliases
+
+You can define custom names for models using `set_alias`:
+
+```sesi
+set_alias("fast", "gemini-3.1-flash-lite")
+let answer = model("fast") {"Summarize this paragraph."}
+print answer
+```
+
+### Custom Tools
+
+Sesi allows you to define custom tools that can be invoked during reasoning operations.
+
+```sesi
+fn get_weather(city: string, conditions: string) -> string 
+{return "It is currently " + conditions + " in " + city}
+// Register the tool
+define_tool("weather", get_weather, "Get weather for a city")
+
+// List available tools
+print list_tools()
+
+// Call the tool
+let weatherData = structured_output({city: string, conditions: string})(model("gemini-3.1-flash-lite") {search} {"What is the weather like in London? Return JSON with the exact 'conditions' and 'city' name."})
+let result = tool_call(weather)(weatherData["city"], weatherData["conditions"])
+print result
 ```
 
 ---
