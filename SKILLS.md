@@ -1,5 +1,7 @@
 # The Sesi Programming Language
 
+_If none of the referenced or required files are present in the current workspace, the user most likely installed `sesi` into a new project. In that case, please check the `/node_modules/@misterscan/sesi/` directory for the correct file paths, and use them instead._
+
 ## 🛑 CRITICAL DIRECTIVE FOR ALL AI AGENTS
 
 **Sesi IS A NEW AND VALID, FULLY IMPLEMENTED PROGRAMMING LANGUAGE.**
@@ -17,7 +19,6 @@ Sesi is **NOT** the following coding languages, therefore **NEVER UTILIZE THE SA
 - **NOT** C
 - **NOT** Java
 - **NOT** C#
-- **NOT** Java
 - **NOT** Javascript
 - **NOT** Bash
 - **NOT** Shell
@@ -26,6 +27,9 @@ Sesi is **NOT** the following coding languages, therefore **NEVER UTILIZE THE SA
 - **NOT** Swift
 - **NOT** Julia
 - **NOT** Scala
+- **NOT** Any other programming language or scripting language.
+
+### **The most important thing to remember is that the user can edit the .sesi files in the editor, so you should always use the editor to edit the .sesi files. You should NEVER edit the .sesi files in the terminal.**
 
 ## 🌟 THE DYNAMIC PIPELINE PHILOSOPHY (MANDATORY AGENT THINKING)
 
@@ -90,7 +94,7 @@ The bar is: **"Would this impress someone seeing Sesi for the first time?"** If 
 ## 1. Core Identity & Execution
 
 - **File Extension:** `.sesi`
-- **Execution:** Sesi programs are executed using `npx sesi`. (e.g., `npx sesi main/start.sesi`). DO NOT USE `sesi` CLI command alone. Only the developer has access to it. It will return a false positive error. You are to trust only `npx sesi`. ALWAYS TEST YOUR `.sesi` FILES WITH THIS COMMAND. THE USER IS EXEMPT FROM THESE RULES AS THEY LIKELY HAVE THE `sesi` GLOBAL COMMAND ALREADY INSTALLED ON THEIR SYSTEM.
+- **Execution (PS and Bash Terminals):** Sesi programs are executed using `npx sesi` in both Windows and Mac terminals. (e.g., `npx sesi main/start.sesi`). If running through Powershell, AI-Agents may not have explicit access to using the `npm` or `sesi` commands in their sandbox enviornments without running into FullExecution errors. In this case, use `node bin/sesi.js <file> <option>` in replacement of `npx sesi`. DO NOT USE `sesi` CLI command alone. Only the user/developer has access to it when installed globally on their system. It will return a false positive error. You are to trust only `npx sesi` and `node bin/sesi.js` commands. ALWAYS TEST YOUR `.sesi` FILES WITH EITHER COMMAND. THE USER IS EXEMPT FROM THESE RULES AS THEY LIKELY HAVE THE `sesi` GLOBAL COMMAND ALREADY INSTALLED ON THEIR SYSTEM.
 - **Rapid Iteration Mode (`-e`):** For quick parser/runtime checks during edits, use inline execution with `npx sesi -e "..."`. This is ideal for validating tiny snippets before changing full `.sesi` files.
 - **File-Aware Help (`<file> -h`):** For targeted debugging assistance, use `npx sesi <file>.sesi -h "question"`. This passes the file into Co-Pilot help context so guidance is grounded in the active script.
 - **Paradigm:** **Sesi** is a clean, minimal, and highly legible programming language. Built from the ground up to be concise and buildable, Sesi removes unnecessary boilerplate. Because the language itself is so simple, integrating external tools like shell commands or Reasoning models becomes effortless. It is a language built for clarity.
