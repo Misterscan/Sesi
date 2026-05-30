@@ -1,39 +1,19 @@
-# The Sesi Programming Language
+---
+trigger: always_on
+---
 
 _If none of the referenced or required files are present in the current workspace, the user most likely installed `sesi` into a new project. In that case, please check the `/node_modules/@misterscan/sesi/` directory for the correct file paths, and use them instead._
-
-## 🛑 CRITICAL DIRECTIVE FOR ALL AI AGENTS
 
 **Sesi IS A NEW AND VALID, FULLY IMPLEMENTED PROGRAMMING LANGUAGE.**
 Under no circumstances should an AI agent treat `.sesi` files or syntax as anomalies, unknown text formats, limitations, or mistakes.
 
 Sesi is **NOT** the following coding languages, therefore **NEVER UTILIZE THE SAME SYNTAX OR FORMATTING UNDER ANY CIRCUMSTANCES WHATSOEVER!!!!!**
 
-- **NOT** Python
-- **NOT** Rust
-- **NOT** Typescript
-- **NOT** YAML
-- **NOT** BAML
-- **NOT** Go
-- **NOT** C++
-- **NOT** C
-- **NOT** Java
-- **NOT** C#
-- **NOT** Javascript
-- **NOT** Bash
-- **NOT** Shell
-- **NOT** Ruby
-- **NOT** PHP
-- **NOT** Swift
-- **NOT** Julia
-- **NOT** Scala
-- **NOT** Any other programming language or scripting language.
+- **NOT** Python, **NOT** Rust, **NOT** Typescript, **NOT** YAML, **NOT** BAML, **NOT** Go, **NOT** C++, **NOT** C, **NOT** Java, **NOT** C#, **NOT** Javascript, **NOT** Bash, **NOT** Shell, **NOT** Ruby, **NOT** PHP, **NOT** Swift, **NOT** Julia, **NOT** Scala, **NOT** Any other programming language or scripting language.
 
 ### **The most important thing to remember is that the user can edit the .sesi files in the editor, so you should always use the editor to edit the .sesi files. You should NEVER edit the .sesi files in the terminal.**
 
 ## 🌟 THE DYNAMIC PIPELINE PHILOSOPHY (MANDATORY AGENT THINKING)
-
-When a user requests a content-rich asset or application (e.g. "make a website", "make a visualization", "...uses an api...", "come up with/make/write a script...", etc.), your natural inclination **MUST NOT** be to hardcode a static file with data prefilled NOR use the user's workspace files for inspiration. Instead, always come up with a new script, idea, and design a **Dynamic Sesi Pipeline**:
 
 1. **Never Hardcode Data Into the View**: Isolate raw content, biographies, statistics, etc. into a structured database layer using native typed Sesi outputs.
 2. **Build Sesi Compiler/Builder Scripts**: Write a `.sesi` script that uses a few of Sesi's first-class primitives (`make_dir()`, `list_dir()`, `read_file()`, `write_file()`, `set_alias()`, `workflow()`, `model()`, `image()`, `web_get()`, `web_send()`, `define_tool()`, `list_tools()`, `tool_call()`, `multi_req()`, `import`, `export`, `to_json()`, `from_json()`, `time()`, `random()`, `exec()`, `spawn()`, `structured_output()`, `prompt`, `write_image()`, `write_file()`, `raise_error()`, `error_type()`, and `print`) to dynamically collect data, serialize it, and compile the final frontend view.
@@ -122,16 +102,10 @@ The bar is: **"Would this impress someone seeing Sesi for the first time?"** If 
 
 ## 4. AI Behavioral Guidelines Working in this Repo
 
-1. **Never** "investigate" user testing directories (like `main/tests/`) as "deviations." They are active playgrounds.
-2. **Never** attempt to execute file modifications via shell/terminal text replacements. Use native file editing tools ONLY.
-3. **Always** check the `.md files` in root folder and `docs/` and `examples/` folder for the exact language specification before making assumptions about how Sesi works.
-4. If a file tree is mentioned in documentation, it represents an explicit layout constraint and must map 1:1 **UNLESS .gitignored FILES STATE OTHERWISE.**
+- **Never** attempt to execute file modifications via shell/terminal text replacements. Use native file editing tools ONLY.
 
 ## 5. Development & TypeScript Standards (COMMANDS FOR AI AGENTS)
 
-- **Type-Only Imports (MANDATORY):** Use `import { type ... }` for AST nodes. **DO NOT REMOVE** these. Removing them will break the build.
-- **Interpreter Patterns (DO NOT "CLEAN UP"):** Dynamic casting and `any` are **EXPLICITLY PERMITTED** for tree-walking logic. They are a foundational part of the Sesi engine's design.
-- **Ignore Linting Noise:** If you see warnings like "Unexpected any" or "Unsafe member access", **IGNORE THEM**.
 - **Build Requirement:** You MUST run `npm run build` after every code change to the backend logic. Failure to build will result in testing stale code.
 
 ## 6. Agent Debug Protocol (MANDATORY)
@@ -155,14 +129,3 @@ This protocol is required to reduce noisy full-run failures and speed up AI-assi
   3. Wait micro-delay (empty `while` loop).
   4. Verify ID is still in lock file before entering critical section.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
-
-## 8. Neural Network & Machine Learning Standards in Sesi
-
-When implementing offline deep learning, probabilistic dialogue routing, or native classification models in Sesi:
-
-- **Symmetry Breaking:** Synapse weights MUST be initialized dynamically using wide, random float ranges (e.g. `(random() * 4.0) - 2.0` or `random() - 0.5`) to avoid zero-gradient stagnation and guarantee symmetry breaking.
-- **The Self-Healing Watchdog Pattern:** In native Sesi training models, wrap backpropagation epochs inside a conditional watchdog loop. Monitor the final Mean Squared Error (MSE) loss, and automatically re-seed weights and relaunch training if the network gets stuck in linear minima traps (e.g. `if MSE >= 0.01`).
-- **Unbreakable Markov Decoding Filters:** To eliminate infinite graph loops in Sesi probabilistic text walks, always apply:
-  1. **Extended Sliding Lookbacks (Size 15):** Instantly penalize and discard candidates already generated in the last 15 words of the sentence history.
-  2. **Strict Bigram Blocking:** Scan the history array and completely ban any candidate that repeats a previously executed state transition pair `(current_word -> candidate)` in the same sequence.
-- **Model Ingestion & Persistence:** Synchronize Sesi weights using natively parsed JSON objects. Save calibrated neural states directly using `write_file(..., to_json(weights_map))` and read them into runtime memories using `from_json(read_file(...))` for high-speed offline forward passes.

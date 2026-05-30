@@ -1,0 +1,315 @@
+// main/train_neural_network.sesi
+// Zero-Dependency Local Machine Learning Trainer for Sesi's Native Synapses.
+// Trains a multi-class feedforward classification network on our indexed documentation database.
+// Saves trained weights and biases to disk for sub-millisecond offline inference!
+
+import {parse} from "std/json"
+
+print "=================================================="
+print "🧠    SESI NATIVE NEURAL NETWORK TRAINER         "
+print "=================================================="
+
+// Sigmoid math activation
+fn activate(x) {
+  return 1.0 / (1.0 + exp(0.0 - x))
+}
+
+// Sigmoid derivative for backpropagation
+fn derivative(y) {
+  return y * (1.0 - y)
+}
+
+// Robust 68-Dimensional Bag-of-Words Vocabulary Vectorizer
+// Tracks only official Sesi language keywords, compiler builtins, and native standard library exports.
+// Parses code stream dynamically and strips all syntax boundaries.
+fn vectorize(text) {
+  let vec = []
+  let k = 0
+  while k < 68 {
+    push(vec, 0.0)
+    k = k + 1
+  }
+  
+  let raw_words = split(text, " ")
+  let words = []
+  
+  let w = 0
+  let num_raw = len(raw_words)
+  while w < num_raw {
+    let word = raw_words[w]
+    let parts_nl = split(word, "\n")
+    let p = 0
+    while p < len(parts_nl) {
+      let sub_word1 = parts_nl[p]
+      let parts_t = split(sub_word1, "\t")
+      let t = 0
+      while t < len(parts_t) {
+        let sub_word2 = parts_t[t]
+        let chars = split(sub_word2, "")
+        let clean_tok = ""
+        let c = 0
+        while c < len(chars) {
+          let char = chars[c]
+          if char != "(" {
+            if char != ")" {
+              if char != "{" {
+                if char != "}" {
+                  if char != "[" {
+                    if char != "]" {
+                      if char != ";" {
+                        if char != "," {
+                          if char != "\r" {
+                            if char != "\"" {
+                              if char != "'" {
+                                clean_tok = clean_tok + char
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          c = c + 1
+        }
+        if len(clean_tok) > 0 {
+          push(words, clean_tok)
+        }
+        t = t + 1
+      }
+      p = p + 1
+    }
+    w = w + 1
+  }
+
+  let i = 0
+  while i < len(words) {
+    let tok = words[i]
+    if tok == "print" { vec[0] = 1.0 }
+    if tok == "str" { vec[1] = 1.0 }
+    if tok == "type" { vec[2] = 1.0 }
+    if tok == "num" { vec[3] = 1.0 }
+    if tok == "bool" { vec[4] = 1.0 }
+    if tok == "from_json" { vec[5] = 1.0 }
+    if tok == "to_json" { vec[6] = 1.0 }
+    if tok == "len" { vec[7] = 1.0 }
+    if tok == "read_file" { vec[8] = 1.0 }
+    if tok == "write_file" { vec[9] = 1.0 }
+    if tok == "write_image" { vec[10] = 1.0 }
+    if tok == "list_dir" { vec[11] = 1.0 }
+    if tok == "make_dir" { vec[12] = 1.0 }
+    if tok == "exp" { vec[13] = 1.0 }
+    if tok == "random" { vec[14] = 1.0 }
+    if tok == "let" { vec[15] = 1.0 }
+    if tok == "const" { vec[16] = 1.0 }
+    if tok == "fn" { vec[17] = 1.0 }
+    if tok == "if" { vec[18] = 1.0 }
+    if tok == "else" { vec[19] = 1.0 }
+    if tok == "while" { vec[20] = 1.0 }
+    if tok == "for" { vec[21] = 1.0 }
+    if tok == "return" { vec[22] = 1.0 }
+    if tok == "break" { vec[23] = 1.0 }
+    if tok == "continue" { vec[24] = 1.0 }
+    if tok == "try" { vec[25] = 1.0 }
+    if tok == "catch" { vec[26] = 1.0 }
+    if tok == "finally" { vec[27] = 1.0 }
+    if tok == "import" { vec[28] = 1.0 }
+    if tok == "export" { vec[29] = 1.0 }
+    if tok == "memory" { vec[30] = 1.0 }
+    if tok == "sleep" { vec[31] = 1.0 }
+    if tok == "now" { vec[32] = 1.0 }
+    if tok == "model" { vec[33] = 1.0 }
+    if tok == "image" { vec[34] = 1.0 }
+    if tok == "structured_output" { vec[35] = 1.0 }
+    if tok == "tool_call" { vec[36] = 1.0 }
+    if tok == "spawn" { vec[37] = 1.0 }
+    if tok == "exec" { vec[38] = 1.0 }
+    if tok == "time" { vec[39] = 1.0 }
+    if tok == "range" { vec[40] = 1.0 }
+    if tok == "push" { vec[41] = 1.0 }
+    if tok == "pop" { vec[42] = 1.0 }
+    if tok == "join" { vec[43] = 1.0 }
+    if tok == "split" { vec[44] = 1.0 }
+    if tok == "keys" { vec[45] = 1.0 }
+    if tok == "values" { vec[46] = 1.0 }
+    if tok == "array" { vec[47] = 1.0 }
+    if tok == "PI" { vec[48] = 1.0 }
+    if tok == "E" { vec[49] = 1.0 }
+    if tok == "sin" { vec[50] = 1.0 }
+    if tok == "cos" { vec[51] = 1.0 }
+    if tok == "tan" { vec[52] = 1.0 }
+    if tok == "sqrt" { vec[53] = 1.0 }
+    if tok == "floor" { vec[54] = 1.0 }
+    if tok == "ceil" { vec[55] = 1.0 }
+    if tok == "abs" { vec[56] = 1.0 }
+    if tok == "pow" { vec[57] = 1.0 }
+    if tok == "log" { vec[58] = 1.0 }
+    if tok == "parse" { vec[59] = 1.0 }
+    if tok == "stringify" { vec[60] = 1.0 }
+    if tok == "workflow" { vec[61] = 1.0 }
+    if tok == "set_alias" { vec[62] = 1.0 }
+    if tok == "define_tool" { vec[63] = 1.0 }
+    if tok == "list_tools" { vec[64] = 1.0 }
+    if tok == "error_type" { vec[65] = 1.0 }
+    if tok == "raise_error" { vec[66] = 1.0 }
+    if tok == "multi_req" { vec[67] = 1.0 }
+    i = i + 1
+  }
+  return vec
+}
+
+// 1. Gather all individual indexed documentation JSON files
+let db_files = []
+for f in list_dir("sesi-db") {
+  let parts = split(f, ".")
+  if len(parts) > 2 {
+    let ext2 = parts[len(parts) - 2]
+    let ext1 = parts[len(parts) - 1]
+    if ext1 == "json" {
+      if ext2 == "md" {
+        push(db_files, f)
+      }
+    }
+  }
+}
+
+let num_classes = len(db_files)
+
+if num_classes == 0 {
+  print "❌ Database is empty! Please index your documentation first."
+} else {
+  print "📂 Loading" num_classes "indexed files for neural training..."
+  
+  let database = []
+  let inputs = []
+  let targets = []
+  
+  let i = 0
+  while i < num_classes {
+    let f = db_files[i]
+    let raw = read_file("sesi-db/" + f)
+    let parsed = parse(raw)
+    
+    // Combine summary and rules for vocabulary training text
+    let doc_text = parsed["summary"] + " " + parsed["key_rules"]
+    let vec = vectorize(doc_text)
+    push(inputs, vec)
+    
+    // Build target one-hot classification vector
+    let t = []
+    let t_idx = 0
+    while t_idx < num_classes {
+      if t_idx == i {
+        push(t, 1.0)
+      } else {
+        push(t, 0.0)
+      }
+      t_idx = t_idx + 1
+    }
+    push(targets, t)
+    push(database, parsed)
+    
+    i = i + 1
+  }
+
+  // 2. Initialize weights and biases natively
+  print "⚡ Initializing 68-dimensional local weights matrix..."
+  let weights = []
+  let biases = []
+  
+  let c = 0
+  while c < num_classes {
+    let w_row = []
+    let k = 0
+    while k < 68 {
+      // Seed random weights between -0.2 and 0.2
+      let r_val = (random() * 0.4) - 0.2
+      push(w_row, r_val)
+      k = k + 1
+    }
+    push(weights, w_row)
+    push(biases, 0.0)
+    c = c + 1
+  }
+
+  // 3. Run multi-class gradient descent backpropagation training (5,000 epochs)
+  print "🚀 Running 5,000 epochs of local backpropagation training..."
+  let lr = 0.5
+  let epoch = 1
+  while epoch <= 5000 {
+    let loss = 0.0
+    
+    let c = 0
+    while c < num_classes {
+      let x = inputs[c]
+      let t = targets[c]
+      
+      // Forward propagation (dot product + bias + activation)
+      let sum = 0.0
+      let w_row = weights[c]
+      let k = 0
+      while k < 68 {
+        sum = sum + (x[k] * w_row[k])
+        k = k + 1
+      }
+      let o = activate(sum + biases[c])
+      
+      // Calculate squared error loss for tracking
+      let err = t[c] - o
+      loss = loss + (err * err)
+      
+      // Backpropagation delta calculation
+      let delta = err * derivative(o)
+      
+      // Gradient synaptic weight adjustments
+      k = 0
+      while k < 68 {
+        w_row[k] = w_row[k] + (lr * delta * x[k])
+        k = k + 1
+      }
+      biases[c] = biases[c] + (lr * delta)
+      
+      c = c + 1
+    }
+    
+    // Print training convergence logs periodically
+    let mse = loss / num_classes
+    if epoch == 1 {
+      print "  -> Epoch" epoch "/5000 | MSE Loss:" mse
+    }
+    if epoch == 1000 {
+      print "  -> Epoch" epoch "/5000 | MSE Loss:" mse
+    }
+    if epoch == 2000 {
+      print "  -> Epoch" epoch "/5000 | MSE Loss:" mse
+    }
+    if epoch == 3000 {
+      print "  -> Epoch" epoch "/5000 | MSE Loss:" mse
+    }
+    if epoch == 4000 {
+      print "  -> Epoch" epoch "/5000 | MSE Loss:" mse
+    }
+    if epoch == 5000 {
+      print "  -> Epoch" epoch "/5000 | MSE Loss:" mse
+    }
+    
+    epoch = epoch + 1
+  }
+
+  // 4. Save trained brain metrics to disk
+  let brain = {
+    "weights": weights,
+    "biases": biases,
+    "database": database
+  }
+  
+  write_file("sesi-db/trained_brain.json", to_json(brain))
+  
+  print "--------------------------------------------------"
+  print "🎉 Success! Sesi Local Neural Brain Fully Trained."
+  print "💾 Trained model metrics saved to: sesi-db/trained_brain.json"
+  print "=================================================="
+}

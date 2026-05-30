@@ -1,0 +1,389 @@
+// Sesi Native Webpage Generator 
+// Combine the local webpage generation with minimal to no Reasoning features to save on token costs!
+// Exports for quick website templates
+
+export fn create_header(title: string) {
+  return "<html>\n<head>\n<title>" + title + "</title>\n<link rel='stylesheet' href='theme.css'>\n<link rel='stylesheet' href='layout.css'>\n<link rel='stylesheet' href='style.css'>\n<link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap'></head>\n<body>\n<div class='container'>"
+}
+
+export fn create_footer() {
+  return "</div>\n</body>\n</html>"
+}
+
+export fn generate_page(title: string, content: string) {
+  return create_header(title) + "\n  <h1>" + title + "</h1>\n  " + content + "\n" + create_footer()
+}
+
+export fn save_page(filename: string, title: string, content: string) {
+  let html = generate_page(title, content)
+  return write_file(filename, html)
+}
+
+export fn embed_media(path: string, type: string) {
+  if type == "image" {
+    return "<img src='" + path + "' />"
+  }
+  if type == "video" {
+    return "<video src='" + path + "' controls></video>"
+  }
+  return "<a href='" + path + "'>Media</a>"
+}
+
+// Optional: Reasoning features
+export fn generatePageContent(topic: string) -> string {
+  let content = ""
+  try {
+    content = model("gemini-3.1-flash-lite") {thinkingLevel: "minimal"} {"Generate a brief, engaging paragraph about " topic " for a website."}
+  } catch (err) {
+    content = "Static publication article detailing the fundamentals, systems architecture, and core paradigms of " + topic + ". Compiled programmatically using Sesi layout factories."
+  }
+  return content
+}
+
+export fn generateWebpageAssets(topic: string, outputDir: string) {
+  make_dir(outputDir)
+  let description = generatePageContent(topic)
+  let hasImage = false
+  try {
+    let imageData = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "1K"} {"A representative image for " topic}
+    write_image(outputDir + "/hero.png", imageData)
+    hasImage = true
+  } catch (err) {
+    print "  ⚠️ Image generation skipped (using fallback layout)"
+  }
+  let formatted = "<p>" + description + "</p>"
+  if hasImage {
+    formatted = formatted + "\n  " + embed_media("hero.png", "image")
+  }
+  return save_page(outputDir + "/index.html", topic, formatted)
+}
+
+export fn create_portfolio_site(topics: array<string>, outputDir: string) {
+  make_dir(outputDir)
+  for topic in topics {
+    print "Building site for:" topic
+    generateWebpageAssets(topic, outputDir + "/" + topic)
+  }
+  return true
+}
+
+export fn create_landing_page(topic: string, outputDir: string) {
+  make_dir(outputDir)
+  let content = generatePageContent(topic)
+  let html = generate_page(topic, content)
+  return write_file(outputDir + "/index.html", html)
+}
+
+export fn create_site_map(topics: array<string>, outputDir: string) {
+  let map = "<h1>Site Sitemap Map</h1>\n<ul class='map-list' style='list-style: square; padding-left: 20px;'>\n"
+  for topic in topics {
+    map = map + "  <li><a href='" + topic + "/index.html' style='color: #0066cc; font-weight: bold; text-transform: uppercase;'>" + topic + "</a></li>\n"
+  }
+  map = map + "</ul>"
+  let html = generate_page("Site Map", map)
+  return write_file(outputDir + "/map.html", html)
+}
+
+export fn create_gallery_page(topic: string, images: array<string>, outputDir: string) {
+  make_dir(outputDir)
+  let content = "<h1>Gallery for " + topic + "</h1>"
+  for img in images {
+    content = content + embed_media(img, "image")
+  }
+  return save_page(outputDir + "/gallery.html", topic, content)
+}
+
+export fn get_page_count(dir: string) {
+  let files = list_dir(dir)
+  return len(files)
+}
+
+export fn generate_summary(dir: string) -> string {
+  let files = list_dir(dir)
+  return "Directory " + dir + " contains " + str(len(files)) + " items."
+}
+
+export fn generate_site_summary(dir: string) {
+  let files = list_dir(dir)
+  let summary = "Site Report: " + dir + "\nFiles: " + str(len(files))
+  return write_file(dir + "/summary.txt", summary)
+}
+
+export fn generate_smart_page(topic: string, outputDir: string) {
+  make_dir(outputDir)
+  let content = generatePageContent(topic)
+  let hasImage = false
+  try {
+    let imageData = image("gemini-3.1-flash-image-preview") {ratio: "16:9", size: "1K"} {"A high-quality hero image for " topic}
+    write_image(outputDir + "/hero.png", imageData)
+    hasImage = true
+  } catch (err) {
+    print "  ⚠️ Smart page image generation skipped (using fallback layout)"
+  }
+  let formatted = "<p>" + content + "</p>"
+  if hasImage {
+    formatted = formatted + "\n  " + embed_media("hero.png", "image")
+  }
+  return save_page(outputDir + "/index.html", topic, formatted)
+}
+
+export fn get_website_stats(dir: string) {
+  let files = list_dir(dir)
+  let count = len(files)
+  print "Generated " + str(count) + " files in " + dir
+  return count
+}
+
+export fn build_site(topic: string, dir: string) {
+  let content = generatePageContent(topic)
+  let hasImage = false
+  try {
+    let img = image("gemini-3.1-flash-image-preview") {ratio: "16:9", size: "1K"} {"Hero image for " topic}
+    write_image(dir + "/hero.png", img)
+    hasImage = true
+  } catch (err) {
+    print "  ⚠️ Site image generation skipped (using fallback layout)"
+  }
+  let formatted = "<p>" + content + "</p>"
+  if hasImage {
+    formatted = formatted + "\n  " + embed_media("hero.png", "image")
+  }
+  let html = generate_page(topic, formatted)
+  return write_file(dir + "/index.html", html)
+}
+
+export fn batch_build(topics: array<string>, baseDir: string) {
+  for topic in topics {
+    let dir = baseDir + "/" + topic
+    build_site(topic, dir)
+  }
+}
+
+export fn generate_site_index(topics: array<string>, outputDir: string) {
+  let list_html = "<h1>Site Index</h1>\n<ul class='index-list' style='list-style: square; padding-left: 20px;'>\n"
+  for topic in topics {
+    list_html = list_html + "  <li><a href='" + topic + "/index.html' style='color: #0066cc; font-weight: bold; text-transform: uppercase;'>" + topic + "</a></li>\n"
+  }
+  list_html = list_html + "</ul>"
+  let page = generate_page("Site Index", list_html)
+  return write_file(outputDir + "/index.html", page)
+}
+
+export fn animation_css(selector: string, properties: object) {
+  let css = selector + " {"
+  let keys = keys(properties)
+  for key in keys {
+    css = css + key + ": " + properties[key] + "; "
+  }
+  return css + "}"
+}
+
+export fn generate_stylesheet(rules: array<object>) {
+  let css = ""
+  for rule in rules {
+    css = css + animation_css(rule["selector"], rule["properties"]) + "\n"
+  }
+  return css
+}
+
+export fn save_stylesheet(path: string, rules: array<object>) {
+  return write_file(path, generate_stylesheet(rules))
+}
+
+export fn generate_all_assets(topic: string, outputDir: string) {
+  make_dir(outputDir)
+  let content = generatePageContent(topic)
+  let hasHero = false
+  let hasIcon = false
+  try {
+    let hero = image("gemini-3.1-flash-image-preview") {ratio: "16:9", size: "1K"} {"Hero image for " topic}
+    write_image(outputDir + "/hero.png", hero)
+    hasHero = true
+  } catch (err) {
+    print "  ⚠️ Hero image generation skipped"
+  }
+  try {
+    let icon = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512"} {"Icon for " topic}
+    write_image(outputDir + "/icon.png", icon)
+    hasIcon = true
+  } catch (err) {
+    print "  ⚠️ Icon image generation skipped"
+  }
+  
+  let formatted = "<p>" + content + "</p>\n  <div class='media-group'>"
+  if hasHero {
+    formatted = formatted + "\n    " + embed_media("hero.png", "image")
+  }
+  if hasIcon {
+    formatted = formatted + "\n    " + embed_media("icon.png", "image")
+  }
+  formatted = formatted + "\n  </div>"
+  return save_page(outputDir + "/index.html", topic, formatted)
+}
+
+export fn optimize_page_load(dir: string, compression: number) {
+  let files = list_dir(dir)
+  for file in files {
+    let segments = split(file, ".")
+    let ext = segments[len(segments) - 1]
+    if ext == "png" {
+      print "Optimizing image:" file
+    }
+  }
+  return true
+}
+
+export fn layoutDesign(container: string, columns: number) {
+  let css = container + " { display: grid; grid-template-columns: repeat(" + str(columns) + ", 1fr); gap: 20px; }"
+  return css
+}
+
+export fn generate_responsive_layout(container: string, columns: number, mobileColumns: number) {
+  let css = layoutDesign(container, columns)
+  css = css + "\n@media (max-width: 600px) { " + container + " { grid-template-columns: repeat(" + str(mobileColumns) + ", 1fr); } }"
+  return css
+}
+
+export fn save_layout(path: string, container: string, columns: number, mobileColumns: number) {
+  return write_file(path, generate_responsive_layout(container, columns, mobileColumns))
+}
+
+export fn createTheme(primaryColor: string, secondaryColor: string) {
+  let css = ":root { --primary-color: " + primaryColor + "; --secondary-color: " + secondaryColor + "; }"
+  return css
+}
+
+export fn save_theme(path: string, primary: string, secondary: string) {
+  return write_file(path, createTheme(primary, secondary))
+}
+
+export fn generate_sitemap_xml(topics: array<string>, baseUrl: string) {
+  let xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
+  for topic in topics {
+    xml = xml + "  <url>\n    <loc>" + baseUrl + "/" + topic + "/index.html</loc>\n  </url>\n"
+  }
+  xml = xml + "</urlset>"
+  return xml
+}
+
+export fn save_sitemap_xml(path: string, topics: array<string>, baseUrl: string) {
+  return write_file(path, generate_sitemap_xml(topics, baseUrl))
+}
+
+export fn autoFetch(topic: string, sourceUrl: string) {
+  let content = web_get(sourceUrl)
+  let structured = structured_output({title: string, body: string})(model("gemini-3.1-flash-lite") {"Extract title and content from: " content})
+  return structured
+}
+
+export fn compile_bento_grid(items: array<object>) {
+  let html = "<div class='grid-container'>\n"
+  for item in items {
+    html = html + "  <div class='grid-item'>\n"
+    html = html + "    <div class='item-header'>\n"
+    html = html + "      <h3 class='item-title'>" + item["title"] + "</h3>\n"
+    html = html + "      <span class='item-meta'>" + item["meta"] + "</span>\n"
+    html = html + "    </div>\n"
+    html = html + "    <p class='item-body'>" + item["body"] + "</p>\n"
+    html = html + "    <span class='item-badge'>" + item["badge"] + "</span>\n"
+    html = html + "  </div>\n"
+  }
+  html = html + "</div>"
+  return html
+}
+
+export fn compile_nav_bar(brand: string, links: array<object>) {
+  let html = "<nav class='navbar'>\n"
+  html = html + "  <span class='nav-brand'>" + brand + "</span>\n"
+  html = html + "  <ul class='nav-links'>\n"
+  for link in links {
+    html = html + "    <li><a href='" + link["url"] + "'>" + link["label"] + "</a></li>\n"
+  }
+  html = html + "  </ul>\n"
+  html = html + "</nav>"
+  return html
+}
+
+export fn compile_console_viewer(lines: array<string>) {
+  let html = "<div class='console-viewer'>\n"
+  for line in lines {
+    html = html + "  <div class='console-line'>" + line + "</div>\n"
+  }
+  html = html + "</div>"
+  return html
+}
+
+export fn inject_state_toggle_script(targetClass: string, activeClass: string) {
+  let js = "<script>\n"
+  js = js + "  function toggleStates() {\n"
+  js = js + "    let items = document.querySelectorAll('." + targetClass + "');\n"
+  js = js + "    items.forEach(item => {\n"
+  js = js + "      if (item.classList.contains('" + activeClass + "')) {\n"
+  js = js + "        item.classList.remove('" + activeClass + "');\n"
+  js = js + "      } else {\n"
+  js = js + "        item.classList.add('" + activeClass + "');\n"
+  js = js + "      }\n"
+  js = js + "    });\n"
+  js = js + "  }\n"
+  js = js + "</script>"
+  return js
+}
+
+export fn compile_hero_banner(title: string, subtitle: string, ctaText: string, ctaUrl: string) {
+  let html = "<div class='hero-banner'>\n"
+  html = html + "  <h1 class='hero-title'>" + title + "</h1>\n"
+  html = html + "  <p class='hero-subtitle'>" + subtitle + "</p>\n"
+  if len(ctaText) > 0 {
+    html = html + "  <a class='hero-cta' href='" + ctaUrl + "'>" + ctaText + "</a>\n"
+  }
+  html = html + "</div>"
+  return html
+}
+
+export fn compile_accordion(items: array<object>) {
+  let html = "<div class='accordion-group'>\n"
+  for item in items {
+    html = html + "  <details class='accordion-item'>\n"
+    html = html + "    <summary class='accordion-summary'>" + item["title"] + "</summary>\n"
+    html = html + "    <div class='accordion-content'>\n"
+    html = html + "      <p>" + item["content"] + "</p>\n"
+    html = html + "    </div>\n"
+    html = html + "  </details>\n"
+  }
+  html = html + "</div>"
+  return html
+}
+
+export fn compile_form_block(actionUrl: string, fields: array<object>, submitText: string) {
+  let html = "<form class='form-block' action='" + actionUrl + "' method='POST'>\n"
+  for field in fields {
+    html = html + "  <div class='form-group'>\n"
+    html = html + "    <label class='form-label' for='" + field["name"] + "'>" + field["label"] + "</label>\n"
+    if field["type"] == "textarea" {
+      html = html + "    <textarea class='form-input form-textarea' id='" + field["name"] + "' name='" + field["name"] + "' placeholder='" + field["placeholder"] + "' required></textarea>\n"
+    } else {
+      html = html + "    <input class='form-input' type='" + field["type"] + "' id='" + field["name"] + "' name='" + field["name"] + "' placeholder='" + field["placeholder"] + "' required />\n"
+    }
+    html = html + "  </div>\n"
+  }
+  html = html + "  <button class='form-submit' type='submit'>" + submitText + "</button>\n"
+  html = html + "</form>"
+  return html
+}
+
+export fn compile_footer_block(copyright: string, links: array<object>) {
+  let html = "<footer class='site-footer'>\n"
+  html = html + "  <p class='footer-copy'>" + copyright + "</p>\n"
+  if len(links) > 0 {
+    html = html + "  <ul class='footer-links'>\n"
+    for link in links {
+      html = html + "    <li><a href='" + link["url"] + "'>" + link["label"] + "</a></li>\n"
+    }
+    html = html + "  </ul>\n"
+  }
+  html = html + "</footer>"
+  return html
+}
+
+// Future: Add more components like carousels, modals, tabs, etc. and utilities for SEO metadata generation, accessibility checks, performance optimizations, etc.
+// ToDo: Add error handling, input validation, and support for more complex layouts and interactivity features.

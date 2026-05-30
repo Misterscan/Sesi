@@ -1,0 +1,58 @@
+// shell-automation.sesi
+// Native shell execution wrappers and system automation utilities for Sesi.
+// Integrates directory compilation, git synchronization, and command-logging.
+
+// Executes git add, commit, and push programmatically
+export fn git_commit_and_push(commitMessage: string) {
+  print "⚡ Starting Git synchronization..."
+  try {
+    let add_out = exec("git add .")
+    print "  -> Added files to index"
+    let commit_out = exec("git commit -m \"" + commitMessage + "\"")
+    print "  -> Committed changes:" commitMessage
+    let push_out = exec("git push")
+    print "  -> Pushed upstream successfully!"
+    return true
+  } catch (err) {
+    print "⚠️ Git command failed. Verify repository state and permissions."
+    return false
+  }
+}
+
+// Compresses a folder into a zip archive (supports Mac/Linux zip and Windows PowerShell fallbacks)
+export fn zip_directory(sourceDir: string, zipPath: string) {
+  print "⚡ Packaging directory:" sourceDir "to" zipPath
+  try {
+    // Mac/Linux native zip
+    let out = exec("zip -r " + zipPath + " " + sourceDir)
+    print "✓ Zip archive created successfully!"
+    return true
+  } catch (e1) {
+    try {
+      // Windows PowerShell fallback
+      let out = exec("powershell Compress-Archive -Path " + sourceDir + " -DestinationPath " + zipPath + " -Force")
+      print "✓ Zip archive created successfully (PowerShell fallback)!"
+      return true
+    } catch (e2) {
+      print "⚠️ Compression failed. Ensure zip CLI or PowerShell archive utilities are installed."
+      return false
+    }
+  }
+}
+
+// Runs a command and logs the standard output to a text file
+export fn run_command_log(command: string, logPath: string) {
+  print "⚡ Executing command and logging to:" logPath
+  try {
+    let output = exec(command)
+    write_file(logPath, output)
+    print "✓ Command completed and written to log."
+    return true
+  } catch (err) {
+    write_file(logPath, "ERROR: Command execution failed.\nCommand: " + command)
+    print "⚠️ Command execution failed."
+    return false
+  }
+}
+
+// Future: Add more utilities like directory watchers, scheduled tasks, cross-platform environment variable management, etc.

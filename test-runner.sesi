@@ -1,0 +1,62 @@
+// test-runner.sesi
+// A lightweight test-runner framework for modular Sesi scripts.
+// Includes beautiful custom color logs, assertion utilities, and final test suite counters.
+
+let green_tick = "✓ "
+let red_cross = "❌ "
+
+export fn assert_equals(actual, expected, testName: string) {
+  if actual == expected {
+    print green_tick + "PASS: " + testName
+    return true
+  } else {
+    print red_cross + "FAIL: " + testName
+    print "  -> Expected:" expected
+    print "  -> Actual:  " actual
+    return false
+  }
+}
+
+export fn assert_not_null(val, testName: string) {
+  if val == null {
+    print red_cross + "FAIL: " + testName + " (Value is null)"
+    return false
+  } else {
+    print green_tick + "PASS: " + testName
+    return true
+  }
+}
+
+export fn run_test_suite(suiteName: string, results: array) {
+  print "\n========================================="
+  print "   TEST SUITE RUNNER:" suiteName
+  print "========================================="
+  
+  let passed = 0
+  let failed = 0
+  
+  for res in results {
+    if res == true {
+      passed = passed + 1
+    } else {
+      failed = failed + 1
+    }
+  }
+  
+  print "-----------------------------------------"
+  print "📊 Final Summary:"
+  print "   Passed:" passed
+  print "   Failed:" failed
+  
+  if failed == 0 {
+    print "🎉 ALL TESTS PASSED SUCCESSFULLY!"
+  } else {
+    print "⚠️ SOME TESTS FAILED. PLEASE AUDIT SPECIFICATIONS."
+  }
+  print "=========================================\n"
+  
+  if failed == 0 {
+    return true
+  }
+  return false
+}

@@ -1,0 +1,213 @@
+// markdown-compiler.sesi
+// A programatic markdown-to-HTML parser and layout engine.
+// Uses high-speed string segmentation logic instead of heavy regex engines.
+
+import {generate_page} from "site-builder"
+
+// Pre-processes inline bold formatting (**bold**)
+export fn parse_bold(line: string) -> string {
+  let boldSegments = split(line, "**")
+  if len(boldSegments) > 1 {
+    let parsedLine = boldSegments[0]
+    let idx = 1
+    while idx < len(boldSegments) {
+      if idx % 2 == 1 {
+        parsedLine = parsedLine + "<strong>" + boldSegments[idx] + "</strong>"
+      } else {
+        parsedLine = parsedLine + boldSegments[idx]
+      }
+      idx = idx + 1
+    }
+    return parsedLine
+  }
+  return line
+}
+
+// Pre-processes inline italic formatting (*italic* or _italic_)
+export fn parse_italic(line: string) -> string {
+  // Try * marker first
+  let italicSegments = split(line, "*")
+  if len(italicSegments) > 1 {
+    let parsedLine = italicSegments[0]
+    let idx = 1
+    while idx < len(italicSegments) {
+      if idx % 2 == 1 {
+        parsedLine = parsedLine + "<em>" + italicSegments[idx] + "</em>"
+      } else {
+        parsedLine = parsedLine + italicSegments[idx]
+      }
+      idx = idx + 1
+    }
+    line = parsedLine
+  }
+  
+  // Try _ marker second
+  let underscoreSegments = split(line, "_")
+  if len(underscoreSegments) > 1 {
+    let parsedLine = underscoreSegments[0]
+    let idx = 1
+    while idx < len(underscoreSegments) {
+      if idx % 2 == 1 {
+        parsedLine = parsedLine + "<em>" + underscoreSegments[idx] + "</em>"
+      } else {
+        parsedLine = parsedLine + underscoreSegments[idx]
+      }
+      idx = idx + 1
+    }
+    line = parsedLine
+  }
+  
+  return line
+}
+
+// Pre-processes inline hyperlinks ([label](url))
+export fn parse_links(line: string) -> string {
+  let linkSegments = split(line, "[")
+  if len(linkSegments) > 1 {
+    let parsedLine = linkSegments[0]
+    let idx = 1
+    while idx < len(linkSegments) {
+      let innersegs = split(linkSegments[idx], "](")
+      if len(innersegs) > 1 {
+        let urlsegs = split(innersegs[1], ")")
+        let linkText = innersegs[0]
+        let url = urlsegs[0]
+        parsedLine = parsedLine + "<a href='" + url + "' style='color: #ff003c; font-weight: bold; text-decoration: underline;'>" + linkText + "</a>"
+        
+        // Append remaining text after the closing parenthesis
+        let rest = ""
+        let r_idx = 1
+        while r_idx < len(urlsegs) {
+          rest = rest + urlsegs[r_idx]
+          if r_idx < len(urlsegs) - 1 {
+            rest = rest + ")"
+          }
+          r_idx = r_idx + 1
+        }
+        parsedLine = parsedLine + rest
+      } else {
+        parsedLine = parsedLine + "[" + linkSegments[idx]
+      }
+      idx = idx + 1
+    }
+    return parsedLine
+  }
+  return line
+}
+
+// Unified inline tokens compiler (aggregates bold, italic, and link transformations)
+export fn parse_inline(line: string) -> string {
+  let temp = parse_bold(line)
+  temp = parse_italic(temp)
+  temp = parse_links(temp)
+  return temp
+}
+
+// Compiles a raw markdown string into a styled semantic HTML string
+export fn parse_markdown(mdText: string) -> string {
+  let lines = split(mdText, "\n")
+  let html = ""
+  let inCodeBlock = false
+  
+  for line in lines {
+    // 1. Code Block toggle (checking triple backtick marker)
+    let isCodeMarker = false
+    if len(line) >= 3 {
+      let chars = split(line, "")
+      if chars[0] == "`" {
+        if chars[1] == "`" {
+          if chars[2] == "`" {
+            isCodeMarker = true
+          }
+        }
+      }
+    }
+    
+    if isCodeMarker {
+      if inCodeBlock {
+        html = html + "</code></pre>\n"
+        inCodeBlock = false
+      } else {
+        html = html + "<pre><code>"
+        inCodeBlock = true
+      }
+    } else {
+      if inCodeBlock {
+        html = html + line + "\n"
+      } else {
+        if len(line) > 0 {
+          let chars = split(line, "")
+          
+          // 2. Headings Check
+          if chars[0] == "#" {
+            if chars[1] == " " {
+              let segs = split(line, "# ")
+              let content = parse_inline(segs[1])
+              html = html + "<h1>" + content + "</h1>\n"
+            } else {
+              if chars[1] == "#" {
+                if chars[2] == " " {
+                  let segs = split(line, "## ")
+                  let content = parse_inline(segs[1])
+                  html = html + "<h2>" + content + "</h2>\n"
+                } else {
+                  if chars[2] == "#" {
+                    if chars[3] == " " {
+                      let segs = split(line, "### ")
+                      let content = parse_inline(segs[1])
+                      html = html + "<h3>" + content + "</h3>\n"
+                    } else {
+                      let content = parse_inline(line)
+                      html = html + "<p>" + content + "</p>\n"
+                    }
+                  } else {
+                    let content = parse_inline(line)
+                    html = html + "<p>" + content + "</p>\n"
+                  }
+                }
+              } else {
+                let content = parse_inline(line)
+                html = html + "<p>" + content + "</p>\n"
+              }
+            }
+          } else {
+            // 3. Bullets Check
+            if chars[0] == "-" {
+              if chars[1] == " " {
+                let segs = split(line, "- ")
+                let content = parse_inline(segs[1])
+                html = html + "<li>" + content + "</li>\n"
+              } else {
+                let content = parse_inline(line)
+                html = html + "<p>" + content + "</p>\n"
+              }
+            } else {
+              // 4. Standard Paragraph
+              let content = parse_inline(line)
+              html = html + "<p>" + content + "</p>\n"
+            }
+          }
+        }
+      }
+    }
+  }
+  return html
+}
+
+// Reads a markdown file and compiles it into a beautiful, styled, decoupled HTML page
+export fn compile_markdown_file(mdPath: string, htmlPath: string, title: string) {
+  print "⚡ Compiling markdown file:" mdPath "->" htmlPath
+  try {
+    let mdContent = read_file(mdPath)
+    let parsed_body = parse_markdown(mdContent)
+    let complete_html = generate_page(title, parsed_body)
+    write_file(htmlPath, complete_html)
+    print "✓ Markdown compilation successfully completed!"
+    return true
+  } catch (err) {
+    print "⚠️ Markdown compilation failed. Verify paths and content."
+    return false
+  }
+}
+
+// Future: Add support for more markdown features like blockquotes, tables, task lists, footnotes, etc.

@@ -1,0 +1,127 @@
+// main/test_general_modules.sesi
+// Consolidates test cases for shell-automation, markdown-compiler, data-analyzer, and db-helper.
+
+import {parse_csv, export_to_csv, compute_average, compute_max, compute_min, sort_records, filter_records} from "data-analyzer"
+import {parse_markdown, compile_markdown_file} from "markdown-compiler"
+import {run_command_log, zip_directory} from "shell-automation"
+import {insert_record, find_records_paginated, count_records, delete_record} from "db-helper"
+import {assert_equals, assert_not_null, run_test_suite} from "test-runner"
+
+print "Starting Module Import Test Suite..."
+let results = []
+
+// ==========================================
+// 1. Data-Analyzer Test cases (Expanded)
+// ==========================================
+print "\n--- Testing Data-Analyzer Module ---"
+let csv_data = "name,crew,reputationScore\nBlaze,D-Mob Crew,95\nDoc,D-Mob Crew,85\nCrow,Crow Syndicate,80"
+
+let records = parse_csv(csv_data)
+push(results, assert_equals(len(records), 3, "Parsed CSV string contains correct number of rows"))
+push(results, assert_equals(records[0]["name"], "Blaze", "Parsed fields contain correct row header values"))
+
+let dmob_crew = filter_records(records, "crew", "D-Mob Crew")
+push(results, assert_equals(len(dmob_crew), 2, "Filtered records returned matching subset count"))
+
+let avg_score = compute_average(records, "reputationScore")
+push(results, assert_equals(avg_score, 86.66666666666667, "Numerical average score computed correctly"))
+
+// Assert Max / Min
+let max_score = compute_max(records, "reputationScore")
+push(results, assert_equals(max_score, 95, "Numerical maximum aggregate computed correctly"))
+
+let min_score = compute_min(records, "reputationScore")
+push(results, assert_equals(min_score, 80, "Numerical minimum aggregate computed correctly"))
+
+// Bubble Sort Check (Sorting descending)
+let sorted = sort_records(records, "reputationScore", false)
+push(results, assert_equals(sorted[0]["name"], "Blaze", "Bubble sort sorts descending correctly (index 0 is max)"))
+push(results, assert_equals(sorted[2]["name"], "Crow", "Bubble sort sorts descending correctly (index 2 is min)"))
+
+let exported = export_to_csv(records, ["name", "reputationScore"])
+let exported_rows = split(exported, "\n")
+push(results, assert_equals(exported_rows[0], "name,reputationScore", "CSV exportation formats headers correctly"))
+push(results, assert_equals(exported_rows[1], "Blaze,95", "CSV exportation serializes fields correctly"))
+
+
+// ==========================================
+// 2. Markdown-Compiler Test cases (Expanded)
+// ==========================================
+print "\n--- Testing Markdown-Compiler Module ---"
+let raw_markdown = "# Underground Rules
+## Subway *Turf*
+- Rule 1: No weapons
+- Rule 2: Keep it **clean** and [D-Mob](https://dmob.com) loyal
+
+```
+let x = 1
+```"
+
+let parsed_html = parse_markdown(raw_markdown)
+
+// Check heading structure
+push(results, assert_equals(len(split(parsed_html, "<h1>Underground Rules</h1>")) > 1, true, "H1 parsed correctly"))
+push(results, assert_equals(len(split(parsed_html, "<h2>Subway <em>Turf</em></h2>")) > 1, true, "Italic parsed inside headings correctly"))
+
+// Check list structure
+push(results, assert_equals(len(split(parsed_html, "<li>Rule 1: No weapons</li>")) > 1, true, "Bullets parsed correctly"))
+
+// Check bold accent
+push(results, assert_equals(len(split(parsed_html, "<strong>clean</strong>")) > 1, true, "Bold syntax parsed correctly"))
+
+// Check inline hyperlinks
+push(results, assert_equals(len(split(parsed_html, "<a href='https://dmob.com'")) > 1, true, "Hyperlink markdown ([text](url)) parsed correctly"))
+
+// Check code block
+push(results, assert_equals(len(split(parsed_html, "<pre><code>let x = 1")) > 1, true, "Code blocks parsed correctly"))
+
+// File compilation test
+let mock_md = "main/mock_rules.md"
+let compiled_html = "main/mock_rules.html"
+write_file(mock_md, raw_markdown)
+
+let compile_result = compile_markdown_file(mock_md, compiled_html, "Underground System Rules")
+push(results, assert_equals(compile_result, true, "Markdown file compiled and saved successfully"))
+
+
+// ==========================================
+// 3. Flat-File DB Module Test cases (Expanded)
+// ==========================================
+print "\n--- Testing Flat-File DB Module ---"
+let db_path = "main/test_database.json"
+
+// Clean insert some test fighters
+let f1 = insert_record(db_path, "test_fighters", {"name": "Fighter A", "rank": 1})
+let f2 = insert_record(db_path, "test_fighters", {"name": "Fighter B", "rank": 2})
+let f3 = insert_record(db_path, "test_fighters", {"name": "Fighter C", "rank": 3})
+
+let count = count_records(db_path, "test_fighters")
+push(results, assert_equals(count >= 3, true, "Collection records count retrieved successfully"))
+
+// Paginated query: Limit 2, Offset 1
+let paginated = find_records_paginated(db_path, "test_fighters", "", "", 2, 1)
+push(results, assert_equals(len(paginated), 2, "Pagination returns correct limit subset length"))
+push(results, assert_equals(paginated[0]["name"], "Fighter B", "Pagination returns correct offset item"))
+
+// Clean up
+delete_record(db_path, "test_fighters", f1["id"])
+delete_record(db_path, "test_fighters", f2["id"])
+delete_record(db_path, "test_fighters", f3["id"])
+
+
+// ==========================================
+// 4. Shell-Automation Test cases
+// ==========================================
+print "\n--- Testing Shell-Automation Module ---"
+let log_path = "main/test_shell_command.log"
+let log_result = run_command_log("sesi --version", log_path)
+push(results, assert_equals(log_result, true, "Shell command logged successfully"))
+
+let log_contents = read_file(log_path)
+push(results, assert_equals(len(split(log_contents, "v")) > 1, true, "Log contents contain command output"))
+
+
+// ==========================================
+// Run Final Suite Metrics
+// ==========================================
+run_test_suite("Expanded General-Purpose Scripting Suite", results)

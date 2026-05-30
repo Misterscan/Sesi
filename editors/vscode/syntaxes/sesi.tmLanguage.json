@@ -1,0 +1,171 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sesi",
+  "scopeName": "source.sesi",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#builtins"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#brackets"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.sesi",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.sesi",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.sesi",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.sesi",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.sesi",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.sesi",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.sesi",
+          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.sesi",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.sesi",
+          "match": "\\b(if|else|while|for|in|to|return|break|continue|try|catch)\\b"
+        },
+        {
+          "name": "keyword.declaration.sesi",
+          "match": "\\b(let|const|fn|import|from|export)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.sesi",
+          "match": "\\b(number|string|bool|null|array|object)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.sesi",
+          "match": "\\b(true|false|null)\\b"
+        },
+        {
+          "name": "constant.other.math.sesi",
+          "match": "\\b(PI|E)\\b"
+        }
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.reasoning.sesi",
+          "match": "\\b(model|image|memory|prompt|structured_output|tool_call|workflow)\\b"
+        },
+        {
+          "name": "support.function.builtin.general.sesi",
+          "match": "\\b(print|set_alias|define_tool|list_tools|error_type|raise_error|multi_req|len|range|type|str|num|bool|keys|values|push|pop|join|split|read_file|write_file|write_image|list_dir|make_dir|spawn|exec|time|random|exp|sin|cos|tan|sqrt|floor|ceil|abs|pow|log|now|sleep|parse|stringify)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.sesi",
+          "match": "->"
+        },
+        {
+          "name": "keyword.operator.logical.sesi",
+          "match": "(&&|\\|\\||!)"
+        },
+        {
+          "name": "keyword.operator.comparison.sesi",
+          "match": "(==|!=|<=|>=|<|>)"
+        },
+        {
+          "name": "keyword.operator.assignment.sesi",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.arithmetic.sesi",
+          "match": "(\\+|-|\\*|/|%)"
+        }
+      ]
+    },
+    "brackets": {
+      "patterns": [
+        {
+          "name": "meta.brace.round.sesi",
+          "match": "\\(|\\)"
+        },
+        {
+          "name": "meta.brace.square.sesi",
+          "match": "\\[|\\]"
+        },
+        {
+          "name": "meta.brace.curly.sesi",
+          "match": "\\{|\\}"
+        }
+      ]
+    }
+  }
+}

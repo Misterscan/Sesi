@@ -1,0 +1,4 @@
+# Exclude standard build/dependency folders, but allow the AI to read guidelines and docs
+node_modules/
+dist/
+bin/

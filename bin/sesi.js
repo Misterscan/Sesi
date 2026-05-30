@@ -7,7 +7,7 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.3.0
+Sesi Programming Language v1.3.1
 
 Usage:
   sesi <file> [options]  Run a Sesi program
@@ -49,7 +49,7 @@ function parseArgs(args) {
     const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
 
     if (arg === '--version') {
-      console.log('Sesi v1.3.0');
+      console.log('Sesi v1.3.1');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {

@@ -99,6 +99,7 @@ app.post('/api/file', (req, res) => {
   if (!filePath) return res.status(403).json({ error: 'Forbidden' });
 
   try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, req.body.content, 'utf-8');
     res.json({ success: true });
   } catch (err) {
@@ -216,8 +217,8 @@ Rules:
           parts: [{ text: prompt }]
         }],
         generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1024
+          temperature: 0.7,
+          maxOutputTokens: 300
         }
       })
     });
