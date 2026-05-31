@@ -1,12 +1,20 @@
 ---
-description: Create a script using sesi.
+description: Intent-based development workflow for generating concise, syntax-accurate Sesi scripts using integrated web research and verified implementation patterns.
 ---
 
-### **The most important thing to remember is that the user can edit the .sesi files in the editor, so you should always use the editor to edit the .sesi files. You should NEVER edit the .sesi files in the terminal.**
+## Operational Directives
 
-1. **Never Hardcode Data Into the View**: Isolate raw content, biographies, statistics, etc. into a structured database layer using native typed Sesi outputs.
-2. **Build Sesi Compiler/Builder Scripts**: Write a `.sesi` script that uses Sesi's builtins (`make_dir()`, `list_dir()`, `read_file()`, `write_file()`, `set_alias()`, `workflow()`, `model()`, `image()`, `web_get()`, `web_send()`, `define_tool()`, `list_tools()`, `tool_call()`, `multi_req()`, `import`, `export`, `to_json()`, `from_json()`, `time()`, `random()`, `exec()`, `spawn()`, `structured_output()`, `prompt`, `write_image()`, `write_file()`, `raise_error()`, `error_type()`, and `print`).
-3. **Let Sesi Do Its Job**: A Sesi builder script makes the system perfectly repeatable, infinitely scalable, and trivial to refactor. In this repository, the Sesi script is the core product; the end file(s) are merely the byproduct for post edits and making sure our scripts are behaving as anticipated.
+1. **Let Sesi Do Its Job**: A Sesi builder script makes the system perfectly repeatable, infinitely scalable, and trivial to refactor. In this repository, the Sesi script is the core product; the end file(s) are merely the byproduct for post edits and making sure our scripts are behaving as anticipated.
+2.  **Script Creation:** Your primary task is to generate scripts in Sesi.
+3.  **Syntax Integrity:** Strictly adhere to established Sesi syntax and formatting rules. Never fabricate or hallucinate rules. If a pattern is not verified within Sesi, do not use it.
+4.  **Language and Perspective:** Maintain a grounded, practical perspective. Avoid technical jargon, buzzwords, or computational theory in your internal thought process and your final output. Focus on the task at hand.
+5.  **Information Sourcing:** Do not rely on pre-existing training data for language definitions or outdated practices. Prioritize active research to find current, relevant implementation patterns. If a method or approach is flagged as outdated, discard it immediately.
+6.  **Inspiration:** While Sesi is a distinct, emerging language, draw inspiration for script logic and functionality from any programming language. Ensure that this inspiration is limited to the *concept* of the solution, not the syntax or formatting of the source language.
+7.  **Cautious AI Integration:** AI capabilities are functional tools within Sesi, comparable to `write_file` or `exec`. Use these functions with precision and necessity. Do not over-utilize AI features simply to demonstrate capability; treat them as standard utilities that require intentional application.
+8.  **Core Philosophy:** Sesi scripts must be concise, legible, and intent-based. If a solution feels overly complex or forced, it likely deviates from the Sesi philosophy. Keep the implementation direct.
+9.  **Efficiency and Accessibility:** Sesi is designed to make development straightforward and enjoyable. Leverage web search and external resources freely to find inspiration and tools. You have full authorization to browse and synthesize information from available sources to streamline script creation.
+10. **Never Hardcode Data Into the View**: Isolate raw content, biographies, statistics, etc. into a structured database layer using native typed Sesi outputs.
+11. **Build Sesi Compiler/Builder Scripts**: Write a `.sesi` script that uses Sesi's builtins (`make_dir()`, `list_dir()`, `read_file()`, `write_file()`, `set_alias()`, `workflow()`, `model()`, `image()`, `web_get()`, `web_send()`, `define_tool()`, `list_tools()`, `tool_call()`, `multi_req()`, `import`, `export`, `to_json()`, `from_json()`, `time()`, `random()`, `exec()`, `spawn()`, `structured_output()`, `prompt`, `write_image()`, `write_file()`, `raise_error()`, `error_type()`, and `print`).
 
 **This is a non-negotiable quality bar.**
 

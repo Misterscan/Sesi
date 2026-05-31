@@ -1,5 +1,5 @@
 ---
-description: Debugging and validating sesi scripts.
+description: Debugging and validation of error prone sesi scripts.
 ---
 
 ### **The most important thing to remember is that the user can edit the .sesi files in the editor, so you should always use the editor to edit the .sesi files. You should NEVER edit the .sesi files in the terminal.**

@@ -385,5 +385,450 @@ export fn compile_footer_block(copyright: string, links: array<object>) {
   return html
 }
 
-// Future: Add more components like carousels, modals, tabs, etc. and utilities for SEO metadata generation, accessibility checks, performance optimizations, etc.
-// ToDo: Add error handling, input validation, and support for more complex layouts and interactivity features.
+export fn compile_carousel(items: array<object>) {
+  let html = "<div class='carousel-container'>\n  <div class='carousel-slides'>\n"
+  let count = 0
+  for item in items {
+    html = html + "    <div class='carousel-slide' id='slide-" + str(count) + "'>\n"
+    if item["image"] != null {
+      html = html + "      <div class='carousel-slide-media'>" + embed_media(item["image"], "image") + "</div>\n"
+    }
+    html = html + "      <div class='carousel-slide-caption'>\n"
+    html = html + "        <h4 class='carousel-slide-title'>" + item["title"] + "</h4>\n"
+    html = html + "        <p class='carousel-slide-desc'>" + item["description"] + "</p>\n"
+    html = html + "      </div>\n"
+    html = html + "    </div>\n"
+    count = count + 1
+  }
+  html = html + "  </div>\n"
+  html = html + "  <div class='carousel-nav'>\n"
+  let i = 0
+  while i < count {
+    html = html + "    <a class='carousel-indicator' href='#slide-" + str(i) + "'></a>\n"
+    i = i + 1
+  }
+  html = html + "  </div>\n</div>"
+  return html
+}
+
+export fn compile_modal(id: string, triggerText: string, modalTitle: string, modalBody: string) {
+  let html = "<!-- Modal Trigger -->\n"
+  html = html + "<label class='modal-trigger-btn' for='" + id + "-toggle'>" + triggerText + "</label>\n"
+  html = html + "<input type='checkbox' id='" + id + "-toggle' class='modal-state-checkbox' style='display: none;' />\n"
+  html = html + "<!-- Modal Box -->\n"
+  html = html + "<div class='modal-overlay'>\n"
+  html = html + "  <div class='modal-box'>\n"
+  html = html + "    <div class='modal-header'>\n"
+  html = html + "      <h3 class='modal-title'>" + modalTitle + "</h3>\n"
+  html = html + "      <label class='modal-close-x' for='" + id + "-toggle'>&times;</label>\n"
+  html = html + "    </div>\n"
+  html = html + "    <div class='modal-content'>\n"
+  html = html + "      " + modalBody + "\n"
+  html = html + "    </div>\n"
+  html = html + "  </div>\n"
+  html = html + "</div>"
+  return html
+}
+
+export fn compile_tabs(tabs: array<object>) {
+  let html = "<div class='tab-group'>\n"
+  let count = 0
+  for tab in tabs {
+    let checked = ""
+    if count == 0 {
+      checked = "checked"
+    }
+    html = html + "  <input type='radio' name='tab-set' id='tab-" + str(count) + "' class='tab-input' " + checked + " style='display: none;' />\n"
+    html = html + "  <label for='tab-" + str(count) + "' class='tab-label'>" + tab["label"] + "</label>\n"
+    count = count + 1
+  }
+  html = html + "  <div class='tab-panels'>\n"
+  let idx = 0
+  for tab in tabs {
+    html = html + "    <div class='tab-panel panel-" + str(idx) + "'>\n"
+    html = html + "      " + tab["content"] + "\n"
+    html = html + "    </div>\n"
+    idx = idx + 1
+  }
+  html = html + "  </div>\n</div>"
+  return html
+}
+
+export fn generate_seo_metadata(meta: object) {
+  let tags = "<!-- Automated SEO Curation -->\n"
+  tags = tags + "<meta name='description' content='" + meta["description"] + "' />\n"
+  tags = tags + "<meta name='keywords' content='" + meta["keywords"] + "' />\n"
+  tags = tags + "<meta name='author' content='" + meta["author"] + "' />\n"
+  tags = tags + "<meta name='viewport' content='width=device-width, initial-scale=1.0' />\n"
+  tags = tags + "<meta property='og:title' content='" + meta["title"] + "' />\n"
+  tags = tags + "<meta property='og:description' content='" + meta["description"] + "' />\n"
+  tags = tags + "<meta property='og:type' content='website' />\n"
+  if meta["image"] != null {
+    tags = tags + "<meta property='og:image' content='" + meta["image"] + "' />\n"
+  }
+  tags = tags + "<meta name='twitter:card' content='summary_large_image' />\n"
+  tags = tags + "<meta name='twitter:title' content='" + meta["title"] + "' />\n"
+  return tags
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Error Handling & Input Validation Utilities
+// ─────────────────────────────────────────────────────────────────────────────
+
+export fn assert_string(value: string, label: string) {
+  if type(value) != "string" {
+    raise_error(error_type("ValidationError", label + " must be a string", {"received": type(value)}))
+  }
+  if len(value) == 0 {
+    raise_error(error_type("ValidationError", label + " must not be empty", {"field": label}))
+  }
+  return true
+}
+
+export fn assert_array(value: array, label: string) {
+  if type(value) != "array" {
+    raise_error(error_type("ValidationError", label + " must be an array", {"received": type(value)}))
+  }
+  return true
+}
+
+export fn assert_number(value: number, label: string, min: number, max: number) {
+  if type(value) != "number" {
+    raise_error(error_type("ValidationError", label + " must be a number", {"received": type(value)}))
+  }
+  if value < min {
+    raise_error(error_type("RangeError", label + " is below minimum (" + str(min) + ")", {"value": value}))
+  }
+  if value > max {
+    raise_error(error_type("RangeError", label + " exceeds maximum (" + str(max) + ")", {"value": value}))
+  }
+  return true
+}
+
+// Validated wrappers — drop-in replacements for the core builders with guarded inputs
+
+export fn safe_save_page(filename: string, title: string, content: string) {
+  try {
+    assert_string(filename, "filename")
+    assert_string(title, "title")
+    assert_string(content, "content")
+    return save_page(filename, title, content)
+  } catch (err) {
+    print "⛔ safe_save_page failed:" err["message"]
+    return false
+  }
+}
+
+export fn safe_generate_page(title: string, content: string) {
+  try {
+    assert_string(title, "title")
+    assert_string(content, "content")
+    return generate_page(title, content)
+  } catch (err) {
+    print "⛔ safe_generate_page failed:" err["message"]
+    return ""
+  }
+}
+
+export fn safe_embed_media(path: string, mediaType: string) {
+  try {
+    assert_string(path, "path")
+    if mediaType != "image" {
+      if mediaType != "video" {
+        raise_error(error_type("ValidationError", "mediaType must be 'image' or 'video'", {"received": mediaType}))
+      }
+    }
+    return embed_media(path, mediaType)
+  } catch (err) {
+    print "⛔ safe_embed_media failed:" err["message"]
+    return ""
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layout Components
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Breadcrumb trail — crumbs: array<object> with keys "label" and "url"
+export fn compile_breadcrumb(crumbs: array<object>) {
+  try {
+    assert_array(crumbs, "crumbs")
+    let html = "<nav class='breadcrumb' aria-label='Breadcrumb'>\n  <ol class='breadcrumb-list'>\n"
+    let last = len(crumbs) - 1
+    let idx = 0
+    for crumb in crumbs {
+      if idx == last {
+        html = html + "    <li class='breadcrumb-item breadcrumb-current' aria-current='page'>" + crumb["label"] + "</li>\n"
+      } else {
+        html = html + "    <li class='breadcrumb-item'><a class='breadcrumb-link' href='" + crumb["url"] + "'>" + crumb["label"] + "</a></li>\n"
+      }
+      idx = idx + 1
+    }
+    html = html + "  </ol>\n</nav>"
+    return html
+  } catch (err) {
+    print "⛔ compile_breadcrumb failed:" err["message"]
+    return ""
+  }
+}
+
+// Toast / notification strip — messages: array<object> with keys "text" and "level" (info|warn|error)
+export fn compile_toast_strip(messages: array<object>) {
+  try {
+    assert_array(messages, "messages")
+    let html = "<div class='toast-strip'>\n"
+    for msg in messages {
+      let level = msg["level"]
+      html = html + "  <div class='toast toast-" + level + "' role='alert'>\n"
+      html = html + "    <span class='toast-icon'></span>\n"
+      html = html + "    <span class='toast-text'>" + msg["text"] + "</span>\n"
+      html = html + "  </div>\n"
+    }
+    html = html + "</div>"
+    return html
+  } catch (err) {
+    print "⛔ compile_toast_strip failed:" err["message"]
+    return ""
+  }
+}
+
+// Data table — headers: array<string>, rows: array<array<string>>
+export fn compile_data_table(headers: array<string>, rows: array, caption: string) {
+  try {
+    assert_array(headers, "headers")
+    assert_array(rows, "rows")
+    let html = "<div class='table-wrapper'>\n  <table class='data-table'>\n"
+    if len(caption) > 0 {
+      html = html + "    <caption class='table-caption'>" + caption + "</caption>\n"
+    }
+    html = html + "    <thead>\n      <tr>\n"
+    for header in headers {
+      html = html + "        <th class='table-th' scope='col'>" + header + "</th>\n"
+    }
+    html = html + "      </tr>\n    </thead>\n    <tbody>\n"
+    for row in rows {
+      html = html + "      <tr class='table-row'>\n"
+      for cell in row {
+        html = html + "        <td class='table-td'>" + cell + "</td>\n"
+      }
+      html = html + "      </tr>\n"
+    }
+    html = html + "    </tbody>\n  </table>\n</div>"
+    return html
+  } catch (err) {
+    print "⛔ compile_data_table failed:" err["message"]
+    return ""
+  }
+}
+
+// Sticky sidebar layout — wraps mainContent and sideContent into a two-column grid
+export fn compile_sticky_sidebar(mainContent: string, sideContent: string, sidePosition: string) {
+  try {
+    assert_string(mainContent, "mainContent")
+    assert_string(sideContent, "sideContent")
+    let order = "row"
+    if sidePosition == "left" {
+      order = "row-reverse"
+    }
+    let html = "<div class='sidebar-layout' style='display: flex; flex-direction: " + order + "; gap: 2rem; align-items: flex-start;'>\n"
+    html = html + "  <main class='sidebar-main' style='flex: 1;'>\n    " + mainContent + "\n  </main>\n"
+    html = html + "  <aside class='sidebar-side' style='width: 280px; position: sticky; top: 1.5rem;'>\n    " + sideContent + "\n  </aside>\n"
+    html = html + "</div>"
+    return html
+  } catch (err) {
+    print "⛔ compile_sticky_sidebar failed:" err["message"]
+    return ""
+  }
+}
+
+// Multi-column flowing text — splits body text across n columns
+export fn compile_column_text(body: string, columns: number) {
+  try {
+    assert_string(body, "body")
+    assert_number(columns, "columns", 1, 6)
+    let css = "column-count: " + str(columns) + "; column-gap: 2rem; column-rule: 1px solid currentColor;"
+    let html = "<div class='column-text' style='" + css + "'>\n  " + body + "\n</div>"
+    return html
+  } catch (err) {
+    print "⛔ compile_column_text failed:" err["message"]
+    return ""
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Interactivity Components
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Timeline feed — events: array<object> with keys "date", "title", "body"
+export fn compile_timeline(events: array<object>) {
+  try {
+    assert_array(events, "events")
+    let html = "<ol class='timeline'>\n"
+    for ev in events {
+      html = html + "  <li class='timeline-entry'>\n"
+      html = html + "    <time class='timeline-date' datetime='" + ev["date"] + "'>" + ev["date"] + "</time>\n"
+      html = html + "    <div class='timeline-content'>\n"
+      html = html + "      <strong class='timeline-title'>" + ev["title"] + "</strong>\n"
+      html = html + "      <p class='timeline-body'>" + ev["body"] + "</p>\n"
+      html = html + "    </div>\n"
+      html = html + "  </li>\n"
+    }
+    html = html + "</ol>"
+    return html
+  } catch (err) {
+    print "⛔ compile_timeline failed:" err["message"]
+    return ""
+  }
+}
+
+// Inline search bar — emits a self-contained JS-powered filter widget
+export fn compile_search_bar(targetClass: string, placeholder: string) {
+  try {
+    assert_string(targetClass, "targetClass")
+    let ph = placeholder
+    if len(ph) == 0 {
+      ph = "Search..."
+    }
+    let html = "<div class='search-bar-wrap'>\n"
+    html = html + "  <input class='search-bar-input' id='search-" + targetClass + "' type='search' placeholder='" + ph + "' aria-label='" + ph + "' />\n"
+    html = html + "  <span class='search-bar-icon' aria-hidden='true'>⌕</span>\n"
+    html = html + "</div>\n"
+    html = html + "<script>\n"
+    html = html + "  (function() {\n"
+    html = html + "    var inp = document.getElementById('search-" + targetClass + "');\n"
+    html = html + "    if (!inp) return;\n"
+    html = html + "    inp.addEventListener('input', function() {\n"
+    html = html + "      var q = inp.value.toLowerCase();\n"
+    html = html + "      var items = document.querySelectorAll('." + targetClass + "');\n"
+    html = html + "      items.forEach(function(el) {\n"
+    html = html + "        el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';\n"
+    html = html + "      });\n"
+    html = html + "    });\n"
+    html = html + "  })();\n"
+    html = html + "</script>"
+    return html
+  } catch (err) {
+    print "⛔ compile_search_bar failed:" err["message"]
+    return ""
+  }
+}
+
+// Progress indicator bar — percent 0–100, label is the accessible description
+export fn compile_progress_bar(label: string, percent: number) {
+  try {
+    assert_string(label, "label")
+    assert_number(percent, "percent", 0, 100)
+    let pct = str(percent)
+    let html = "<div class='progress-wrap' role='group' aria-label='" + label + "'>\n"
+    html = html + "  <div class='progress-label'>" + label + "</div>\n"
+    html = html + "  <div class='progress-track'>\n"
+    html = html + "    <div class='progress-fill' role='progressbar' aria-valuenow='" + pct + "' aria-valuemin='0' aria-valuemax='100' style='width:" + pct + "%'></div>\n"
+    html = html + "  </div>\n"
+    html = html + "  <span class='progress-pct'>" + pct + "%</span>\n"
+    html = html + "</div>"
+    return html
+  } catch (err) {
+    print "⛔ compile_progress_bar failed:" err["message"]
+    return ""
+  }
+}
+
+// Collapsible code block with copy-to-clipboard button
+export fn compile_code_block(language: string, code: string, collapsed: bool) {
+  try {
+    assert_string(language, "language")
+    assert_string(code, "code")
+    let openAttr = ""
+    if !collapsed {
+      openAttr = " open"
+    }
+    let html = "<details class='code-block'" + openAttr + ">\n"
+    html = html + "  <summary class='code-block-summary'>" + language + " <button class='code-copy-btn' onclick='navigator.clipboard.writeText(this.closest(\"details\").querySelector(\"code\").textContent)'>Copy</button></summary>\n"
+    html = html + "  <pre class='code-block-pre'><code class='language-" + language + "'>" + code + "</code></pre>\n"
+    html = html + "</details>"
+    return html
+  } catch (err) {
+    print "⛔ compile_code_block failed:" err["message"]
+    return ""
+  }
+}
+
+// Keyboard shortcut hint bar — shortcuts: array<object> with keys "keys" and "action"
+export fn compile_keybind_bar(shortcuts: array<object>) {
+  try {
+    assert_array(shortcuts, "shortcuts")
+    let html = "<div class='keybind-bar' role='complementary' aria-label='Keyboard shortcuts'>\n"
+    for sc in shortcuts {
+      html = html + "  <span class='keybind-pair'>\n"
+      html = html + "    <kbd class='keybind-key'>" + sc["keys"] + "</kbd>\n"
+      html = html + "    <span class='keybind-action'>" + sc["action"] + "</span>\n"
+      html = html + "  </span>\n"
+    }
+    html = html + "</div>"
+    return html
+  } catch (err) {
+    print "⛔ compile_keybind_bar failed:" err["message"]
+    return ""
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Concurrent Page Builder (multi_req)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Builds multiple topic pages concurrently using multi_req, writing each to outputDir/<topic>/index.html
+export fn concurrent_build(topics: array<string>, outputDir: string) {
+  try {
+    assert_array(topics, "topics")
+    assert_string(outputDir, "outputDir")
+    make_dir(outputDir)
+    let pids = []
+    for topic in topics {
+      let dir = outputDir + "/" + topic
+      make_dir(dir)
+      // Write a self-contained worker script for this topic, then spawn it
+      let workerPath = outputDir + "/_worker_" + topic + ".sesi"
+      let workerScript = "import {generateWebpageAssets} from \"site-builder\"\n"
+      workerScript = workerScript + "print \"[worker] building: " + topic + "\"\n"
+      workerScript = workerScript + "generateWebpageAssets(\"" + topic + "\", \"" + dir + "\")\n"
+      workerScript = workerScript + "print \"[worker] done: " + topic + "\"\n"
+      write_file(workerPath, workerScript)
+      let pid = spawn(workerPath)
+      push(pids, pid)
+      print "🚀 spawned worker for" topic "— PID:" str(pid)
+    }
+    print "✅ concurrent_build: spawned" str(len(pids)) "parallel page workers"
+    return pids
+  } catch (err) {
+    print "⛔ concurrent_build failed:" err["message"]
+    return []
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool Registry — exposes every component as a named callable tool
+// ─────────────────────────────────────────────────────────────────────────────
+
+define_tool("compile_breadcrumb",     compile_breadcrumb,     "Render an accessible breadcrumb nav from an array of {label, url} objects")
+define_tool("compile_toast_strip",    compile_toast_strip,    "Render a notification toast strip from an array of {text, level} messages")
+define_tool("compile_data_table",     compile_data_table,     "Render an HTML data table from headers, rows, and an optional caption")
+define_tool("compile_sticky_sidebar", compile_sticky_sidebar, "Render a sticky sidebar layout with main content and a side panel")
+define_tool("compile_column_text",    compile_column_text,    "Render body text in a CSS multi-column layout (1–6 columns)")
+define_tool("compile_timeline",       compile_timeline,       "Render a chronological timeline feed from an array of {date, title, body} events")
+define_tool("compile_search_bar",     compile_search_bar,     "Render an inline JS-powered search bar that filters elements by class name")
+define_tool("compile_progress_bar",   compile_progress_bar,   "Render an accessible progress indicator bar (0–100%)")
+define_tool("compile_code_block",     compile_code_block,     "Render a collapsible code block with a copy-to-clipboard button")
+define_tool("compile_keybind_bar",    compile_keybind_bar,    "Render a keyboard shortcut hint bar from an array of {keys, action} pairs")
+define_tool("compile_hero_banner",    compile_hero_banner,    "Render a hero banner with title, subtitle, and an optional CTA link")
+define_tool("compile_nav_bar",        compile_nav_bar,        "Render a top navigation bar with a brand name and link array")
+define_tool("compile_accordion",      compile_accordion,      "Render a native HTML accordion from an array of {title, content} items")
+define_tool("compile_carousel",       compile_carousel,       "Render a CSS scroll-snap carousel from an array of {image, title, description} slides")
+define_tool("compile_tabs",           compile_tabs,           "Render a CSS-only tab group from an array of {label, content} objects")
+define_tool("compile_modal",          compile_modal,          "Render a CSS-only modal dialog with checkbox-toggle state")
+define_tool("compile_form_block",     compile_form_block,     "Render an HTML form with labelled fields and a submit button")
+define_tool("generate_seo_metadata",  generate_seo_metadata,  "Generate <meta> SEO tags from a {title, description, keywords, author, image} object")
+define_tool("concurrent_build",       concurrent_build,       "Concurrently build multiple topic pages using multi_req for parallel asset generation")
+
+let _registry = list_tools()
+print "📦 site-builder tool registry loaded —" str(len(_registry)) "tools available"

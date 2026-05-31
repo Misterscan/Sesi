@@ -172,3 +172,5 @@ export fn delete_record(dbPath: string, collection: string, id: string) {
 }
 
 // Future: Add more complex querying capabilities, support for nested objects, indexing for performance, backup and restore utilities, etc.
+// Future: Add more database types like sqlite3, postgresql, etc.
+// ToDo: Add more database management functions, etc.

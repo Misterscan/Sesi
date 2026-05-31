@@ -153,3 +153,5 @@ export fn filter_records(records: array, key: string, filterVal: string) -> arra
 }
 
 // Future: Add more analytical functions like median, mode, standard deviation, group-by aggregations, etc.
+// Future: Add more conversion functions like excel, docx, etc.
+// ToDo: Add more data validation functions, etc.

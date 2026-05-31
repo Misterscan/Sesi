@@ -55,4 +55,499 @@ export fn run_command_log(command: string, logPath: string) {
   }
 }
 
-// Future: Add more utilities like directory watchers, scheduled tasks, cross-platform environment variable management, etc.
+// ─────────────────────────────────────────────────────────────────────────────
+// Directory Watcher (polling-based)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Captures a snapshot of a directory as a JSON string (path -> size pairs via exec)
+export fn snapshot_dir(dir: string) {
+  try {
+    let files = list_dir(dir)
+    let entries = {}
+    for file in files {
+      let fullPath = dir + "/" + file
+      // Use exec to get file size cross-platform; fall back to "?" on error
+      let sizeStr = ""
+      try {
+        let raw = exec("powershell -Command \"(Get-Item '" + fullPath + "').Length\"")
+        sizeStr = raw
+      } catch (e1) {
+        try {
+          sizeStr = exec("stat -c%s " + fullPath)
+        } catch (e2) {
+          sizeStr = "?"
+        }
+      }
+      entries[file] = sizeStr
+    }
+    return to_json(entries)
+  } catch (err) {
+    return "{}"
+  }
+}
+
+// Polls a directory for changes by comparing snapshots written to a state file.
+// intervalMs: polling delay in milliseconds; maxChecks: how many times to poll (0 = infinite)
+// onChange: a string shell command to exec when a change is detected
+export fn watch_dir(dir: string, stateFile: string, intervalMs: number, maxChecks: number, onChange: string) {
+  print "👁  Watching directory:" dir
+  let prev = snapshot_dir(dir)
+  write_file(stateFile, prev)
+  let checks = 0
+  let running = true
+  while running {
+    import {sleep} from "std/time"
+    sleep(intervalMs)
+    let curr = snapshot_dir(dir)
+    if curr != prev {
+      print "🔔 Change detected in" dir "at" str(time())
+      if len(onChange) > 0 {
+        try {
+          let result = exec(onChange)
+          print "  → onChange output:" result
+        } catch (err) {
+          print "  ⚠️ onChange command failed."
+        }
+      }
+      write_file(stateFile, curr)
+      prev = curr
+    }
+    checks = checks + 1
+    if maxChecks > 0 {
+      if checks >= maxChecks {
+        running = false
+      }
+    }
+  }
+  print "✓ watch_dir: stopped after" str(checks) "check(s)."
+  return checks
+}
+
+// Spawns a directory watcher as a detached background process via a generated worker script
+export fn spawn_watch_dir(dir: string, stateFile: string, intervalMs: number, onChange: string) {
+  let workerPath = stateFile + "_watcher.sesi"
+  let script = "import {watch_dir} from \"shell-automation\"\n"
+  script = script + "watch_dir(\"" + dir + "\", \"" + stateFile + "\", " + str(intervalMs) + ", 0, \"" + onChange + "\")\n"
+  write_file(workerPath, script)
+  let pid = spawn(workerPath)
+  print "🚀 Directory watcher spawned — PID:" str(pid) "watching:" dir
+  return pid
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scheduled Task Runner
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Runs a shell command once after a given delay (milliseconds)
+export fn run_after(delayMs: number, command: string) {
+  import {sleep} from "std/time"
+  print "⏳ Scheduling command in" str(delayMs) "ms:" command
+  sleep(delayMs)
+  try {
+    let out = exec(command)
+    print "✓ Scheduled command executed." out
+    return out
+  } catch (err) {
+    print "⚠️ Scheduled command failed:" command
+    return ""
+  }
+}
+
+// Runs a shell command on a repeating interval for a set number of repetitions
+// Returns an array of each run's output string
+export fn run_interval(command: string, intervalMs: number, repetitions: number) {
+  import {sleep} from "std/time"
+  print "🔁 Running command every" str(intervalMs) "ms ×" str(repetitions) ":" command
+  let outputs = []
+  let i = 0
+  while i < repetitions {
+    try {
+      let out = exec(command)
+      push(outputs, out)
+      print "  [run " str(i + 1) "/" str(repetitions) "]" out
+    } catch (err) {
+      push(outputs, "ERROR")
+      print "  ⚠️ Run" str(i + 1) "failed."
+    }
+    i = i + 1
+    if i < repetitions {
+      sleep(intervalMs)
+    }
+  }
+  print "✓ run_interval complete —" str(len(outputs)) "executions."
+  return outputs
+}
+
+// Spawns a scheduled repeating command as a background worker process
+export fn spawn_scheduled(command: string, intervalMs: number, repetitions: number, workerPath: string) {
+  let script = "import {run_interval} from \"shell-automation\"\n"
+  script = script + "let results = run_interval(\"" + command + "\", " + str(intervalMs) + ", " + str(repetitions) + ")\n"
+  script = script + "print \"Scheduled worker finished.\" str(len(results)) \"runs.\"\n"
+  write_file(workerPath, script)
+  let pid = spawn(workerPath)
+  print "🚀 Scheduled task spawned — PID:" str(pid)
+  return pid
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cross-Platform Environment Variable Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Reads an environment variable by name; returns empty string if not set
+export fn env_get(varName: string) {
+  let value = ""
+  try {
+    // PowerShell path
+    value = exec("powershell -Command \"[System.Environment]::GetEnvironmentVariable('" + varName + "')\"")
+  } catch (e1) {
+    try {
+      // Unix/macOS path
+      value = exec("printenv " + varName)
+    } catch (e2) {
+      print "⚠️ Could not read env var:" varName
+    }
+  }
+  // Trim trailing newline from exec output
+  let parts = split(value, "\n")
+  return parts[0]
+}
+
+// Sets a user-scoped environment variable (persists across sessions on Windows; sets for shell on Unix)
+export fn env_set(varName: string, varValue: string) {
+  try {
+    exec("powershell -Command \"[System.Environment]::SetEnvironmentVariable('" + varName + "', '" + varValue + "', 'User')\"")
+    print "✓ env_set (Windows User scope):" varName "=" varValue
+    return true
+  } catch (e1) {
+    try {
+      // Unix: append to ~/.profile (session-persistent)
+      let line = "\nexport " + varName + "=\"" + varValue + "\""
+      let profile = ""
+      try {
+        profile = read_file("~/.profile")
+      } catch (e3) {
+        profile = ""
+      }
+      write_file("~/.profile", profile + line)
+      print "✓ env_set (Unix ~/.profile):" varName "=" varValue
+      return true
+    } catch (e2) {
+      print "⚠️ env_set failed for:" varName
+      return false
+    }
+  }
+}
+
+// Lists all environment variables as a JSON object (name -> value)
+export fn env_list() {
+  let raw = ""
+  try {
+    raw = exec("powershell -Command \"[System.Environment]::GetEnvironmentVariables() | ConvertTo-Json\"")
+  } catch (e1) {
+    try {
+      raw = exec("env")
+    } catch (e2) {
+      print "⚠️ env_list: could not retrieve environment variables."
+      return "{}"
+    }
+  }
+  return raw
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Process Health Check
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Returns true if a process with the given name is currently running
+export fn process_running(processName: string) {
+  let found = false
+  try {
+    let out = exec("powershell -Command \"Get-Process -Name '" + processName + "' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name\"")
+    let trimmed = split(out, "\n")[0]
+    if len(trimmed) > 0 {
+      found = true
+    }
+  } catch (e1) {
+    try {
+      let out = exec("pgrep -x " + processName)
+      let trimmed = split(out, "\n")[0]
+      if len(trimmed) > 0 {
+        found = true
+      }
+    } catch (e2) {
+      found = false
+    }
+  }
+  return found
+}
+
+// Checks a list of required processes and logs which are up or down
+// Returns an object: { "processName": true/false, ... }
+export fn health_check(processes: array<string>) {
+  print "🩺 Running process health check..."
+  let report = {}
+  for proc in processes {
+    let alive = process_running(proc)
+    report[proc] = alive
+    if alive {
+      print "  ✅" proc "is running"
+    } else {
+      print "  ❌" proc "is NOT running"
+    }
+  }
+  return report
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Timestamped Backup
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Creates a timestamped zip backup of a directory into a backup folder
+export fn backup_dir(sourceDir: string, backupFolder: string) {
+  make_dir(backupFolder)
+  let ts = str(time())
+  let zipName = backupFolder + "/backup_" + ts + ".zip"
+  print "💾 Backing up" sourceDir "→" zipName
+  let ok = false
+  try {
+    exec("zip -r " + zipName + " " + sourceDir)
+    ok = true
+  } catch (e1) {
+    try {
+      exec("powershell Compress-Archive -Path " + sourceDir + " -DestinationPath " + zipName + " -Force")
+      ok = true
+    } catch (e2) {
+      print "⚠️ Backup failed — no zip utility found."
+      return ""
+    }
+  }
+  if ok {
+    print "✓ Backup written:" zipName
+  }
+  return zipName
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recursive File Scanner
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Recursively lists all files under a directory using the platform's find/dir command
+// Returns raw output string; use split(result, "\n") to get individual paths
+export fn scan_files(rootDir: string, extension: string) {
+  let out = ""
+  let filter = "*." + extension
+  try {
+    // Unix: find
+    out = exec("find " + rootDir + " -type f -name '" + filter + "'")
+  } catch (e1) {
+    try {
+      // Windows PowerShell
+      out = exec("powershell -Command \"Get-ChildItem -Path '" + rootDir + "' -Recurse -Filter '" + filter + "' | Select-Object -ExpandProperty FullName\"")
+    } catch (e2) {
+      print "⚠️ scan_files: could not enumerate files in" rootDir
+      return ""
+    }
+  }
+  return out
+}
+
+// Counts files matching a given extension under a directory
+export fn count_files(rootDir: string, extension: string) {
+  let raw = scan_files(rootDir, extension)
+  if len(raw) == 0 {
+    return 0
+  }
+  let lines = split(raw, "\n")
+  let count = 0
+  for line in lines {
+    if len(line) > 0 {
+      count = count + 1
+    }
+  }
+  return count
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// File Diff Reporter
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Runs a unified diff between two files and writes the result to a report file
+// Returns the diff string (empty if files are identical)
+export fn diff_files(fileA: string, fileB: string, reportPath: string) {
+  let diffOut = ""
+  try {
+    diffOut = exec("diff -u " + fileA + " " + fileB)
+  } catch (e1) {
+    try {
+      diffOut = exec("powershell -Command \"Compare-Object (Get-Content '" + fileA + "') (Get-Content '" + fileB + "')\"")
+    } catch (e2) {
+      print "⚠️ diff_files: diff utility not available."
+      return ""
+    }
+  }
+  if len(diffOut) == 0 {
+    print "✓ Files are identical:" fileA fileB
+  } else {
+    print "🔍 Diff found between" fileA "and" fileB
+    if len(reportPath) > 0 {
+      write_file(reportPath, diffOut)
+      print "  → Diff written to:" reportPath
+    }
+  }
+  return diffOut
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Encryption / Decryption (Sesi native AES-256-CBC via CLI)
+// ─────────────────────────────────────────────────────────────────────────────
+// Sesi ships a built-in AES-256-CBC encrypt/decrypt command:
+//   node bin/sesi.js -encrypt <file> -p <password>
+//   node bin/sesi.js -decrypt <file> -p <password>
+// These wrappers call that CLI so encryption stays in Sesi's own implementation.
+
+// Encrypts a file in-place using Sesi's AES-256-CBC engine.
+// The file is overwritten with:  <16-byte hex IV>:<hex ciphertext>
+export fn encrypt(filePath: string, password: string) {
+  print "🔒 Encrypting:" filePath
+  try {
+    let out = exec("node bin/sesi.js -encrypt " + filePath + " -p " + password)
+    print "✓ Encrypted:" filePath
+    return true
+  } catch (err) {
+    print "⚠️ encrypt_file failed for:" filePath
+    return false
+  }
+}
+
+// Decrypts a file in-place that was encrypted with encrypt_file / the Sesi CLI.
+export fn decrypt(filePath: string, password: string) {
+  print "🔓 Decrypting:" filePath
+  try {
+    let out = exec("node bin/sesi.js -decrypt " + filePath + " -p " + password)
+    print "✓ Decrypted:" filePath
+    return true
+  } catch (err) {
+    print "⚠️ decrypt_file failed for:" filePath
+    return false
+  }
+}
+
+// Encrypts a file, runs a callback command, then immediately decrypts it again.
+// Useful for safely committing secrets or passing protected files through a pipeline.
+export fn with_encrypted(filePath: string, password: string, command: string) {
+  print "🔐 Encrypting before pipeline step:" filePath
+  let encOk = encrypt(filePath, password)
+  if !encOk {
+    print "⚠️ with_encrypted: aborting — could not encrypt" filePath
+    return false
+  }
+  let cmdOut = ""
+  try {
+    cmdOut = exec(command)
+    print "  → Pipeline output:" cmdOut
+  } catch (err) {
+    print "  ⚠️ Pipeline command failed:" command
+  }
+  let decOk = decrypt(filePath, password)
+  if !decOk {
+    print "⚠️ with_encrypted: decrypt failed — file may still be encrypted:" filePath
+    return false
+  }
+  print "✓ with_encrypted: pipeline complete, file restored."
+  return true
+}
+
+// Decrypts a file, runs a callback command, then immediately re-encrypts it again.
+// Useful for safely committing secrets or passing protected files through a pipeline.
+export fn with_decrypted(filePath: string, password: string, command: string) {
+  print "🔐 Decrypting before pipeline step:" filePath
+  let decOk = decrypt(filePath, password)
+  if !decOk {
+    print "⚠️ with_decrypted: aborting — could not decrypt" filePath
+    return false
+  }
+  let cmdOut = ""
+  try {
+    cmdOut = exec(command)
+    print "  → Pipeline output:" cmdOut
+  } catch (err) {
+    print "  ⚠️ Pipeline command failed:" command
+  }
+  let encOk = encrypt(filePath, password)
+  if !encOk {
+    print "⚠️ with_decrypted: encrypt failed — file may still be decrypted:" filePath
+    return false
+  }
+  print "✓ with_decrypted: pipeline complete, file restored."
+  return true
+}
+
+// Encrypts every .sesi file found in a directory (non-recursive, in-place).
+// Returns an array of the file paths that were successfully encrypted.
+export fn encrypt_dir(dir: string, password: string) {
+  print "🔒 Batch-encrypting .sesi files in:" dir
+  let files = list_dir(dir)
+  let done = []
+  for file in files {
+    let parts = split(file, ".")
+    let ext = parts[len(parts) - 1]
+    if ext == "sesi" {
+      let fullPath = dir + "/" + file
+      let ok = encrypt_file(fullPath, password)
+      if ok {
+        push(done, fullPath)
+      }
+    }
+  }
+  print "✓ encrypt_dir: encrypted" str(len(done)) "file(s) in" dir
+  return done
+}
+
+// Decrypts every file in a directory that matches Sesi's AES format.
+// Tries to decrypt each file; silently skips files that aren't encrypted.
+export fn decrypt_dir(dir: string, password: string) {
+  print "🔓 Batch-decrypting files in:" dir
+  let files = list_dir(dir)
+  let done = []
+  for file in files {
+    let fullPath = dir + "/" + file
+    let ok = decrypt_file(fullPath, password)
+    if ok {
+      push(done, fullPath)
+    }
+  }
+  print "✓ decrypt_dir: decrypted" str(len(done)) "file(s) in" dir
+  return done
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool Registry
+// ─────────────────────────────────────────────────────────────────────────────
+
+define_tool("git_commit_and_push", git_commit_and_push, "Run git add, commit, and push in one call")
+define_tool("zip_directory",       zip_directory,       "Compress a folder to a zip archive (cross-platform)")
+define_tool("run_command_log",     run_command_log,     "Execute a shell command and write its output to a log file")
+define_tool("snapshot_dir",        snapshot_dir,        "Capture a directory's file/size snapshot as a JSON string")
+define_tool("watch_dir",           watch_dir,           "Poll a directory for changes and execute an onChange command")
+define_tool("spawn_watch_dir",     spawn_watch_dir,     "Spawn a background directory watcher process")
+define_tool("run_after",           run_after,           "Execute a shell command after a millisecond delay")
+define_tool("run_interval",        run_interval,        "Execute a shell command on a repeating interval N times")
+define_tool("spawn_scheduled",     spawn_scheduled,     "Spawn a background repeating scheduled command worker")
+define_tool("env_get",             env_get,             "Read an environment variable by name (cross-platform)")
+define_tool("env_set",             env_set,             "Set a persistent environment variable (cross-platform)")
+define_tool("env_list",            env_list,            "List all environment variables as JSON")
+define_tool("process_running",     process_running,     "Check if a process with a given name is currently running")
+define_tool("health_check",        health_check,        "Check a list of process names and report which are up or down")
+define_tool("backup_dir",          backup_dir,          "Create a timestamped zip backup of a directory")
+define_tool("scan_files",          scan_files,          "Recursively list all files matching an extension under a root directory")
+define_tool("count_files",         count_files,         "Count files matching an extension under a root directory")
+define_tool("diff_files",          diff_files,          "Run a unified diff between two files and optionally write a report")
+define_tool("encrypt",             encrypt,             "AES-256-CBC encrypt a file in-place via the Sesi CLI")
+define_tool("decrypt",             decrypt,             "AES-256-CBC decrypt a file in-place via the Sesi CLI")
+define_tool("with_encrypted",      with_encrypted,      "Encrypt a file, run a pipeline command, then decrypt it back")
+define_tool("with_decrypted",      with_decrypted,      "Decrypt a file, run a pipeline command, then re-encrypt it back")
+define_tool("encrypt_dir",         encrypt_dir,         "Batch-encrypt all .sesi files in a directory in-place")
+define_tool("decrypt_dir",         decrypt_dir,         "Batch-decrypt all files in a directory in-place")
+
+let _registry = list_tools()
+print "📦 shell-automation tool registry loaded —" str(len(_registry)) "tools available"
