@@ -2,7 +2,7 @@
 
 ## Overview
 
-In Sesi, Reasoning is used to evaluate state, make logical decisions, and handle complex patterns. This guide covers how to leverage Sesi's built-in Reasoning functions (`model`, `image` `prompt`, `structured_output`, `tool_call`) to build scripts for your designated needs.
+In Sesi, Reasoning is used to evaluate state, make logical decisions, and handle complex patterns. This guide covers how to leverage Sesi's built-in Reasoning functions (`model`, `image`, `workflow`) to build scripts for your designated needs.
 
 ## 1. Prompting
 
@@ -62,8 +62,9 @@ print creative
 
 // Config options:
 // - thinkingLevel: "minimal", "low", "medium", "high" (natively configures Gemini's reasoning budget)
-// - max_tokens: max length of response (OPTIONAL: if not specified, will use the model's default max tokens=2048)
-// - temperature / top_k / top_p: *Will be deprecated in Gemini 3.x+, use thinkingLevel instead (reasoning is mathematically optimized for default settings)*
+// - max_tokens: max length of response (OPTIONAL: if not specified, will use the model's default max tokens=4096)
+// - temperature: creative variation (OPTIONAL: defaults to 0.1 for high-fidelity reasoning precision)
+// - top_k / top_p: parameter options for specialized sampling configurations
 ```
 
 ### Model Selection
@@ -126,7 +127,7 @@ print diff
 
 // Mixed with other config keys
 let scannedDocument = "doc_scan.jpg"
-let result = model("gemini-3.5-flash") {images: scannedDocument, thinkingLevel: "low", max_tokens: 2048} {"Transcribe all text visible in this scan."}
+let result = model("gemini-3.5-flash") {images: scannedDocument, thinkingLevel: "low", max_tokens: 4096} {"Transcribe all text visible in this scan."}
 write_file("transcript.txt", result)
 ```
 
@@ -178,13 +179,12 @@ Let Reasoning call functions in your program.
 ```sesi
 let city = "New York"
 fn getWeather(city: string) -> string
-{let weather = model("gemini-3.1-flash-lite") {"What is the weather like in " city} 
+{let weather = model("gemini-3.1-flash-lite") {"What is the weather like in " city}
 return weather}
 let result = getWeather(city)
 print result
 
 // When defined inside a function, local variables MUST be defined on new lines.
-// (A current limitation of the parser).
 fn calculateTax(amount: number, rate: number) -> number
 {let amount = 100
 let rate = 0.08
@@ -419,7 +419,7 @@ print response
 
 ```sesi
 // Bad: Same analysis done multiple times
-for person in people 
+for person in people
 {let assessment = model("gemini-3.1-flash-lite") {"Assess based on criteria A, B, C: "  person}}
 print assessment
 
@@ -428,7 +428,7 @@ print assessment
 let people = ["Elon Musk", "Bill Gates", "Steve Jobs"]
 fn assessPerson(person: string) -> string
 {return model("gemini-3.1-flash-lite") {"Assess on A, B, C: "  person}}
-for person in people 
+for person in people
 {print assessPerson(person)}
 ```
 
@@ -463,7 +463,7 @@ fn smartSummarize(text: string) -> string
 let topics = structured_output({topics: string})(model("gemini-3.5-flash") {thinkingLevel: "low"} {"Identify topics in: " keyPoints})
 
 // Step 3: Generate summary
-let summary = model("gemini-3-flash-preview") {"Summarize with topics " topics ": " keyPoints} 
+let summary = model("gemini-3-flash-preview") {"Summarize with topics " topics ": " keyPoints}
 return summary}
 print "Summary:" smartSummarize(text)
 ```
@@ -517,7 +517,7 @@ print answer
 Sesi allows you to define custom tools that can be invoked during reasoning operations.
 
 ```sesi
-fn get_weather(city: string, conditions: string) -> string 
+fn get_weather(city: string, conditions: string) -> string
 {return "It is currently " + conditions + " in " + city}
 // Register the tool
 define_tool("weather", get_weather, "Get weather for a city")
@@ -535,10 +535,15 @@ print result
 
 ## See Also
 
-- [Compare to other languages](COMPARISON.md)
+- [Quick Start Guide](../QUICKSTART.md)
 - [Language Specification](SPECIFICATION.md)
-- [Image Generation](IMAGE_GENERATION.md)
-- [Architecture](ARCHITECTURE.md)
-- [Built-ins](BUILTINS.md)
-- [Examples](../examples/)
-- [Roadmap](ROADMAP.md)
+- [Runtime Architecture](ARCHITECTURE.md)
+- [Built-in Functions Reference](BUILTINS.md)
+- [Command Line Interface (CLI) Reference](CLI.md)
+- [Image Generation & Input](IMAGE_GENERATION.md)
+- [Compare to other languages](COMPARISON.md)
+- [Concurrency & Coordination](CONCURRENCY.md)
+- [Reasoning & Simple Logic](REASONING.md)
+- [Agent-Native Programming Paradigm](agent_native_programming.md)
+- [Historical Stress Test Chronicles](sesi_ai_chronicles.md)
+- [Examples](../examples)

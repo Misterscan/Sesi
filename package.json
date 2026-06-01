@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Sesi: A High-Performance Systems Language",
   "main": "dist/index.js",
   "bin": {
@@ -19,6 +19,13 @@
     "dev": "npm run lint && dotenvx run -- npm run build --watch",
     "test": "npx ts-node tests/basic.test.ts && npx ts-node tests/module.test.ts && npx ts-node tests/cache.test.ts && npx ts-node tests/http.test.ts && npx ts-node tests/workflow.test.ts && npx ts-node tests/security.test.ts",
     "test:watch": "npm run lint && npx ts-node tests/basic.test.ts --watch",
+    "sesi": "bin/sesi.js",
+    "sesi:local": "sesi -l",
+    "sesi:eval": "sesi -e",
+    "sesi:parse": "sesi -r",
+    "sesi:encrypt": "sesi -enc",
+    "sesi:decrypt": "sesi -dec",
+    "sesi:help": "sesi -h",
     "build:exe": "node ./scripts/build-binaries.mjs",
     "msi:eula": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& 'C:\\Program Files\\WiX Toolset v7.0\\bin\\wix.exe' eula accept wix7\"",
     "build:msi": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& 'C:\\Program Files\\WiX Toolset v7.0\\bin\\wix.exe' build .\\SesiInstaller.wxs -o .\\SesiInstaller.msi\"",
@@ -28,7 +35,7 @@
     "repl": "node dist/repl.js",
     "example": "node --no-deprecation example.js",
     "example:ai": "node --no-deprecation example-ai.js",
-    "example:all": "bin/sesi.js examples.sesi",
+    "example:all": "sesi examples.sesi",
     "upload": "npm run build && npm publish --access public"
   },
   "keywords": [

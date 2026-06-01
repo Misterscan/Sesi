@@ -119,11 +119,11 @@
       "patterns": [
         {
           "name": "support.function.builtin.reasoning.sesi",
-          "match": "\\b(model|image|memory|prompt|structured_output|tool_call|workflow)\\b"
+          "match": "\\b(set_alias|model|image|workflow)\\b"
         },
         {
           "name": "support.function.builtin.general.sesi",
-          "match": "\\b(print|set_alias|define_tool|list_tools|error_type|raise_error|multi_req|len|range|type|str|num|bool|keys|values|push|pop|join|split|read_file|write_file|write_image|list_dir|make_dir|spawn|exec|time|random|exp|sin|cos|tan|sqrt|floor|ceil|abs|pow|log|now|sleep|parse|stringify)\\b"
+          "match": "\\b(print|memory|prompt|structured_output|tool_call|define_tool|web_send|web_get|list_tools|error_type|raise_error|multi_req|len|range|type|str|num|bool|keys|values|push|pop|join|split|read_file|write_file|write_image|list_dir|make_dir|spawn|exec|time|random|exp|sin|cos|tan|sqrt|floor|ceil|abs|pow|log|now|sleep|parse|stringify|to_json|from_json)\\b"
         }
       ]
     },

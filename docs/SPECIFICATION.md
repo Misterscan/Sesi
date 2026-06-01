@@ -7,7 +7,7 @@ Sesi is built on these core principles:
 1. **Conciseness and Legibility**: The syntax is minimal. If a concept can be expressed simply, the language gets out of the way to let you express it.
 2. **Buildable from Scratch**: Sesi is a complete, functioning language with its own lexer, parser, and interpreter.
 3. **Simplicity Enables Power**: Because the core language is simple, complex operations (like hitting APIs or orchestrating processes) become trivial extensions of the language, rather than tangled SDK implementations.
-4. **Transparency Over Magic**: Sesi executes exactly what you write. 
+4. **Transparency Over Magic**: Sesi executes exactly what you write.
 5. **Practicality**: Focus on reducing boilerplate code, emphasizing what developers actually need over academic completeness.
 
 ## 2. Target Users
@@ -41,16 +41,16 @@ Sesi is built on these core principles:
 - ✅ Comments (`//`, `/* */`)
 - ✅ Operators (arithmetic, logical, comparison)
 - ✅ Standard library (print, len, range, etc.)
+- ✅ `prompt` blocks (composable templates for concise formatting)
+- ✅ `structured_output()` (schema-guided structured output with JSON recovery and empty-object fallback on failure)
+- ✅ `tool_call()` (Fully functional function calling for tool use)
+- ✅ `memory` (simple multi-turn script memory and retrieval context management)
 
 ### Reasoning-Native Features
 
-- ✅ `prompt` blocks (composable message templates)
 - ✅ `model()` calls (native model with configuration)
 - ✅ `image()` calls (native image generation with configuration)
 - ✅ `images` config key (multimodal vision input for `model()` and `image()`)
-- ✅ `structured_output()` (schema-guided structured output with JSON recovery and empty-object fallback on failure)
-- ✅ `tool_call()` (Fully functional function calling via models)
-- ✅ Simple memory (conversation context)
 
 ### Type System
 
@@ -178,7 +178,7 @@ Example:
 ```sesi
 for i = 0 to 10 {print i}
 try
-{let result = model("Hello")
+{let result = "Hello"
 } catch (e) {
 print e}
 ```
@@ -242,10 +242,10 @@ config_entry := (STRING | identifier) ':' expression
 | Key             | Applies to       | Type                      | Description                                                                |
 | --------------- | ---------------- | ------------------------- | -------------------------------------------------------------------------- |
 | `thinkingLevel` | `model`          | `string \| object`        | **Recommended**: Effort level (`"minimal"`, `"low"`, `"medium"`, `"high"`) |
-| `temperature`   | `model`, `image` | `number`                  | *Will be deprecated in Gemini 3.x+_ (Sampling temperature)                 |
+| `temperature`   | `model`, `image` | `number`                  | \*Will be deprecated in Gemini 3.x+\_ (Sampling temperature)               |
 | `max_tokens`    | `model`          | `number`                  | Max output token count                                                     |
-| `top_k`         | `model`          | `number`                  | *Will be deprecated in Gemini 3.x+_                                        |
-| `top_p`         | `model`          | `number`                  | *Will be deprecated in Gemini 3.x+_                                        |
+| `top_k`         | `model`          | `number`                  | \*Will be deprecated in Gemini 3.x+\_                                      |
+| `top_p`         | `model`          | `number`                  | \*Will be deprecated in Gemini 3.x+\_                                      |
 | `ratio`         | `image`          | `string`                  | Aspect ratio e.g. `"16:9"`                                                 |
 | `size`          | `image`          | `string`                  | `"512"`, `"1K"`, `"2K"`, `"4K"`                                            |
 | `images`        | `model`, `image` | `string \| array<string>` | Local file path(s) passed as visual input                                  |
@@ -267,13 +267,21 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let analysis = structured_output({sentiment: string, score: number, keywords: array<string>})(model("gemini-3.1-flash-lite") { analyzeText })
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.3.0\", \"status\": \"active\"}"
+let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
 #### Tool Call
 
 ```
-tool_call := 'tool_call' '('function_name')' '('model_call')'
+tool_call := 'tool_call' '('function_name')' '('(model_call | expressions)?')'
+```
+
+Example (Native Sandboxed Dispatch):
+
+```sesi
+fn add(a: number, b: number) -> number { return a + b }
+let sum = tool_call(add)(10, 20)
 ```
 
 #### Memory (State Management)
@@ -364,6 +372,10 @@ time() -> number                  // Current Unix timestamp
 random() -> number                // Random float (0.0 to 1.0)
 ```
 
+### Built-in Global Variables
+
+- `args` - `array<string>`: Contains the command-line arguments passed to the script, excluding Sesi runtime options and the script path.
+
 ## 9. Module System
 
 Runtime module execution and standard namespace modules are fully implemented and natively supported in v1.3+.
@@ -396,12 +408,12 @@ import json from "std/json"    // JSON parsing
 
 When you write `import {x} from "mymodule"`, Sesi searches for `mymodule.sesi` in the following order, stopping at the first match:
 
-| Priority | Location | Description |
-| -------- | -------- | ----------- |
-| 1 | **Script's own directory** | Same folder as the currently running `.sesi` file |
-| 2 | **Current working directory** | The directory you ran `sesi` from |
-| 3 | **`SESI_PATH`** | Semicolon-separated (Windows) or colon-separated (Unix) list of additional directories |
-| 4 | **`~/.sesi/lib`** | Global shared library directory — available system-wide |
+| Priority | Location                      | Description                                                                            |
+| -------- | ----------------------------- | -------------------------------------------------------------------------------------- |
+| 1        | **Script's own directory**    | Same folder as the currently running `.sesi` file                                      |
+| 2        | **Current working directory** | The directory you ran `sesi` from                                                      |
+| 3        | **`SESI_PATH`**               | Semicolon-separated (Windows) or colon-separated (Unix) list of additional directories |
+| 4        | **`~/.sesi/lib`**             | Global shared library directory — available system-wide                                |
 
 This means imports always resolve correctly regardless of where you run `sesi` from.
 
@@ -477,10 +489,10 @@ print "Image written to logo.png"
 - **`max_tokens`**: `number` (maximum response tokens)
 - **`images`**: `string` or `array<string>` (paths to multimodal vision input files)
 - **`cache`**: `bool` (set to `false` to explicitly bypass Sesi Logic Caching)
-- **`temperature`**: *  Will be deprecated in Gemini 3.x+, use thinkingLevel instead.* — reasoning is pre-optimized for defaults.
-- **`top_k` / `top_p`**: *Will be deprecated in Gemini 3.x+, use thinkingLevel instead.* — reasoning is pre-optimized for defaults.
+- **`temperature`**: _ Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
+- **`top_k` / `top_p`**: _ Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
 
-### Structured Output
+### Reasoning with Structured Output
 
 ```sesi
 let result = structured_output({title: string, category: string, confidence: number})(model("gemini-3.1-flash-lite") {"Extract metadata from this text:" text})
@@ -488,7 +500,7 @@ print result.title       // Access fields
 print result.confidence  // Type-safe access
 ```
 
-### Tool Calling
+### Reasoning with Tool Calling
 
 ```sesi
 fn calculateTax(amount: number, rate: number) {print amount * rate}
@@ -496,7 +508,7 @@ let taxAmount = tool_call(calculateTax)(model("gemini-3.1-flash-lite") {"Calcula
 taxAmount
 ```
 
-### Memory
+### Reasoning with Memory
 
 ```sesi
 memory chat {"System: You are a helpful assistant."}
@@ -522,7 +534,7 @@ fn analyzeText(text: string) -> string {return model("gemini-3.5-flash") {thinki
 print analyzeText("Reasoning is transforming industries")
 ```
 
-### Example 3: Structured Output
+### Example 3: Reasoning with Structured Output
 
 ```sesi
 let sentiment = structured_output({label: string, score: number})(model("gemini-3-flash-preview") {"Analyze sentiment of:" userInput})

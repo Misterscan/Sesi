@@ -1073,11 +1073,10 @@ export class Parser {
     this.consume('RIGHT_PAREN', 'Expected ) after schema');
 
     this.skipNewlines();
-    this.consume('LEFT_PAREN', 'Expected ( for model call');
+    this.consume('LEFT_PAREN', 'Expected ( for inner expression');
     this.skipNewlines();
-    this.consume('MODEL', 'Expected model expression in structured_output');
-    const modelCall = this.modelCall();
-    this.consume('RIGHT_PAREN', 'Expected ) after model call');
+    const modelCall = this.expression();
+    this.consume('RIGHT_PAREN', 'Expected ) after inner expression');
 
     return {
       type: 'StructuredOutputExpression',

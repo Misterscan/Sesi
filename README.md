@@ -70,7 +70,10 @@ Then run any program directly:
 
 ```bash
 # Standard script execution
-sesi main/start.sesi
+sesi examples/01_hello.sesi
+
+# Run script with arguments
+sesi main/test_args.sesi arg1 arg2
 
 # Reasoning script example
 sesi examples/08_model_call.sesi
@@ -84,28 +87,67 @@ Useful CLI shortcuts:
 ```bash
 # Evaluate a quick snippet
 sesi -e "print 'hello'"
+```
 
+```bash
 # Ask the built-in co-pilot a question
-sesi -help "how do I use memory?"
+sesi -h "how do I use memory?"
+```
 
+```bash
 # Ask for help about a specific file
-sesi main/playground.sesi -h "why is this failing"
+sesi examples/01_hello.sesi -h "what is this script doing?"
+```
 
-# Encrypt or decrypt a script file
-sesi -encrypt my_script.sesi -p "my-password"
-sesi -decrypt my_script.sesi -p "my-password"
+```bash
+# Encrypt or decrypt a script file manually
+sesi -enc my_script.sesi -p "my-password"
+sesi -dec my_script.sesi -p "my-password"
+```
 
+To avoid exposing passwords in your shell's history, you can set the `SESI_PASSWORD` environment variable in your `.env` file (or your system's shell environment).
+
+```bash
+export SESI_PASSWORD="my-password"
+# Encrypt or decrypt automatically using SESI_PASSWORD environment variable
+sesi -enc my_script.sesi
+sesi -dec my_script.sesi
+```
+
+```bash
 # Run with sandbox restrictions disabled
-sesi main/start.sesi --local
+sesi examples/01_hello.sesi -l
 ```
 
 # Local Execution (Development)
 
-If you choose not install `sesi` globally, use the helper npm scripts:
+If you are developing inside the repository or haven't installed `sesi` globally, use the npm scripts:
 
 ```bash
-npm run example 01_hello.sesi
-npm run example:ai 08_model_call.sesi
+# Run a Sesi script
+npm run sesi -- examples/01_hello.sesi
+```
+
+```bash
+# Evaluate an inline snippet
+npm run sesi:eval -- "print 'Sesi running!'"
+```
+
+```bash
+# Ask Sesi's Co-Pilot
+npm run sesi:help -- "how to make a directory?"
+```
+
+```bash
+# Encrypt / Decrypt scripts (uses SESI_PASSWORD from your .env automatically)
+npm run sesi:encrypt -- "secret.sesi"
+npm run sesi:decrypt -- "secret.sesi"
+```
+
+```bash
+# Run classic examples
+npm run example examples/01_hello.sesi
+npm run example:ai examples/08_model_call.sesi
 npm run example:all
 ```
 
@@ -142,7 +184,7 @@ Sesi is designed to run and orchestrate untrusted AI reasoning pipelines. Becaus
 
 1. **Safe-by-Default Execution**:
    - Sesi's sandbox is **enabled by default**. Any standard Sesi interpreter execution blocks system command lines (`exec`, `spawn`) and locks down imports and paths.
-   - *Overriding Safety:* Developers can explicitly bypass safe mode programmatically by initializing the interpreter with options, or on the command line by setting `SESI_SAFE_MODE=false`.
+   - _Overriding Safety:_ Developers can explicitly bypass safe mode programmatically by initializing the interpreter with options, or on the command line by setting `SESI_SAFE_MODE=false`.
 
 2. **Absolute Prototype Pollution Immunity**:
    - Sesi uses **prototype-free objects (`Object.create(null)`)** for all object literals, JSON parses (`from_json` or `std/json`), and structured model responses inside the interpreter.
@@ -159,12 +201,14 @@ Sesi is designed to run and orchestrate untrusted AI reasoning pipelines. Becaus
    - Sub-interpreters loaded via concurrent workflows (`multi_req`) are fully isolated. Sesi **deep-clones** prompts and memories, preventing concurrent agent tasks from leaking state or polluting each other.
 
 ### ⚙️ Programmatic Embedding Configurations
+
 When embedding Sesi inside a host application, you can statically configure safety settings directly in code:
+
 ```typescript
 const interpreter = new Interpreter(scriptDir, {
-  safeMode: true,        // Enable full sandbox limits (on by default)
-  allowLocalFs: false,  // Block directory escapes (on by default)
-  allowedPaths: ['/var/tmp/sandbox'] // Custom strict whitelist directories
+  safeMode: true, // Enable full sandbox limits (on by default)
+  allowLocalFs: false, // Block directory escapes (on by default)
+  allowedPaths: ["/var/tmp/sandbox"], // Custom strict whitelist directories
 });
 ```
 
@@ -172,6 +216,7 @@ const interpreter = new Interpreter(scriptDir, {
 
 - [Getting Started](./QUICKSTART.md)
 - [Examples](./examples/)
+- [CLI Reference](./docs/CLI.md)
 - [Language Specification](./docs/SPECIFICATION.md)
 - [Language Comparison Showcase](./docs/COMPARISON.md)
 - [Built-in Functions](./docs/BUILTINS.md)
@@ -188,7 +233,6 @@ The root-level `SKILLS.md` file is a workspace context file for AI agents. It re
 ```
 Sesi/
 ├── SKILLS.md                        # Workspace context and repo guardrails
-├── index.html                       # Sesi-generated systems landing page
 ├── eslint.config.mjs                # ESLint configuration
 ├── example.js                       # Helper script to run basic examples
 ├── example-ai.js                    # Helper script to run reasoning examples
@@ -212,11 +256,10 @@ Sesi/
 │   └── sesi.js                      # CLI executable
 │
 ├── main/                            # Playgrounds & debugging
-│   ├── playground.sesi              # Main playground script
-│   ├── start.sesi                   # Beginner script
 │   └── tests/                       # Additional syntax validation scripts
 │
 ├── docs/
+│   ├── CLI.md                       # Comprehensive CLI & Parametric Eval guide
 │   ├── SPECIFICATION.md             # Complete language spec (600+ lines)
 │   ├── ARCHITECTURE.md              # Runtime & system design (400+ lines)
 │   ├── BUILTINS.md                  # Built-in functions reference (450+ lines)
@@ -225,6 +268,7 @@ Sesi/
 │   ├── IMAGE_GENERATION.md          # Image generation guide (>100 lines)
 │   ├── REASONING.md                 # Reasoning and simple logic guide (>500 lines)
 │   ├── ROADMAP.md                   # V2-V4+ development plan (400+ lines)
+│   ├── agent_native_programming.md  # Sesi as an Agent-Native Programming paradigm
 │   └── sesi_ai_chronicles.md        # AI project history & notes
 │
 ├── examples/
@@ -280,19 +324,21 @@ Sesi/
 
 ### Reasoning-Native Features ✅
 
-- `prompt` blocks for message composition
 - `model()` calls with Reasoning provider configuration
 - `image()` calls with specific ratio/size generation capabilities
-- `structured_output()` for typed Reasoning responses
-- `tool_call()` for function calling
-- Basic memory for multi-turn reasoning
-- `read_file()`, `write_file()`, `to_json()`, `write_image()`, and `list_dir()` for local file I/O
+- **Async Polling**: Native looping to auto-resume generation when hitting `MAX_TOKENS` limit
+
+### System Features ✅
+
+- **Memory**: Basic memory for multi-turn reasoning
+- **Filesystem I/O**: `read_file()`, `write_file()`, `to_json()`, `write_image()`, and `list_dir()` for local file I/O
 - **Native Concurrency**: `spawn()` and `exec()` for concurrent process management, and `multi_req(array<function>)` for physical parallel request execution.
 - **Logic Caching**: High-efficiency Sesi Logic Caching (`.sesi_cache.json`) for local call caching.
-- **Thinking Scale**: Scaled Gemini reasoning configurations using the `thinking` parameters.
 - **HTTP Client**: Built-in, native HTTP client support using `web_get(url)` and `web_send(url, body, headers)` with zero external dependencies.
-- **Async Polling**: Native looping to auto-resume generation when hitting `MAX_TOKENS` limit
 - **Utility Builtins**: `time()` and `random()` for robust coordination
+- **Structured Output**: `structured_output()` for typed JSON Schema
+- **Function Calling**: `tool_call()` for function calling
+- **Prompt Blocks**: `prompt` blocks for cleaner and more concise script composition
 
 ### Type System
 

@@ -231,8 +231,8 @@ export class AIRuntime {
 
       while (!isComplete && currentPoll < maxPolls) {
         const genConfig: any = {
-            temperature: request.temperature ?? 0.3,
-            maxOutputTokens: request.maxTokens ?? 2048,
+            temperature: request.temperature ?? 0.1,
+            maxOutputTokens: request.maxTokens ?? 4096,
             topK: request.topK,
             topP: request.topP,
         };

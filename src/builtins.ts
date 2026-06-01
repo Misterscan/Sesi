@@ -632,7 +632,9 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         const subInterpreter = new InterpreterClass(undefined, {
           safeMode: interpreter.safeMode,
           allowLocalFs: interpreter.allowLocalFs,
-          allowedPaths: interpreter.allowedPaths
+          raw: interpreter.raw,
+          allowedPaths: interpreter.allowedPaths,
+          args: interpreter.args
         });
         (subInterpreter as any).prompts = new Map((interpreter as any).prompts);
         (subInterpreter as any).memory = new Map((interpreter as any).memory);

@@ -506,7 +506,22 @@ let rand = random()
 if rand > 0.5 {print "Heads"} else {print "Tails"}
 ```
 
-**Returns**: `number`
+---
+
+## Global Variables
+
+### args
+
+An array of strings containing the command-line arguments passed to the Sesi script. This excludes any Sesi interpreter options (e.g. `-l`) and the script filename itself.
+
+```sesi
+print "Number of script args:" len(args)
+if len(args) > 0 {
+  print "First script argument:" args[0]
+}
+```
+
+**Type**: `array<string>`
 
 ---
 
@@ -805,11 +820,15 @@ Tip: add a folder to SESI_PATH, or place shared modules in ~/.sesi/lib
 
 ## See Also
 
-- [Quick Start](QUICKSTART.md)
+- [Quick Start Guide](../QUICKSTART.md)
+- [Language Specification](SPECIFICATION.md)
+- [Runtime Architecture](ARCHITECTURE.md)
+- [Built-in Functions Reference](BUILTINS.md)
+- [Command Line Interface (CLI) Reference](CLI.md)
+- [Image Generation & Input](IMAGE_GENERATION.md)
 - [Compare to other languages](COMPARISON.md)
-- [Specification](SPECIFICATION.md)
-- [Reasoning Guide](REASONING.md)
-- [Image Generation](IMAGE_GENERATION.md)
-- [Roadmap](ROADMAP.md)
-- [Concurrency Systems](CONCURRENCY.md)
-- [Examples](../examples/)
+- [Concurrency & Coordination](CONCURRENCY.md)
+- [Reasoning & Simple Logic](REASONING.md)
+- [Agent-Native Programming Paradigm](agent_native_programming.md)
+- [Historical Stress Test Chronicles](sesi_ai_chronicles.md)
+- [Examples](../examples)

@@ -298,7 +298,6 @@ Sesi now has basic exception-style error handling in v1:
 
 ```
 SKILLS.md                 # AI-agent workspace context and repo guardrails
-index.html                # Sesi-generated landing page
 eslint.config.mjs         # ESLint configuration
 dist/                     # Compiled TypeScript output
 example.js                # Helper script to run basic examples
@@ -323,8 +322,6 @@ bin/
 └── sesi.js               # CLI executable
 
 main/                     # Main user scripts and debugging
-├── playground.sesi       # Main playground script
-├── start.sesi            # Beginner script
 ├── build_website.sesi    # Sesi-generated landing page builder
 └── tests/                # Additional syntax validation scripts
 
@@ -356,11 +353,13 @@ docs/
 ├── SPECIFICATION.md      # Language spec
 ├── ARCHITECTURE.md       # This file
 ├── BUILTINS.md           # Built-in reference
+├── CLI.md                # Comprehensive CLI & Parametric Eval guide
 ├── IMAGE_GENERATION.md   # Image generation guide
 ├── COMPARISON.md         # Language comparison showcase
 ├── CONCURRENCY.md        # Concurrency & coordination guide
 ├── REASONING.md          # Reasoning and simple logic guide
 ├── ROADMAP.md            # Future plans
+├── agent_native_programming.md # Sesi as an Agent-Native Programming paradigm
 └── sesi_ai_chronicles.md # AI project history & notes
 
 tests/
@@ -378,8 +377,6 @@ tests/
 ## Workspace Context File
 
 The root-level `SKILLS.md` file is part of the practical repo architecture. It is not consumed by the Sesi runtime, but it is intended to guide AI-assisted development in this workspace.
-
-It defines repo-specific operating rules such as valid Sesi assumptions, normal execution via the global `sesi` command, and the fact that `main/` and `main/tests/` are intentional user workspace areas rather than anomalies.
 
 ## Testing Strategy
 

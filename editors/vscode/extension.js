@@ -159,15 +159,15 @@ function activate(context) {
             example: 'workflow build_doc {\n  // Sequence steps here\n}'
         },
         'structured_output': {
-            signature: 'structured_output(schema) { ... }',
-            source: 'Sesi AI Core',
-            description: 'Enforces type-safe schema constraints on AI reasoning model outputs. Schema keys MUST be unquoted identifiers.',
-            example: 'let parsed = structured_output({score: number, explanation: string}) {\n  model("gemini-2.5-flash") {\n    prompt {"Analyze the compiler script for formatting."}\n  }\n}'
+            signature: 'structured_output(schema)(expression)',
+            source: 'Serialization Standard Library',
+            description: 'Creates strongly typed, schema-validated structured data from the result of any Sesi expression.',
+            example: 'let rawJson = "{\\"projectName\\": \\"Sesi\\", \\"version\\": \\"1.3.0\\"}"\nlet parsed = structured_output({projectName: string, version: string})(rawJson)'
         },
         'prompt': {
             signature: 'prompt { ... }',
-            source: 'Sesi AI Core',
-            description: 'Constructs highly dynamic AI template prompts. Safe from literal string hardcoding and concatenations.',
+            source: 'Sesi Compostion',
+            description: 'Constructs highly dynamic and concise template prompts. Safe from literal string hardcoding and concatenations.',
             example: 'let task = "audit logs"\nprompt {\n  "Analyze the system performance regarding: " task\n}'
         },
         'define_tool': {

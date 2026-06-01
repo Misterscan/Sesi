@@ -1,5 +1,40 @@
 ---
+name: MakeInSesi
 description: Intent-based development workflow for generating concise, syntax-accurate Sesi scripts using integrated web research and verified implementation patterns.
+agent: Plan
+model: GPT-4.1 (copilot)
+tools:
+  [
+    execute/getTerminalOutput,
+    execute/killTerminal,
+    execute/sendToTerminal,
+    execute/runTask,
+    execute/createAndRunTask,
+    execute/runInTerminal,
+    execute/runTests,
+    execute/testFailure,
+    read/problems,
+    read/readFile,
+    read/viewImage,
+    read/terminalSelection,
+    read/terminalLastCommand,
+    read/getTaskOutput,
+    agent,
+    edit/createDirectory,
+    edit/createFile,
+    edit/editFiles,
+    edit/rename,
+    search,
+    web,
+    browser/openBrowserPage,
+    browser/readPage,
+    browser/screenshotPage,
+    browser/navigatePage,
+    browser/clickElement,
+    azure-mcp/search,
+    todo,
+  ]
+argument-hint: "Write a Sesi script that..."
 ---
 
 ## Operational Directives

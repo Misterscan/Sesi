@@ -73,3 +73,9 @@ docs/SKILLS.md
 .sesi_chat_history.json
 soni-webpage
 Sesi Code
+AI-IGNORE
+cover-art.sesi
+payload.json
+research_agent.sesi
+typing_input.txt
+query.txt

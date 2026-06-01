@@ -7,26 +7,36 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.3.1
+Sesi Programming Language v1.3.2
 
 Usage:
-  sesi <file> [options]  Run a Sesi program
+  sesi <file> [options] <args>  Run a Sesi program
   sesi -e "code"         Evaluate Sesi code directly
-  sesi -help <query>    Ask for help from our Sesi Co-Pilot
+  sesi -h <query>        Ask for help from our Sesi Co-Pilot
+  sesi -v                Show version
+  sesi -enc <file> -p <password>   Encrypt a file
+  sesi -dec <file> -p <password>   Decrypt a file
+  sesi -r <file>         Show the raw parser output
 
   Options:
-  --local               Disable safe mode (careful!)
-  --allowed-paths <p>    Comma-separated list of allowed directories
-  -encrypt <file>        Encrypt a file
-  -decrypt <file>        Decrypt a file
+  -l, --local            Disable safe mode (careful!)
+  -a, --allowed-paths <p> Comma-separated list of allowed directories
+  -e, --eval "<code_to_run>" Evaluate Sesi code directly
+  -enc, --encrypt <file> Encrypt a file
+  -dec, --decrypt <file> Decrypt a file
   -p, --password <pass>  Password for encryption/decryption
-  --version              Show version
-  --help, -h             Show this help
+  -v, --version          Show version
+  -h, --help             Show this help
+  -r, --raw              Show the raw parser output
 
 Examples:
-  sesi main/start.sesi
+  sesi examples/01_hello.sesi
+  sesi main/test_args.sesi arg1 arg2
   sesi -e "print 'hello'"
-  sesi -help "how do I use memory?"
+  sesi -h "how do I use memory?"
+  sesi -r examples/01_hello.sesi
+  sesi -enc secret.sesi -p mypassword
+  sesi -dec secret.sesi -p mypassword
 `;
 
 function parseArgs(args) {
@@ -40,7 +50,9 @@ function parseArgs(args) {
     password: null,
     sesiOptions: {
       safeMode: true,
-      allowedPaths: [process.cwd()]
+      allowedPaths: [process.cwd()],
+      raw: false,
+      args: []
     }
   };
 
@@ -48,8 +60,8 @@ function parseArgs(args) {
     const arg = args[i];
     const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
 
-    if (arg === '--version') {
-      console.log('Sesi v1.3.1');
+    if (arg === '-v' || arg === '--version') {
+      console.log('Sesi v1.3.2');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -67,20 +79,34 @@ function parseArgs(args) {
       break;
     } else if (arg === '-e' || arg === '--eval') {
       options.eval = args[++i];
-    } else if (arg === '-encrypt' || arg === '--encrypt') {
+    } else if (arg === '-enc' || arg === '--encrypt') {
       options.encryptFile = args[++i];
-    } else if (arg === '-decrypt' || arg === '--decrypt') {
+    } else if (arg === '-dec' || arg === '--decrypt') {
       options.decryptFile = args[++i];
     } else if (arg === '-p' || arg === '--password') {
       options.password = args[++i];
-    } else if (arg === '--local') {
+    } else if (arg === '-l' || arg === '--local') {
       options.sesiOptions.safeMode = false;
       options.sesiOptions.allowLocalFs = true;
-    } else if (arg === '--allowed-paths') {
+    } else if (arg === '-a' || arg === '--allowed-paths') {
       const paths = args[++i].split(',');
       options.sesiOptions.allowedPaths.push(...paths.map(p => path.resolve(p)));
-    } else if (!arg.startsWith('-') && !options.file) {
+    } else if (!arg.startsWith('-') && !options.file && !options.eval && !options.encryptFile && !options.decryptFile) {
       options.file = arg;
+    } else if (arg == '-r' || arg == '--raw') {
+      options.sesiOptions.raw = true;
+    }
+  }
+
+  if (options.file && !options.helpQuery) {
+    const fileIndex = args.indexOf(options.file);
+    if (fileIndex !== -1) {
+      options.sesiOptions.args = args.slice(fileIndex + 1);
+    }
+  } else if (options.eval) {
+    const evalIndex = args.findIndex(arg => arg === '-e' || arg === '--eval');
+    if (evalIndex !== -1) {
+      options.sesiOptions.args = args.slice(evalIndex + 2);
     }
   }
 
@@ -96,8 +122,9 @@ async function main() {
   }
 
   if (parsed.encryptFile || parsed.decryptFile) {
-    if (!parsed.password) {
-      console.error('Error: Password is required for encryption/decryption. Use -p <password>.');
+    const password = parsed.password || process.env.SESI_PASSWORD;
+    if (!password) {
+      console.error('Error: Password is required for encryption/decryption. Use -p <password> or set the SESI_PASSWORD environment variable.');
       process.exit(1);
     }
     const crypto = require('crypto');
@@ -112,7 +139,7 @@ async function main() {
     const content = fs.readFileSync(targetFile, 'utf-8');
     try {
       const algorithm = 'aes-256-cbc';
-      const key = crypto.createHash('sha256').update(String(parsed.password)).digest();
+      const key = crypto.createHash('sha256').update(String(password)).digest();
       
       if (isEncrypt) {
         const iv = crypto.randomBytes(16);
@@ -173,6 +200,12 @@ async function main() {
       process.exit(1);
     }
     await runSesiFile(parsed.file, parsed.sesiOptions).catch((error) => {
+      console.error('Fatal error:', error.message);
+      process.exit(1);
+    });
+  } else if (parsed.raw) {
+    const content = fs.readFileSync(parsed.file, 'utf-8');
+    await runSesi(content, process.cwd(), { ...parsed.sesiOptions, raw: true }).catch((error) => {
       console.error('Fatal error:', error.message);
       process.exit(1);
     });

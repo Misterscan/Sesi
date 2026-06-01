@@ -54,11 +54,21 @@ export class Interpreter {
   public safeMode: boolean = true;
   public allowLocalFs: boolean = false;
   public allowedPaths: string[] = [];
+  public encrypt: boolean = false;
+  public decrypt: boolean = false;
+  public password: string = '';
+  public raw: boolean = false;
+  public args: string[] = [];
 
-  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[] }) {
+  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; encrypt?: boolean; decrypt?: boolean; password?: string; raw?: boolean; args?: string[] }) {
     this.safeMode = options?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
     this.allowLocalFs = options?.allowLocalFs ?? (process.env.SESI_LOCAL_FS === 'true');
+    this.raw = options?.raw ?? false;
     this.allowedPaths = options?.allowedPaths || [process.cwd()];
+    this.encrypt = options?.encrypt ?? false;
+    this.decrypt = options?.decrypt ?? false;
+    this.password = options?.password ?? (process.env.SESI_PASSWORD ?? '');
+    this.args = options?.args || [];
     if (scriptDir && !this.allowedPaths.includes(scriptDir)) {
       this.allowedPaths.push(scriptDir);
     }
@@ -69,6 +79,9 @@ export class Interpreter {
     this.globalEnv = new Environment();
     this.currentEnv = this.globalEnv;
     this.scriptDir = scriptDir;
+
+    // Add command-line arguments
+    this.globalEnv.define('args', this.args);
 
     // Add built-in functions
     const builtins = getBuiltins(this);
@@ -775,15 +788,18 @@ export class Interpreter {
   }
 
   private async evaluateStructuredOutput(expr: StructuredOutputExpression): Promise<RuntimeValue> {
-    const modelResponse = await this.evaluateModelCall(expr.modelCall);
+    const inputVal = await this.evaluateExpression(expr.modelCall);
     const schemaObj: any = {};
 
     for (const [key, typeAnnotation] of Object.entries(expr.schema)) {
       schemaObj[key] = (typeAnnotation as any).name || 'string';
     }
 
-    const structured = await aiRuntime.parseStructuredOutput(modelResponse as string, schemaObj);
-    return structured;
+    if (typeof inputVal === 'string') {
+      const structured = await aiRuntime.parseStructuredOutput(inputVal, schemaObj);
+      return structured;
+    }
+    return inputVal;
   }
 
 private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> {
@@ -912,7 +928,8 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       const subInterpreter = new Interpreter(path.dirname(resolvedPath), {
         safeMode: this.safeMode,
         allowLocalFs: this.allowLocalFs,
-        allowedPaths: this.allowedPaths
+        allowedPaths: this.allowedPaths,
+        args: this.args
       });
       await subInterpreter.interpret(program);
       moduleExports = subInterpreter.exports;

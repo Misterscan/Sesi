@@ -84,6 +84,13 @@ export fn parse_links(line: string) -> string {
           }
           r_idx = r_idx + 1
         }
+        
+        let i_idx = 2
+        while i_idx < len(innersegs) {
+          rest = rest + "](" + innersegs[i_idx]
+          i_idx = i_idx + 1
+        }
+        
         parsedLine = parsedLine + rest
       } else {
         parsedLine = parsedLine + "[" + linkSegments[idx]
@@ -95,11 +102,84 @@ export fn parse_links(line: string) -> string {
   return line
 }
 
+export fn parse_images(line: string) -> string {
+  let linkSegments = split(line, "![")
+  if len(linkSegments) > 1 {
+    let parsedLine = linkSegments[0]
+    let idx = 1
+    while idx < len(linkSegments) {
+      let innersegs = split(linkSegments[idx], "](")
+      if len(innersegs) > 1 {
+        let urlsegs = split(innersegs[1], ")")
+        let altText = innersegs[0]
+        let url = urlsegs[0]
+        parsedLine = parsedLine + "<img src='" + url + "' alt='" + altText + "' />"
+        
+        let rest = ""
+        let r_idx = 1
+        while r_idx < len(urlsegs) {
+          rest = rest + urlsegs[r_idx]
+          if r_idx < len(urlsegs) - 1 {
+            rest = rest + ")"
+          }
+          r_idx = r_idx + 1
+        }
+        
+        let i_idx = 2
+        while i_idx < len(innersegs) {
+          rest = rest + "](" + innersegs[i_idx]
+          i_idx = i_idx + 1
+        }
+        
+        parsedLine = parsedLine + rest
+      } else {
+        parsedLine = parsedLine + "![" + linkSegments[idx]
+      }
+      idx = idx + 1
+    }
+    return parsedLine
+  }
+  return line
+}
+
+export fn apply_text_formatting(line: string) -> string {
+  let segments = split(line, "<")
+  let result = ""
+  let i = 0
+  while i < len(segments) {
+    if i == 0 {
+      let temp = parse_bold(segments[i])
+      temp = parse_italic(temp)
+      result = result + temp
+    } else {
+      let inner = split(segments[i], ">")
+      if len(inner) > 1 {
+        let tag = inner[0]
+        let text = inner[1]
+        let r_idx = 2
+        while r_idx < len(inner) {
+          text = text + ">" + inner[r_idx]
+          r_idx = r_idx + 1
+        }
+        let temp = parse_bold(text)
+        temp = parse_italic(temp)
+        result = result + "<" + tag + ">" + temp
+      } else {
+        let temp = parse_bold(segments[i])
+        temp = parse_italic(temp)
+        result = result + "<" + temp
+      }
+    }
+    i = i + 1
+  }
+  return result
+}
+
 // Unified inline tokens compiler (aggregates bold, italic, and link transformations)
 export fn parse_inline(line: string) -> string {
-  let temp = parse_bold(line)
-  temp = parse_italic(temp)
+  let temp = parse_images(line)
   temp = parse_links(temp)
+  temp = apply_text_formatting(temp)
   return temp
 }
 
@@ -175,16 +255,39 @@ export fn parse_markdown(mdText: string) -> string {
             if chars[0] == "-" {
               if chars[1] == " " {
                 let segs = split(line, "- ")
-                let content = parse_inline(segs[1])
+                let rawContent = segs[1]
+                let s_idx = 2
+                while s_idx < len(segs) {
+                  rawContent = rawContent + "- " + segs[s_idx]
+                  s_idx = s_idx + 1
+                }
+                let content = parse_inline(rawContent)
                 html = html + "<li>" + content + "</li>\n"
               } else {
                 let content = parse_inline(line)
                 html = html + "<p>" + content + "</p>\n"
               }
             } else {
-              // 4. Standard Paragraph
-              let content = parse_inline(line)
-              html = html + "<p>" + content + "</p>\n"
+              if chars[0] == "*" {
+                if chars[1] == " " {
+                  let segs = split(line, "* ")
+                  let rawContent = segs[1]
+                  let s_idx = 2
+                  while s_idx < len(segs) {
+                    rawContent = rawContent + "* " + segs[s_idx]
+                    s_idx = s_idx + 1
+                  }
+                  let content = parse_inline(rawContent)
+                  html = html + "<li>" + content + "</li>\n"
+                } else {
+                  let content = parse_inline(line)
+                  html = html + "<p>" + content + "</p>\n"
+                }
+              } else {
+                // 4. Standard Paragraph
+                let content = parse_inline(line)
+                html = html + "<p>" + content + "</p>\n"
+              }
             }
           }
         }

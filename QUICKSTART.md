@@ -57,12 +57,19 @@ The generated installer files are written to `releases/`.
 Once Sesi is installed, you can run Sesi files globally:
 
 ```bash
-sesi main/start.sesi
+sesi examples/01_hello.sesi
+```
+
+You can also pass arguments to your script, which are exposed under the global `args` array:
+
+```bash
+sesi main/test_args.sesi arg1 arg2
 ```
 
 ### Run Tests
 
 For devs working on Sesi, you can verify your backend edits with the built-in test suite:
+
 ```bash
 npm test
 ```
@@ -71,8 +78,10 @@ npm test
 
 Create a file called `hello.sesi`:
 
-```sesi
-print "Hello, Sesi!"
+```bash
+sesi -e 'let txt = "Hello, world!"
+prompt file {"print \"" txt "\""}
+write_file("hello.sesi", file)'
 ```
 
 Run it:
@@ -136,6 +145,53 @@ let person = {"name": "Alice", "age": age}
 print person["name"] "is" person["age"] "years old."    // "Alice is 25 years old."
 ```
 
+Prompts are **composable message templates** that evaluate to strings. You can also utilize these to write clean and concise sesi scripts by nesting variables and even other prompts within prompts.
+
+### Basic Prompt
+
+```sesi
+prompt simplePrompt {"Hello, Sesi!"}
+print simplePrompt  // "Hello, Sesi!"
+```
+
+### Prompts with Variables
+
+```sesi
+let name = "Alice"
+prompt greeting {"Hello, " name "! How are you?"}
+print greeting  // "Hello, Alice! How are you?"
+```
+
+### Composing Prompts
+
+```sesi
+prompt part1 {"First part"}
+prompt part2 {part1 " Second part"}
+print part2  // "First part Second part"
+```
+
+### Prompts in Functions
+
+```sesi
+let text = "Testing"
+let language = "Spanish"
+fn translatePrompt(text: string, language: string) -> string
+{prompt translate {"Translate " text " to " language ": "} return translate}
+print translatePrompt(text, language)
+```
+
+Structured output allows you to extract structured data natively or via Reasoning. It uses a JSON Schema to define the structure of the output.
+
+### Basic Structured Output
+
+```sesi
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.3.0\", \"status\": \"active\"}"
+let analysis = structured_output({projectName: string, version: string, status: string})(rawJson)
+print "Project: " analysis["projectName"]
+print "Version: " analysis["version"]
+print "Status: " analysis["status"]
+```
+
 ## Reasoning Features
 
 ### Requiring Gemini API
@@ -163,15 +219,7 @@ let response = model("gemini-3-flash-preview") {temperature: 0.8, max_tokens: 10
 print response
 ```
 
-### Prompts
-
-```sesi
-let name = "Developer"
-prompt greeting {"Hello, " name "! " "How are you today?"}
-print greeting
-```
-
-### Structured Output
+### Reasoning with Structured Output
 
 ```sesi
 let analysis = structured_output({sentiment: string, score: number})(model("gemini-3.1-flash-lite") {"Analyze sentiment of: This product is great!"})
@@ -366,7 +414,7 @@ let rejoined = join(words, "-")
 ### Reasoning Classification
 
 ```sesi
-fn classify(item: string) 
+fn classify(item: string)
 {print model("gemini-3-flash-preview"){"Classify as: FRUIT, VEGETABLE, or GRAIN. Item: " item}}
 classify("apple")
 classify("carrot")
@@ -378,7 +426,7 @@ classify("wheat")
 ### Print Intermediate Values
 
 ```sesi
-fn complex(x: number) 
+fn complex(x: number)
 {let step1 = x * 2
 print "Step 1:" str(step1)
 let step2 = step1 + 10
@@ -417,6 +465,8 @@ else {print "Response: " response}
 3. **Understand architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 4. **Check roadmap**: [ROADMAP.md](docs/ROADMAP.md)
 5. **Study examples**: [examples/](examples/)
+6. **Understand the Agent-Native Paradigm**: [agent_native_programming.md](docs/agent_native_programming.md)
+7. **Read the historical Stress Test Chronicles**: [sesi_ai_chronicles.md](docs/sesi_ai_chronicles.md)
 
 ## Getting Help
 
@@ -432,30 +482,61 @@ sesi -h "how to spawn background processes?"
 You can also pass a file into the help context so the co-pilot can talk about that exact script:
 
 ```bash
-sesi main/playground.sesi -h
-sesi main/playground.sesi -h "why is this failing?"
+sesi examples/01_hello.sesi -h
+sesi examples/01_hello.sesi -h "what is this script doing?"
 ```
 
 Other useful CLI options:
 
 ```bash
-# Run a one-line snippet
+# Run a one-line snippet (inline)
 sesi -e "print 'hello'"
+```
 
-# Encrypt or decrypt a script file
-sesi -encrypt my_script.sesi -p "my-password"
-sesi -decrypt my_script.sesi -p "my-password"
+### Security & Sandboxing
+
+```bash
+# Encrypt or decrypt a script file (with password parameter)
+sesi -enc my_script.sesi -p "my-password"
+sesi -dec my_script.sesi -p "my-password"
+```
+
+To avoid exposing passwords in your shell's history, you can set the `SESI_PASSWORD` environment variable in your `.env` file (or your system's shell environment).
+
+```bash
+export SESI_PASSWORD="my-password"
+
+# Encrypt or decrypt automatically using SESI_PASSWORD environment variable
+sesi -enc my_script.sesi
+sesi -dec my_script.sesi
 
 # Disable sandbox protections for a run
-sesi main/start.sesi --local
+sesi examples/01_hello.sesi -l
 
 # Add extra allowed filesystem paths
-sesi main/start.sesi --allowed-paths ./docs,./examples
+sesi examples/01_hello.sesi -a ./docs,./examples
+```
+
+### Repository Script Shortcuts
+
+If working directly inside the Sesi codebase, you can use convenient npm shortcuts to run Sesi commands:
+
+```bash
+# Evaluate inline code
+npm run sesi:eval -- "print 'Hello from npm!'"
+
+# Encrypt / Decrypt files using SESI_PASSWORD environment fallback
+npm run sesi:encrypt -- "my_script.sesi"
+npm run sesi:decrypt -- "my_script.sesi"
+
+# Search with Sesi's Co-Pilot
+npm run sesi:help -- "how do I use multi_req()?"
 ```
 
 The co-pilot will dynamically index and train on Sesi's native repository database and retrieve full RAG context from our standard specification docs to generate a syntactically correct, 100% accurate, conversational answer in real-time!
 
 You can also:
+
 - Check documentation in [docs/](docs/)
 - Review examples in [examples/](examples/)
 - Read error messages carefully

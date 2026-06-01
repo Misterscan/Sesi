@@ -341,7 +341,7 @@ export interface ImageCallExpression {
 export interface StructuredOutputExpression {
   type: 'StructuredOutputExpression';
   schema: Record<string, TypeAnnotation>;
-  modelCall: ModelCallExpression;
+  modelCall: Expression;
   line: number;
 }
 

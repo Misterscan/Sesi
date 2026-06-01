@@ -37,6 +37,8 @@ These are lazy defaults. They don't demonstrate what makes Sesi unique.
 
 Every script you write must use **at least one** of:
 
+- `prompt` - composable script templates
+- `structured_output` - structured data extraction
 - `memory` — stateful multi-turn context
 - `exec()` — concurrent process orchestration
 - `web_send()` - sending an HTTP request to a URL
@@ -49,7 +51,7 @@ Every script you write must use **at least one** of:
 
 #### 🏷️ Lexicon & Vocabulary Guardrails (MANDATORY)
 
-**Completely ban both sci-fi tech-jargon/themes AND cottage-core words/themes.**
+**Completely ban both sci-fi tech-jargon/themes AND cottage-core words/themes. No telemetry, no mechanical, no vintage, no brutalist, no dystopian, no utopian, no retro, etc. Use language real people actually use when communicating with one another.**
 
 #### 🎨 Web Design & UI Guardrails (MANDATORY WHEN APPLICABLE)
 
@@ -64,20 +66,20 @@ The bar is: **"Is this easy to write and read?"** If the answer is no, rewrite i
 ## 1. Core Identity & Execution
 
 - **File Extension:** `.sesi`
-- **Execution (PS and Bash Terminals):** Sesi programs are executed using `npx sesi` in both Windows and Mac terminals. (e.g., `npx sesi main/start.sesi`). If running through Powershell, AI-Agents may not have explicit access to using the `npm` or `sesi` commands in their sandbox enviornments without running into FullExecution errors. In this case, use `node bin/sesi.js <file> <option>` in replacement of `npx sesi`. DO NOT USE `sesi` CLI command alone. Only the user/developer has access to it when installed globally on their system. It will return a false positive error. You are to trust only `npx sesi` and `node bin/sesi.js` commands. ALWAYS TEST YOUR `.sesi` FILES WITH EITHER COMMAND. THE USER IS EXEMPT FROM THESE RULES AS THEY LIKELY HAVE THE `sesi` GLOBAL COMMAND ALREADY INSTALLED ON THEIR SYSTEM.
-- **Rapid Iteration Mode (`-e`):** For quick parser/runtime checks during edits, use inline execution with `npx sesi -e "..."`. This is ideal for validating tiny snippets before changing full `.sesi` files.
-- **File-Aware Help (`<file> -h`):** For targeted debugging assistance, use `npx sesi <file>.sesi -h "question"`. This passes the file into Co-Pilot help context so guidance is grounded in the active script.
-- **Paradigm:** **Sesi** is a clean, minimal, and highly legible programming language. Built from the ground up to be concise and buildable, Sesi removes unnecessary boilerplate. Because the language itself is so simple, integrating external tools like shell commands or Reasoning models becomes effortless. It is a language built for clarity.
+- **Execution (PS and Bash Terminals):** Sesi programs are executed using `npx sesi` in both Windows and Mac terminals. (e.g., `npx sesi examples/01_hello.sesi`). AI-Agents may not have explicit access to using the `npx` or `sesi` commands in their sandbox enviornments without running into FullExecution errors. In this case, use `node bin/sesi.js <file> <option>` or `npm run sesi:<option> <file>` in replacement of `npx sesi`. DO NOT USE `sesi` CLI command alone. Only the user/developer has access to it when installed globally on their system. It will return a false positive error. You are to trust only `npm run sesi` and `node bin/sesi.js` commands. ALWAYS TEST YOUR `.sesi` FILES WITH EITHER COMMAND. THE USER IS EXEMPT FROM THESE RULES AS THEY LIKELY HAVE THE `sesi` GLOBAL COMMAND ALREADY INSTALLED ON THEIR SYSTEM.
+- **Rapid Iteration Mode (`run sesi:eval <file>`):** For quick parser/runtime checks during edits, use inline execution with `npm run sesi:eval <file>.sesi`. This is ideal for validating tiny snippets before changing full `.sesi` files.
+- **File-Aware Help (`run sesi:help <file>.sesi <"question">`):** For targeted debugging assistance, use `npm run sesi:help <file>.sesi "question"`. This passes the file into Co-Pilot help context so guidance is grounded in the active script.
+- **Paradigm:** **Sesi** is a clean, minimal, and highly legible programming language. Built from the ground up to be concise and buildable, Sesi removes unnecessary boilerplate. Because the language itself is so simple, integrating external tools like shell commands or even LLM/Reasoning models becomes effortless. It is a language built for clarity, not explicitly for the sake of embedding AI natively.
 
 ## 2. Agent Debug Protocol (MANDATORY)
 
 When AI agents write or edit `.sesi` scripts, they must use this debugging loop:
 
 1. **Draft in file, isolate risky snippet:** Identify the smallest parser/runtime-risky block (prompt block, model call, object schema, loop, etc.).
-2. **Validate snippet with eval mode first:** Run `npx sesi -e "..."` to test the isolated block before full-script execution.
+2. **Validate snippet with eval mode first:** Run `npm run sesi:eval <file>.sesi` to test the isolated block before full-script execution.
 3. **Apply fix in file only after eval passes:** If eval fails, iterate on snippet; do not repeatedly run full scripts while syntax is unresolved.
-4. **Run full script after snippet stabilization:** Execute `npx sesi <file>.sesi` only once the isolated logic is valid.
-5. **Use file-aware help when blocked:** Run `npx sesi <file>.sesi -h "<question>"` to get context-grounded help tied to the active script.
+4. **Run full script after snippet stabilization:** Execute `npm run sesi <file>.sesi` only once the isolated logic is valid.
+5. **Use file-aware help when blocked:** Run `npm run sesi:help <file>.sesi "<question>"` to get context-grounded help tied to the active script.
 
 This protocol is required to reduce noisy full-run failures and speed up AI-assisted iteration.
 
@@ -86,8 +88,8 @@ This protocol is required to reduce noisy full-run failures and speed up AI-assi
 - `src/`: The core TypeScript engine (Lexer, Parser, Interpreter, AI-Runtime, Builtins).
 - `bin/sesi.js`: The global CLI executable entry point.
 - `examples/`: Official syntax-demonstration scripts (`01_hello.sesi` through `13_data_pipeline.sesi`).
-- `main/`: The user's active development space (contains `playground.sesi` playground, `start.sesi` beginner script options, `build_website.sesi` baseplate website builder, and `tests/` like `test_failure_debug.sesi`). **These are valid, expected files.**
-- `docs/`: The source of truth for Architecture, Reasoning Features (Proccess Execution), Builtins, Specifications, and more.
+- `main/`: The user's active development space (contains `sesi_db_chatbot` Sesi's built-in Co-Pilot, and `tests/` like `test_failure_debug.sesi`). **Run inline code evaluations (`-e 'code'`) instead of writing new `.sesi` files for quick tests. Do not overwrite existing `.sesi` files unless explicitly asked to.**
+- `docs/`: The source of truth for all sesi syntax, formatting, and structuring guidelines. It contains the official API docs for all built-in functions and types. AIs must treat this as the primary source of truth for syntax and structure.
 - Root helper scripts: `example.js`, `example-ai.js`, and `examples.sesi` are convenience wrappers. AI agents should still use the `npx sesi` command as specified.
 
 ## 4. Mandatory Syntax Rules & Quirks
@@ -96,14 +98,16 @@ This protocol is required to reduce noisy full-run failures and speed up AI-assi
 - **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print "User:" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
 - **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{"key": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
 - **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{"name": "Alice"}`).
-- **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `str(object)` for JSON.
+- **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
 - **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
+- **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
 
 ## 5. Behavioral Guidelines Working in this Repo
 
-1. **Never** attempt to execute file modifications via shell/terminal text replacements. Use native file editing tools ONLY.
-2. **Always** check the `.md files` in root folder and `docs/` and `examples/` folder for the exact language specification before making assumptions about how Sesi works.
-3. If a file tree is mentioned in documentation, it represents an explicit layout constraint and must map 1:1 **UNLESS .gitignored FILES STATE OTHERWISE.**
+1. **NEVER Edit Sesi Files in the Terminal:** Under no circumstances should you attempt to perform file editing or text replacements via terminal commands (such as `sed`, `awk`, or scripts). **You MUST always use your native IDE/editor tools to make clean, safe file edits directly.**
+2. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run sesi:eval <file>.sesi` or `node bin/sesi.js -e "..."`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.
+3. **Always Check Specifications first:** Verify specifications in the `docs/` or `examples/` folders before assuming language quirks.
+4. **Topography Consistency:** Ensure any changes to repository layout map exactly 1:1 with all documentation and tree files in documentation. If you add a new file or folder, make sure to add it to the tree files in documentation. If you add new builtins or functions or make any changes to the core functionality, make sure to update the documentation to match. You must update the ALL relevant documentation to reflect any changes you make to the repository.
 
 ## 6. Development & TypeScript Standards (COMMANDS FOR AI AGENTS)
 
@@ -111,13 +115,3 @@ This protocol is required to reduce noisy full-run failures and speed up AI-assi
 - **Interpreter Patterns (DO NOT "CLEAN UP"):** Dynamic casting and `any` are **EXPLICITLY PERMITTED** for tree-walking logic. They are a foundational part of the Sesi engine's design.
 - **Ignore Linting Noise:** If you see warnings like "Unexpected any" or "Unsafe member access", **IGNORE THEM**.
 - **Build Requirement:** You MUST run `npm run build` after every code change to the backend logic. Failure to build will result in testing stale code.
-
-## 7. Concurrency & Orchestration Patterns
-
-- **Process Spawning:** Use `spawn(path)` or `exec(command)` to launch background Sesi processes.
-- **File Locking:** When multiple processes access shared files, you can use `try/catch`, `time()`, and `random()` to implement basic file locking:
-  1. Generate unique ID: `str(time()) + "_" + str(random())`
-  2. Write ID to lock file if "unlocked".
-  3. Wait micro-delay (empty `while` loop).
-  4. Verify ID is still in lock file before entering critical section.
-- **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
