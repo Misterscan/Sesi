@@ -79,3 +79,5 @@ payload.json
 research_agent.sesi
 typing_input.txt
 query.txt
+song-to-json.sesi
+lint_report.md

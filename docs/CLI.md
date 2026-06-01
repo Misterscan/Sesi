@@ -170,23 +170,31 @@ sesi -dec my_private_script.sesi
 
 If you are working inside the Sesi repository, you can leverage native package manager shortcuts defined in `package.json` to execute, parse, or encrypt scripts:
 
-| Package Script                         | CLI Equivalence           | Description                                    |
-| :------------------------------------- | :------------------------ | :--------------------------------------------- |
-| `npm run sesi -- <file>`               | `sesi <file>`             | Runs the Sesi script.                          |
-| `npm run sesi:local -- <file>`         | `sesi -l <file>`          | Runs a script with safe-mode disabled.         |
-| `npm run sesi:eval -- "<code_to_run>"` | `sesi -e "<code_to_run>"` | Evaluates Sesi code in-memory.                 |
-| `npm run sesi:parse -- <file>`         | `sesi -r <file>`          | Dumps the raw AST representation.              |
-| `npm run sesi:encrypt -- <file>`       | `sesi -enc <file>`        | Encrypts a file (using env password fallback). |
-| `npm run sesi:decrypt -- <file>`       | `sesi -dec <file>`        | Decrypts a file (using env password fallback). |
-| `npm run sesi:help -- "<query>"`       | `sesi -h "<query>"`       | Consults the RAG-trained Sesi Co-Pilot.        |
-| `npm run example:all`                  | `sesi examples.sesi`      | Runs all examples in the examples/ directory.  |
+| Package Script                      | CLI Equivalence           | Description                                           |
+| :---------------------------------- | :------------------------ | :---------------------------------------------------- |
+| `npm run lint`                      | `sesi lint.sesi`          | Audits the entire workspace for errors/warnings.      |
+| `npm run lint <file>`               | `sesi lint.sesi <file>`   | Audits a single file and prints directly to terminal. |
+| `npm run sesi <file>`               | `sesi <file>`             | Runs the Sesi script.                                 |
+| `npm run sesi:local <file>`         | `sesi -l <file>`          | Runs a script with safe-mode disabled.                |
+| `npm run sesi:eval "<code_to_run>"` | `sesi -e "<code_to_run>"` | Evaluates Sesi code in-memory.                        |
+| `npm run sesi:parse <file>`         | `sesi -r <file>`          | Dumps the raw AST representation.                     |
+| `npm run sesi:encrypt <file>`       | `sesi -enc <file>`        | Encrypts a file (using env password fallback).        |
+| `npm run sesi:decrypt <file>`       | `sesi -dec <file>`        | Decrypts a file (using env password fallback).        |
+| `npm run sesi:help "<query>"`       | `sesi -h "<query>"`       | Consults the RAG-trained Sesi Co-Pilot.               |
+| `npm run example:all`               | `sesi examples.sesi`      | Runs all examples in the examples/ directory.         |
 
 ### Usage Example
 
 ```bash
+# Audit the entire workspace and save report to lint_report.md
+npm run lint
+
+# Audit a single file and print Errors & Warnings directly to stdout
+npm run lint bad-syntax-file.sesi
+
 # Evaluate inline code
-npm run sesi:eval -- "print 'Sesi running via npm!'"
+npm run sesi:eval "print 'Sesi running via npm!'"
 
 # Encrypt a private script using the .env password
-npm run sesi:encrypt -- "my-pipeline.sesi"
+npm run sesi:encrypt "my-pipeline.sesi"
 ```

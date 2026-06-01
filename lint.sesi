@@ -1,0 +1,739 @@
+// lint.sesi
+// A high-fidelity, native Sesi static syntax auditor and workspace quality gates tool.
+// Tokenizes and audits Sesi code completely natively in pure Sesi.
+
+fn lex(content) {
+  let tokens = []
+  let chars = split(content, "")
+  let n = len(chars)
+  let i = 0
+  let line = 1
+  
+  while i < n {
+    let c = chars[i]
+    
+    if c == "\n" {
+      push(tokens, {"type": "NEWLINE", "lexeme": "\n", "line": line})
+      line = line + 1
+      i = i + 1
+      continue
+    }
+    
+    // Skip whitespace
+    if c == " " { i = i + 1; continue }
+    if c == "\t" { i = i + 1; continue }
+    if c == "\r" { i = i + 1; continue }
+    
+    // Comments
+    if c == "/" {
+      if i + 1 < n {
+        if chars[i+1] == "/" {
+          while i < n {
+            if chars[i] == "\n" { break }
+            i = i + 1
+          }
+          continue
+        }
+        if chars[i+1] == "*" {
+          i = i + 2
+          while i < n {
+            if chars[i] == "*" {
+              if i + 1 < n {
+                if chars[i+1] == "/" {
+                  i = i + 2
+                  break
+                }
+              }
+            }
+            if chars[i] == "\n" { line = line + 1 }
+            i = i + 1
+          }
+          continue
+        }
+      }
+    }
+    
+    // String literals
+    if c == "\"" {
+      let val = ""
+      i = i + 1
+      while i < n {
+        if chars[i] == "\"" {
+          i = i + 1
+          break
+        }
+        if chars[i] == "\\" {
+          i = i + 1
+          if i < n { val = val + chars[i] }
+        } else {
+          val = val + chars[i]
+        }
+        if chars[i] == "\n" { line = line + 1 }
+        i = i + 1
+      }
+      push(tokens, {"type": "STRING", "lexeme": val, "line": line})
+      continue
+    }
+    if c == "'" {
+      let val = ""
+      i = i + 1
+      while i < n {
+        if chars[i] == "'" {
+          i = i + 1
+          break
+        }
+        if chars[i] == "\\" {
+          i = i + 1
+          if i < n { val = val + chars[i] }
+        } else {
+          val = val + chars[i]
+        }
+        if chars[i] == "\n" { line = line + 1 }
+        i = i + 1
+      }
+      push(tokens, {"type": "STRING", "lexeme": val, "line": line})
+      continue
+    }
+    
+    // Brackets & Punctuation
+    if c == "(" { push(tokens, {"type": "LEFT_PAREN", "lexeme": "(", "line": line}); i = i + 1; continue }
+    if c == ")" { push(tokens, {"type": "RIGHT_PAREN", "lexeme": ")", "line": line}); i = i + 1; continue }
+    if c == "[" { push(tokens, {"type": "LEFT_BRACKET", "lexeme": "[", "line": line}); i = i + 1; continue }
+    if c == "]" { push(tokens, {"type": "RIGHT_BRACKET", "lexeme": "]", "line": line}); i = i + 1; continue }
+    if c == "{" { push(tokens, {"type": "LEFT_BRACE", "lexeme": "{", "line": line}); i = i + 1; continue }
+    if c == "}" { push(tokens, {"type": "RIGHT_BRACE", "lexeme": "}", "line": line}); i = i + 1; continue }
+    if c == "," { push(tokens, {"type": "COMMA", "lexeme": ",", "line": line}); i = i + 1; continue }
+    if c == ";" { push(tokens, {"type": "SEMICOLON", "lexeme": ";", "line": line}); i = i + 1; continue }
+    if c == ":" { push(tokens, {"type": "COLON", "lexeme": ":", "line": line}); i = i + 1; continue }
+    
+    // Multi/Single char operators
+    if c == "=" {
+      if i + 1 < n {
+        if chars[i+1] == "=" {
+          push(tokens, {"type": "EQUAL_EQUAL", "lexeme": "==", "line": line})
+          i = i + 2
+          continue
+        }
+      }
+      push(tokens, {"type": "EQUAL", "lexeme": "=", "line": line})
+      i = i + 1
+      continue
+    }
+    if c == "!" {
+      if i + 1 < n {
+        if chars[i+1] == "=" {
+          push(tokens, {"type": "BANG_EQUAL", "lexeme": "!=", "line": line})
+          i = i + 2
+          continue
+        }
+      }
+      push(tokens, {"type": "BANG", "lexeme": "!", "line": line})
+      i = i + 1
+      continue
+    }
+    if c == "<" {
+      if i + 1 < n {
+        if chars[i+1] == "=" {
+          push(tokens, {"type": "LESS_EQUAL", "lexeme": "<=", "line": line})
+          i = i + 2
+          continue
+        }
+      }
+      push(tokens, {"type": "LESS", "lexeme": "<", "line": line})
+      i = i + 1
+      continue
+    }
+    if c == ">" {
+      if i + 1 < n {
+        if chars[i+1] == "=" {
+          push(tokens, {"type": "GREATER_EQUAL", "lexeme": ">=", "line": line})
+          i = i + 2
+          continue
+        }
+      }
+      push(tokens, {"type": "GREATER", "lexeme": ">", "line": line})
+      i = i + 1
+      continue
+    }
+    if c == "+" { push(tokens, {"type": "PLUS", "lexeme": "+", "line": line}); i = i + 1; continue }
+    if c == "-" { push(tokens, {"type": "MINUS", "lexeme": "-", "line": line}); i = i + 1; continue }
+    if c == "*" { push(tokens, {"type": "STAR", "lexeme": "*", "line": line}); i = i + 1; continue }
+    if c == "/" { push(tokens, {"type": "SLASH", "lexeme": "/", "line": line}); i = i + 1; continue }
+    if c == "%" { push(tokens, {"type": "PERCENT", "lexeme": "%", "line": line}); i = i + 1; continue }
+    
+    // Identifiers & Keywords
+    let alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
+    let digits = "0123456789"
+    let isAlpha = false
+    let isDigit = false
+    
+    if len(split(alpha, c)) > 1 { isAlpha = true }
+    if len(split(digits, c)) > 1 { isDigit = true }
+    
+    if isAlpha {
+      let lexeme = ""
+      while i < n {
+        let char = chars[i]
+        let inAlpha = len(split(alpha, char)) > 1
+        let inDigit = len(split(digits, char)) > 1
+        if inAlpha == false {
+          if inDigit == false {
+            break
+          }
+        }
+        lexeme = lexeme + char
+        i = i + 1
+      }
+      
+      let type = "IDENTIFIER"
+      let keywords = ["let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "import", "export", "memory", "true", "false", "null", "print", "prompt", "model", "image", "structured_output", "tool_call"]
+      
+      for kw in keywords {
+        if lexeme == kw {
+          type = kw
+        }
+      }
+      
+      let upperType = type
+      if type == "let" { upperType = "LET" }
+      if type == "const" { upperType = "CONST" }
+      if type == "fn" { upperType = "FN" }
+      if type == "if" { upperType = "IF" }
+      if type == "else" { upperType = "ELSE" }
+      if type == "while" { upperType = "WHILE" }
+      if type == "for" { upperType = "FOR" }
+      if type == "in" { upperType = "IN" }
+      if type == "return" { upperType = "RETURN" }
+      if type == "break" { upperType = "BREAK" }
+      if type == "continue" { upperType = "CONTINUE" }
+      if type == "try" { upperType = "TRY" }
+      if type == "catch" { upperType = "CATCH" }
+      if type == "finally" { upperType = "FINALLY" }
+      if type == "import" { upperType = "IMPORT" }
+      if type == "export" { upperType = "EXPORT" }
+      if type == "memory" { upperType = "MEMORY" }
+      if type == "true" { upperType = "TRUE" }
+      if type == "false" { upperType = "FALSE" }
+      if type == "null" { upperType = "NULL" }
+      if type == "print" { upperType = "PRINT" }
+      if type == "prompt" { upperType = "PROMPT" }
+      if type == "model" { upperType = "MODEL" }
+      if type == "image" { upperType = "IMAGE" }
+      if type == "structured_output" { upperType = "STRUCTURED_OUTPUT" }
+      if type == "tool_call" { upperType = "TOOL_CALL" }
+      
+      push(tokens, {"type": upperType, "lexeme": lexeme, "line": line})
+      continue
+    }
+    
+    if isDigit {
+      let lexeme = ""
+      while i < n {
+        let char = chars[i]
+        let inDigit = len(split(digits, char)) > 1
+        if inDigit == false {
+          if char != "." {
+            break
+          }
+        }
+        lexeme = lexeme + char
+        i = i + 1
+      }
+      push(tokens, {"type": "NUMBER", "lexeme": lexeme, "line": line})
+      continue
+    }
+    
+    i = i + 1
+  }
+  
+  push(tokens, {"type": "EOF", "lexeme": "", "line": line})
+  return tokens
+}
+
+fn audit_syntax(tokens) {
+  let errors = []
+  let n = len(tokens)
+  let i = 0
+  
+  let parenDepth = 0
+  let bracketDepth = 0
+  let braceDepth = 0
+  
+  let lastOpenParen = 0
+  let lastOpenBracket = 0
+  let lastOpenBrace = 0
+  
+  while i < n {
+    let tok = tokens[i]
+    let type = tok.type
+    let line = tok.line
+    
+    if type == "LEFT_PAREN" { if parenDepth == 0 { lastOpenParen = line } parenDepth = parenDepth + 1 }
+    if type == "RIGHT_PAREN" { parenDepth = parenDepth - 1; if parenDepth < 0 { push(errors, {"line": line, "message": "Syntax Error: Unmatched close parenthesis ')'"}); parenDepth = 0 } }
+    if type == "LEFT_BRACKET" { if bracketDepth == 0 { lastOpenBracket = line } bracketDepth = bracketDepth + 1 }
+    if type == "RIGHT_BRACKET" { bracketDepth = bracketDepth - 1; if bracketDepth < 0 { push(errors, {"line": line, "message": "Syntax Error: Unmatched close bracket ']'"}); bracketDepth = 0 } }
+    if type == "LEFT_BRACE" { if braceDepth == 0 { lastOpenBrace = line } braceDepth = braceDepth + 1 }
+    if type == "RIGHT_BRACE" { braceDepth = braceDepth - 1; if braceDepth < 0 { push(errors, {"line": line, "message": "Syntax Error: Unmatched close brace '}'"}); braceDepth = 0 } }
+    
+    if type == "LET" {
+      if i + 1 < n {
+        let next = tokens[i+1]
+        if next.type != "IDENTIFIER" {
+          push(errors, {"line": line, "message": "Syntax Error: Expected identifier after let, got '" + next.lexeme + "'"})
+        } else {
+          if i + 2 < n {
+            let next2 = tokens[i+2]
+            if next2.type == "EQUAL" {
+              if i + 3 < n {
+                let next3 = tokens[i+3]
+                if next3.type == "NEWLINE" {
+                  push(errors, {"line": line, "message": "Syntax Error: Expected expression after assignment '='"})
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    if type == "FOR" {
+      let hasIn = false
+      let temp = i + 1
+      while temp < n {
+        let t = tokens[temp]
+        if t.type == "IN" { hasIn = true; break }
+        if t.type == "NEWLINE" { break }
+        if t.type == "LEFT_BRACE" { break }
+        temp = temp + 1
+      }
+      if hasIn == false {
+        push(errors, {"line": line, "message": "Syntax Error: `for` loop missing native `in` keyword"})
+      }
+      
+      let hasBlock = false
+      temp = i + 1
+      while temp < n {
+        let t = tokens[temp]
+        if t.type == "LEFT_BRACE" { hasBlock = true; break }
+        if t.type == "NEWLINE" {
+          let nextNonNL = temp + 1
+          while nextNonNL < n {
+            if tokens[nextNonNL].type != "NEWLINE" { break }
+            nextNonNL = nextNonNL + 1
+          }
+          if nextNonNL < n {
+            if tokens[nextNonNL].type == "LEFT_BRACE" { hasBlock = true }
+          }
+          break
+        }
+        temp = temp + 1
+      }
+      if hasBlock == false {
+        push(errors, {"line": line, "message": "Syntax Error: Expected `{` to open `for` loop block"})
+      }
+    }
+    
+    if type == "IF" {
+      let hasBlock = false
+      let temp = i + 1
+      while temp < n {
+        let t = tokens[temp]
+        if t.type == "LEFT_BRACE" { hasBlock = true; break }
+        if t.type == "NEWLINE" {
+          let nextNonNL = temp + 1
+          while nextNonNL < n {
+            if tokens[nextNonNL].type != "NEWLINE" { break }
+            nextNonNL = nextNonNL + 1
+          }
+          if nextNonNL < n {
+            if tokens[nextNonNL].type == "LEFT_BRACE" { hasBlock = true }
+          }
+          break
+        }
+        temp = temp + 1
+      }
+      if hasBlock == false {
+        push(errors, {"line": line, "message": "Syntax Error: Expected `{` to start control block"})
+      }
+    }
+    
+    if type == "WHILE" {
+      let hasBlock = false
+      let temp = i + 1
+      while temp < n {
+        let t = tokens[temp]
+        if t.type == "LEFT_BRACE" { hasBlock = true; break }
+        if t.type == "NEWLINE" {
+          let nextNonNL = temp + 1
+          while nextNonNL < n {
+            if tokens[nextNonNL].type != "NEWLINE" { break }
+            nextNonNL = nextNonNL + 1
+          }
+          if nextNonNL < n {
+            if tokens[nextNonNL].type == "LEFT_BRACE" { hasBlock = true }
+          }
+          break
+        }
+        temp = temp + 1
+      }
+      if hasBlock == false {
+        push(errors, {"line": line, "message": "Syntax Error: Expected `{` to start control block"})
+      }
+    }
+    
+    if type == "MODEL" {
+      let hasBlock = false
+      let temp = i + 1
+      while temp < n {
+        let t = tokens[temp]
+        if t.type == "LEFT_BRACE" { hasBlock = true; break }
+        if t.type == "NEWLINE" {
+          let nextNonNL = temp + 1
+          while nextNonNL < n {
+            if tokens[nextNonNL].type != "NEWLINE" { break }
+            nextNonNL = nextNonNL + 1
+          }
+          if nextNonNL < n {
+            if tokens[nextNonNL].type == "LEFT_BRACE" { hasBlock = true }
+          }
+          break
+        }
+        temp = temp + 1
+      }
+      if hasBlock == false {
+        push(errors, {"line": line, "message": "Syntax Error: Expected prompt block `{` after model call"})
+      }
+    }
+    
+    if type == "IMAGE" {
+      let hasBlock = false
+      let temp = i + 1
+      while temp < n {
+        let t = tokens[temp]
+        if t.type == "LEFT_BRACE" { hasBlock = true; break }
+        if t.type == "NEWLINE" {
+          let nextNonNL = temp + 1
+          while nextNonNL < n {
+            if tokens[nextNonNL].type != "NEWLINE" { break }
+            nextNonNL = nextNonNL + 1
+          }
+          if nextNonNL < n {
+            if tokens[nextNonNL].type == "LEFT_BRACE" { hasBlock = true }
+          }
+          break
+        }
+        temp = temp + 1
+      }
+      if hasBlock == false {
+        push(errors, {"line": line, "message": "Syntax Error: Expected prompt block `{` after image call"})
+      }
+    }
+    
+    if type == "IDENTIFIER" {
+      if tok.lexeme == "exec" {
+        if i + 1 < n {
+          let next = tokens[i+1]
+          if next.type != "LEFT_PAREN" {
+            if next.type != "NEWLINE" {
+              if next.type != "EOF" {
+                push(errors, {"line": line, "message": "Syntax Error: `exec` is a builtin function, expected `(` instead of whitespace"})
+              }
+            }
+          }
+        }
+      }
+      if tok.lexeme == "write_file" {
+        if i + 1 < n {
+          let next = tokens[i+1]
+          if next.type != "LEFT_PAREN" {
+            if next.type != "NEWLINE" {
+              if next.type != "EOF" {
+                push(errors, {"line": line, "message": "Syntax Error: `write_file` is a builtin function, expected `(` instead of whitespace"})
+              }
+            }
+          }
+        }
+      }
+      if tok.lexeme == "read_file" {
+        if i + 1 < n {
+          let next = tokens[i+1]
+          if next.type != "LEFT_PAREN" {
+            if next.type != "NEWLINE" {
+              if next.type != "EOF" {
+                push(errors, {"line": line, "message": "Syntax Error: `read_file` is a builtin function, expected `(` instead of whitespace"})
+              }
+            }
+          }
+        }
+      }
+      
+      // Look for statement termination violations (let x = 1 let y = 2)
+      if i + 1 < n {
+        let next = tokens[i+1]
+        if next.type == "LET" {
+          push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got 'let'"})
+        }
+        if next.type == "CONST" {
+          push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got 'const'"})
+        }
+        if next.type == "IDENTIFIER" {
+          let isKeywordCall = false
+          if tok.lexeme == "exec" { isKeywordCall = true }
+          if tok.lexeme == "write_file" { isKeywordCall = true }
+          if tok.lexeme == "read_file" { isKeywordCall = true }
+          
+          if isKeywordCall == false {
+            push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got '" + next.lexeme + "'"})
+          }
+        }
+      }
+    }
+    
+    i = i + 1
+  }
+  
+  if parenDepth > 0 { push(errors, {"line": lastOpenParen, "message": "Parser Mismatch: Unclosed parenthesis '('"}) }
+  if bracketDepth > 0 { push(errors, {"line": lastOpenBracket, "message": "Parser Mismatch: Unclosed bracket '['"}) }
+  if braceDepth > 0 { push(errors, {"line": lastOpenBrace, "message": "Parser Mismatch: Unbalanced curly braces '{}'"}) }
+  
+  return errors
+}
+
+let targetFiles = []
+let isSingleFile = false
+
+if len(args) > 0 {
+  let arg0 = args[0]
+  let parts = split(arg0, ".")
+  let ext = parts[len(parts) - 1]
+  
+  if ext == "sesi" {
+    push(targetFiles, arg0)
+    isSingleFile = true
+  } else {
+    try {
+      let files = list_dir(arg0)
+      for file in files {
+        let fparts = split(file, ".")
+        let fext = fparts[len(fparts) - 1]
+        if fext == "sesi" {
+          if file != "lint.sesi" {
+            let path = file
+            if arg0 != "." {
+              path = arg0 + "/" + file
+            }
+            push(targetFiles, path)
+          }
+        }
+      }
+    } catch (e) {
+      print "Failed to list directory:" e
+    }
+  }
+} else {
+  let targetDirs = [".", "main"]
+  for dir in targetDirs {
+    try {
+      let files = list_dir(dir)
+      for file in files {
+        let fparts = split(file, ".")
+        let fext = fparts[len(fparts) - 1]
+        if fext == "sesi" {
+          if file != "lint.sesi" {
+            let path = file
+            if dir != "." {
+              path = dir + "/" + file
+            }
+            push(targetFiles, path)
+          }
+        }
+      }
+    } catch (e) {
+      // Directory bypassed
+    }
+  }
+}
+
+let totalErrors = 0
+let totalWarnings = 0
+let report = ""
+
+if isSingleFile == false {
+  report = "# Sesi Workspace Syntax Audit\n\n"
+  report = report + "Generated on: " + str(time()) + "\n\n"
+}
+
+for filePath in targetFiles {
+  if isSingleFile == false {
+    report = report + "## Auditing: " + filePath + "\n\n"
+  } else {
+    report = report + "Auditing: " + filePath + "\n\n"
+  }
+  
+  try {
+    let content = read_file(filePath)
+    let fileErrors = 0
+    let fileWarnings = 0
+    
+    // Step 1: Run native Lexer
+    let fileTokens = lex(content)
+    
+    // Step 2: Run native Parser Auditor
+    let syntaxErrors = audit_syntax(fileTokens)
+    for sErr in syntaxErrors {
+      report = report + "* **Line " + str(sErr.line) + ":** 🔴 [ERROR] " + sErr.message + "\n"
+      fileErrors = fileErrors + 1
+    }
+    
+    // Step 3: Run Semantic audits on lines
+    let lines = split(content, "\n")
+    let idx = 0
+    let tryStartDepth = -1
+    let fnStartDepth = -1
+    let inPrompt = false
+    let braceDepth = 0
+    
+    for line in lines {
+      idx = idx + 1
+      
+      // Calculate scopes
+      let openCount = len(split(line, "{")) - 1
+      let closeCount = len(split(line, "}")) - 1
+      
+      let promptSegs = split(line, "prompt ")
+      if len(promptSegs) > 1 { inPrompt = true }
+      
+      let fnSegs = split(line, "fn ")
+      if len(fnSegs) > 1 { fnStartDepth = braceDepth }
+      
+      let trySegs = split(line, "try ")
+      if len(trySegs) > 1 { tryStartDepth = braceDepth }
+      
+      braceDepth = braceDepth + openCount - closeCount
+      
+      // Forbidden const
+      let constSegs = split(line, "const ")
+      if len(constSegs) > 1 {
+        report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Forbidden `const` keyword detected. Use `let` instead.\n"
+        fileErrors = fileErrors + 1
+      }
+      
+      // Unwrapped I/O
+      let writeSegs = split(line, "write_file(")
+      let readSegs = split(line, "read_file(")
+      if len(writeSegs) > 1 {
+        if tryStartDepth == -1 {
+          report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Unwrapped `write_file` call. Enclose in a try/catch block to prevent filesystem contention crashes.\n"
+          fileErrors = fileErrors + 1
+        }
+      }
+      if len(readSegs) > 1 {
+        if tryStartDepth == -1 {
+          report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Unwrapped `read_file` call. Enclose in a try/catch block to prevent filesystem contention crashes.\n"
+          fileErrors = fileErrors + 1
+        }
+      }
+      
+      // JSON Serialization
+      let stringifySegs = split(line, "stringify(")
+      if len(stringifySegs) > 1 {
+        report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Avoid `stringify()` for JSON. Use native `to_json()` instead.\n"
+        fileWarnings = fileWarnings + 1
+      }
+      
+      // Forbid main() wrappers
+      let mainSegs = split(line, "fn main(")
+      let mainCallSegs = split(line, "main()")
+      if len(mainSegs) > 1 {
+        report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Forbid `main()` wrappers. Sesi executes at top-level.\n"
+        fileErrors = fileErrors + 1
+      }
+      if len(mainCallSegs) > 1 {
+        report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Forbid `main()` wrappers. Sesi executes at top-level.\n"
+        fileErrors = fileErrors + 1
+      }
+      
+      // Top-level return
+      let returnSegs = split(line, "return ")
+      if len(returnSegs) > 1 {
+        if fnStartDepth == -1 {
+          report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Avoid top-level `return` statement; Sesi scripts execute at the top level.\n"
+          fileErrors = fileErrors + 1
+        }
+      }
+      
+      // Print concatenations
+      let printSegs = split(line, "print ")
+      if len(printSegs) > 1 {
+        let plusSegs = split(line, "+")
+        if len(plusSegs) > 1 {
+          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Avoid `+` in `print`. Place values sequentially.\n"
+          fileWarnings = fileWarnings + 1
+        }
+      }
+      
+      // Active prompt concatenations
+      if inPrompt {
+        let plusSegs = split(line, "+")
+        if len(plusSegs) > 1 {
+          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Avoid `+` inside `prompt` block. Place values sequentially.\n"
+          fileWarnings = fileWarnings + 1
+        }
+      }
+      
+      // Scope resolution
+      if tryStartDepth != -1 {
+        if braceDepth <= tryStartDepth { tryStartDepth = -1 }
+      }
+      if fnStartDepth != -1 {
+        if braceDepth <= fnStartDepth { fnStartDepth = -1 }
+      }
+      
+      let closeSegs = split(line, "}")
+      if len(closeSegs) > 1 {
+        if inPrompt { inPrompt = false }
+      }
+    }
+    
+    if fileErrors == 0 {
+      if fileWarnings == 0 {
+        report = report + "✓ No issues detected.\n\n"
+      }
+    }
+    
+    if fileErrors > 0 {
+      report = report + "* **Errors:** " + str(fileErrors) + " 🔴\n"
+    }
+    if fileWarnings > 0 {
+      report = report + "* **Warnings:** " + str(fileWarnings) + " ⚠️\n"
+    }
+    report = report + "\n"
+    
+    totalErrors = totalErrors + fileErrors
+    totalWarnings = totalWarnings + fileWarnings
+  } catch (e) {
+    report = report + "⚠️ Failed to read file: " + str(e) + "\n\n"
+  }
+}
+
+if isSingleFile {
+  print report
+  print "Summary:"
+  print "  Errors: " totalErrors " 🔴"
+  print "  Warnings: " totalWarnings " ⚠️"
+} else {
+  report = report + "### Workspace Summary\n\n"
+  report = report + "* **Total Sesi Files Audited:** " + str(len(targetFiles)) + "\n"
+  report = report + "* **Total Errors:** " + str(totalErrors) + " 🔴\n"
+  report = report + "* **Total Warnings:** " + str(totalWarnings) + " ⚠️\n"
+  
+  try {
+    let success = write_file("lint_report.md", report)
+    if success {
+      print "✓ Workspace audit completed."
+      print "✓ Report compiled programmatically to lint_report.md"
+    }
+  } catch (e) {
+    print "Failed to compile report:" e
+  }
+}

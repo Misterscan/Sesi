@@ -88,7 +88,7 @@ This protocol is required to reduce noisy full-run failures and speed up AI-assi
 - `src/`: The core TypeScript engine (Lexer, Parser, Interpreter, AI-Runtime, Builtins).
 - `bin/sesi.js`: The global CLI executable entry point.
 - `examples/`: Official syntax-demonstration scripts (`01_hello.sesi` through `13_data_pipeline.sesi`).
-- `main/`: The user's active development space (contains `sesi_db_chatbot` Sesi's built-in Co-Pilot, and `tests/` like `test_failure_debug.sesi`). **Run inline code evaluations (`-e 'code'`) instead of writing new `.sesi` files for quick tests. Do not overwrite existing `.sesi` files unless explicitly asked to.**
+- `main/`: Contains `sesi_db_chatbot` Sesi's built-in Co-Pilot, and `tests/` like `test_failure_debug.sesi`. **Run inline code evaluations (`-e 'code'`) instead of writing new `.sesi` files for quick tests. Do not overwrite existing `.sesi` files unless explicitly asked to.**
 - `docs/`: The source of truth for all sesi syntax, formatting, and structuring guidelines. It contains the official API docs for all built-in functions and types. AIs must treat this as the primary source of truth for syntax and structure.
 - Root helper scripts: `example.js`, `example-ai.js`, and `examples.sesi` are convenience wrappers. AI agents should still use the `npx sesi` command as specified.
 
