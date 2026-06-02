@@ -160,6 +160,31 @@ fn lex(content) {
     if c == "*" { push(tokens, {"type": "STAR", "lexeme": "*", "line": line}); i = i + 1; continue }
     if c == "/" { push(tokens, {"type": "SLASH", "lexeme": "/", "line": line}); i = i + 1; continue }
     if c == "%" { push(tokens, {"type": "PERCENT", "lexeme": "%", "line": line}); i = i + 1; continue }
+    if c == "&" {
+      if i + 1 < n {
+        if chars[i+1] == "&" {
+          push(tokens, {"type": "AMPERSAND_AMPERSAND", "lexeme": "&&", "line": line})
+          i = i + 2
+          continue
+        }
+      }
+      push(tokens, {"type": "AMPERSAND", "lexeme": "&", "line": line})
+      i = i + 1
+      continue
+    }
+    if c == "|" {
+      if i + 1 < n {
+        if chars[i+1] == "|" {
+          push(tokens, {"type": "PIPE_PIPE", "lexeme": "||", "line": line})
+          i = i + 2
+          continue
+        }
+      }
+      push(tokens, {"type": "PIPE", "lexeme": "|", "line": line})
+      i = i + 1
+      continue
+    }
+
     
     // Identifiers & Keywords
     let alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
@@ -263,17 +288,89 @@ fn audit_syntax(tokens) {
   let lastOpenBracket = 0
   let lastOpenBrace = 0
   
+  let expectingPromptBrace = false
+  let inPromptBraceDepth = -1
+  let expectingModelOrImageBrace = false
+  let inPrint = false
+  let printParenDepth = 0
+  
   while i < n {
     let tok = tokens[i]
     let type = tok.type
     let line = tok.line
     
+    if type == "PRINT" { inPrint = true; printParenDepth = parenDepth }
+    if type == "NEWLINE" { inPrint = false }
+    if type == "SEMICOLON" { inPrint = false }
+    if type == "EOF" { inPrint = false }
+    
+    if type == "PLUS" {
+      if inPrint {
+        if parenDepth == printParenDepth {
+          let msg = "Avoid `+` in `print`. Place values sequentially."
+          let found = false
+          for e in errors {
+            if e.line == line { if e.message == msg { found = true } }
+          }
+          if found == false {
+            push(errors, {"line": line, "message": msg, "isWarning": true})
+          }
+        }
+      } else if inPromptBraceDepth != -1 {
+        if braceDepth == inPromptBraceDepth && parenDepth == 0 {
+          let msg = "Avoid `+` inside `prompt` block. Place values sequentially."
+          let found = false
+          for e in errors {
+            if e.line == line { if e.message == msg { found = true } }
+          }
+          if found == false {
+            push(errors, {"line": line, "message": msg, "isWarning": true})
+          }
+        }
+      }
+    }
+    
+    if type == "PROMPT" {
+      expectingPromptBrace = true
+    }
+    if type == "MODEL" {
+      expectingModelOrImageBrace = true
+    }
+    if type == "IMAGE" {
+      expectingModelOrImageBrace = true
+    }
+    
     if type == "LEFT_PAREN" { if parenDepth == 0 { lastOpenParen = line } parenDepth = parenDepth + 1 }
     if type == "RIGHT_PAREN" { parenDepth = parenDepth - 1; if parenDepth < 0 { push(errors, {"line": line, "message": "Syntax Error: Unmatched close parenthesis ')'"}); parenDepth = 0 } }
     if type == "LEFT_BRACKET" { if bracketDepth == 0 { lastOpenBracket = line } bracketDepth = bracketDepth + 1 }
     if type == "RIGHT_BRACKET" { bracketDepth = bracketDepth - 1; if bracketDepth < 0 { push(errors, {"line": line, "message": "Syntax Error: Unmatched close bracket ']'"}); bracketDepth = 0 } }
-    if type == "LEFT_BRACE" { if braceDepth == 0 { lastOpenBrace = line } braceDepth = braceDepth + 1 }
-    if type == "RIGHT_BRACE" { braceDepth = braceDepth - 1; if braceDepth < 0 { push(errors, {"line": line, "message": "Syntax Error: Unmatched close brace '}'"}); braceDepth = 0 } }
+    if type == "LEFT_BRACE" {
+      if braceDepth == 0 { lastOpenBrace = line }
+      braceDepth = braceDepth + 1
+      if expectingPromptBrace {
+        inPromptBraceDepth = braceDepth
+        expectingPromptBrace = false
+      } else if expectingModelOrImageBrace {
+        inPromptBraceDepth = braceDepth
+        expectingModelOrImageBrace = false
+      }
+    }
+    if type == "RIGHT_BRACE" {
+      if inPromptBraceDepth == braceDepth {
+        inPromptBraceDepth = -1
+        let temp = i + 1
+        let nextBrace = false
+        while temp < n {
+          let t = tokens[temp]
+          if t.type == "LEFT_BRACE" { nextBrace = true; break }
+          if t.type != "NEWLINE" { break }
+          temp = temp + 1
+        }
+        if nextBrace { expectingModelOrImageBrace = true }
+      }
+      braceDepth = braceDepth - 1
+      if braceDepth < 0 { push(errors, {"line": line, "message": "Syntax Error: Unmatched close brace '}'"}); braceDepth = 0 }
+    }
     
     if type == "LET" {
       if i + 1 < n {
@@ -430,60 +527,62 @@ fn audit_syntax(tokens) {
     }
     
     if type == "IDENTIFIER" {
-      if tok.lexeme == "exec" {
-        if i + 1 < n {
-          let next = tokens[i+1]
-          if next.type != "LEFT_PAREN" {
-            if next.type != "NEWLINE" {
-              if next.type != "EOF" {
-                push(errors, {"line": line, "message": "Syntax Error: `exec` is a builtin function, expected `(` instead of whitespace"})
+      if inPromptBraceDepth == -1 && inPrint == false {
+        if tok.lexeme == "exec" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `exec` is a builtin function, expected `(` instead of whitespace"})
+                }
               }
             }
           }
         }
-      }
-      if tok.lexeme == "write_file" {
-        if i + 1 < n {
-          let next = tokens[i+1]
-          if next.type != "LEFT_PAREN" {
-            if next.type != "NEWLINE" {
-              if next.type != "EOF" {
-                push(errors, {"line": line, "message": "Syntax Error: `write_file` is a builtin function, expected `(` instead of whitespace"})
+        if tok.lexeme == "write_file" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `write_file` is a builtin function, expected `(` instead of whitespace"})
+                }
               }
             }
           }
         }
-      }
-      if tok.lexeme == "read_file" {
-        if i + 1 < n {
-          let next = tokens[i+1]
-          if next.type != "LEFT_PAREN" {
-            if next.type != "NEWLINE" {
-              if next.type != "EOF" {
-                push(errors, {"line": line, "message": "Syntax Error: `read_file` is a builtin function, expected `(` instead of whitespace"})
+        if tok.lexeme == "read_file" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `read_file` is a builtin function, expected `(` instead of whitespace"})
+                }
               }
             }
           }
         }
-      }
-      
-      // Look for statement termination violations (let x = 1 let y = 2)
-      if i + 1 < n {
-        let next = tokens[i+1]
-        if next.type == "LET" {
-          push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got 'let'"})
-        }
-        if next.type == "CONST" {
-          push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got 'const'"})
-        }
-        if next.type == "IDENTIFIER" {
-          let isKeywordCall = false
-          if tok.lexeme == "exec" { isKeywordCall = true }
-          if tok.lexeme == "write_file" { isKeywordCall = true }
-          if tok.lexeme == "read_file" { isKeywordCall = true }
-          
-          if isKeywordCall == false {
-            push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got '" + next.lexeme + "'"})
+        
+        // Look for statement termination violations (let x = 1 let y = 2)
+        if i + 1 < n {
+          let next = tokens[i+1]
+          if next.type == "LET" {
+            push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got 'let'"})
+          }
+          if next.type == "CONST" {
+            push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got 'const'"})
+          }
+          if next.type == "IDENTIFIER" {
+            let isKeywordCall = false
+            if tok.lexeme == "exec" { isKeywordCall = true }
+            if tok.lexeme == "write_file" { isKeywordCall = true }
+            if tok.lexeme == "read_file" { isKeywordCall = true }
+            
+            if isKeywordCall == false {
+              push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got '" + next.lexeme + "'"})
+            }
           }
         }
       }
@@ -581,8 +680,13 @@ for filePath in targetFiles {
     // Step 2: Run native Parser Auditor
     let syntaxErrors = audit_syntax(fileTokens)
     for sErr in syntaxErrors {
-      report = report + "* **Line " + str(sErr.line) + ":** 🔴 [ERROR] " + sErr.message + "\n"
-      fileErrors = fileErrors + 1
+      if sErr.isWarning {
+        report = report + "* **Line " + str(sErr.line) + ":** ⚠️ [WARN] " + sErr.message + "\n"
+        fileWarnings = fileWarnings + 1
+      } else {
+        report = report + "* **Line " + str(sErr.line) + ":** 🔴 [ERROR] " + sErr.message + "\n"
+        fileErrors = fileErrors + 1
+      }
     }
     
     // Step 3: Run Semantic audits on lines
@@ -590,7 +694,6 @@ for filePath in targetFiles {
     let idx = 0
     let tryStartDepth = -1
     let fnStartDepth = -1
-    let inPrompt = false
     let braceDepth = 0
     
     for line in lines {
@@ -599,9 +702,6 @@ for filePath in targetFiles {
       // Calculate scopes
       let openCount = len(split(line, "{")) - 1
       let closeCount = len(split(line, "}")) - 1
-      
-      let promptSegs = split(line, "prompt ")
-      if len(promptSegs) > 1 { inPrompt = true }
       
       let fnSegs = split(line, "fn ")
       if len(fnSegs) > 1 { fnStartDepth = braceDepth }
@@ -661,25 +761,7 @@ for filePath in targetFiles {
           fileErrors = fileErrors + 1
         }
       }
-      
-      // Print concatenations
-      let printSegs = split(line, "print ")
-      if len(printSegs) > 1 {
-        let plusSegs = split(line, "+")
-        if len(plusSegs) > 1 {
-          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Avoid `+` in `print`. Place values sequentially.\n"
-          fileWarnings = fileWarnings + 1
-        }
-      }
-      
-      // Active prompt concatenations
-      if inPrompt {
-        let plusSegs = split(line, "+")
-        if len(plusSegs) > 1 {
-          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Avoid `+` inside `prompt` block. Place values sequentially.\n"
-          fileWarnings = fileWarnings + 1
-        }
-      }
+
       
       // Scope resolution
       if tryStartDepth != -1 {
@@ -687,11 +769,6 @@ for filePath in targetFiles {
       }
       if fnStartDepth != -1 {
         if braceDepth <= fnStartDepth { fnStartDepth = -1 }
-      }
-      
-      let closeSegs = split(line, "}")
-      if len(closeSegs) > 1 {
-        if inPrompt { inPrompt = false }
       }
     }
     

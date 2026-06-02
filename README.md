@@ -1,3 +1,5 @@
+## SESI IS **NOT** AN AI WRAPPER LANGUAGE. IT IS **NOT** AN AI-NATIVE PROGRAMMING LANGUAGE. IT IS A GENERAL-PURPOSE PROGRAMMING LANGUAGE WITH **OPTIONAL** AI CAPABILITIES BUILT-IN. STRONG EMPHASIS ON **OPTIONAL**.
+
 <p align="center">
   <img src="./sesi-logo.svg" alt="Sesi Logo" width="250" />
 </p>
@@ -178,7 +180,7 @@ print code
 
 ## Security & Sandboxing
 
-Sesi is designed to run and orchestrate untrusted AI reasoning pipelines. Because code can be influenced by prompt injections or generated model instructions, Sesi incorporates a **safe-by-default, zero-trust sandboxing engine**.
+Sesi incorporates a **safe-by-default, zero-trust sandboxing engine**.
 
 ### 🛡️ Core Security Features
 
@@ -226,7 +228,7 @@ const interpreter = new Interpreter(scriptDir, {
 
 ## Agent Context
 
-The root-level `SKILLS.md` file is a workspace context file for AI agents. It records repo-specific constraints such as valid Sesi syntax expectations, execution conventions, and the intended meaning of directories like `main/` and `main/tests/`.
+The root-level `SKILLS.md` file is a workspace context file for AI agents.
 
 ## Project Structure
 
@@ -264,12 +266,10 @@ Sesi/
 │   ├── ARCHITECTURE.md              # Runtime & system design (400+ lines)
 │   ├── BUILTINS.md                  # Built-in functions reference (450+ lines)
 │   ├── COMPARISON.md                # Language comparison showcase
-│   ├── CONCURRENCY.md               # Concurrency & coordination guide (>100 lines)
 │   ├── IMAGE_GENERATION.md          # Image generation guide (>100 lines)
 │   ├── REASONING.md                 # Reasoning and simple logic guide (>500 lines)
-│   ├── ROADMAP.md                   # V2-V4+ development plan (400+ lines)
-│   ├── agent_native_programming.md  # Sesi as an Agent-Native Programming paradigm
-│   └── sesi_ai_chronicles.md        # AI project history & notes
+│   └── ROADMAP.md                   # V2-V4+ development plan (400+ lines)
+│
 │
 ├── examples/
 │   ├── 01_hello.sesi                # Hello World

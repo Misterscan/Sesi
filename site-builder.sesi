@@ -130,7 +130,7 @@ export fn generate_smart_page(topic: string, outputDir: string) {
 export fn get_website_stats(dir: string) {
   let files = list_dir(dir)
   let count = len(files)
-  print "Generated " + str(count) + " files in " + dir
+  print "Generated " + str(count) + " files in " dir
   return count
 }
 

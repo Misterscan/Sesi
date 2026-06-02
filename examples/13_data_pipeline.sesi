@@ -1,35 +1,62 @@
-// Comprehensive example: Reasoning-powered data pipeline
 // This example demonstrates: Functions and control flow, Loops and arrays, Model calls with configuration, Structured output parsing, Memory for multi-step processing
 // Data to process
-let reviews = ["This product is amazing! Highly recommended.", "Terrible quality. Waste of money.", "It's okay. Nothing special.", "Love it! Best purchase ever.", "Disappointed. Poor customer service."]
-// Function to analyze single review
-fn analyzeReview(review: string) -> object {
-  return structured_output({sentiment: string, confidence: number})(model("gemini-3.1-flash-lite") {temperature: 0.3} {"Analyze sentiment. Return JSON with sentiment (positive/negative/neutral) and confidence (0-1). Review:" review})
+
+let numbers = [10, 25, 30, 45, 50]
+let threshold = 30
+fn filterNumbers(list: array, limit: number) -> array {
+  let filtered = []
+  for n in list {
+    if n >= limit {
+      push(filtered, n)
+    }
+  }
+  return filtered
 }
+let highNumbers = filterNumbers(numbers, threshold)
+print "Numbers above " + threshold + ":"
+for val in highNumbers {
+  print "- " + val
+}
+try {
+  write_file("results.txt", "Processed " + len(highNumbers) + " items.")
+  print "Log file created."
+} catch(e) {
+  print "File error: " + e
+}
+
+// USING AI IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
+// COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
+
+// let reviews = ["This product is amazing! Highly recommended.", "Terrible quality. Waste of money.", "It's okay. Nothing special.", "Love it! Best purchase ever.", "Disappointed. Poor customer service."]
+// Function to analyze single review
+// fn analyzeReview(review: string) -> object {
+//   return structured_output({sentiment: string, confidence: number})(model("gemini-3.1-flash-lite") {temperature: 0.3} {"Analyze sentiment. Return JSON with sentiment (positive/negative/neutral) and confidence (0-1). Review:" review})
+// }
 // Process all reviews
-print ("Processing " + len(reviews) + " reviews...")
-let results = []
-let positiveCount = 0
-let negativeCount = 0
-let neutralCount = 0
-for review in reviews 
-{print "Review:" review
-let analysis = analyzeReview(review)
-let sentiment = analysis["sentiment"]
-let confidence = analysis["confidence"]
-print "Sentiment:" sentiment "Confidence:" confidence
-push(results, analysis)
-if sentiment == "positive" {positiveCount = positiveCount + 1} else if sentiment == "negative" {negativeCount = negativeCount + 1} else {neutralCount = neutralCount + 1}}
+
+// print ("Processing " + len(reviews) + " reviews...")
+// let results = []
+// let positiveCount = 0
+// let negativeCount = 0
+// let neutralCount = 0
+// for review in reviews 
+// {print "Review:" review
+// let analysis = analyzeReview(review)
+// let sentiment = analysis["sentiment"]
+// let confidence = analysis["confidence"]
+// print "Sentiment:" sentiment "Confidence:" confidence
+// push(results, analysis)
+// if sentiment == "positive" {positiveCount = positiveCount + 1} else if sentiment == "negative" {negativeCount = negativeCount + 1} else {neutralCount = neutralCount + 1}}
 // Summary
-print "=== Summary ==="
-print "Total reviews:" len(reviews)
-print "Positive:" positiveCount
-print "Negative:" negativeCount
-print "Neutral:" neutralCount
+// print "=== Summary ==="
+// print "Total reviews:" len(reviews)
+// print "Positive:" positiveCount
+// print "Negative:" negativeCount
+// print "Neutral:" neutralCount
 // Calculate average sentiment score
-let totalConfidence = 0
-for result in results {totalConfidence = totalConfidence + result["confidence"]}
-let avgConfidence = totalConfidence / len(results)
-print "Average confidence:" avgConfidence
+// let totalConfidence = 0
+// for result in results {totalConfidence = totalConfidence + result["confidence"]}
+// let avgConfidence = totalConfidence / len(results)
+// print "Average confidence:" avgConfidence
 // Overall recommendation
-if positiveCount > negativeCount {print "Overall: RECOMMENDED (more positive reviews)"} else if negativeCount > positiveCount {print "Overall: NOT RECOMMENDED (more negative reviews)"} else {print "Overall: MIXED (balanced reviews)"}
+// if positiveCount > negativeCount {print "Overall: RECOMMENDED (more positive reviews)"} else if negativeCount > positiveCount {print "Overall: NOT RECOMMENDED (more negative reviews)"} else {print "Overall: MIXED (balanced reviews)"}

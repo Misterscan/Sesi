@@ -7,28 +7,28 @@ let red_cross = "❌ "
 
 export fn assert_equals(actual, expected, testName: string) {
   if actual == expected {
-    print green_tick + "PASS: " + testName
+    print green_tick "PASS:" testName
     return true
   } else {
-    print red_cross + "FAIL: " + testName
+    print red_cross "FAIL:" testName
     print "  -> Expected:" expected
-    print "  -> Actual:  " actual
+    print "  -> Actual:" actual
     return false
   }
 }
 
 export fn assert_not_null(val, testName: string) {
   if val == null {
-    print red_cross + "FAIL: " + testName + " (Value is null)"
+    print red_cross "FAIL:" testName "(Value is null)"
     return false
   } else {
-    print green_tick + "PASS: " + testName
+    print green_tick "PASS:" testName
     return true
   }
 }
 
 export fn run_test_suite(suiteName: string, results: array) {
-  print "\n========================================="
+  print "========================================="
   print "   TEST SUITE RUNNER:" suiteName
   print "========================================="
   
@@ -53,7 +53,7 @@ export fn run_test_suite(suiteName: string, results: array) {
   } else {
     print "⚠️ SOME TESTS FAILED. PLEASE AUDIT SPECIFICATIONS."
   }
-  print "=========================================\n"
+  print "========================================="
   
   if failed == 0 {
     return true

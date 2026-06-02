@@ -2,10 +2,6 @@
 description: Debugging and validation of error prone sesi scripts.
 ---
 
-### **The most important thing to remember is that the user can edit the .sesi files in the editor, so you should always use the editor to edit the .sesi files. You should NEVER edit the .sesi files in the terminal.**
-
-## Agent Debug Protocol
-
 1. **Draft in file, isolate risky snippet:** Identify the smallest parser/runtime-risky block (prompt block, model call, object schema, loop, etc.).
 2. **Validate snippet with eval mode first:** Run `npm run sesi:eval "..."` to test the isolated block before full-script execution.
 3. **Run inline code evaluations instead of writing new `.sesi` files for quick tests.:** If eval fails, iterate on snippet; do not repeatedly run full scripts while syntax is unresolved.

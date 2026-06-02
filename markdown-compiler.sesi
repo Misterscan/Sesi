@@ -41,21 +41,79 @@ export fn parse_italic(line: string) -> string {
     line = parsedLine
   }
   
-  // Try _ marker second
-  let underscoreSegments = split(line, "_")
-  if len(underscoreSegments) > 1 {
-    let parsedLine = underscoreSegments[0]
-    let idx = 1
-    while idx < len(underscoreSegments) {
-      if idx % 2 == 1 {
-        parsedLine = parsedLine + "<em>" + underscoreSegments[idx] + "</em>"
-      } else {
-        parsedLine = parsedLine + underscoreSegments[idx]
+  // Try _ marker second. Only process if _ is used as emphasis, avoiding intra-word underscores (e.g. list_tools)
+  let chars = split(line, "")
+  let n = len(chars)
+  let result = ""
+  let i = 0
+  let inItalic = false
+  let alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+  
+  while i < n {
+    let c = chars[i]
+    if c == "_" {
+      let isIntraWord = false
+      if i > 0 {
+        if i + 1 < n {
+          let prevChar = chars[i - 1]
+          let nextChar = chars[i + 1]
+          let prevIsAlnum = len(split(alpha, prevChar)) > 1
+          let nextIsAlnum = len(split(alpha, nextChar)) > 1
+          if prevIsAlnum {
+            if nextIsAlnum {
+              isIntraWord = true
+            }
+          }
+        }
       }
-      idx = idx + 1
+      
+      if isIntraWord {
+        result = result + "_"
+      } else {
+        if inItalic {
+          result = result + "</em>"
+          inItalic = false
+        } else {
+          let hasMatch = false
+          let temp = i + 1
+          while temp < n {
+            if chars[temp] == "_" {
+              let isMatchIntra = false
+              if temp > 0 {
+                if temp + 1 < n {
+                  let pChar = chars[temp - 1]
+                  let nChar = chars[temp + 1]
+                  let pAlnum = len(split(alpha, pChar)) > 1
+                  let nAlnum = len(split(alpha, nChar)) > 1
+                  if pAlnum {
+                    if nAlnum {
+                      isMatchIntra = true
+                    }
+                  }
+                }
+              }
+              if isMatchIntra == false {
+                hasMatch = true
+                break
+              }
+            }
+            temp = temp + 1
+          }
+          
+          if hasMatch {
+            result = result + "<em>"
+            inItalic = true
+          } else {
+            result = result + "_"
+          }
+        }
+      }
+    } else {
+      result = result + c
     }
-    line = parsedLine
+    i = i + 1
   }
+  line = result
   
   return line
 }
@@ -367,7 +425,8 @@ export fn parse_footnote_refs(line: string) -> string {
 
 // Extended unified inline compiler — bold, italic, links, inline code, footnote refs
 export fn parse_inline_full(line: string) -> string {
-  let t = parse_bold(line)
+  let t = parse_images(line)
+  t = parse_bold(t)
   t = parse_italic(t)
   t = parse_links(t)
   t = parse_inline_code(t)
@@ -541,6 +600,7 @@ export fn parse_markdown_full(mdText) {
   let lines = split(mdText, "\n")
   let html = ""
   let inCodeBlock = false
+  let inMermaidBlock = false
   let inTable = false
   let inOl = false
   let inUl = false
@@ -573,7 +633,12 @@ export fn parse_markdown_full(mdText) {
         inUl = false
       }
       if inCodeBlock {
-        html = html + "</code></pre>\n"
+        if inMermaidBlock {
+          html = html + "</div>\n"
+          inMermaidBlock = false
+        } else {
+          html = html + "</code></pre>\n"
+        }
         inCodeBlock = false
       } else {
         let lang = ""
@@ -581,10 +646,15 @@ export fn parse_markdown_full(mdText) {
         if len(btSegs) > 1 {
           lang = btSegs[1]
         }
-        if len(lang) > 0 {
-          html = html + "<pre class='md-code'><code class='language-" + lang + "'>"
+        if lang == "mermaid" {
+          html = html + "<div class='mermaid'>\n"
+          inMermaidBlock = true
         } else {
-          html = html + "<pre class='md-code'><code>"
+          if len(lang) > 0 {
+            html = html + "<pre class='md-code'><code class='language-" + lang + "'>"
+          } else {
+            html = html + "<pre class='md-code'><code>"
+          }
         }
         inCodeBlock = true
       }
@@ -773,7 +843,11 @@ export fn parse_markdown_full(mdText) {
     html = html + "</ul>\n"
   }
   if inCodeBlock {
-    html = html + "</code></pre>\n"
+    if inMermaidBlock {
+      html = html + "</div>\n"
+    } else {
+      html = html + "</code></pre>\n"
+    }
   }
   html = html + collect_footnotes(lines)
   return html
@@ -781,7 +855,7 @@ export fn parse_markdown_full(mdText) {
 
 // Extended file compiler — uses parse_markdown_full
 export fn compile_markdown_file_full(mdPath: string, htmlPath: string, title: string) {
-  print "Compiling (full):" mdPath htmlPath
+  print "Compiling (full):" mdPath "to" htmlPath
   try {
     let mdContent = read_file(mdPath)
     let parsed_body = parse_markdown_full(mdContent)

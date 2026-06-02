@@ -1,4 +1,4 @@
-// Prompt blocks - composable message templates
+// Prompt blocks - composable text templates
 prompt greetingTemplate {"Hello! " "How are you today?"}
 prompt responseTemplate {greetingTemplate " I hope you're having a great day!"}
 // Prompts evaluate to strings
@@ -8,3 +8,27 @@ print greeting
 let userName = "Alice"
 prompt personalGreeting {"Hello, " userName "! Welcome back!"}
 print personalGreeting
+
+// You can really explore the power of prompt blocks by using it to structure your outputs
+
+prompt htmlHead {"<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Document</title>
+</head>
+"}
+prompt htmlBody {"<body>
+    <h1>Hello World!</h1>
+    <p>This is a paragraph</p>
+</body>
+"}
+prompt htmlFooter {"</html>"}
+prompt htmlLayout {htmlHead htmlBody htmlFooter}
+try {
+    write_file("index.html", htmlLayout)
+    print "HTML file created successfully!"
+} catch(error) {
+    print "Error creating HTML file: " error
+}

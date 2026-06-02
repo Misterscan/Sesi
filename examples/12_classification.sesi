@@ -1,8 +1,63 @@
-// Data classification using Reasoning
-// Requires GEMINI_API_KEY environment variable
+// Data classification 
+
 let items = ["A quick brown fox", "123 Main Street", "user@example.com", "New York City"]
-fn classifyItem(item: string) -> string {return model("gemini-3.1-flash-lite") {"Classify this item into one of: TEXT, ADDRESS, EMAIL, LOCATION " "Item: " item}}
-print "Classifying items..."
-for item in items 
-{let classification = classifyItem(item)
-print item "->" classification}
+
+fn isEmail(item: string) -> bool {
+  let parts = split(item, "@")
+  if len(parts) != 2 {
+    return false
+  }
+  let localPart = parts[0]
+  let domainPart = parts[1]
+  if len(localPart) == 0 || len(domainPart) == 0 {
+    return false
+  }
+  let domainParts = split(domainPart, ".")
+  if len(domainParts) < 2 {
+    return false
+  }
+  for part in domainParts {
+    if len(part) == 0 {
+      return false
+    }
+  }
+  return true
+}
+
+fn isAddress(item: string) -> bool {
+  // Simplified check for address-like strings
+  let parts = split(item, " ")
+  // Must contain numbers and words
+  let hasNumber = false
+  let hasWord = false
+  for part in parts {
+    if num(part) != null {
+      hasNumber = true
+    } else if len(part) > 1 {
+      hasWord = true
+    }
+  }
+  return hasNumber && hasWord && len(parts) >= 2
+}
+
+print "Classifying items natively:"
+for item in items {
+  if isEmail(item) {
+    print item "-> EMAIL"
+  } else if isAddress(item) {
+    print item "-> ADDRESS"
+  } else {
+    print item "-> TEXT/LOCATION"
+  }
+}
+
+// USING AI IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
+// COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
+
+
+// let items = ["A quick brown fox", "123 Main Street", "user@example.com", "New York City"]
+// fn classifyItem(item: string) -> string {return model("gemini-3.1-flash-lite") {"Classify this item into one of: TEXT, ADDRESS, EMAIL, LOCATION " "Item: " item}}
+// print "Classifying items..."
+// for item in items 
+// {let classification = classifyItem(item)
+// print item "->" classification}

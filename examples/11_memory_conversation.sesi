@@ -1,16 +1,48 @@
-// Multi-turn conversation with memory
-// Requires GEMINI_API_KEY environment variable
-memory conversation {"You are a helpful programming assistant. Respond concisely."}
-fn askBot(question: string) -> string {
-  let message = conversation + "User:" + question
-  let response = model("gemini-3.1-flash-lite") {message}
-  conversation = message + "Assistant:" + response
-  return response
+// You can use memory to store variables throughout your script without redeclaring it
+
+memory store_database {"name: string, age: number, role: string"}
+
+store_database = {"name": "John", "age": 30, "role": "developer"}
+print "Name:" store_database["name"]
+print "Age:" store_database["age"]
+print "Role:" store_database["role"]
+try {
+  write_file("data.txt", to_json(store_database))
+  print "Database saved!"
+} catch(error) {
+  print "Error:" error
 }
-print "Starting conversation..."
-let answer1 = askBot("What is a closure in JavaScript?")
-print "Q1 Answer:" answer1
-let answer2 = askBot("Can you give me an example?")
-print "Q2 Answer:" answer2
-let answer3 = askBot("How do I use it in practice?")
-print "Q3 Answer:" answer3
+
+let new_info = {"name": "Jane", "age": 25, "role": "designer"}
+let merged = store_database
+for key in keys(new_info) {
+  merged[key] = new_info[key]
+}
+store_database = merged
+print "Name:" store_database["name"]
+print "Age:" store_database["age"]
+print "Role:" store_database["role"]
+try {
+  write_file("data.txt", to_json(store_database))
+  print "Database updated!"
+} catch(error) {
+  print "Error:" error
+}
+
+// USING IT FOR AI IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
+// COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
+
+// memory conversation {"You are a helpful programming assistant. Respond concisely."}
+// memory conversationfn askBot(question: string) -> string {
+//  let message = conversation + "User:" + question
+//  let response = model("gemini-3.1-flash-lite") {message}
+//  conversation = message + "Assistant:" + response
+//  return response
+//}
+// print "Starting conversation..."
+// let answer1 = askBot("What is a closure in JavaScript?")
+// print "Q1 Answer:" answer1
+// let answer2 = askBot("Can you give me an example?")
+// print "Q2 Answer:" answer2
+// let answer3 = askBot("How do I use it in practice?")
+// print "Q3 Answer:" answer3

@@ -126,7 +126,7 @@ app.post('/api/chat', (req, res) => {
     const logsDir = path.join(PROJECT_ROOT, 'main', 'logs');
     if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
 
-    const output = execSync(`"${process.execPath}" bin/sesi.js main/sesi_db_chatbot.sesi`, {
+    const output = execSync(`"${process.execPath}" bin/sesi.js chatbot/sesi_db_chatbot.sesi`, {
       cwd: PROJECT_ROOT,
       encoding: 'utf-8',
       timeout: 120000,

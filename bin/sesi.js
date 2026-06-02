@@ -175,7 +175,7 @@ async function main() {
     } else if (fs.existsSync('help_context.txt')) {
       fs.unlinkSync('help_context.txt');
     }
-    const copilotPath = path.join(__dirname, '../main/sesi_db_chatbot.sesi');
+    const copilotPath = path.join(__dirname, '../chatbot/sesi_db_chatbot.sesi');
     await runSesiFile(copilotPath).catch((error) => {
       console.error('Fatal error in Sesi Co-Pilot:', error.message);
       process.exit(1);

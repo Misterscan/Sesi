@@ -358,9 +358,7 @@ docs/
 ├── COMPARISON.md         # Language comparison showcase
 ├── CONCURRENCY.md        # Concurrency & coordination guide
 ├── REASONING.md          # Reasoning and simple logic guide
-├── ROADMAP.md            # Future plans
-├── agent_native_programming.md # Sesi as an Agent-Native Programming paradigm
-└── sesi_ai_chronicles.md # AI project history & notes
+└── ROADMAP.md            # Future plans
 
 tests/
 ├── basic.test.ts         # Core parsing & evaluation tests

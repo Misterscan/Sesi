@@ -6,17 +6,17 @@ Sesi’s CLI is a powerful, zero-footprint environment orchestrator. It allows y
 
 ## 🗺️ CLI Command Reference Matrix
 
-| Command Syntax               | Execution Mode        | File Dependency                   | Description                                                                      |
-| :--------------------------- | :-------------------- | :-------------------------------- | :------------------------------------------------------------------------------- |
-| `sesi <file>`                | Standard              | Yes                               | Runs the Sesi script file sequentially.                                          |
-| `sesi <file> <args...>`      | **Parametric Script** | Yes                               | Runs the script and exposes trailing parameters in `args`.                       |
-| `sesi -e "<code>"`           | Inline Eval           | **No (Fileless)**                 | Evaluates the string of Sesi code directly in-memory.                            |
-| `sesi -e "<code>" <args...>` | **Parametric Eval**   | **No (Fileless)**                 | Evaluates inline code and populates `args` array with inputs.                    |
-| `sesi -h "<query>"`          | Co-Pilot Help         | **Yes (Internal chatbot script)** | Converses with Sesi's internal Vector-RAG chatbot (`main/sesi_db_chatbot.sesi`). |
-| `sesi <file> -h "<query>"`   | Grounded Help         | **Yes (Chatbot + context file)**  | Converses with the Co-Pilot using both the vector DB and the user's file.        |
-| `sesi -r <file>`             | AST Inspector         | Yes                               | Dumps raw syntax tokens and AST nodes without running code.                      |
-| `sesi -enc <file> -p <pass>` | Encryption            | Yes                               | Secures a script file using AES-256 password protection.                         |
-| `sesi -dec <file> -p <pass>` | Decryption            | Yes                               | Decrypts an encrypted script file back to cleartext `.sesi`.                     |
+| Command Syntax               | Execution Mode        | File Dependency                   | Description                                                                         |
+| :--------------------------- | :-------------------- | :-------------------------------- | :---------------------------------------------------------------------------------- |
+| `sesi <file>`                | Standard              | Yes                               | Runs the Sesi script file sequentially.                                             |
+| `sesi <file> <args...>`      | **Parametric Script** | Yes                               | Runs the script and exposes trailing parameters in `args`.                          |
+| `sesi -e "<code>"`           | Inline Eval           | **No (Fileless)**                 | Evaluates the string of Sesi code directly in-memory.                               |
+| `sesi -e "<code>" <args...>` | **Parametric Eval**   | **No (Fileless)**                 | Evaluates inline code and populates `args` array with inputs.                       |
+| `sesi -h "<query>"`          | Co-Pilot Help         | **Yes (Internal chatbot script)** | Converses with Sesi's internal Vector-RAG chatbot (`chatbot/sesi_db_chatbot.sesi`). |
+| `sesi <file> -h "<query>"`   | Grounded Help         | **Yes (Chatbot + context file)**  | Converses with the Co-Pilot using both the vector DB and the user's file.           |
+| `sesi -r <file>`             | AST Inspector         | Yes                               | Dumps raw syntax tokens and AST nodes without running code.                         |
+| `sesi -enc <file> -p <pass>` | Encryption            | Yes                               | Secures a script file using AES-256 password protection.                            |
+| `sesi -dec <file> -p <pass>` | Decryption            | Yes                               | Decrypts an encrypted script file back to cleartext `.sesi`.                        |
 
 ---
 
@@ -180,7 +180,7 @@ If you are working inside the Sesi repository, you can leverage native package m
 | `npm run sesi:parse <file>`         | `sesi -r <file>`          | Dumps the raw AST representation.                     |
 | `npm run sesi:encrypt <file>`       | `sesi -enc <file>`        | Encrypts a file (using env password fallback).        |
 | `npm run sesi:decrypt <file>`       | `sesi -dec <file>`        | Decrypts a file (using env password fallback).        |
-| `npm run sesi:help "<query>"`       | `sesi -h "<query>"`       | Consults the RAG-trained Sesi Co-Pilot.               |
+| `npm run copilot "<query>"`         | `sesi -h "<query>"`       | Consults the RAG-trained Sesi Co-Pilot.               |
 | `npm run example:all`               | `sesi examples.sesi`      | Runs all examples in the examples/ directory.         |
 
 ### Usage Example
