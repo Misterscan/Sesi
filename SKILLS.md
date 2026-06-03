@@ -97,7 +97,7 @@ For all quirks and specific syntaxing, visit IMPLEMENTATION_SUMMARY.md, /docs/SP
 
 ## IGNORE THESE FILES
 
-- `docs/agent_native_programming.md`
+- `agent_native_programming.md`
 - `docs/REASONING.md`
 - `docs/IMAGE_GENERATION.md`
 - `*.txt`
