@@ -53,9 +53,9 @@ class ChatbotHandler(http.server.SimpleHTTPRequestHandler):
                 
                 # 2. Execute Sesi chatbot script using cross-platform execution (with Powershell bypass on Windows if needed)
                 if sys.platform == "win32":
-                    cmd = 'powershell -ExecutionPolicy Bypass -Command "npx dotenvx run -- node bin/sesi.js main/chatbot.sesi"'
+                    cmd = 'powershell -ExecutionPolicy Bypass -Command "npx dotenvx run -- node bin/sesi.js chatbot/chatbot.sesi"'
                 else:
-                    cmd = 'npx dotenvx run -- node bin/sesi.js main/chatbot.sesi'
+                    cmd = 'npx dotenvx run -- node bin/sesi.js chatbot/chatbot.sesi'
                 print(f"[SERVER] Spawning native Sesi AI compiler engine...")
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8')
                 

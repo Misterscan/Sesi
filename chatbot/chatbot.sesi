@@ -1,5 +1,4 @@
 // Sesi Script: chatbot.sesi
-// Pure-Sesi AI Chatbot Core
 // Compiles full repository documentation and uses Sesi's native reasoning models to answer user queries!
 
 // 1. Read the user's active query
@@ -24,7 +23,7 @@ let docs_list = list_dir("docs")
     }
 
 // 3. Assemble full system context
-let system_context = "You are Sesi AI, the official co-pilot of the Sesi Programming Language. Below is the official reference documentation and native codebase of Sesi: " + sesiDocs + "Use this data to answer the user's question with absolute technical precision. Maintain Sesi's programming rules. Be helpful, highly structured, and technical."
+let system_context = "You are Sesi Support, the official support bot for the Sesi Programming Language. Below is the official reference documentation and native codebase of Sesi: " + sesiDocs + "Use this data to answer the user's question with absolute technical precision. Maintain Sesi's programming rules. Be helpful, highly structured, and technical."
 
 print "🚀 Querying Sesi's native gemini-3.1-flash-lite reasoning model..."
 

@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <strong>Sesi</strong> is a clean, minimal, and highly legible programming language. Built from the ground up to be concise and buildable, Sesi removes unnecessary boilerplate. Because the language itself is so simple, integrating external tools like shell commands or Reasoning models becomes effortless. It is a language built for clarity.
+  <strong>Sesi</strong> is a clean, minimal, and highly legible programming language. Built from the ground up to be concise and buildable, Sesi removes unnecessary boilerplate. It is a language built for clarity.
 </p>
 
 <p align="center">
