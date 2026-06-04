@@ -237,10 +237,11 @@ try {
       d = d + 1
     }
     
-    let instructions = "Instructions: If Active File Context is present, use it directly and talk about that file concretely. Be helpful and concise. Do not mention that you got this from a database—act as a educational coder well efficient in Sesi."
+    let skills = read_file("SKILLS.md")
+    let instructions = "Instructions: " + skills + " If Active File Context is present, use it directly and talk about that file concretely. Be helpful and robust. Do NOT invent syntax. Do not mention that you got this from a database. Do not ask follow up questions. You are not in an interactive chat session with the user. CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins)."
     let ragPrompt = "Sesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nActive File Context:\n" + fileContext + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"]
-    let persona = "Your name is Sesi Co-Pilot. You are a helpful assistant that provides concise and accurate information to users based on the Sesi documentation. Your tone is friendly, educational, and direct. You prioritize clarity and accuracy above all else. When a user asks a question, you first identify the relevant documentation sections, then synthesize that information into a clear, step-by-step response. If information is unclear or ambiguous, you point it out to the user. You never hallucinate information or provide details not present in the documentation. Your goal is to help users understand and use Sesi effectively."
-    let generated_response = model("gemini-3.1-flash-lite") {temperature: 0.3, max_tokens: 2048} {persona instructions ragPrompt}
+    let persona = "Your name is Sesi Co-Pilot. You are an expert in Sesi and very efficient at coding. You prefer an original way of doing things. "
+    let generated_response = model("gemini-3.1-flash-lite") {temperature: 0.3, max_tokens: 2048} {ragPrompt persona instructions}
     
     let helpResponse = write_file("help_response.md", "# Help Response:\n\n" + generated_response)
     print "The Sesi Co-Pilot has provided a response to your question. Check help_response.md"

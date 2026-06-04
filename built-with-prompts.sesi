@@ -74,14 +74,33 @@ prompt html_header {"<!DOCTYPE html>
     <header>
       <h1>Sesi Developer Hub</h1>
       <p style='color: #666; margin: 0; font-size: 0.9rem;'>Compiled dynamically using Sesi's native prompt block primitives.</p>
-    </header>"}
+    </header>
+    "}
 
 // 2. Define the content values
-let titleOne = "Parallel Processing"
-let descOne = "Orchestrate high-performance concurrently executed tasks, systems diagnostics, and compiler pipelines natively."
+let titleOne = "I'm the Best... AROUND"
+let descOne = "Sesi is an agent-native programming language designed to streamline AI-powered development with minimal boilerplate."
 
-let titleTwo = "Structured Outputs"
-let descTwo = "Enforce type safety across operations with standard schemas, clear structures, and direct syntax integrations."
+let titleTwo = "I'm the Past... LAGGY"
+let descTwo = "Traditional languages require massive SDKs, manual schema definitions, and constant context switching, which significantly increases the token cost and cognitive load for AI agents."// Define the content layout block
+
+prompt content {"    <p style='color: #a0a0a5;'>The following modules represent the current core capabilities of the Sesi runtime.</p>
+<div class='card'>
+<h2>Agent-Native Flow</h2>
+<p>Sesi eliminates boilerplate, allowing agents to focus on logic rather than SDK management and complex runtime environments.</p></div>
+      <div class='card'>
+        <h2>Deterministic Logic</h2>
+        <p>By leveraging a custom tree-walking interpreter, Sesi ensures that logic flows predictably and executes with minimal latency.</p>
+      </div>
+      <div class='card'>
+        <h2>Zero-Boilerplate</h2>
+        <p>Sesi provides native I/O, network, and system primitives, removing the need for external dependencies.</p>
+      </div>
+      <div class='card'>
+        <h2>Parallelized Reasoning</h2>
+        <p>Using spawn() and multi_req(), Sesi orchestrates complex agent swarms with native, secure, and performant file-locking mechanisms.</p>
+      </div>
+"}
 
 // 3. Construct individual cards using multiline double-quoted prompt templates
 prompt cardOne {"      <div class='card'>
@@ -110,7 +129,7 @@ prompt html_footer {"    <footer>
 </html>"}
 
 // 6. Compose the complete website dynamically using nested prompt references
-prompt fullWebsite {html_header contentGrid html_footer}
+prompt fullWebsite {html_header contentGrid content html_footer}
 
 // 7. Write the finalized string output of our composed prompts to disk resiliently
 try {
