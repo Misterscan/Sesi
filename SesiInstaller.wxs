@@ -1,5 +1,5 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Sesi" Language="1033" Version="1.3.1" Manufacturer="Misterscan" UpgradeCode="{E4A9B31A-BDA8-4C86-9BA6-6D3D5E8F8D31}" Scope="perMachine">
+  <Package Name="Sesi" Language="1033" Version="1.3.4" Manufacturer="Misterscan" UpgradeCode="{E4A9B31A-BDA8-4C86-9BA6-6D3D5E8F8D31}" Scope="perMachine">
     <MajorUpgrade DowngradeErrorMessage="A newer version of Sesi is already installed." />
 
     <StandardDirectory Id="ProgramFiles64Folder">

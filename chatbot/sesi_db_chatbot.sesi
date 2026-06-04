@@ -6,29 +6,15 @@
 // (Test it with custom phrases containing our keywords!)
 let queryText = "how do I parse a json string?"
 try {
-  queryText = read_file("query.txt")
+  queryText = read_file(".ai-ignore/query.txt")
 } catch (e) {}
 let fileContext = ""
 try {
-  fileContext = read_file("help_context.txt")
+  fileContext = read_file(".ai-ignore/help_context.txt")
 } catch (e) {}
 // ==================================================
 
 print "Loading Sesi Co-Pilot..."
-
-// Maintains context across multiple queries so the co-pilot remembers what you previously asked.
-memory chatHistory {"You are the Sesi Co-Pilot, an expert assistant for the Sesi programming language. You help users write correct, idiomatic Sesi code. Be concise and conversational."}
-
-// Load persisted history from disk if it exists
-try {
-  chatHistory = read_file("sesi-db/chat_history.txt")
-} catch (e) {}
-
-// Auto-summarize when history gets too long (saves tokens)
-fn summarizeHistory() {
-  let summary = model("gemini-3.1-flash-lite") {temperature: 0, max_tokens: 300} {"Summarize this conversation history into key facts and context. Be very concise: " chatHistory}
-  chatHistory = "Previous conversation summary: " + summary
-}
 
 // Sigmoid math activation
 fn activate(x) {
@@ -198,9 +184,6 @@ try {
   has_trained_model = true
 } catch (e) {}
 
-if has_trained_model == false {
-  print "⚠️  No pre-trained model found! Please execute training first: 'sesi main/train_neural_network.sesi'"
-} else {
   let query_vec = vectorize(queryText)
   
   // Forward propagation on user query across all dynamic classes
@@ -233,7 +216,7 @@ if has_trained_model == false {
 
   // 7. Output Dynamic Recommendation with Confidence Thresholding
   print "--------------------------------------------------"
-  print "🤖 SESI CO-PILOT RESPONDING:"
+  print "🤖 SESI IS THINKING:"
   print "--------------------------------------------------"
   if max_score < 0.40 {
     print "   Please ask again."
@@ -254,25 +237,12 @@ if has_trained_model == false {
       d = d + 1
     }
     
-    // Auto-summarize if history exceeds ~3000 characters
-    if len(chatHistory) > 3000 {
-      summarizeHistory()
-    }
+    let instructions = "Instructions: If Active File Context is present, use it directly and talk about that file concretely. Be helpful and concise. Do not mention that you got this from a database—act as a educational coder well efficient in Sesi."
+    let ragPrompt = "Sesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nActive File Context:\n" + fileContext + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"]
+    let persona = "Your name is Sesi Co-Pilot. You are a helpful assistant that provides concise and accurate information to users based on the Sesi documentation. Your tone is friendly, educational, and direct. You prioritize clarity and accuracy above all else. When a user asks a question, you first identify the relevant documentation sections, then synthesize that information into a clear, step-by-step response. If information is unclear or ambiguous, you point it out to the user. You never hallucinate information or provide details not present in the documentation. Your goal is to help users understand and use Sesi effectively."
+    let generated_response = model("gemini-3.1-flash-lite") {temperature: 0.3, max_tokens: 2048} {persona instructions ragPrompt}
     
-    let ragPrompt = "Conversation History:\n" + chatHistory + "\n\nSesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nActive File Context:\n" + fileContext + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"] + "\n\nInstructions: Write a direct, beautiful, highly conversational response to the user's question using strictly the matched rules. If Active File Context is present, use it directly and talk about that file concretely. Be helpful and concise. Do not mention that you got this from a database—act as a supportive code copilot."
-    
-    let generated_response = model("gemini-3.1-flash-lite") {temperature: 0.1, max_tokens: 150} {ragPrompt}
-    
-    // Append this turn to conversational memory
-    chatHistory = chatHistory + "\nUser: " + queryText + "\nAssistant: " + generated_response
-    
-    // Persist memory to disk for next session
-    try {
-      write_file("sesi-db/chat_history.txt", chatHistory)
-    } catch (e) {}
-    
-    print "--------------------------------------------------"
-    print generated_response
-    print "--------------------------------------------------"
+    let helpResponse = write_file("help_response.md", "# Help Response:\n\n" + generated_response)
+    print "The Sesi Co-Pilot has provided a response to your question. Check help_response.md"
   }
-}
+

@@ -7,7 +7,7 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.3.2
+Sesi Programming Language v1.3.4
 
 Usage:
   sesi <file> [options] <args>  Run a Sesi program
@@ -61,7 +61,7 @@ function parseArgs(args) {
     const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
 
     if (arg === '-v' || arg === '--version') {
-      console.log('Sesi v1.3.2');
+      console.log('Sesi v1.3.4');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -130,17 +130,17 @@ async function main() {
     const crypto = require('crypto');
     const targetFile = parsed.encryptFile || parsed.decryptFile;
     const isEncrypt = !!parsed.encryptFile;
-    
+
     if (!fs.existsSync(targetFile)) {
       console.error(`Error: File not found: ${targetFile}`);
       process.exit(1);
     }
-    
+
     const content = fs.readFileSync(targetFile, 'utf-8');
     try {
       const algorithm = 'aes-256-cbc';
       const key = crypto.createHash('sha256').update(String(password)).digest();
-      
+
       if (isEncrypt) {
         const iv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv(algorithm, key, iv);
@@ -167,13 +167,16 @@ async function main() {
   }
 
   if (parsed.helpQuery) {
-    fs.writeFileSync('query.txt', parsed.helpQuery, 'utf-8');
+    if (!fs.existsSync('.ai-ignore')) {
+      fs.mkdirSync('.ai-ignore', { recursive: true });
+    }
+    fs.writeFileSync('.ai-ignore/query.txt', parsed.helpQuery, 'utf-8');
     if (parsed.helpFile) {
       const resolvedFile = path.resolve(parsed.helpFile);
       const fileContext = fs.readFileSync(resolvedFile, 'utf-8');
-      fs.writeFileSync('help_context.txt', `File: ${resolvedFile}\n\n${fileContext}`, 'utf-8');
-    } else if (fs.existsSync('help_context.txt')) {
-      fs.unlinkSync('help_context.txt');
+      fs.writeFileSync('.ai-ignore/help_context.txt', `File: ${resolvedFile}\n\n${fileContext}`, 'utf-8');
+    } else if (fs.existsSync('.ai-ignore/help_context.txt')) {
+      fs.unlinkSync('.ai-ignore/help_context.txt');
     }
     const copilotPath = path.join(__dirname, '../chatbot/sesi_db_chatbot.sesi');
     await runSesiFile(copilotPath).catch((error) => {

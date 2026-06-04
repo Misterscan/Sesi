@@ -12,7 +12,7 @@ print "2 raised to power of 10:" + str(pow(2, 10))
 print "Sine of PI/2:" + str(sin(PI / 2.0))
 print "=== 2. Standard JSON Module ==="
 import {stringify, parse} from "std/json"
-let original = {"project": "Sesi Language", "version": "1.3.1", "features": ["modules", "http", "parallel"]}
+let original = {"project": "Sesi Language", "version": "1.3.4", "features": ["modules", "http", "parallel"]}
 let json_str = stringify(original)
 print "Serialized JSON string:"
 print json_str

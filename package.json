@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.3.2",
+  "version": "1.3.4",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -17,17 +17,17 @@
     ".github"
   ],
   "scripts": {
-    "lint": "sesi -l lint.sesi",
+    "lint": "node ./bin/sesi.js -l lint.sesi",
     "build": "tsc",
-    "dev": "npm run lint && dotenvx run -- npm run build --watch",
+    "dev": "dotenvx run -- npm run build --watch",
     "test": "npx ts-node tests/basic.test.ts && npx ts-node tests/module.test.ts && npx ts-node tests/cache.test.ts && npx ts-node tests/http.test.ts && npx ts-node tests/workflow.test.ts && npx ts-node tests/security.test.ts",
-    "test:watch": "npm run lint && npx ts-node tests/basic.test.ts --watch",
-    "sesi": "bin/sesi.js",
-    "sesi:local": "sesi -l",
-    "sesi:eval": "sesi -e",
-    "sesi:parse": "sesi -r",
-    "sesi:encrypt": "sesi -enc",
-    "sesi:decrypt": "sesi -dec",
+    "test:watch": "npx ts-node tests/basic.test.ts --watch",
+    "sesi": "node ./bin/sesi.js",
+    "sesi:local": "node ./bin/sesi.js -l",
+    "sesi:eval": "node ./bin/sesi.js -e",
+    "sesi:parse": "node ./bin/sesi.js -r",
+    "sesi:encrypt": "node ./bin/sesi.js -enc",
+    "sesi:decrypt": "node ./bin/sesi.js -dec",
     "copilot": "sesi chatbot/sesi_db_chatbot.sesi",
     "build:exe": "node ./scripts/build-binaries.mjs",
     "msi:eula": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& 'C:\\Program Files\\WiX Toolset v7.0\\bin\\wix.exe' eula accept wix7\"",
@@ -38,7 +38,7 @@
     "repl": "node dist/repl.js",
     "example": "node --no-deprecation example.js",
     "example:ai": "node --no-deprecation example-ai.js",
-    "example:all": "sesi examples.sesi",
+    "example:all": "node ./bin/sesi.js examples.sesi",
     "upload": "npm run build && npm publish --access public"
   },
   "keywords": [
