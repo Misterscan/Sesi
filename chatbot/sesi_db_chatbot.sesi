@@ -26,12 +26,12 @@ fn derivative(y) {
   return y * (1.0 - y)
 }
 
-// 68-Dimensional Bag-of-Words Vocabulary Vectorizer
+// 72-Dimensional Bag-of-Words Vocabulary Vectorizer
 // Tracks only official Sesi language keywords, compiler builtins, and native standard library exports.
 fn vectorize(text) {
   let vec = []
   let k = 0
-  while k < 68 {
+  while k < 72 {
     push(vec, 0.0)
     k = k + 1
   }
@@ -162,6 +162,10 @@ fn vectorize(text) {
     if tok == "error_type" { vec[65] = 1.0 }
     if tok == "raise_error" { vec[66] = 1.0 }
     if tok == "multi_req" { vec[67] = 1.0 }
+    if tok == "web_get" { vec[68] = 1.0 }
+    if tok == "web_send" { vec[69] = 1.0 }
+    if tok == "listen" { vec[70] = 1.0 }
+    if tok == "convert" { vec[71] = 1.0 }
     i = i + 1
   }
   return vec
@@ -193,7 +197,7 @@ try {
     let sum = 0.0
     let w_row = weights[j]
     let k = 0
-    while k < 68 {
+    while k < 72 {
       sum = sum + (query_vec[k] * w_row[k])
       k = k + 1
     }

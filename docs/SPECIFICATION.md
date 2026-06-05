@@ -1,4 +1,4 @@
-# Sesi Language Specification (v1.3)
+# Sesi Language Specification (v1.5)
 
 ## 1. Philosophy & Design Principles
 
@@ -27,7 +27,7 @@ Sesi is built on these core principles:
 - Quickly orchestrating shell commands
 - Rapid prototyping and scripting
 
-## 3. V1.3 Feature Set (Current)
+## 3. V1.5 Feature Set (Current)
 
 ### Core Language Features
 
@@ -41,6 +41,9 @@ Sesi is built on these core principles:
 - ✅ Comments (`//`, `/* */`)
 - ✅ Operators (arithmetic, logical, comparison)
 - ✅ Standard library (print, len, range, etc.)
+- ✅ Interactive REPL shell environment (`sesi --repl`)
+- ✅ Diagnostic Tools (`--ast` and `--tokens` pretty visualization)
+- ✅ Statement execution tracing (`SESI_DEBUG=1` env variable)
 - ✅ `prompt` blocks (composable templates for concise formatting)
 - ✅ `structured_output()` (schema-guided structured output with JSON recovery and empty-object fallback on failure)
 - ✅ `tool_call()` (Fully functional function calling for tool use)
@@ -74,8 +77,8 @@ Sesi is built on these core principles:
 #### Keywords
 
 ```
-let if else while for fn print import export
-prompt model image memory structured_output tool_call break continue try catch true false null
+let if else while for fn print import export async
+prompt model image convert memory structured_output tool_call break continue try catch true false null await
 ```
 
 #### Identifiers & Literals
@@ -120,7 +123,7 @@ let z  // z is null initially
 #### Function Declaration
 
 ```
-fn_stmt := 'fn' identifier '(' parameters ')' '->' type? block
+fn_stmt := 'async'? 'fn' identifier '(' parameters ')' '->' type? block
 parameters := (identifier ':' type ('=' expr)?)? (',' identifier ':' type ('=' expr)?)*
 ```
 
@@ -204,9 +207,9 @@ equality := comparison (('==' | '!=') comparison)*
 comparison := addition (('<' | '>' | '<=' | '>=' | '<>') addition)*
 addition := multiplication (('+' | '-') multiplication)*
 multiplication := unary (('*' | '/' | '%') unary)*
-unary := ('!' | '-') unary | postfix
+unary := ('!' | '-' | 'await') unary | postfix
 postfix := primary ('['expression']' | '.'identifier | '('args?')' | primary)*
-primary := identifier | literal | '('expression')' | prompt | model | image | memory | call
+primary := identifier | literal | '('expression')' | prompt | model | image | convert | memory | call
 ```
 
 #### Function Call
@@ -233,6 +236,7 @@ prompt codeReview {"Review this code for bugs:" code "Provide specific issues fo
 ```
 model_call := 'model' '('STRING')' config_block? '{'prompt'}'
 image_call := 'image' '('STRING')' config_block? '{'prompt'}'
+convert := 'convert' '('(identifier | STRING)')' config_block? '{'file'}'
 config_block := '{' config_entry (',' config_entry)* '}'
 config_entry := (STRING | identifier) ':' expression
 ```
@@ -257,6 +261,46 @@ let result = model("gemini-3.5-flash") {images: "scan.png", thinkingLevel: "low"
 let output = model("gemini-3.5-flash") {thinkingLevel: "medium"} {prompt}
 ```
 
+#### Convert Expression
+
+```
+convert := 'convert' '('(identifier | STRING)')' config_block? '{'file'}'
+```
+
+The `convert` expression transforms documents or media files between different formats (e.g. images, audio, documents).
+
+**Config keys:**
+
+- `file_type`: The input format extension (e.g. `"md"`, `"csv"`, `"png"`, `"wav"`). If the input is a local file path, this key is optional and can be inferred from the file extension.
+- `output_type`: The target format extension (e.g. `"html"`, `"json"`, `"jpg"`, `"mp3"`). This key is required.
+
+Example:
+
+```sesi
+let html = convert(doc) {file_type: "md", output_type: "html"} {"# Heading\nHello world"}
+let json = convert(doc) {file_type: "csv", output_type: "json"} {"name,age\nAlice,30"}
+let converted_file = convert(doc) {file_type: "md", output_type: "html"} {"input.md"}
+```
+
+#### Await Expression
+
+```
+await_expr := 'await' expression
+```
+
+The `await` expression is used to block execution and resolve the value of a Sesi Promise returned by an asynchronous function.
+
+Example:
+
+```sesi
+async fn getGreeting(name) {
+  return "Hello, " + name
+}
+
+let p = getGreeting("Alice") // returns a Sesi promise
+let greeting = await p // blocks and resolves to "Hello, Alice"
+```
+
 #### Structured Output
 
 ```
@@ -267,7 +311,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.3.4\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.5.0\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -312,7 +356,7 @@ optional_type := type '?'
 
 1. **Short-circuit evaluation**: `&&` and `||` short-circuit
 2. **Type coercion**: Automatic for numeric operations; explicit for string/number
-3. **Null propagation**: Operations on `null` return `null` (no exceptions in v1.3)
+3. **Null propagation**: Operations on `null` return `null` (no exceptions in v1.x)
 4. **Model responses**: Always returned as strings initially; structured_output provides type safety
 
 ## 6. Scope and Binding
@@ -345,10 +389,11 @@ optional_type := type '?'
 - `read_file()`, `write_file()`, and `list_dir()` throw on filesystem failure
 - `structured_output()` currently logs parsing failures and returns `{}` if recovery fails
 
-## 8. Built-in Functions (V1)
+## 8. Built-in Functions (V1.x)
 
 ```
 print(any)                    // Output to stdout
+debug()                       // Pauses and opens interactive REPL debugger
 len(array | string | object)  // Length
 range(number) -> array        // [0, 1, ..., n-1]
 type(any) -> string           // Type name
@@ -378,7 +423,7 @@ random() -> number                // Random float (0.0 to 1.0)
 
 ## 9. Module System
 
-Runtime module execution and standard namespace modules are fully implemented and natively supported in v1.3+.
+Runtime module execution and standard namespace modules are fully implemented and natively supported in v1.x.
 
 ### Defining Modules
 
@@ -404,7 +449,7 @@ import math from "std/math"    // Math operations
 import json from "std/json"    // JSON parsing
 ```
 
-### Module Resolution Order (v1.3+)
+### Module Resolution Order (v1.x)
 
 When you write `import {x} from "mymodule"`, Sesi searches for `mymodule.sesi` in the following order, stopping at the first match:
 
@@ -542,7 +587,7 @@ print sentiment.label
 print sentiment.score
 ```
 
-## 12. Undefined Behavior & Limitations (V1.3)
+## 12. Undefined Behavior & Limitations (V1.x)
 
 - **No async/await**: All operations within a script are blocking (including model calls). Concurrency must be achieved via `spawn()`.
 - **No custom types**: Only built-in types are supported natively.

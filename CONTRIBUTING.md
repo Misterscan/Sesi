@@ -68,7 +68,7 @@ Testing in Sesi involves both internal TypeScript testing and Sesi script execut
 
    ```bash
    npm run build
-   sesi examples/01_hello.sesi
+   sesi examples/main/01_hello.sesi
    sesi main/tests/test_syntax.sesi
    ```
 

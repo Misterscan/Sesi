@@ -1,0 +1,61 @@
+// main/tests/verify_db.sesi
+// Verification script running Sesi DB tests using the test-runner.sesi framework.
+// Run with: node bin/sesi.js main/tests/verify_db.sesi -l
+
+import { assert_equals, assert_not_null, run_test_suite } from "test-runner"
+import { db_open } from "std/db"
+
+print "Starting verification tests for Sesi Database..."
+
+let db = db_open("verify_test.db")
+let col = db.collection("logs")
+
+// Clean up
+col.delete({})
+
+let results = []
+
+// Test 1: Insert verification
+let doc1 = col.insert({"msg": "First test message", "type": "info"})
+let res1 = assert_not_null(doc1._id, "Document insert generates valid _id")
+push(results, res1)
+
+let res2 = assert_equals(doc1.msg, "First test message", "Document properties persisted correctly")
+push(results, res2)
+
+// Test 2: Find query verification
+let doc2 = col.insert({"msg": "Second test message", "type": "error"})
+let allDocs = col.find()
+let res3 = assert_equals(len(allDocs), 2, "Find returns all inserted documents")
+push(results, res3)
+
+let errors = col.find({"type": "error"})
+let res4 = assert_equals(len(errors), 1, "Find filters documents correctly")
+push(results, res4)
+
+// Test 3: Update verification
+let updated = col.update({"type": "error"}, {"msg": "Updated error message"})
+let res5 = assert_equals(updated, 1, "Update returns correct modified count")
+push(results, res5)
+
+let updatedDocs = col.find({"type": "error"})
+let res6 = assert_equals(updatedDocs[0].msg, "Updated error message", "Update applies changes to fields")
+push(results, res6)
+
+// Test 4: Delete verification
+let deleted = col.delete({"type": "info"})
+let res7 = assert_equals(deleted, 1, "Delete returns correct removed count")
+push(results, res7)
+
+let remaining = col.find()
+let res8 = assert_equals(len(remaining), 1, "Delete removes record from collection")
+push(results, res8)
+
+// Run the suite
+let success = run_test_suite("Sesi Built-in Database Module", results)
+
+if success {
+  print "Database verification passed."
+} else {
+  raise_error("TestFailure", "One or more database verification assertions failed.")
+}

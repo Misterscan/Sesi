@@ -34,6 +34,9 @@ export type TokenType =
   | 'FROM'
   | 'EXPORT'
   | 'TO'
+  | 'CONVERT'
+  | 'ASYNC'
+  | 'AWAIT'
   // Operators
   | 'PLUS'
   | 'MINUS'
@@ -128,6 +131,7 @@ export interface FunctionStatement {
   returnType?: TypeAnnotation;
   body: BlockStatement;
   line: number;
+  isAsync?: boolean;
 }
 
 export interface Parameter {
@@ -235,7 +239,9 @@ export type Expression =
   | ImageCallExpression
   | StructuredOutputExpression
   | ToolCallExpression
-  | ConditionalExpression;
+  | ConditionalExpression
+  | ConvertExpression
+  | AwaitExpression;
 
 export interface Literal {
   type: 'Literal';
@@ -360,6 +366,20 @@ export interface ConditionalExpression {
   line: number;
 }
 
+export interface ConvertExpression {
+  type: 'ConvertExpression';
+  conversionType: string;
+  config?: Record<string, Expression>;
+  file: Expression;
+  line: number;
+}
+
+export interface AwaitExpression {
+  type: 'AwaitExpression';
+  expression: Expression;
+  line: number;
+}
+
 export type TypeAnnotation =
   | PrimitiveType
   | ArrayType
@@ -401,7 +421,8 @@ export type RuntimeValue =
   | RuntimeArray
   | RuntimeObject
   | RuntimeFunction
-  | RuntimeModule;
+  | RuntimeModule
+  | RuntimePromise;
 
 export interface RuntimeArray extends Array<RuntimeValue> {}
 
@@ -416,12 +437,18 @@ export interface RuntimeFunction {
   body: BlockStatement;
   closure: Environment;
   isBuiltin?: boolean;
+  isAsync?: boolean;
   builtin?: (...args: RuntimeValue[]) => RuntimeValue | Promise<RuntimeValue>;
 }
 
 export interface RuntimeModule {
   type: 'module';
   exports: Map<string, RuntimeValue>;
+}
+
+export interface RuntimePromise {
+  type: 'promise';
+  promise: Promise<RuntimeValue>;
 }
 
 // Environment for variable scoping
@@ -431,6 +458,14 @@ export class Environment {
 
   constructor(parent: Environment | null = null) {
     this.parent = parent;
+  }
+
+  getValues(): Map<string, RuntimeValue> {
+    return this.vars;
+  }
+
+  getParent(): Environment | null {
+    return this.parent;
   }
 
   define(name: string, value: RuntimeValue): void {

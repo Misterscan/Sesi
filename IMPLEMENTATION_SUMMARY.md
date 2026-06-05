@@ -2,17 +2,14 @@
 
 ## 📋 Overview
 
-**Sesi** is a highly legible, buildable **programming language**. It provides clean primitives for executing robust internal logic and external APIs, acting as the ideal layer to parse text, orchestrate shell commands, and interact with the file system. Unlike traditional languages that require sprawling SDKs for even basic interactions, Sesi integrates command execution naturally, enabling developers to build context-aware scripts with minimal boilerplate.
+**Sesi** is a highly legible, buildable **programming language**. It provides clean primitives for executing robust internal logic and external APIs, acting as the ideal layer to parse text, orchestrate shell commands, and interact with the file system. Unlike traditional languages, Sesi integrates command execution naturally, enabling developers to build context-aware scripts with minimal boilerplate.
 
 ## 🎯 Design Philosophy
 
-Sesi follows these core principles:
-
-1. **Reasoning as a Primitive**: Reasoning calls aren't library functions—they're language constructs with dedicated syntax. This allows for deep integration with the interpreter's environment and type system.
-2. **Practical Over Perfect**: Focus on what developers actually need, not theoretical completeness.
-3. **Transparency Over Magic**: Sesi runs exactly what you write with clear costs and execution maps.
-4. **Simplicity First**: A custom tree-walking interpreter for clarity and maintainability.
-5. **Type Safety with Flexibility**: Static types for normal code, runtime checking for integration outputs.
+1. **Practical Over Perfect**: Focus on what developers actually need, not theoretical completeness.
+2. **Transparency Over Magic**: Sesi runs exactly what you write with clear costs and execution maps.
+3. **Simplicity First**: A custom tree-walking interpreter for clarity and maintainability.
+4. **Type Safety with Flexibility**: Static types for normal code, runtime checking for integration outputs.
 
 ## 📁 Complete Project Structure
 
@@ -41,8 +38,7 @@ Sesi/
 ├── bin/
 │   └── sesi.js                      # CLI executable
 │
-├── main/                            # Playgrounds & debugging
-│   ├── build_website.sesi           # Sesi-powered systems site generator
+├── main/
 │   └── tests/                       # Additional syntax validation scripts
 │
 ├── docs/
@@ -51,36 +47,40 @@ Sesi/
 │   ├── BUILTINS.md                  # Built-in functions reference (450+ lines)
 │   ├── CLI.md                       # Comprehensive CLI & Parametric Eval guide
 │   ├── COMPARISON.md                # Language comparison showcase
-│   ├── CONCURRENCY.md               # Concurrency & coordination guide (>100 lines)
 │   ├── IMAGE_GENERATION.md          # Image generation guide (>100 lines)
 │   ├── REASONING.md                 # Reasoning and simple logic guide (>500 lines)
-│   ├── ROADMAP.md                   # V2-V4+ development plan (400+ lines)
-│   ├── agent_native_programming.md  # Sesi as an Agent-Native Programming paradigm
-│   └── sesi_ai_chronicles.md        # AI project history & notes
+│   └── ROADMAP.md                   # V2-V4+ development plan (400+ lines)
 │
 ├── examples/
-│   ├── 01_hello.sesi                # Hello World
-│   ├── 02_variables.sesi            # Variables & operations
-│   ├── 03_functions.sesi            # Functions with parameters
-│   ├── 04_conditionals.sesi         # If/else control flow
-│   ├── 05_loops.sesi                # While, for, for-in loops
-│   ├── 06_arrays_objects.sesi       # Collections
-│   ├── 07_prompts.sesi              # Reasoning blocks
-│   ├── 08_model_call.sesi           # Basic reasoning calls
-│   ├── 09_structured_output.sesi    # Type-safe reasoning responses
-│   ├── 10_code_generation.sesi      # Systems logic generation
-│   ├── 11_memory_conversation.sesi  # Multi-turn stateful reasoning
-│   ├── 12_classification.sesi       # Systems classification loop
-│   ├── 13_data_pipeline.sesi        # Complete systems pipeline
-│   ├── 14_folder_explainer.sesi     # Directory parsing & reasoning
-│   ├── 15_image_generation.sesi     # Image generation API test
-│   ├── 16_modules.sesi              # Modules & std library namespaces
-│   ├── 17_http_client.sesi          # Network GET/POST client
-│   ├── 18_parallel_requests.sesi    # Parallel requests concurrency
-│   ├── 19_search_web.sesi           # Web search integration
-│   ├── 20_model_aliases.sesi        # Custom model naming aliases
-│   ├── 21_custom_tools.sesi         # Custom runtime tool definitions
-│   └── 22_reasoning_plus_custom_tools.sesi # Reasoning composed with custom tools
+│   ├── main/                        # Standard language features and core APIs
+│   │   ├── 01_hello.sesi            # Hello World
+│   │   ├── 02_variables.sesi        # Variables & operations
+│   │   ├── 03_functions.sesi        # Functions with parameters
+│   │   ├── 04_conditionals.sesi     # If/else control flow
+│   │   ├── 05_loops.sesi            # While, for, for-in loops
+│   │   ├── 06_arrays_objects.sesi   # Collections
+│   │   ├── 07_prompts.sesi          # Message templates and prompts
+│   │   ├── 09_structured_output.sesi # Type-safe structured output extraction
+│   │   ├── 11_memory_storage.sesi   # Stateful reasoning memory
+│   │   ├── 12_classification.sesi   # Classification pipeline
+│   │   ├── 13_data_pipeline.sesi    # Concurrency and data flows
+│   │   ├── 16_modules.sesi          # Standard modules & imports/exports
+│   │   ├── 17_http_client.sesi      # Native HTTP web client
+│   │   ├── 18_parallel_requests.sesi # Concurrent multi-request execution
+│   │   ├── 19_search_web.sesi       # Native web search
+│   │   ├── 21_custom_tools.sesi     # Custom tool definition and calls
+│   │   ├── 23_file_conversion.sesi  # Native document/media file conversion
+│   │   ├── 24_http_server.sesi      # Native HTTP server listen
+│   │   ├── 25_webpage_server.sesi   # Serving dynamically rendered HTML sites
+│   │   ├── 26_database.sesi         # Embedded document database crud
+│   │   └── 27_robust_web_db.sesi    # Full API server backed by database
+│   └── optional/                    # AI/Reasoning specific examples
+│       ├── 08_model_call.sesi       # Simple Gemini API model calls
+│       ├── 10_code_generation.sesi  # Code generation tasks
+│       ├── 14_folder_explainer.sesi # Workspace indexing & folder explanation
+│       ├── 15_image_generation.sesi # Image generation API call
+│       ├── 20_model_aliases.sesi    # Custom model aliases configuration
+│       └── 22_reasoning_plus_custom_tools.sesi # Multi-turn tool calling
 │
 └── tests/                           # Engine test suite
     ├── basic.test.ts                # Core parsing & evaluation tests
@@ -173,7 +173,7 @@ prompt greeting {"Hello, " name "!"}
 **Structured Output**
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.3.4\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.5.0\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -321,13 +321,13 @@ npm install -g .
 ### Run Example
 
 ```bash
-sesi examples/01_hello.sesi
+sesi examples/main/01_hello.sesi
 ```
 
 ### Run with Reasoning
 
 ```bash
-sesi examples/08_model_call.sesi
+sesi examples/optional/08_model_call.sesi
 ```
 
 ### Run Tests
@@ -423,30 +423,35 @@ npm test
 
 ## 🎓 Example Programs
 
-| File                                | Demonstrates                     |
-| ----------------------------------- | -------------------------------- |
-| 01_hello.sesi                       | Basic print                      |
-| 02_variables.sesi                   | Variables and operations         |
-| 03_functions.sesi                   | Functions, parameters, defaults  |
-| 04_conditionals.sesi                | If/else logic                    |
-| 05_loops.sesi                       | While, for, for-in               |
-| 06_arrays_objects.sesi              | Collections and indexing         |
-| 07_prompts.sesi                     | Reasoning blocks                 |
-| 08_model_call.sesi                  | Basic reasoning calls            |
-| 09_structured_output.sesi           | Schema-guided output             |
-| 10_code_generation.sesi             | Reasoning code generation        |
-| 11_memory_conversation.sesi         | Multi-turn with memory           |
-| 12_classification.sesi              | Reasoning classification loop    |
-| 13_data_pipeline.sesi               | Complete pipeline                |
-| 14_folder_explainer.sesi            | Directory parsing & reasoning    |
-| 15_image_generation.sesi            | Image generation API test        |
-| 16_modules.sesi                     | Imports/exports & std namespaces |
-| 17_http_client.sesi                 | HTTP GET and POST operations     |
-| 18_parallel_requests.sesi           | Parallel request concurrency     |
-| 19_search_web.sesi                  | Web search integration           |
-| 20_model_aliases.sesi               | Custom model naming aliases      |
-| 21_custom_tools.sesi                | Custom runtime tool definitions  |
-| 22_reasoning_plus_custom_tools.sesi | Compose reasoning & tools        |
+| File                                         | Demonstrates                                          |
+| -------------------------------------------- | ----------------------------------------------------- |
+| main/01_hello.sesi                           | Basic print                                           |
+| main/02_variables.sesi                       | Variables and operations                              |
+| main/03_functions.sesi                       | Functions, parameters, defaults                       |
+| main/04_conditionals.sesi                    | If/else logic                                         |
+| main/05_loops.sesi                           | While, for, for-in                                    |
+| main/06_arrays_objects.sesi                  | Collections and indexing                              |
+| main/07_prompts.sesi                         | Prompt blocks                                         |
+| optional/08_model_call.sesi                  | Basic reasoning calls                                 |
+| main/09_structured_output.sesi               | Structured output                                     |
+| optional/10_code_generation.sesi             | Code generation                                       |
+| main/11_memory_storage.sesi                  | Multi-turn with memory                                |
+| main/12_classification.sesi                  | Classification                                        |
+| main/13_data_pipeline.sesi                   | Data pipeline                                         |
+| optional/14_folder_explainer.sesi            | Directory parsing & reasoning                         |
+| optional/15_image_generation.sesi            | Image generation                                      |
+| main/16_modules.sesi                         | Imports/exports & std namespaces                      |
+| main/17_http_client.sesi                     | HTTP GET and POST operations                          |
+| main/18_parallel_requests.sesi               | Parallel request concurrency                          |
+| main/19_search_web.sesi                      | Web search integration                                |
+| optional/20_model_aliases.sesi               | Custom model naming aliases                           |
+| main/21_custom_tools.sesi                    | Custom runtime tool definitions                       |
+| optional/22_reasoning_plus_custom_tools.sesi | Compose reasoning & tools                             |
+| main/23_file_conversion.sesi                 | Document and media conversion via `convert()`         |
+| main/24_http_server.sesi                     | Native async HTTP server (`listen`)                   |
+| main/25_webpage_server.sesi                  | High-performance dynamic HTML site rendering          |
+| main/26_database.sesi                        | Embedded Document Database (`std/db`) crud operations |
+| main/27_robust_web_db.sesi                   | Secured combined API server backed by persistent DB   |
 
 ## ✨ Unique Features
 
@@ -539,22 +544,20 @@ npm test
 1. **Start**: [QUICKSTART.md](QUICKSTART.md) - Get running in 5 minutes
 2. **Builtins**: [BUILTINS.md](docs/BUILTINS.md) - Built-in functions
 3. **CLI**: [CLI.md](docs/CLI.md) - Complete CLI flags & parametric execution guide
-4. **Basics**: examples/01-06 - Core language features
-5. **Prompts**: examples/07 - Prompt blocks
-6. **Reasoning**: examples/08-12 - Reasoning feature exploration
+4. **Basics**: examples/main/01-06 - Core language features
+5. **Prompts**: examples/main/07 - Prompt blocks
+6. **Reasoning**: examples/optional/08, examples/main/09, examples/optional/10, examples/main/11-12 - Reasoning feature exploration
 7. **Advanced**: [REASONING.md](docs/REASONING.md) - Patterns and best practices
-8. **Systems**: examples/13-14 - Systems reasoning and data pipelines
-9. **Modules**: examples/16 - Modules & std library namespaces
-10. **Image Generation**: [IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md) examples/15 - Generating images natively
-11. **Concurrency**: examples/17-18 - Concurrency & coordination
-12. **Web Search**: examples/19 - Web search integration
-13. **Model Aliases**: examples/20 - Custom model naming aliases
-14. **Custom Tools**: examples/21-22 - Custom runtime tool definitions and compose reasoning with custom tools
-15. **Agent-Native Paradigm**: [agent_native_programming.md](docs/agent_native_programming.md) - Paradigms of LLM-native coding
-16. **AI History**: [sesi_ai_chronicles.md](docs/sesi_ai_chronicles.md) - Sesi's historical development and stress tests
-17. **Specification**: [SPECIFICATION.md](docs/SPECIFICATION.md) - Complete grammar
-18. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
-19. **Roadmap**: [ROADMAP.md](docs/ROADMAP.md) - Future vision
+8. **Systems**: examples/main/13, examples/optional/14 - Systems reasoning and data pipelines
+9. **Modules**: examples/main/16 - Modules & std library namespaces
+10. **Image Generation**: [IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md) examples/optional/15 - Generating images natively
+11. **Concurrency**: examples/main/17-18 - Concurrency & coordination
+12. **Web Search**: examples/main/19 - Web search integration
+13. **Model Aliases**: examples/optional/20 - Custom model naming aliases
+14. **Custom Tools**: examples/main/21, examples/optional/22 - Custom runtime tool definitions and compose reasoning with custom tools
+15. **Specification**: [SPECIFICATION.md](docs/SPECIFICATION.md) - Complete grammar
+16. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
+17. **Roadmap**: [ROADMAP.md](docs/ROADMAP.md) - Future vision
 
 ## 🤝 Contributing Path
 
@@ -581,9 +584,9 @@ npm test
 ## 📝 Next Steps
 
 1. **Build and install**: `npm install && npm run build && npm install -g .`
-2. **Try examples**: `sesi examples/01_hello.sesi`
+2. **Try examples**: `sesi examples/main/01_hello.sesi`
 3. **Set up Reasoning**: Set GEMINI_API_KEY in `.env`
-4. **Explore Reasoning**: `sesi examples/08_model_call.sesi`
+4. **Explore Reasoning**: `sesi examples/optional/08_model_call.sesi`
 5. **Read docs**: Start with SPECIFICATION.md
 6. **Write programs**: Create your own .sesi files
 7. **Check roadmap**: See where language is headed
@@ -596,7 +599,7 @@ The language is designed to evolve. V1+ provides a solid foundation. V2+ adds po
 
 ---
 
-**Status**: ⏳ Ongoing V1.3 implementation  
+**Status**: ⏳ Ongoing V1.5 implementation  
 **Ready for**: File manipulation and process orchestration  
 **Not ready for**: Massive-scale production (until v2.0 bytecode)  
 **Next milestone**: V2.0 (Async & advanced reasoning)

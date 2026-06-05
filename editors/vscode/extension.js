@@ -319,6 +319,36 @@ function activate(context) {
             source: 'Type Conversion Standard Library',
             description: 'Parses or casts the given string or boolean parameter value into its explicit numeric value form.',
             example: 'let value_num = num("1024")\nprint value_num + 1'
+        },
+        'listen': {
+            signature: 'listen(port, handler_function)',
+            source: 'Network Server Standard Library',
+            description: 'Starts a non-blocking, multi-threaded native HTTP server on the specified port. Calls the async handler function for each incoming connection.',
+            example: 'async fn handle(req) {\n  return {"status": 200, "body": "OK"}\n}\nlet server = listen(8080, handle)'
+        },
+        'db_open': {
+            signature: 'db_open(filename)',
+            source: 'Database Standard Library (std/db)',
+            description: 'Opens or creates a persistent, JSON-backed document database file. Returns a database instance with collection-based CRUD capabilities.',
+            example: 'import { db_open } from "std/db"\nlet db = db_open("data.db")\nlet users = db.collection("users")'
+        },
+        'async': {
+            signature: 'async fn name() { ... }',
+            source: 'Sesi Control Flow',
+            description: 'Declares an asynchronous function that can perform non-blocking operations and suspend execution using the `await` operator.',
+            example: 'async fn fetchLogs() {\n  return db.collection("logs").find()\n}'
+        },
+        'await': {
+            signature: 'await expression',
+            source: 'Sesi Control Flow',
+            description: 'Suspends the execution of an enclosing async function until the target promise or async operation completes and returns its value.',
+            example: 'let logs = await fetchLogs()'
+        },
+        'convert': {
+            signature: 'convert(doc_or_media) { file_type: ext, output_type: ext } { expression }',
+            source: 'Media Conversion Standard Library',
+            description: 'Native media conversion primitive. Transforms images, audios, or documents to the specified format.',
+            example: 'let output = convert(image) { file_type: "png", output_type: "jpg" } { "logo.png" }'
         }
     };
 

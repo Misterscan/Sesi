@@ -1,0 +1,20 @@
+// Sesi File Conversion Example
+// This example showcases how to use the convert() builtin to convert document and data formats.
+
+print "=== 1. Markdown to HTML ==="
+let md = "# Sesi Programming Language\nSesi is a clean, minimal, and highly legible language."
+let html = convert(doc) {file_type: "md", output_type: "html"} {md}
+print html
+print ""
+
+print "=== 2. CSV to JSON ==="
+let csvData = "id,name,role\n1,Alice,Engineer\n2,Bob,Designer"
+let json = convert(doc) {file_type: "csv", output_type: "json"} {csvData}
+print json
+print ""
+
+print "=== 3. JSON to CSV ==="
+let jsonStr = "[{\"id\":\"1\",\"name\":\"Alice\",\"role\":\"Engineer\"},{\"id\":\"2\",\"name\":\"Bob\",\"role\":\"Designer\"}]"
+let csv = convert(doc) {file_type: "json", output_type: "csv"} {jsonStr}
+print csv
+print ""

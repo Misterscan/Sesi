@@ -1,9 +1,4 @@
 // Example 19: Search the Web with Sesi
-// COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
-
-// let response = model("gemini-3.1-flash-lite") {search, max_tokens: 1000} {"What is the weather in Tokyo?"}
-// print response 
-
 // Use web_get()
 
 try {
@@ -18,3 +13,9 @@ try {
 } catch (err) {
     print "Error: " err
 }
+
+// OPTIONAL: Search the web with model()
+// COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
+
+// let response = model("gemini-3.1-flash-lite") {search, max_tokens: 1000} {"What is the weather in Tokyo?"}
+// print response 

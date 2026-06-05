@@ -91,14 +91,12 @@ print smart
 print cheap
 ```
 
-### Available Models (v1.3)
+### Available Models (v1.5)
 
-- `gemini-2.5-flash` - Legacy, but supported. 1M tokens.
-- `gemini-2.5-pro` - Legacy, but supported. 1M tokens.
 - `gemini-2.5-flash-image` - Standard image model. (No `512` image size support for this model. Only `1K` is supported.)
 - `gemini-3-flash-preview` - Fast, most balanced model for coding and minimal tasks.
 - `gemini-3.1-flash-lite` - Fastest, most cost-efficient.
-- `gemini-3.5-flash` - Newest GA model. Balanced, but token hungry (USE WISELY) supports all native thinking effort levels (`minimal`, `low`, `medium`, `high`).
+- `gemini-3.5-flash` - Newest GA model. Balanced, but token hungry (USE WISELY). Supports all native thinking effort levels (`minimal`, `low`, `medium`, `high`).
 - `gemini-3.1-pro-preview` - Most powerful reasoning model, doesn't support `minimal` thinking (falls back to `low`).
 - `gemini-3.1-flash-image-preview` - Cost efficient image generation model.
 - `gemini-3-pro-image-preview` - High quality image generation model. (No `512` image size support for this model.)
@@ -344,7 +342,7 @@ print analyzeSentiment(text)
 
 Reasoning operations can fail. Handle gracefully.
 
-### Try/Catch (v1.3)
+### Try/Catch (v1.x)
 
 ```sesi
 try
@@ -542,8 +540,5 @@ print result
 - [Command Line Interface (CLI) Reference](CLI.md)
 - [Image Generation & Input](IMAGE_GENERATION.md)
 - [Compare to other languages](COMPARISON.md)
-- [Concurrency & Coordination](CONCURRENCY.md)
 - [Reasoning & Simple Logic](REASONING.md)
-- [Agent-Native Programming Paradigm](agent_native_programming.md)
-- [Historical Stress Test Chronicles](sesi_ai_chronicles.md)
 - [Examples](../examples)

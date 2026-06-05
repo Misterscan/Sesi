@@ -48,6 +48,7 @@ import {
 export class Parser {
   private tokens: Token[];
   private current: number = 0;
+  public errors: string[] = [];
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -73,7 +74,11 @@ export class Parser {
     try {
       if (this.match('LET')) return this.letStatement();
       if (this.match('CONST')) return this.constStatement();
-      if (this.match('FN')) return this.functionStatement();
+      if (this.match('FN')) return this.functionStatement(false);
+      if (this.match('ASYNC')) {
+        this.consume('FN', 'Expected fn after async');
+        return this.functionStatement(true);
+      }
       if (this.match('IF')) return this.ifStatement();
       if (this.match('WHILE')) return this.whileStatement();
       if (this.match('FOR')) return this.forStatement();
@@ -87,6 +92,7 @@ export class Parser {
       if (this.check('LEFT_BRACE')) return this.blockStatement();
       return this.expressionStatement();
     } catch (error: any) {
+      this.errors.push(error.message);
       console.error(error.message);
       this.synchronize();
       return null;
@@ -139,7 +145,7 @@ export class Parser {
     };
   }
 
-  private functionStatement(): FunctionStatement {
+  private functionStatement(isAsync: boolean = false): FunctionStatement {
     const line = this.previous().line;
     const name = this.consume('IDENTIFIER', 'Expected function name').lexeme;
     this.consume('LEFT_PAREN', 'Expected ( after function name');
@@ -180,6 +186,7 @@ export class Parser {
       returnType,
       body,
       line,
+      isAsync,
     };
   }
 
@@ -349,7 +356,10 @@ export class Parser {
     let statement: FunctionStatement | LetStatement | ConstStatement;
 
     if (this.match('FN')) {
-      statement = this.functionStatement();
+      statement = this.functionStatement(false);
+    } else if (this.match('ASYNC')) {
+      this.consume('FN', 'Expected fn after async');
+      statement = this.functionStatement(true);
     } else if (this.match('LET')) {
       statement = this.letStatement();
     } else if (this.match('CONST')) {
@@ -576,6 +586,16 @@ export class Parser {
       };
     }
 
+    if (this.match('AWAIT')) {
+      const line = this.previous().line;
+      const expression = this.unary();
+      return {
+        type: 'AwaitExpression',
+        expression,
+        line,
+      };
+    }
+
     return this.postfix();
   }
 
@@ -733,6 +753,10 @@ export class Parser {
 
     if (this.match('IMAGE')) {
       return this.imageCall();
+    }
+
+    if (this.match('CONVERT')) {
+      return this.convertExpression();
     }
 
     if (this.match('STRUCTURED_OUTPUT')) {
@@ -1215,6 +1239,106 @@ export class Parser {
 
   private formatLocation(token: Token): string {
     return `at line ${token.line}, column ${token.column}`;
+  }
+
+  private convertExpression(): import('./types').ConvertExpression {
+    const line = this.previous().line;
+    this.consume('LEFT_PAREN', 'Expected ( after convert');
+    
+    let conversionType: string;
+    if (this.check('STRING')) {
+      conversionType = this.consume('STRING', '').literal as string;
+    } else {
+      conversionType = this.consume('IDENTIFIER', 'Expected conversion type (e.g. media, doc, audio)').lexeme;
+    }
+    this.consume('RIGHT_PAREN', 'Expected ) after conversion type');
+
+    let config: Record<string, Expression> | undefined;
+    
+    this.skipNewlines();
+    let hasConfig = false;
+    if (this.check('LEFT_BRACE') && this.hasSecondBlock()) {
+      hasConfig = true;
+    }
+
+    if (hasConfig) {
+      this.advance(); // consume LEFT_BRACE
+      config = {};
+      if (!this.check('RIGHT_BRACE')) {
+        do {
+          this.skipNewlines();
+          let key: string;
+          if (this.check('STRING')) {
+            key = this.consume('STRING', '').literal as string;
+            this.consume('COLON', 'Expected : after config key');
+            config[key] = this.assignment();
+          } else {
+            key = this.consume('IDENTIFIER', 'Expected config key').lexeme;
+            if (this.match('COLON')) {
+              config[key] = this.assignment();
+            } else {
+              config[key] = {
+                type: 'Literal',
+                value: true,
+                rawType: 'bool',
+                line: this.previous().line,
+              } as import('./types').Literal;
+            }
+          }
+          this.skipNewlines();
+        } while (this.match('COMMA'));
+      }
+      this.consume('RIGHT_BRACE', 'Expected } after config');
+    }
+
+    this.skipNewlines();
+    // File/content block
+    let fileExpr: Expression;
+    this.skipNewlines();
+    if (this.check('LEFT_BRACE')) {
+      this.advance();
+      const content: Expression[] = [];
+      while (!this.check('RIGHT_BRACE') && !this.isAtEnd()) {
+        if (this.check('STRING')) {
+          this.advance();
+          content.push({
+            type: 'Literal',
+            value: this.previous().literal,
+            rawType: 'string',
+            line: this.previous().line,
+          });
+        } else {
+          content.push(this.expression());
+        }
+      }
+      this.consume('RIGHT_BRACE', 'Expected }');
+
+      if (content.length === 1) {
+        fileExpr = content[0];
+      } else {
+        let result = content[0];
+        for (let i = 1; i < content.length; i++) {
+          result = {
+            type: 'BinaryOp',
+            left: result,
+            operator: '+',
+            right: content[i],
+            line,
+          };
+        }
+        fileExpr = result;
+      }
+    } else {
+      throw new Error(`Expected content block after convert expression ${this.formatLocation(this.peek())}`);
+    }
+
+    return {
+      type: 'ConvertExpression',
+      conversionType,
+      config,
+      file: fileExpr,
+      line,
+    };
   }
 
   private synchronize(): void {

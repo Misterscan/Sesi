@@ -1,0 +1,23 @@
+let markdown = "# Hello World\nThis is a convert test."
+let html = convert(doc) {file_type: "md", output_type: "html"} {markdown}
+print "=== Markdown to HTML ==="
+print html
+
+let csv = "name,age\nAlice,30\nBob,25"
+let json = convert(doc) {file_type: "csv", output_type: "json"} {csv}
+print "=== CSV to JSON ==="
+print json
+
+let jsonStr = "[{\"name\":\"Alice\",\"age\":\"30\"},{\"name\":\"Bob\",\"age\":\"25\"}]"
+let csvOut = convert(doc) {file_type: "json", output_type: "csv"} {jsonStr}
+print "=== JSON to CSV ==="
+print csvOut
+
+print "=== File conversion ==="
+write_file("test_in.md", "# Heading\nParagraph")
+let out_path = convert(doc) {file_type: "md", output_type: "html"} {"test_in.md"}
+print "Output path:"
+print out_path
+let converted_html = read_file(out_path)
+print "HTML file content:"
+print converted_html

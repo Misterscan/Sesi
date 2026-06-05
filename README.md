@@ -72,13 +72,13 @@ Then run any program directly:
 
 ```bash
 # Standard script execution
-sesi examples/01_hello.sesi
+sesi examples/main/01_hello.sesi
 
 # Run script with arguments
-sesi main/test_args.sesi arg1 arg2
+sesi main/tests/test_args.sesi arg1 arg2
 
 # Reasoning script example
-sesi examples/08_model_call.sesi
+sesi examples/optional/08_model_call.sesi
 
 # Run all examples
 sesi examples.sesi
@@ -98,7 +98,7 @@ sesi -h "how do I use memory?"
 
 ```bash
 # Ask for help about a specific file
-sesi examples/01_hello.sesi -h "what is this script doing?"
+sesi examples/main/01_hello.sesi -h "what is this script doing?"
 ```
 
 ```bash
@@ -118,7 +118,7 @@ sesi -dec my_script.sesi
 
 ```bash
 # Run with sandbox restrictions disabled
-sesi examples/01_hello.sesi -l
+sesi examples/main/01_hello.sesi -l
 ```
 
 # Local Execution (Development)
@@ -127,29 +127,29 @@ If you are developing inside the repository or haven't installed `sesi` globally
 
 ```bash
 # Run a Sesi script
-npm run sesi -- examples/01_hello.sesi
+npm run sesi -- examples/main/01_hello.sesi
 ```
 
 ```bash
 # Evaluate an inline snippet
-npm run sesi:eval -- "print 'Sesi running!'"
+npm run sesi:eval "print 'Sesi running!'"
 ```
 
 ```bash
 # Ask Sesi's Co-Pilot
-npm run sesi:help -- "how to make a directory?"
+npm run sesi:help "how to make a directory?"
 ```
 
 ```bash
 # Encrypt / Decrypt scripts (uses SESI_PASSWORD from your .env automatically)
-npm run sesi:encrypt -- "secret.sesi"
-npm run sesi:decrypt -- "secret.sesi"
+npm run sesi:encrypt "secret.sesi"
+npm run sesi:decrypt "secret.sesi"
 ```
 
 ```bash
 # Run classic examples
-npm run example examples/01_hello.sesi
-npm run example:ai examples/08_model_call.sesi
+npm run example examples/main/01_hello.sesi
+npm run example:ai examples/optional/08_model_call.sesi
 npm run example:all
 ```
 
@@ -223,7 +223,6 @@ const interpreter = new Interpreter(scriptDir, {
 - [Language Comparison Showcase](./docs/COMPARISON.md)
 - [Built-in Functions](./docs/BUILTINS.md)
 - [Reasoning](./docs/REASONING.md)
-- [Concurrency Systems](./docs/CONCURRENCY.md)
 - [Runtime Architecture](./docs/ARCHITECTURE.md)
 
 ## Agent Context
@@ -293,7 +292,12 @@ Sesi/
 │   ├── 19_search_web.sesi           # Web search integration
 │   ├── 20_model_aliases.sesi        # Custom model naming aliases
 │   ├── 21_custom_tools.sesi         # Custom runtime tool definitions
-│   └── 22_reasoning_plus_custom_tools.sesi # Reasoning composed with custom tools
+│   ├── 22_reasoning_plus_custom_tools.sesi # Reasoning composed with custom tools
+│   ├── 23_file_conversion.sesi      # File and document format conversions
+│   ├── 24_http_server.sesi          # Non-blocking native HTTP server
+│   ├── 25_webpage_server.sesi       # Native web page hosting
+│   ├── 26_database.sesi             # Embedded document database operations
+│   └── 27_robust_web_db.sesi        # Dynamic database-backed web analytics
 │
 └── tests/                           # Engine test suite
     ├── basic.test.ts                # Core parsing & evaluation tests
@@ -307,7 +311,7 @@ Sesi/
     └── workflow.test.ts             # Complex sequence workflows tests
 ```
 
-## Version 1.3 Features (In Progress)
+## Version 1.5 Features (In Progress)
 
 ### Core Language ✅
 
@@ -331,7 +335,7 @@ Sesi/
 ### System Features ✅
 
 - **Memory**: Basic memory for multi-turn reasoning
-- **Filesystem I/O**: `read_file()`, `write_file()`, `to_json()`, `write_image()`, and `list_dir()` for local file I/O
+- **Filesystem I/O**: `read_file()`, `write_file()`, `to_json()`, `write_image()`, `list_dir()`, and `convert()` for local file I/O and format transformations
 - **Native Concurrency**: `spawn()` and `exec()` for concurrent process management, and `multi_req(array<function>)` for physical parallel request execution.
 - **Logic Caching**: High-efficiency Sesi Logic Caching (`.sesi_cache.json`) for local call caching.
 - **HTTP Client**: Built-in, native HTTP client support using `web_get(url)` and `web_send(url, body, headers)` with zero external dependencies.

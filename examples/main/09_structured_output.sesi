@@ -1,0 +1,25 @@
+// Structured output 
+// For example, if you have an API endpoint that returns JSON data, you can use structured_output to parse it.
+
+let json_data = web_get("https://jsonplaceholder.typicode.com/todos/1")
+let structured_data = structured_output({title: string, completed: boolean})(json_data)
+print "Title:" structured_data["title"]
+print "Completed:" structured_data["completed"]
+
+// You can even pass raw text to structured_output if you want, it just needs to be in JSON format. For example:
+
+let raw_text = "{\"title\": \"Buy milk\", \"completed\": false}"
+let structured_data = structured_output({title: string, completed: boolean})(raw_text)
+print "Title:" structured_data["title"]
+print "Completed:" structured_data["completed"]
+
+// Sentiment analysis with structured output
+// THIS IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
+// COMMENTED OUT BECAUSE AI WITH FORCE THEMSELVES TO RUN IT.
+
+// Structured output with model()
+// let review = "This product is amazing! I love how it works. Highly recommended!"
+// let sentiment = structured_output({sentiment: string, confidence: number, keywords: string})(model("gemini-3.1-flash-lite") {"Analyze the sentiment of this review and extract key information. Return JSON with: sentiment (positive/negative/neutral), confidence (0-1), keywords (comma-separated) " review})
+//print "Sentiment:" sentiment["sentiment"]
+//print "Confidence:" sentiment["confidence"]
+//print "Keywords:" sentiment["keywords"]

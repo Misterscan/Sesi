@@ -1,0 +1,28 @@
+// main/media_convert_test.sesi
+// Script to generate an image, convert it, download a video, and convert it to mp3.
+
+print "=== 1. Generating Image ==="
+let img = image("gemini-3.1-flash-image-preview") { "A beautiful clean tech minimalist logo for a coding project startup named Sesi." }
+write_image("blueprint.jpg", img)
+print "Generated and saved blueprint.jpg"
+
+print "=== 2. Converting Image to PNG ==="
+let pngPath = convert(media) {file_type: "jpg", output_type: "png"} {"blueprint.jpg"}
+print "Converted image saved at:" pngPath
+
+print "=== 3. Downloading Video ==="
+fn download(url) {
+    try {
+        let output = "/Volumes/CrucialX9/Videos"
+        exec("yt-dlp -f mp4 -o '" + output + "/me_at_the_zoo.%(ext)s' " + url)
+        print "Video downloaded successfully."
+    } catch (e) {
+        print "Failed:" e
+    }
+}
+download("https://www.youtube.com/watch?v=jNQXAC9IVRw")
+
+print "=== 4. Converting Downloaded Video to MP3 ==="
+let videoPath = "/Volumes/CrucialX9/Videos/me_at_the_zoo.mp4"
+let mp3Path = convert(audio) {file_type: "mp4", output_type: "mp3"} {videoPath}
+print "Converted video to MP3 saved at:" mp3Path

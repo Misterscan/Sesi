@@ -5,7 +5,7 @@
 - **File Extension:** `.sesi`
 - `src/`: The core TypeScript engine (Lexer, Parser, Interpreter, AI-Runtime, Builtins).
 - `bin/sesi.js`: The global CLI executable entry point.
-- `examples/`: Official syntax-demonstration scripts (`01_hello.sesi` through `13_data_pipeline.sesi`).
+- `examples/main`: Official syntax-demonstration scripts (covers examples like `01_hello.sesi` and `13_data_pipeline.sesi`).
 - `chatbot/`: Local Sesi support and `sesi_db_chatbot.sesi` - Sesi's built-in Co-Pilot.
 - `main/`: `tests/` like `test_failure_debug.sesi`. **Run inline code evaluations (`-e 'code'`) instead of writing new `.sesi` files for quick tests. Do not overwrite existing `.sesi` files unless explicitly asked to.**
 - `docs/`: The source of truth for all sesi syntax, formatting, and structuring guidelines. It contains the official API docs for all built-in functions and types. AIs must treat this as the primary source of truth for syntax and structure.

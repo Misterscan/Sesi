@@ -57,7 +57,7 @@ The generated installer files are written to `releases/`.
 Once Sesi is installed, you can run Sesi files globally:
 
 ```bash
-sesi examples/01_hello.sesi
+sesi examples/main/01_hello.sesi
 ```
 
 You can also pass arguments to your script, which are exposed under the global `args` array:
@@ -185,7 +185,7 @@ Structured output allows you to extract structured data natively or via Reasonin
 ### Basic Structured Output
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.3.4\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.5.0\", \"status\": \"active\"}"
 let analysis = structured_output({projectName: string, version: string, status: string})(rawJson)
 print "Project: " analysis["projectName"]
 print "Version: " analysis["version"]
@@ -346,33 +346,40 @@ Try the included examples:
 
 ```bash
 # Basic examples
-sesi examples/01_hello.sesi
-sesi examples/02_variables.sesi
-sesi examples/03_functions.sesi
-sesi examples/04_conditionals.sesi
-sesi examples/05_loops.sesi
-sesi examples/06_arrays_objects.sesi
+sesi examples/main/01_hello.sesi
+sesi examples/main/02_variables.sesi
+sesi examples/main/03_functions.sesi
+sesi examples/main/04_conditionals.sesi
+sesi examples/main/05_loops.sesi
+sesi examples/main/06_arrays_objects.sesi
+sesi examples/main/09_structured_output.sesi
+sesi examples/main/11_memory_storage.sesi
+sesi examples/main/12_classification.sesi
+sesi examples/main/13_data_pipeline.sesi
 
 # Reasoning examples (automatically loads .env for Gemini API key)
-sesi examples/08_model_call.sesi
-sesi examples/09_structured_output.sesi
-sesi examples/10_code_generation.sesi
-sesi examples/11_memory_conversation.sesi
-sesi examples/12_classification.sesi
-sesi examples/13_data_pipeline.sesi
-sesi examples/14_folder_explainer.sesi
+sesi examples/optional/08_model_call.sesi
+sesi examples/optional/10_code_generation.sesi
+sesi examples/optional/14_folder_explainer.sesi
 
 # Image generation example
-sesi examples/15_image_generation.sesi
+sesi examples/optional/15_image_generation.sesi
 
 # Advanced Version 1.3 features
-sesi examples/16_modules.sesi
-sesi examples/17_http_client.sesi
-sesi examples/18_parallel_requests.sesi
-sesi examples/19_search_web.sesi
-sesi examples/20_model_aliases.sesi
-sesi examples/21_custom_tools.sesi
-sesi examples/22_reasoning_plus_custom_tools.sesi
+sesi examples/main/16_modules.sesi
+sesi examples/main/17_http_client.sesi
+sesi examples/main/18_parallel_requests.sesi
+sesi examples/main/19_search_web.sesi
+sesi examples/optional/20_model_aliases.sesi
+sesi examples/main/21_custom_tools.sesi
+sesi examples/optional/22_reasoning_plus_custom_tools.sesi
+
+# Advanced Version 1.5 features
+sesi examples/main/23_file_conversion.sesi
+sesi examples/main/24_http_server.sesi
+sesi examples/main/25_webpage_server.sesi
+sesi examples/main/26_database.sesi
+sesi examples/main/27_robust_web_db.sesi
 ```
 
 ## Common Patterns
@@ -465,8 +472,6 @@ else {print "Response: " response}
 3. **Understand architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 4. **Check roadmap**: [ROADMAP.md](docs/ROADMAP.md)
 5. **Study examples**: [examples/](examples/)
-6. **Understand the Agent-Native Paradigm**: [agent_native_programming.md](docs/agent_native_programming.md)
-7. **Read the historical Stress Test Chronicles**: [sesi_ai_chronicles.md](docs/sesi_ai_chronicles.md)
 
 ## Getting Help
 
@@ -482,8 +487,8 @@ sesi -h "how to spawn background processes?"
 You can also pass a file into the help context so the co-pilot can talk about that exact script:
 
 ```bash
-sesi examples/01_hello.sesi -h
-sesi examples/01_hello.sesi -h "what is this script doing?"
+sesi examples/main/01_hello.sesi -h
+sesi examples/main/01_hello.sesi -h "what is this script doing?"
 ```
 
 Other useful CLI options:
@@ -511,10 +516,10 @@ sesi -enc my_script.sesi
 sesi -dec my_script.sesi
 
 # Disable sandbox protections for a run
-sesi examples/01_hello.sesi -l
+sesi examples/main/01_hello.sesi -l
 
 # Add extra allowed filesystem paths
-sesi examples/01_hello.sesi -a ./docs,./examples
+sesi examples/main/01_hello.sesi -a ./docs,./examples/*
 ```
 
 ### Repository Script Shortcuts
@@ -523,14 +528,14 @@ If working directly inside the Sesi codebase, you can use convenient npm shortcu
 
 ```bash
 # Evaluate inline code
-npm run sesi:eval -- "print 'Hello from npm!'"
+npm run sesi:eval "print 'Hello from npm!'"
 
 # Encrypt / Decrypt files using SESI_PASSWORD environment fallback
-npm run sesi:encrypt -- "my_script.sesi"
-npm run sesi:decrypt -- "my_script.sesi"
+npm run sesi:encrypt "my_script.sesi"
+npm run sesi:decrypt "my_script.sesi"
 
 # Search with Sesi's Co-Pilot
-npm run sesi:help -- "how do I use multi_req()?"
+npm run sesi:help "how do I use multi_req()?"
 ```
 
 The co-pilot will dynamically index and train on Sesi's native repository database and retrieve full RAG context from our standard specification docs to generate a syntactically correct, 100% accurate, conversational answer in real-time!

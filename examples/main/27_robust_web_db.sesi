@@ -1,0 +1,234 @@
+// Sesi Example 27: Robust Web Application with Database
+// Run with: node bin/sesi.js examples/main/27_robust_web_db.sesi -l
+
+import { db_open } from "std/db"
+import { now } from "std/time"
+
+let db = db_open("app_data.db")
+let logs = db.collection("visitor_logs")
+
+// Initialize with some seed data if empty
+let existingLogs = logs.find()
+if len(existingLogs) == 0 {
+  logs.insert({
+    "agent": "System Seeder",
+    "timestamp": now() - 10000,
+    "method": "SYSTEM"
+  })
+}
+
+fn renderLogsList(records) {
+  let html = ""
+  let i = 0
+  let length = len(records)
+  
+  // Show recent logs first (reverse order)
+  while i < length {
+    let rec = records[length - 1 - i]
+    let dateStr = str(rec.timestamp)
+    let agentStr = "Unknown Browser"
+    if rec.agent {
+      agentStr = rec.agent
+    }
+    
+    html = html + "
+      <div class='log-item'>
+        <div class='log-header'>
+          <span class='log-method'>" + rec.method + "</span>
+          <span class='log-time'>" + dateStr + "</span>
+        </div>
+        <div class='log-agent'>" + agentStr + "</div>
+      </div>
+    "
+    i = i + 1
+  }
+  return html
+}
+
+async fn handleRequest(req) {
+  print "Request received on path:" req.path
+  
+  // Log request to database
+  let userAgent = "Unknown Browser"
+  if req.headers["user-agent"] {
+    userAgent = req.headers["user-agent"]
+  }
+  
+  logs.insert({
+    "agent": userAgent,
+    "timestamp": now(),
+    "method": req.method
+  })
+
+  if req.path == "/" {
+    let allLogs = logs.find()
+    let logsHtml = renderLogsList(allLogs)
+    let totalCount = len(allLogs)
+    
+    let html = "<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <title>Sesi Analytics Dashboard</title>
+  <link rel='preconnect' href='https://fonts.googleapis.com'>
+  <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
+  <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap' rel='stylesheet'>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #0c0a09;
+      color: #f5f5f4;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      line-height: 1.5;
+    }
+    .wrapper {
+      max-width: 800px;
+      margin: 60px auto;
+      padding: 0 20px;
+    }
+    .card {
+      background-color: #1c1917;
+      border: 1px solid #2e2a24;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 38px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #f5f5f4 0%, #a8a29e 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p.subtitle {
+      color: #78716c;
+      font-size: 15px;
+      margin-bottom: 32px;
+    }
+    .stats-box {
+      background-color: #292524;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .stats-title {
+      font-weight: 600;
+      color: #e7e5e4;
+    }
+    .stats-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #ea580c;
+    }
+    .logs-container {
+      border-top: 1px solid #2e2a24;
+      padding-top: 24px;
+    }
+    h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #e7e5e4;
+    }
+    .log-item {
+      background-color: #0c0a09;
+      border: 1px solid #1c1917;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .log-method {
+      font-size: 11px;
+      font-weight: 600;
+      background-color: #292524;
+      color: #a8a29e;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .log-time {
+      font-size: 12px;
+      color: #78716c;
+    }
+    .log-agent {
+      font-size: 13px;
+      color: #d6d3d1;
+      font-family: monospace;
+      word-break: break-all;
+    }
+    .btn-api {
+      display: inline-block;
+      margin-top: 24px;
+      color: #a8a29e;
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+    .btn-api:hover {
+      color: #f5f5f4;
+    }
+  </style>
+</head>
+<body>
+  <div class='wrapper'>
+    <div class='card'>
+      <h1>Sesi Web Analytics</h1>
+      <p class='subtitle'>A robust demonstration combining the native Sesi HTTP Server with the embedded Sesi Document Database.</p>
+      
+      <div class='stats-box'>
+        <span class='stats-title'>Total Requests Recorded</span>
+        <span class='stats-value'>" + str(totalCount) + "</span>
+      </div>
+      
+      <div class='logs-container'>
+        <h2>Recent Visit History</h2>
+        " + logsHtml + "
+      </div>
+      
+      <a href='/api/logs' class='btn-api'>&rarr; View Raw Database Records (JSON API)</a>
+    </div>
+  </div>
+</body>
+</html>"
+
+    return {
+      "status": 200,
+      "headers": {
+        "Content-Type": "text/html"
+      },
+      "body": html
+    }
+  }
+
+  if req.path == "/api/logs" {
+    let allLogs = logs.find()
+    return {
+      "status": 200,
+      "body": allLogs
+    }
+  }
+
+  return {
+    "status": 404,
+    "body": "Not Found"
+  }
+}
+
+let port = 8080
+print "Starting combined server at http://localhost:8080"
+let server = listen(port, handleRequest)

@@ -88,17 +88,19 @@ async function main() {
   // Test 4: Standard Time module (std/time)
   const int4 = new Interpreter();
   await runTest('Import std/time module', `
-    import { now, sleep } from "std/time"
+    import { now, sleep, format } from "std/time"
     let t1 = now()
     sleep(100)
     let t2 = now()
+    let formatted = format(t1, { "timeZone": "UTC" })
   `, int4);
   const t1 = (int4 as any).currentEnv.get('t1');
   const t2 = (int4 as any).currentEnv.get('t2');
-  if (typeof t1 === 'number' && typeof t2 === 'number' && (t2 - t1) >= 80) {
-    console.log('  ✓ std/time sleep and now validated correctly');
+  const formatted = (int4 as any).currentEnv.get('formatted');
+  if (typeof t1 === 'number' && typeof t2 === 'number' && (t2 - t1) >= 80 && typeof formatted === 'string' && formatted.length > 0) {
+    console.log('  ✓ std/time sleep, now, and format validated correctly');
   } else {
-    console.error(`  ✗ std/time validation failed: t1=${t1}, t2=${t2}, diff=${t2 - t1}`);
+    console.error(`  ✗ std/time validation failed: t1=${t1}, t2=${t2}, diff=${t2 - t1}, formatted=${formatted}`);
   }
 
   // Test 5: Standard JSON module (std/json)
@@ -115,6 +117,63 @@ async function main() {
     console.log('  ✓ std/json stringify and parse validated successfully');
   } else {
     console.error(`  ✗ std/json validation failed, got: ${xVal}`);
+  }
+
+  // Test 6: Standard Database module (std/db)
+  const tempDbPath = path.resolve(process.cwd(), 'temp_test.db');
+  if (fs.existsSync(tempDbPath)) {
+    fs.unlinkSync(tempDbPath);
+  }
+  try {
+    const int6 = new Interpreter();
+    await runTest('Import std/db module', `
+      import { db_open } from "std/db"
+      let db = db_open("temp_test.db")
+      let users = db.collection("users")
+      
+      // Test insert
+      let doc1 = users.insert({ "name": "Alice", "age": 30 })
+      let doc2 = users.insert({ "name": "Bob", "age": 25 })
+      
+      // Test find
+      let allUsers = users.find()
+      let alice = users.find({ "name": "Alice" })
+      
+      // Test update
+      let updatedCount = users.update({ "name": "Bob" }, { "age": 26 })
+      let bobUpdated = users.find({ "name": "Bob" })
+      let bobAge = bobUpdated[0]["age"]
+      
+      // Test delete
+      let deletedCount = users.delete({ "name": "Alice" })
+      let remainingUsers = users.find()
+    `, int6);
+
+    const doc1Val = (int6 as any).currentEnv.get('doc1');
+    const allUsersVal = (int6 as any).currentEnv.get('allUsers');
+    const aliceVal = (int6 as any).currentEnv.get('alice');
+    const updatedCountVal = (int6 as any).currentEnv.get('updatedCount');
+    const bobAgeVal = (int6 as any).currentEnv.get('bobAge');
+    const deletedCountVal = (int6 as any).currentEnv.get('deletedCount');
+    const remainingUsersVal = (int6 as any).currentEnv.get('remainingUsers');
+
+    if (
+      doc1Val && doc1Val.name === 'Alice' && doc1Val._id &&
+      Array.isArray(allUsersVal) && allUsersVal.length === 2 &&
+      Array.isArray(aliceVal) && aliceVal.length === 1 && aliceVal[0].name === 'Alice' &&
+      updatedCountVal === 1 && bobAgeVal === 26 &&
+      deletedCountVal === 1 && Array.isArray(remainingUsersVal) && remainingUsersVal.length === 1
+    ) {
+      console.log('  ✓ std/db document store operations validated successfully');
+    } else {
+      console.error('  ✗ std/db validation failed:', {
+        doc1Val, allUsersVal, aliceVal, updatedCountVal, bobAgeVal, deletedCountVal, remainingUsersVal
+      });
+    }
+  } finally {
+    if (fs.existsSync(tempDbPath)) {
+      fs.unlinkSync(tempDbPath);
+    }
   }
 
   console.log('\nAll module tests passed!');

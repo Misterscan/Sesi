@@ -305,6 +305,30 @@ if success {print "Directory created successfully"}
 
 **Returns**: `bool` (true on success, throws on error)
 
+### convert(type) { config } { file } -> string
+
+Convert file or document content between formats.
+
+- `type`: `doc` (documents/text), `media` (images/video), or `audio`.
+- `config`: Object containing conversion parameters:
+  - `file_type`: Input format extension (e.g. `"md"`, `"csv"`, `"png"`, `"wav"`). Optional when input is a local file path (inferred from extension).
+  - `output_type`: Target output format extension (e.g. `"html"`, `"json"`, `"jpg"`, `"mp3"`). Required.
+- `file`: Input string content or input local file path.
+
+If the input is a local file path, the converted content is saved to a file of the same name and directory with the target extension, and the path to the output file is returned. If the input is raw string content, the converted content is returned directly.
+
+```sesi
+// Raw content conversion
+let html = convert(doc) {file_type: "md", output_type: "html"} {"# Hello"}
+print html // "<h1>Hello</h1>"
+
+// File path conversion
+let out_path = convert(doc) {output_type: "html"} {"document.md"}
+print out_path // "document.html"
+```
+
+**Returns**: `string` (converted content or path to the converted file)
+
 ---
 
 ## Network Functions
@@ -333,6 +357,74 @@ print response
 ```
 
 **Returns**: `string`
+
+---
+
+### listen(port, handler) -> object
+
+Starts a native HTTP server listening on the specified port. Requests are passed to the handler function (which can be a synchronous function or an `async fn`).
+
+The `handler` receives a request object with the following properties:
+
+- `method`: The HTTP method (e.g. `"GET"`, `"POST"`).
+- `path`: The path portion of the URL (e.g. `"/test-route"`).
+- `headers`: A map of the HTTP request headers.
+- `body`: The request body as a string.
+- `query`: A map of the URL query parameters.
+
+The `handler` can return:
+
+- A simple string: Sent as the HTTP response body with status `200` and `Content-Type: text/html`.
+- A structured response object containing:
+  - `"status"`: HTTP status code (default: `200`).
+  - `"headers"`: Map of response headers (default: `Content-Type: text/html`).
+  - `"body"`: Response body (string, or object which gets serialized to JSON).
+
+Returns a server control object with a `close()` function to stop the server programmatically.
+
+```sesi
+async fn handleRequest(req) {
+  print "Request path is:" req.path
+  return {
+    "status": 200,
+    "body": "Hello from Sesi Server!"
+  }
+}
+
+let server = listen(8080, handleRequest)
+// ...
+server.close()
+```
+
+**Returns**: `object` containing a `close` function.
+
+---
+
+### api(port, handler) -> object
+
+Starts a native WebSocket server listening on the specified port. Incoming client messages are passed to the handler function (which can be a synchronous function or an `async fn`).
+
+The `handler` receives two arguments:
+
+- `client`: A controller object for the connected client containing:
+  - `send(message)`: Sends a message to the client (automatically converted to a string).
+  - `close()`: Closes the connection to this client.
+- `message`: The incoming message payload as a string.
+
+Returns a server control object with a `close()` function to stop the server programmatically.
+
+```sesi
+fn handleMessage(client, msg) {
+  print "WS received:" msg
+  client.send("Echo: " + msg)
+}
+
+let server = api(8989, handleMessage)
+// ...
+server.close()
+```
+
+**Returns**: `object` containing a `close` function.
 
 ---
 
@@ -380,20 +472,20 @@ print "Elapsed time:" time() - start "ms"
 
 ### multi_req(fns) -> array
 
-Concurrently execute multiple Sesi function closures or builtins in parallel and return their results as an array.
+Concurrently execute multiple Sesi function closures, builtins, or asynchronous functions in parallel and return their resolved results as an array.
 
 ```sesi
-fn job1() 
-{sleep(100)
-return "a"}
-fn job2() 
-{sleep(100)
-return "b"}
+async fn job1() {
+  return "a"
+}
+async fn job2() {
+  return "b"
+}
 let results = multi_req([job1, job2])
 print results // ["a", "b"]
 ```
 
-**Returns**: `array<any>` containing the returned values of each function in original index order.
+**Returns**: `array<any>` containing the resolved returned values of each function in original index order.
 
 ---
 
@@ -440,7 +532,7 @@ let answer = model("fast") {"Summarize this paragraph."}
 Register a custom tool name that can be called through `tool_call(name)(...)`.
 
 ```sesi
-fn summarize(text) 
+fn summarize(text)
 {return "Summary: " + text}
 
 define_tool("summarizer", summarize, "Summarizes text")
@@ -508,6 +600,29 @@ if rand > 0.5 {print "Heads"} else {print "Tails"}
 
 ---
 
+## Debugging Functions
+
+### debug() -> null
+
+Pauses execution and launches an interactive debugger REPL in your shell terminal.
+
+```sesi
+let x = 10
+let y = 20
+debug()  // Pauses execution and opens interactive sesi-debug REPL
+print x + y
+```
+
+**REPL Commands**:
+
+- `env` — Displays all variables in the active lexical scope chain.
+- `eval <expr>` — Evaluates any Sesi expression in-memory within the active scope context.
+- `c` / `continue` — Resumes standard program execution.
+
+**Returns**: `null`
+
+---
+
 ## Global Variables
 
 ### args
@@ -542,21 +657,15 @@ print sigmoid      // 0.6224593312018546
 
 ---
 
-## Math-like Functions (v2 planned)
+## Math Functions (std/math)
 
-These are not yet implemented in v1+ but will be added:
+Additional math functions are available natively by importing the `"std/math"` module:
 
 ```sesi
-// Planned for v2:
-floor(n)
-ceil(n)
-round(n)
-abs(n)
-min(a, b)
-max(a, b)
-sqrt(n)
-pow(a, b)
-sin(n), cos(n), tan(n)
+import {sqrt, abs, floor, ceil, sin, cos, tan, pow} from "std/math"
+
+print sqrt(16) // 4
+print floor(3.7) // 3
 ```
 
 ## Function Introspection (v2 planned)
@@ -706,22 +815,27 @@ keys(obj) contains "a"    // Future: not yet supported
 
 ---
 
-## Standard Library Modules (Supported natively in v1.3+)
+## Standard Library Modules (Supported natively in v1.x)
 
 ### std/math
 
 Includes math constants and functions: `PI`, `E`, `sin`, `cos`, `tan`, `sqrt`, `floor`, `ceil`, `abs`, `pow`, `log`, `exp`.
 
 ```sesi
-import { PI, E, sqrt, sin, cos } from "std/math"
+import {PI, E, sqrt, sin, cos} from "std/math"
 ```
 
 ### std/time
 
-Includes time and sleep functions: `now()`, `sleep(ms)`.
+Includes time, sleep, and timezone formatting functions: `now()`, `sleep(ms)`, `format(timestamp, options)`.
 
 ```sesi
-import { now, sleep } from "std/time"
+import {now, sleep, format} from "std/time"
+
+let t = now()
+// Format time with a specific timezone
+let formatted = format(t, {"timeZone": "America/New_York", "timeStyle": "medium"})
+print formatted // e.g. "2:27:02 AM"
 ```
 
 ### std/json
@@ -729,21 +843,44 @@ import { now, sleep } from "std/time"
 Includes JSON serialization: `parse(str)`, `stringify(val)`.
 
 ```sesi
-import { parse, stringify } from "std/json"
+import {parse, stringify} from "std/json"
+```
+
+### std/db
+
+Includes Sesi's lightweight embedded Document Database engine: `db_open(filename, password?)`.
+A database instance supports opening collections, inserting documents, querying/finding, updating, and deleting records.
+
+#### Encryption & Decryption at Runtime:
+
+If an optional second parameter `password` is provided, Sesi automatically encrypts database contents stored on disk using **AES-256-CBC** with a dynamic, randomized initialization vector (IV) on every write, and decrypts it during reads.
+
+```sesi
+import {db_open} from "std/db"
+
+// Open database with a passphrase
+let db = db_open("data.db", "secure-passphrase-here")
+let users = db.collection("users")
+
+// CRUD API:
+// users.insert(object) -> Returns inserted document (adds unique _id if missing)
+// users.find(query_object?) -> Returns array of matching documents (returns all if query omitted)
+// users.update(query_object, update_object) -> Returns number of updated documents
+// users.delete(query_object) -> Returns number of deleted documents
 ```
 
 ---
 
-## Module Resolution (v1.3+)
+## Module Resolution (v1.x)
 
 Sesi resolves local module imports by searching directories in priority order:
 
-| Priority | Location | Notes |
-| -------- | -------- | ----- |
-| 1 | Script's own directory | Same folder as the running `.sesi` file |
-| 2 | Current working directory | Where you ran `sesi` from |
-| 3 | `SESI_PATH` env var | Semicolon (Windows) or colon (Unix) separated paths |
-| 4 | `~/.sesi/lib` | Global shared library, available system-wide |
+| Priority | Location                  | Notes                                               |
+| -------- | ------------------------- | --------------------------------------------------- |
+| 1        | Script's own directory    | Same folder as the running `.sesi` file             |
+| 2        | Current working directory | Where you ran `sesi` from                           |
+| 3        | `SESI_PATH` env var       | Semicolon (Windows) or colon (Unix) separated paths |
+| 4        | `~/.sesi/lib`             | Global shared library, available system-wide        |
 
 ### Global Library (`~/.sesi/lib`)
 
@@ -827,8 +964,5 @@ Tip: add a folder to SESI_PATH, or place shared modules in ~/.sesi/lib
 - [Command Line Interface (CLI) Reference](CLI.md)
 - [Image Generation & Input](IMAGE_GENERATION.md)
 - [Compare to other languages](COMPARISON.md)
-- [Concurrency & Coordination](CONCURRENCY.md)
 - [Reasoning & Simple Logic](REASONING.md)
-- [Agent-Native Programming Paradigm](agent_native_programming.md)
-- [Historical Stress Test Chronicles](sesi_ai_chronicles.md)
 - [Examples](../examples)

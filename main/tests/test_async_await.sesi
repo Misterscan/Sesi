@@ -1,0 +1,37 @@
+async fn getGreeting(name) {
+  print "Inside async function for:" name
+  return "Hello, " + name
+}
+
+print "=== Testing Async Call ==="
+let p = getGreeting("Alice")
+print "Type of p is:" type(p)
+print "Value of p is:" p
+
+print "=== Testing Await ==="
+let result = await p
+print "Awaited result:" result
+
+async fn calculate(a, b) {
+  return a * b
+}
+
+let p1 = calculate(5, 6)
+let p2 = calculate(10, 20)
+
+print "=== Awaiting multiple promises ==="
+print "p1 resolved:" await p1
+print "p2 resolved:" await p2
+
+async fn runTask1() {
+  return "Task 1 complete"
+}
+
+async fn runTask2() {
+  return "Task 2 complete"
+}
+
+print "=== Testing multi_req with async fn ==="
+let results = multi_req([runTask1, runTask2])
+print "multi_req results:" results
+

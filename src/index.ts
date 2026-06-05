@@ -1,5 +1,9 @@
 
 // Main entry point for Sesi
+export { Lexer } from './lexer';
+export { Parser } from './parser';
+export { Interpreter } from './interpreter';
+export { Environment } from './types';
 import { Lexer } from './lexer';
 import { Parser } from './parser';
 import { Interpreter } from './interpreter';
@@ -38,7 +42,66 @@ export interface SesiOptions {
   decrypt?: boolean;
   password?: string;
   raw?: boolean;
+  ast?: boolean;
+  tokens?: boolean;
   args?: string[];
+  dry?: boolean;
+}
+
+function printTokensTable(tokens: any[]): void {
+  console.log('Line | Col  | Type                 | Lexeme');
+  console.log('-----+------+----------------------+----------------');
+  for (const token of tokens) {
+    const line = String(token.line).padStart(4, ' ');
+    const col = String(token.column).padStart(4, ' ');
+    const type = token.type.padEnd(20, ' ');
+    const lexeme = JSON.stringify(token.lexeme);
+    console.log(`${line} | ${col} | ${type} | ${lexeme}`);
+  }
+}
+
+function printAstTree(node: any, indent: string = ''): string {
+  if (!node) return 'null';
+  if (Array.isArray(node)) {
+    return node.map(item => printAstTree(item, indent)).join('\n');
+  }
+  if (typeof node !== 'object') {
+    return String(node);
+  }
+  const type = node.type || 'Object';
+  let result = `${indent}└─ ${type}`;
+  
+  if (node.type === 'LetStatement') {
+    result += ` (name: "${node.name.lexeme}")`;
+  } else if (node.type === 'ConstStatement') {
+    result += ` (name: "${node.name.lexeme}")`;
+  } else if (node.type === 'Identifier') {
+    result += ` (name: "${node.lexeme || node.name}")`;
+  } else if (node.type === 'Literal') {
+    result += ` (value: ${JSON.stringify(node.value)})`;
+  } else if (node.type === 'BinaryExpression') {
+    result += ` (operator: "${node.operator}")`;
+  } else if (node.type === 'FunctionStatement') {
+    result += ` (name: "${node.name.lexeme}")`;
+  }
+  
+  const childrenKeys = Object.keys(node).filter(k => k !== 'type' && k !== 'line' && k !== 'column' && k !== 'lexeme');
+  for (const key of childrenKeys) {
+    const val = node[key];
+    if (val && (typeof val === 'object' || Array.isArray(val))) {
+      result += `\n${indent}   ├─ ${key}:`;
+      if (Array.isArray(val)) {
+        if (val.length === 0) {
+          result += ' []';
+        } else {
+          result += '\n' + val.map(item => printAstTree(item, indent + '   │  ')).join('\n');
+        }
+      } else {
+        result += '\n' + printAstTree(val, indent + '   │  ');
+      }
+    }
+  }
+  return result;
 }
 
 export async function runSesi(source: string, scriptDir?: string, options?: SesiOptions): Promise<void> {
@@ -47,9 +110,18 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
     const lexer = new Lexer(source);
     const tokens = lexer.scanTokens();
 
+    if (options?.tokens) {
+      printTokensTable(tokens);
+      return;
+    }
+
     // Parse
     const parser = new Parser(tokens);
     const program = parser.parse();
+
+    if (parser.errors.length > 0) {
+      process.exit(1);
+    }
 
     if (options?.encrypt) {
       if (!options.password) {
@@ -71,6 +143,16 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
 
     if (options?.raw) {
       console.log(JSON.stringify(program, null, 2));
+      return;
+    }
+
+    if (options?.ast) {
+      console.log(printAstTree(program));
+      return;
+    }
+
+    if (options?.dry) {
+      console.log('✓ Syntax is valid');
       return;
     }
 

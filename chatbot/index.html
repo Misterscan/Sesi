@@ -342,7 +342,30 @@
         height: 200px;
       }
     }
+
+    /* Markdown message styling */
+    .message h1, .message h2, .message h3 {
+      color: var(--accent-cyan);
+      margin-top: 12px;
+      margin-bottom: 6px;
+      font-size: 1.1em;
+      font-family: 'Arial Black', sans-serif;
+    }
+    .message p {
+      margin-bottom: 10px;
+    }
+    .message p:last-child {
+      margin-bottom: 0;
+    }
+    .message ul, .message ol {
+      margin-left: 20px;
+      margin-bottom: 10px;
+    }
+    .message li {
+      margin-bottom: 4px;
+    }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 
 <body>
@@ -355,7 +378,7 @@
       <nav style="display: flex; gap: 10px;">
         <div style="font-size: 10px; color: var(--silver-dark); text-align: right;">
           SYSTEM STATUS: <span style="color: var(--accent-green);">ONLINE</span><br>
-          VERSION: 1.3.4
+          VERSION: 1.5.0
         </div>
       </nav>
     </header>
@@ -366,15 +389,19 @@
       <div class='log-stream' id='logStream'>
         <div class='log-entry'>
           <span class='log-time'>[08:00:01]</span><br>
-          [SYSTEM] Sesi Support Chatbot server booted.
+          [Sesi] Connecting to server...
         </div>
         <div class='log-entry'>
           <span class='log-time'>[08:00:02]</span><br>
-          [WMI] Binding physical display controller...
+          [Sesi] Connected.
+        </div>
+        <div class='log-entry'>
+          <span class='log-time'>[08:00:03]</span><br>
+          [Sesi] Loading Sesi Support Bot...
         </div>
         <div class='log-entry'>
           <span class='log-time'>[08:00:05]</span><br>
-          [SESI] Model active: YES.
+          [Sesi] Sesi Support Bot online.
         </div>
       </div>
     </div>
@@ -416,7 +443,9 @@
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
 
-    function appendLog(message, tag = "SYSTEM") {
+    const sessionId = Date.now().toString() + Math.random().toString(36).substring(2);
+
+    function appendLog(message, tag = "SUPPORT") {
       const now = new Date().toTimeString().split(' ')[0];
       const logEntry = document.createElement('div');
       logEntry.className = 'log-entry';
@@ -427,15 +456,13 @@
 
     function appendMessage(text, isUser = false) {
       const msgDiv = document.createElement('div');
-      msgDiv.className = `message ${isUser ? 'user' : 'system'}`;
+      msgDiv.className = `message ${isUser ? 'user' : 'support'}`;
 
-      let formattedText = text
-        .replace(/\*\*([^*]+)\*\*/g, '<strong class="glow-text">$1</strong>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/```([\s\S]+?)```/g, '<pre>$1</pre>')
-        .replace(/\n/g, '<br>');
-
-      msgDiv.innerHTML = formattedText;
+      if (isUser) {
+        msgDiv.textContent = text;
+      } else {
+        msgDiv.innerHTML = marked.parse(text);
+      }
       chatMessages.appendChild(msgDiv);
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
@@ -456,7 +483,7 @@
       appendLog("Invoking model('gemini-3.1')...", "COMPILER");
 
       try {
-        const response = await fetch(`http://localhost:8000/chat?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`http://localhost:8000/chat?q=${encodeURIComponent(query)}&sessionId=${sessionId}`);
         const data = await response.json();
 
         if (data.error) {

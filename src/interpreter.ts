@@ -38,8 +38,9 @@ import {
   SesiRuntimeError,
 } from './types';
 
-import { getBuiltins, isTruthy, isEqual, stringify, compareValues, stripPrototypes } from './builtins';
+import { getBuiltins, isTruthy, isEqual, stringify, compareValues, stripPrototypes, ensureSafePath } from './builtins';
 import { aiRuntime } from './ai-runtime';
+import * as fs from 'fs';
 
 export class Interpreter {
   private globalEnv: Environment;
@@ -223,6 +224,10 @@ export class Interpreter {
 
   private async executeStatement(statement: Statement): Promise<void> {
     try {
+      if (process.env.SESI_DEBUG === '1') {
+        const lineInfo = (statement as any).line !== undefined ? ` line ${(statement as any).line}` : '';
+        console.log(`[DEBUG] Executing ${statement.type}${lineInfo}`);
+      }
       switch (statement.type) {
         case 'LetStatement':
           await this.executeLet(statement);
@@ -296,6 +301,7 @@ export class Interpreter {
       params: stmt.parameters,
       body: stmt.body,
       closure: this.currentEnv,
+      isAsync: stmt.isAsync,
     };
     this.currentEnv.define(stmt.name, fn);
   }
@@ -433,7 +439,7 @@ export class Interpreter {
     this.currentEnv.define(stmt.name, stringValue);
   }
 
-  private async evaluateExpression(expr: Expression): Promise<RuntimeValue> {
+  public async evaluateExpression(expr: Expression): Promise<RuntimeValue> {
     try {
       switch (expr.type) {
         case 'Literal':
@@ -483,6 +489,12 @@ export class Interpreter {
 
         case 'ToolCallExpression':
           return await this.evaluateToolCall(expr);
+
+        case 'ConvertExpression':
+          return await this.evaluateConvert(expr as import('./types').ConvertExpression);
+
+        case 'AwaitExpression':
+          return await this.evaluateAwait(expr as import('./types').AwaitExpression);
 
         default:
           return null;
@@ -840,6 +852,29 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       return await fn.builtin(...args);
     }
 
+    if (fn.isAsync) {
+      const InterpreterClass = this.constructor as any;
+      const subInterpreter = new InterpreterClass(this.scriptDir, {
+        safeMode: this.safeMode,
+        allowLocalFs: this.allowLocalFs,
+        raw: this.raw,
+        allowedPaths: [...this.allowedPaths],
+        args: [...this.args]
+      });
+      subInterpreter.prompts = new Map(this.prompts);
+      subInterpreter.memory = new Map(this.memory);
+
+      const promise = subInterpreter.callSesiFunction({
+        ...fn,
+        isAsync: false
+      }, args);
+
+      return {
+        type: 'promise',
+        promise
+      } as any;
+    }
+
     // User-defined function
     const callEnv = new Environment(fn.closure);
 
@@ -955,6 +990,201 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     }
   }
 
+  private async evaluateConvert(expr: import('./types').ConvertExpression): Promise<RuntimeValue> {
+    let fileInput = await this.evaluateExpression(expr.file);
+    if (typeof fileInput !== 'string') {
+      fileInput = stringify(fileInput);
+    }
+
+    const conversionType = expr.conversionType.toLowerCase();
+
+    // Evaluate config
+    let fileType: string | undefined;
+    let outputType: string | undefined;
+
+    if (expr.config) {
+      if (expr.config.file_type) {
+        const ft = await this.evaluateExpression(expr.config.file_type);
+        if (typeof ft === 'string') fileType = ft.toLowerCase();
+      }
+      if (expr.config.output_type) {
+        const ot = await this.evaluateExpression(expr.config.output_type);
+        if (typeof ot === 'string') outputType = ot.toLowerCase();
+      }
+    }
+
+    // Determine if fileInput is a valid local file path
+    let isFilePath = false;
+    let absoluteInputPath = '';
+    const fs = require('fs');
+    const path = require('path');
+    const { execSync } = require('child_process');
+
+    try {
+      absoluteInputPath = ensureSafePath(fileInput, this);
+      if (fs.existsSync(absoluteInputPath) && fs.statSync(absoluteInputPath).isFile()) {
+        isFilePath = true;
+      }
+    } catch (e) {
+      // Not a valid file path or path traversal block
+    }
+
+    if (isFilePath && !fileType) {
+      fileType = path.extname(absoluteInputPath).slice(1).toLowerCase();
+    }
+
+    if (!fileType) {
+      throw new Error(`Conversion file_type is missing or could not be determined.`);
+    }
+    if (!outputType) {
+      throw new Error(`Conversion output_type is required.`);
+    }
+
+    // Determine output file path if input is a file path
+    let absoluteOutputPath = '';
+    let relativeOutputPath = '';
+    if (isFilePath) {
+      const dir = path.dirname(absoluteInputPath);
+      const ext = path.extname(absoluteInputPath);
+      const name = path.basename(absoluteInputPath, ext);
+      absoluteOutputPath = path.join(dir, `${name}.${outputType}`);
+      relativeOutputPath = path.join(path.dirname(fileInput), `${name}.${outputType}`);
+    }
+
+    const hasCommand = (cmd: string): boolean => {
+      try {
+        const checkCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+        execSync(checkCmd, { stdio: 'ignore' });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const isSafe = !this.safeMode;
+
+    if (conversionType === 'doc') {
+      // 1. Text/Document conversion
+      let content = '';
+      if (isFilePath) {
+        content = fs.readFileSync(absoluteInputPath, 'utf8');
+      } else {
+        content = fileInput;
+      }
+
+      // Check for native CLI pandoc if allowed and available
+      if (isSafe && hasCommand('pandoc') && isFilePath) {
+        try {
+          execSync(`pandoc "${absoluteInputPath}" -o "${absoluteOutputPath}"`);
+          return relativeOutputPath;
+        } catch (e: any) {
+          // Fallback
+        }
+      }
+
+      // Pure JS native fallback for common formats
+      let converted: string | null = null;
+      const fType = fileType.trim();
+      const oType = outputType.trim();
+
+      if (fType === 'md' && oType === 'html') {
+        converted = simpleMdToHtml(content);
+      } else if (fType === 'csv' && oType === 'json') {
+        converted = csvToJson(content);
+      } else if (fType === 'json' && oType === 'csv') {
+        converted = jsonToCsv(content);
+      }
+
+      if (converted === null) {
+        // Use Gemini AI for general doc conversions
+        const promptText = `Convert the following document content from ${fType} format to ${oType} format. Return ONLY the raw converted content. Do NOT include markdown code blocks (e.g. \`\`\`xml or \`\`\`json) or any explanations or extra characters.\n\nContent:\n${content}`;
+        try {
+          const response = await aiRuntime.callModel({
+            model: 'gemini-3.1-flash-lite',
+            prompt: promptText
+          });
+          converted = response.text.trim();
+          // Strip leading/trailing code block markers if Gemini returned them
+          if (converted.startsWith('```')) {
+            const lines = converted.split('\n');
+            if (lines[0].startsWith('```') && lines[lines.length - 1] === '```') {
+              converted = lines.slice(1, -1).join('\n');
+            }
+          }
+        } catch (err: any) {
+          throw new Error(`Document conversion failed: AI converter unavailable and no local converter found. ${err.message}`);
+        }
+      }
+
+      if (isFilePath) {
+        fs.writeFileSync(absoluteOutputPath, converted, 'utf8');
+        return relativeOutputPath;
+      } else {
+        return converted;
+      }
+    }
+
+    if (conversionType === 'media' || conversionType === 'audio') {
+      if (!isFilePath) {
+        throw new Error(`Media/Audio conversion requires a file path input.`);
+      }
+
+      if (!isSafe) {
+        throw new Error(`Security Violation: Command line media conversion is disabled in safe mode.`);
+      }
+
+      if (conversionType === 'audio' || fileType === 'wav' || fileType === 'mp3' || fileType === 'ogg' || fileType === 'flac' || outputType === 'wav' || outputType === 'mp3' || outputType === 'ogg' || outputType === 'flac') {
+        if (!hasCommand('ffmpeg')) {
+          throw new Error(`ffmpeg CLI is required for audio/media conversion but was not found in PATH.`);
+        }
+        try {
+          execSync(`ffmpeg -y -i "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
+          return relativeOutputPath;
+        } catch (e: any) {
+          throw new Error(`ffmpeg conversion failed: ${e.message}`);
+        }
+      } else {
+        // Image/Video media conversion
+        let convertedWithImageMagick = false;
+        if (hasCommand('magick')) {
+          try {
+            execSync(`magick "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
+            convertedWithImageMagick = true;
+          } catch {}
+        } else if (hasCommand('convert')) {
+          try {
+            execSync(`convert "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
+            convertedWithImageMagick = true;
+          } catch {}
+        }
+
+        if (convertedWithImageMagick) {
+          return relativeOutputPath;
+        }
+
+        // Check if ffmpeg can do it (e.g. for image sequences or videos)
+        if (hasCommand('ffmpeg')) {
+          try {
+            execSync(`ffmpeg -y -i "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
+            return relativeOutputPath;
+          } catch {}
+        }
+
+        throw new Error(`No image/media conversion tool (magick/convert or ffmpeg) found or execution failed.`);
+      }
+    }
+
+    throw new Error(`Unsupported conversion type: ${conversionType}`);
+  }
+
+  private async evaluateAwait(expr: import('./types').AwaitExpression): Promise<RuntimeValue> {
+    const val = await this.evaluateExpression(expr.expression);
+    if (typeof val === 'object' && val !== null && (val as any).type === 'promise') {
+      return await (val as any).promise;
+    }
+    return val;
+  }
+
   public loadStdModule(source: string): Map<string, RuntimeValue> | null {
     const exports = new Map<string, RuntimeValue>();
     if (source === 'std/math') {
@@ -1005,6 +1235,39 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           return null;
         }
       });
+      exports.set('format', {
+        type: 'function',
+        name: 'format',
+        params: [{ name: 'timestamp' }, { name: 'options' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const t = typeof args[0] === 'number' ? args[0] : Date.now();
+          const opts = (args[1] && typeof args[1] === 'object' ? args[1] : {}) as any;
+          
+          const locale = opts.locale || 'en-US';
+          const formatOptions: Intl.DateTimeFormatOptions = {};
+          
+          if (opts.timeZone) formatOptions.timeZone = opts.timeZone;
+          if (opts.dateStyle) formatOptions.dateStyle = opts.dateStyle;
+          if (opts.timeStyle) formatOptions.timeStyle = opts.timeStyle;
+          if (opts.hour12 !== undefined) formatOptions.hour12 = opts.hour12;
+          
+          if (opts.year) formatOptions.year = opts.year;
+          if (opts.month) formatOptions.month = opts.month;
+          if (opts.day) formatOptions.day = opts.day;
+          if (opts.hour) formatOptions.hour = opts.hour;
+          if (opts.minute) formatOptions.minute = opts.minute;
+          if (opts.second) formatOptions.second = opts.second;
+
+          try {
+            return new Date(t).toLocaleString(locale, formatOptions);
+          } catch (e: any) {
+            return new Date(t).toLocaleString();
+          }
+        }
+      });
       return exports;
     } else if (source === 'std/json') {
       exports.set('stringify', {
@@ -1037,7 +1300,274 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         }
       });
       return exports;
+    } else if (source === 'std/db') {
+      exports.set('db_open', {
+        type: 'function',
+        name: 'db_open',
+        params: [{ name: 'filename' }, { name: 'password' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const [filenameVal, passwordVal] = args;
+          if (typeof filenameVal !== 'string' || filenameVal.trim() === '') {
+            throw new Error('db_open expects a non-empty string filename');
+          }
+          if (passwordVal !== undefined && typeof passwordVal !== 'string') {
+            throw new Error('db_open expects a string as the second parameter (password)');
+          }
+          const password = (passwordVal !== undefined && typeof passwordVal === 'string') ? passwordVal : null;
+          const resolvedPath = ensureSafePath(filenameVal, this);
+
+          const dbObj: Record<string, RuntimeValue> = Object.create(null);
+          
+          dbObj.collection = {
+            type: 'function',
+            name: 'collection',
+            params: [{ name: 'colName' }],
+            body: {} as any,
+            closure: {} as any,
+            isBuiltin: true,
+            builtin: (...colArgs: RuntimeValue[]): RuntimeValue => {
+              const [colNameVal] = colArgs;
+              if (typeof colNameVal !== 'string' || colNameVal.trim() === '') {
+                throw new Error('collection expects a non-empty string collection name');
+              }
+              const colName = colNameVal.trim();
+
+              const helperReadDb = (): Record<string, any[]> => {
+                if (!fs.existsSync(resolvedPath)) {
+                  return Object.create(null);
+                }
+                try {
+                  let content = fs.readFileSync(resolvedPath, 'utf8');
+                  if (password) {
+                    const parts = content.split(':');
+                    if (parts.length === 2) {
+                      const crypto = require('crypto');
+                      const iv = Buffer.from(parts[0], 'hex');
+                      const key = crypto.createHash('sha256').update(String(password)).digest();
+                      const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+                      let decrypted = decipher.update(parts[1], 'hex', 'utf8');
+                      decrypted += decipher.final('utf8');
+                      content = decrypted;
+                    } else {
+                      throw new Error('Database file is not in encrypted format');
+                    }
+                  }
+                  const parsed = JSON.parse(content);
+                  return stripPrototypes(parsed) || Object.create(null);
+                } catch (e) {
+                  return Object.create(null);
+                }
+              };
+
+              const helperWriteDb = (data: Record<string, any[]>): void => {
+                let content = JSON.stringify(data, null, 2);
+                if (password) {
+                  const crypto = require('crypto');
+                  const key = crypto.createHash('sha256').update(String(password)).digest();
+                  const iv = crypto.randomBytes(16);
+                  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+                  let encrypted = cipher.update(content, 'utf8', 'hex');
+                  encrypted += cipher.final('hex');
+                  content = iv.toString('hex') + ':' + encrypted;
+                }
+                fs.writeFileSync(resolvedPath, content, 'utf8');
+              };
+
+              const colObj: Record<string, RuntimeValue> = Object.create(null);
+
+              colObj.insert = {
+                type: 'function',
+                name: 'insert',
+                params: [{ name: 'doc' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: (...insertArgs: RuntimeValue[]): RuntimeValue => {
+                  const [docVal] = insertArgs;
+                  if (typeof docVal !== 'object' || docVal === null || Array.isArray(docVal)) {
+                    throw new Error('insert expects a document object');
+                  }
+                  
+                  const doc = stripPrototypes(JSON.parse(JSON.stringify(docVal)));
+                  if (!doc._id) {
+                    doc._id = Math.random().toString(36).substring(2, 11);
+                  }
+
+                  const dbData = helperReadDb();
+                  if (!dbData[colName]) {
+                    dbData[colName] = [];
+                  }
+                  dbData[colName].push(doc);
+                  helperWriteDb(dbData);
+                  return doc;
+                }
+              };
+
+              const matchesQuery = (doc: Record<string, any>, query: Record<string, any>): boolean => {
+                for (const [k, v] of Object.entries(query)) {
+                  if (doc[k] !== v) return false;
+                }
+                return true;
+              };
+
+              colObj.find = {
+                type: 'function',
+                name: 'find',
+                params: [{ name: 'query', defaultValue: null as any }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: (...findArgs: RuntimeValue[]): RuntimeValue => {
+                  const [queryVal] = findArgs;
+                  const query = (queryVal && typeof queryVal === 'object' && !Array.isArray(queryVal)) 
+                    ? queryVal as Record<string, any> 
+                    : null;
+
+                  const dbData = helperReadDb();
+                  const docs = dbData[colName] || [];
+                  if (!query) {
+                    return docs;
+                  }
+                  return docs.filter(doc => matchesQuery(doc, query));
+                }
+              };
+
+              colObj.update = {
+                type: 'function',
+                name: 'update',
+                params: [{ name: 'query' }, { name: 'updateObj' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: (...updateArgs: RuntimeValue[]): RuntimeValue => {
+                  const [queryVal, updateObjVal] = updateArgs;
+                  if (typeof queryVal !== 'object' || queryVal === null || Array.isArray(queryVal)) {
+                    throw new Error('update expects a query object as the first argument');
+                  }
+                  if (typeof updateObjVal !== 'object' || updateObjVal === null || Array.isArray(updateObjVal)) {
+                    throw new Error('update expects an update object as the second argument');
+                  }
+
+                  const query = queryVal as Record<string, any>;
+                  const updateObj = updateObjVal as Record<string, any>;
+
+                  const dbData = helperReadDb();
+                  const docs = dbData[colName] || [];
+                  let updatedCount = 0;
+
+                  for (const doc of docs) {
+                    if (matchesQuery(doc, query)) {
+                      for (const [k, v] of Object.entries(updateObj)) {
+                        doc[k] = v;
+                      }
+                      updatedCount++;
+                    }
+                  }
+
+                  if (updatedCount > 0) {
+                    helperWriteDb(dbData);
+                  }
+                  return updatedCount;
+                }
+              };
+
+              colObj.delete = {
+                type: 'function',
+                name: 'delete',
+                params: [{ name: 'query' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: (...deleteArgs: RuntimeValue[]): RuntimeValue => {
+                  const [queryVal] = deleteArgs;
+                  if (typeof queryVal !== 'object' || queryVal === null || Array.isArray(queryVal)) {
+                    throw new Error('delete expects a query object');
+                  }
+
+                  const query = queryVal as Record<string, any>;
+                  const dbData = helperReadDb();
+                  const docs = dbData[colName] || [];
+                  
+                  const remaining = docs.filter(doc => !matchesQuery(doc, query));
+                  const deletedCount = docs.length - remaining.length;
+
+                  if (deletedCount > 0) {
+                    dbData[colName] = remaining;
+                    helperWriteDb(dbData);
+                  }
+                  return deletedCount;
+                }
+              };
+
+              return colObj;
+            }
+          };
+
+          return dbObj;
+        }
+      });
+      return exports;
     }
     return null;
+  }
+}
+
+function simpleMdToHtml(md: string): string {
+  return md
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+    .replace(/\*(.*)\*/gim, '<em>$1</em>')
+    .replace(/\[(.*?)\]\((.*?)\)/gim, "<a href='$2'>$1</a>")
+    .split('\n')
+    .map(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return '';
+      if (trimmed.startsWith('<h') || trimmed.startsWith('<a')) {
+        return line;
+      }
+      return `<p>${line}</p>`;
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function csvToJson(csv: string): string {
+  const lines = csv.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return '[]';
+  const headers = lines[0].split(',').map(h => h.replace(/^["']|["']$/g, '').trim());
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    const obj: any = {};
+    const currentline = lines[i].split(',').map(v => v.replace(/^["']|["']$/g, '').trim());
+    for (let j = 0; j < headers.length; j++) {
+      obj[headers[j]] = currentline[j] || '';
+    }
+    result.push(obj);
+  }
+  return JSON.stringify(result, null, 2);
+}
+
+function jsonToCsv(jsonStr: string): string {
+  try {
+    const data = JSON.parse(jsonStr);
+    if (!Array.isArray(data) || data.length === 0) return '';
+    const headers = Object.keys(data[0]);
+    const csvRows = [headers.join(',')];
+    for (const row of data) {
+      const values = headers.map(header => {
+        const val = row[header] === undefined || row[header] === null ? '' : String(row[header]);
+        const escaped = val.replace(/"/g, '\\"');
+        return `"${escaped}"`;
+      });
+      csvRows.push(values.join(','));
+    }
+    return csvRows.join('\n');
+  } catch {
+    return '';
   }
 }

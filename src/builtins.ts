@@ -4,8 +4,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, execSync } from 'child_process';
 import { aiRuntime } from './ai-runtime';
+import * as http from 'http';
 
-function ensureSafePath(filePath: string, interpreter?: any, baseDir: string = process.cwd()): string {
+export function ensureSafePath(filePath: string, interpreter?: any, baseDir: string = process.cwd()): string {
   const resolved = path.resolve(baseDir, filePath);
   const allowLocalFs = interpreter?.allowLocalFs ?? (process.env.SESI_LOCAL_FS === 'true');
   const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
@@ -49,6 +50,80 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
+  builtins.set('debug', {
+    type: 'function',
+    name: 'debug',
+    params: [],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const readline = require('readline');
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+
+      const question = (query: string): Promise<string> => {
+        return new Promise((resolve) => rl.question(query, resolve));
+      };
+
+      console.log('\n=== 🛑 Sesi Debug Breakpoint Reached ===');
+      console.log('Commands:');
+      console.log('  env          - Show variables in current scope');
+      console.log('  eval <code>  - Evaluate Sesi expression in current scope');
+      console.log('  c, continue  - Resume execution');
+      
+      while (true) {
+        const input = await question('sesi-debug> ');
+        const trimmed = input.trim();
+        if (trimmed === 'c' || trimmed === 'continue' || trimmed === 'exit') {
+          break;
+        } else if (trimmed === 'env') {
+          if (interpreter) {
+            let current = interpreter.currentEnv;
+            console.log('\n--- Environment Scope Chain ---');
+            let depth = 0;
+            while (current) {
+              console.log(`[Scope Level ${depth}]`);
+              const vals = current.getValues();
+              for (const [k, v] of vals.entries()) {
+                console.log(`  ${k}: ${JSON.stringify(v)}`);
+              }
+              current = current.getParent();
+              depth++;
+            }
+            console.log('-------------------------------\n');
+          } else {
+            console.log('No interpreter context available.');
+          }
+        } else if (trimmed.startsWith('eval ')) {
+          const code = trimmed.substring(5);
+          if (interpreter) {
+            try {
+              const { Lexer } = require('./lexer');
+              const { Parser } = require('./parser');
+              const lexer = new Lexer(code);
+              const tokens = lexer.scanTokens();
+              const parser = new Parser(tokens);
+              const expr = parser.parseExpression();
+              const val = await interpreter.evaluateExpression(expr);
+              console.log(`=> ${JSON.stringify(val)}`);
+            } catch (e: any) {
+              console.log(`Error evaluating expression: ${e.message}`);
+            }
+          } else {
+            console.log('No interpreter context available.');
+          }
+        } else if (trimmed) {
+          console.log(`Unknown command: "${trimmed}". Type "c" to continue.`);
+        }
+      }
+      rl.close();
+      return null;
+    }
+  });
+
   builtins.set('len', {
     type: 'function',
     name: 'len',
@@ -79,7 +154,10 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       if (typeof value === 'number') return 'number';
       if (typeof value === 'string') return 'string';
       if (Array.isArray(value)) return 'array';
-      if (typeof value === 'object') return 'object';
+      if (typeof value === 'object') {
+        if ((value as any).type === 'promise') return 'promise';
+        return 'object';
+      }
       return 'unknown';
     },
   });
@@ -639,7 +717,11 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         (subInterpreter as any).prompts = new Map((interpreter as any).prompts);
         (subInterpreter as any).memory = new Map((interpreter as any).memory);
 
-        return await subInterpreter.callSesiFunction(fn as any, []);
+        let res = await subInterpreter.callSesiFunction(fn as any, []);
+        if (typeof res === 'object' && res !== null && (res as any).type === 'promise') {
+          res = await (res as any).promise;
+        }
+        return res;
       });
       return await Promise.all(promises);
     }
@@ -722,6 +804,208 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
 
   builtins.set('workflow', workflowBuiltin);
 
+  builtins.set('listen', {
+    type: 'function',
+    name: 'listen',
+    params: [{ name: 'port' }, { name: 'handler' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const [portVal, handlerVal] = args;
+      if (typeof portVal !== 'number') {
+        throw new Error('listen expects a numeric port number as the first argument');
+      }
+      if (typeof handlerVal !== 'object' || handlerVal === null || (handlerVal as any).type !== 'function') {
+        throw new Error('listen expects a function handler as the second argument');
+      }
+
+      if (interpreter && interpreter.safeMode) {
+        throw new Error('Security Violation: Native HTTP Server is disabled in safe mode.');
+      }
+
+      const server = http.createServer(async (req, res) => {
+        let body = '';
+        try {
+          const buffers = [];
+          for await (const chunk of req) {
+            buffers.push(chunk);
+          }
+          body = Buffer.concat(buffers).toString('utf8');
+        } catch (err) {
+          // ignore
+        }
+
+        const urlObj = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+        const query: Record<string, string> = {};
+        urlObj.searchParams.forEach((val, key) => {
+          query[key] = val;
+        });
+
+        const sesiReq: Record<string, any> = {
+          method: req.method || 'GET',
+          path: urlObj.pathname,
+          headers: req.headers as any,
+          body,
+          query,
+        };
+
+        try {
+          let result = await interpreter.callSesiFunction(handlerVal as any, [sesiReq]);
+          if (typeof result === 'object' && result !== null && (result as any).type === 'promise') {
+            result = await (result as any).promise;
+          }
+
+          if (result === null) {
+            res.writeHead(200, { 'Content-Type': 'text/plain' });
+            res.end('');
+          } else if (typeof result === 'object' && !Array.isArray(result)) {
+            const status = typeof result.status === 'number' ? result.status : 200;
+            const headers: Record<string, string> = { 'Content-Type': 'text/html' };
+            if (result.headers && typeof result.headers === 'object' && !Array.isArray(result.headers)) {
+              for (const [k, v] of Object.entries(result.headers)) {
+                headers[k] = String(v);
+              }
+            }
+
+            let responseBody = '';
+            if (result.body !== undefined) {
+              if (typeof result.body === 'object' && result.body !== null) {
+                responseBody = JSON.stringify(result.body);
+                if (!headers['Content-Type'] || headers['Content-Type'] === 'text/html') {
+                  headers['Content-Type'] = 'application/json';
+                }
+              } else {
+                responseBody = String(result.body);
+              }
+            } else {
+              if (result.status === undefined && result.headers === undefined) {
+                responseBody = JSON.stringify(result);
+                headers['Content-Type'] = 'application/json';
+              }
+            }
+
+            res.writeHead(status, headers);
+            res.end(responseBody);
+          } else {
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(String(result));
+          }
+        } catch (err: any) {
+          res.writeHead(500, { 'Content-Type': 'text/plain' });
+          res.end(`Internal Server Error: ${err.message}`);
+        }
+      });
+
+      return new Promise<RuntimeValue>((resolve, reject) => {
+        server.listen(portVal, () => {
+          const serverObj: Record<string, RuntimeValue> = Object.create(null);
+          serverObj.close = {
+            type: 'function',
+            name: 'close',
+            params: [],
+            body: {} as any,
+            closure: {} as any,
+            isBuiltin: true,
+            builtin: (): RuntimeValue => {
+              server.close();
+              return true;
+            }
+          };
+          resolve(serverObj);
+        });
+
+        server.on('error', (err) => {
+          reject(new Error(`Server failed to start: ${err.message}`));
+        });
+      });
+    }
+  });
+
+  builtins.set('api', {
+    type: 'function',
+    name: 'api',
+    params: [],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const portVal = args[0];
+      const handlerVal = args[1];
+
+      if (typeof portVal !== 'number') {
+        throw new Error('api expects a numeric port number as the first argument');
+      }
+      if (!handlerVal || typeof handlerVal !== 'object' || (handlerVal as any).type !== 'function') {
+        throw new Error('api expects a function handler as the second argument');
+      }
+
+      if (interpreter && interpreter.safeMode) {
+        throw new Error('Security Violation: Native WebSocket Server is disabled in safe mode.');
+      }
+
+      const { WebSocketServer } = require('ws');
+      const wss = new WebSocketServer({ port: portVal });
+
+      wss.on('connection', (ws: any) => {
+        const clientObj: Record<string, RuntimeValue> = Object.create(null);
+        clientObj.send = {
+          type: 'function',
+          name: 'send',
+          params: [],
+          body: {} as any,
+          closure: {} as any,
+          isBuiltin: true,
+          builtin: (...sendArgs: RuntimeValue[]): RuntimeValue => {
+            const msg = stringify(sendArgs[0]);
+            ws.send(msg);
+            return null;
+          }
+        };
+        clientObj.close = {
+          type: 'function',
+          name: 'close',
+          params: [],
+          body: {} as any,
+          closure: {} as any,
+          isBuiltin: true,
+          builtin: (): RuntimeValue => {
+            ws.close();
+            return null;
+          }
+        };
+
+        ws.on('message', async (messageData: any) => {
+          const messageStr = messageData.toString();
+          try {
+            let result = await interpreter.callSesiFunction(handlerVal as any, [clientObj, messageStr]);
+            if (typeof result === 'object' && result !== null && (result as any).type === 'promise') {
+              await (result as any).promise;
+            }
+          } catch (err: any) {
+            console.error(`Error executing Sesi WebSocket handler: ${err.message}`);
+          }
+        });
+      });
+
+      const serverObj: Record<string, RuntimeValue> = Object.create(null);
+      serverObj.close = {
+        type: 'function',
+        name: 'close',
+        params: [],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (): RuntimeValue => {
+          wss.close();
+          return true;
+        }
+      };
+
+      return serverObj;
+    }
+  });
+
   return builtins;
 }
 
@@ -790,6 +1074,7 @@ export function stringify(value: RuntimeValue): string {
     return `[${items}]`;
   }
   if (typeof value === 'object') {
+    if ((value as any).type === 'promise') return 'Promise { <pending> }';
     const items = Object.entries(value)
       .map(([key, val]) => `${key}: ${stringify(val)}`)
       .join(', ');

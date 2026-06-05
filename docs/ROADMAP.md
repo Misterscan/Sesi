@@ -56,12 +56,12 @@
 
 ---
 
-## Version 1.3 - Stability & Systems Logic (In Progress)
+## Version 1.5 - Improvements (In Progress)
 
-**Status**: In Progress V1.3 implementation  
+**Status**: In Progress V1.5 implementation  
 **Ready for**: File manipulation and process orchestration  
 **Not ready for**: Massive-scale production (until v2.0 bytecode)  
-**Next milestone**: V2.0 (Async & advanced reasoning)
+**Next milestone**: V2.0
 
 ### Improvements & Features ⌛
 
@@ -82,7 +82,7 @@
 ### Deferred to V2.0 ⏳
 
 - [x] Better error messages with line numbers and stack traces
-- [ ] REPL (Read-Eval-Print Loop)
+- [x] REPL (Read-Eval-Print Loop)
 - [x] String escape sequences & Multiline strings
 - [ ] Comments preservation (for docs)
 - [ ] Type hints in function signatures
@@ -97,9 +97,9 @@
 
 ### Async/Await Support
 
-- [ ] async/await syntax (language level)
+- [x] async/await syntax (language level)
 - [x] Parallel reasoning calls (native)
-- [ ] Promise-like operations
+- [x] Promise-like operations
 - [x] Concurrent execution (Multi-process via `spawn`)
 
 ### Advanced Reasoning Features
@@ -118,7 +118,7 @@
 - [ ] Memory search by similarity
 - [ ] Context window management
 - [ ] Automatic summarization
-- [ ] Persistent storage (file-based)
+- [x] Persistent storage (file-based)
 
 ### Error Handling
 
@@ -139,9 +139,9 @@
 
 - [ ] String functions (upper, lower, trim, slice, etc.)
 - [ ] Array functions (map, filter, reduce, find, etc.)
-- [ ] Math functions (sqrt, sin, cos, floor, ceil, etc.)
-- [ ] Date/time functions
-- [ ] JSON parsing and serialization
+- [x] Math functions (sqrt, sin, cos, floor, ceil, etc.)
+- [x] Date/time functions
+- [x] JSON parsing and serialization
 - [x] HTTP client (get, post)
 
 ### Module System
@@ -153,11 +153,12 @@
 
 ### Tooling
 
-- [ ] Debugger with breakpoints
+- [x] Debugger with breakpoints
 - [ ] Profiler for performance analysis
-- [ ] AST visualization
+- [x] AST visualization
+- [x] Token stream visualization
 - [ ] Type checking tool
-- [x] Linter and formatter (ESLint integrated)
+- [x] Linter and formatter (Native, no external dependencies)
 
 ### Examples
 
@@ -165,7 +166,7 @@
 - [ ] Document processor (PDF, DOCX)
 - [ ] Chatbot with memory
 - [ ] Data pipeline with reasoning
-- [ ] API server (with async)
+- [x] API server (with async)
 
 ---
 
@@ -273,7 +274,7 @@
 
 ```
 2026 Q2
-└─ v1.3 - Polish & stabilize
+└─ v5 - Polish & stabilize
 
 2026 Q3-Q4
 └─ v2.0 - Async & advanced APIs
@@ -291,21 +292,21 @@
 
 ### Planned Community Activities
 
-- [ ] Public GitHub repository
+- [x] Public GitHub repository
 - [ ] Discord/Slack community
 - [ ] Monthly community calls
 - [ ] RFCs (Request for Comments) for major features
-- [ ] Contribution guidelines
+- [x] Contribution guidelines
 - [ ] Code of conduct
 
 ### How to Help (When Open Source)
 
-- [ ] Test programs and report bugs
-- [ ] Contribute documentation
-- [ ] Submit examples
-- [ ] Propose language features
-- [ ] Implement built-in functions
-- [ ] Build tools and extensions
+- Test programs and report bugs
+- Contribute documentation
+- Submit examples
+- Propose language features
+- Implement built-in functions
+- Build tools and extensions
 
 ---
 
@@ -405,8 +406,5 @@ The journey from v1 (interpreter) to v4+ (distributed compiler) maintains backwa
 - [Command Line Interface (CLI) Reference](CLI.md)
 - [Image Generation & Input](IMAGE_GENERATION.md)
 - [Compare to other languages](COMPARISON.md)
-- [Concurrency & Coordination](CONCURRENCY.md)
 - [Reasoning & Simple Logic](REASONING.md)
-- [Agent-Native Programming Paradigm](agent_native_programming.md)
-- [Historical Stress Test Chronicles](sesi_ai_chronicles.md)
 - [Examples](../examples)

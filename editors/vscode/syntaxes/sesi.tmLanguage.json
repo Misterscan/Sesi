@@ -87,7 +87,7 @@
       "patterns": [
         {
           "name": "keyword.control.sesi",
-          "match": "\\b(if|else|while|for|in|to|return|break|continue|try|catch)\\b"
+          "match": "\\b(if|else|while|for|in|to|return|break|continue|try|catch|async|await)\\b"
         },
         {
           "name": "keyword.declaration.sesi",
@@ -119,11 +119,11 @@
       "patterns": [
         {
           "name": "support.function.builtin.reasoning.sesi",
-          "match": "\\b(set_alias|model|image|workflow)\\b"
+          "match": "\\b(set_alias|model|image|workflow|convert)\\b"
         },
         {
           "name": "support.function.builtin.general.sesi",
-          "match": "\\b(print|memory|prompt|structured_output|tool_call|define_tool|web_send|web_get|list_tools|error_type|raise_error|multi_req|len|range|type|str|num|bool|keys|values|push|pop|join|split|read_file|write_file|write_image|list_dir|make_dir|spawn|exec|time|random|exp|sin|cos|tan|sqrt|floor|ceil|abs|pow|log|now|sleep|parse|stringify|to_json|from_json)\\b"
+          "match": "\\b(print|memory|prompt|structured_output|tool_call|define_tool|web_send|web_get|list_tools|error_type|raise_error|multi_req|len|range|type|str|num|bool|keys|values|push|pop|join|split|read_file|write_file|write_image|list_dir|make_dir|spawn|exec|time|random|exp|sin|cos|tan|sqrt|floor|ceil|abs|pow|log|now|sleep|parse|stringify|to_json|from_json|listen|db_open)\\b"
         }
       ]
     },

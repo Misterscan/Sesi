@@ -105,6 +105,7 @@ fn lex(content) {
     if c == "," { push(tokens, {"type": "COMMA", "lexeme": ",", "line": line}); i = i + 1; continue }
     if c == ";" { push(tokens, {"type": "SEMICOLON", "lexeme": ";", "line": line}); i = i + 1; continue }
     if c == ":" { push(tokens, {"type": "COLON", "lexeme": ":", "line": line}); i = i + 1; continue }
+    if c == "." { push(tokens, {"type": "DOT", "lexeme": ".", "line": line}); i = i + 1; continue }
     
     // Multi/Single char operators
     if c == "=" {
@@ -211,7 +212,7 @@ fn lex(content) {
       }
       
       let type = "IDENTIFIER"
-      let keywords = ["let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "import", "export", "memory", "true", "false", "null", "print", "prompt", "model", "image", "structured_output", "tool_call"]
+      let keywords = ["let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "import", "export", "memory", "true", "false", "null", "print", "prompt", "model", "image", "structured_output", "tool_call", "async", "await"]
       
       for kw in keywords {
         if lexeme == kw {
@@ -246,6 +247,8 @@ fn lex(content) {
       if type == "image" { upperType = "IMAGE" }
       if type == "structured_output" { upperType = "STRUCTURED_OUTPUT" }
       if type == "tool_call" { upperType = "TOOL_CALL" }
+      if type == "async" { upperType = "ASYNC" }
+      if type == "await" { upperType = "AWAIT" }
       
       push(tokens, {"type": upperType, "lexeme": lexeme, "line": line})
       continue
@@ -630,7 +633,7 @@ if len(args) > 0 {
     }
   }
 } else {
-  let targetDirs = [".", "main"]
+  let targetDirs = [".", "main", "chatbot"]
   for dir in targetDirs {
     try {
       let files = list_dir(dir)

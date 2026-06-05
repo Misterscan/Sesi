@@ -7,18 +7,20 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.3.4
+Sesi Programming Language v1.5.0
 
 Usage:
   sesi <file> [options] <args>  Run a Sesi program
   sesi -e "code"         Evaluate Sesi code directly
   sesi -h <query>        Ask for help from our Sesi Co-Pilot
+  sesi --repl            Start interactive Sesi REPL
   sesi -v                Show version
   sesi -enc <file> -p <password>   Encrypt a file
   sesi -dec <file> -p <password>   Decrypt a file
   sesi -r <file>         Show the raw parser output
 
   Options:
+  --repl                 Start interactive Sesi REPL
   -l, --local            Disable safe mode (careful!)
   -a, --allowed-paths <p> Comma-separated list of allowed directories
   -e, --eval "<code_to_run>" Evaluate Sesi code directly
@@ -28,13 +30,15 @@ Usage:
   -v, --version          Show version
   -h, --help             Show this help
   -r, --raw              Show the raw parser output
+  -c, --check, --dry     Perform a dry-run syntax check without executing
 
 Examples:
-  sesi examples/01_hello.sesi
-  sesi main/test_args.sesi arg1 arg2
+  sesi --repl
+  sesi examples/main/01_hello.sesi
+  sesi main/tests/test_args.sesi arg1 arg2
   sesi -e "print 'hello'"
   sesi -h "how do I use memory?"
-  sesi -r examples/01_hello.sesi
+  sesi -r examples/main/01_hello.sesi
   sesi -enc secret.sesi -p mypassword
   sesi -dec secret.sesi -p mypassword
 `;
@@ -48,6 +52,7 @@ function parseArgs(args) {
     encryptFile: null,
     decryptFile: null,
     password: null,
+    repl: false,
     sesiOptions: {
       safeMode: true,
       allowedPaths: [process.cwd()],
@@ -61,7 +66,7 @@ function parseArgs(args) {
     const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
 
     if (arg === '-v' || arg === '--version') {
-      console.log('Sesi v1.3.4');
+      console.log('Sesi v1.5.0');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -95,6 +100,14 @@ function parseArgs(args) {
       options.file = arg;
     } else if (arg == '-r' || arg == '--raw') {
       options.sesiOptions.raw = true;
+    } else if (arg == '--ast') {
+      options.sesiOptions.ast = true;
+    } else if (arg == '--tokens') {
+      options.sesiOptions.tokens = true;
+    } else if (arg === '-c' || arg === '--check' || arg === '--dry') {
+      options.sesiOptions.dry = true;
+    } else if (arg == '--repl') {
+      options.repl = true;
     }
   }
 
@@ -113,12 +126,69 @@ function parseArgs(args) {
   return options;
 }
 
+async function startRepl() {
+  const readline = require('readline');
+  const { Lexer, Parser, Interpreter } = require('../dist/index.js');
+
+  const interpreter = new Interpreter(process.cwd(), parsed.sesiOptions);
+
+  console.log('Sesi Interactive REPL (v1.5.0)');
+  console.log('Type ".exit" or press Ctrl+C to exit.');
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: 'sesi> '
+  });
+
+  rl.prompt();
+
+  rl.on('line', async (line) => {
+    const trimmed = line.trim();
+    if (trimmed === '.exit') {
+      rl.close();
+      return;
+    }
+    if (trimmed) {
+      try {
+        const lexer = new Lexer(line);
+        const tokens = lexer.scanTokens();
+        const parser = new Parser(tokens);
+        const program = parser.parse();
+        
+        for (const statement of program.statements) {
+          if (statement.type === 'ExpressionStatement') {
+            const val = await interpreter.evaluateExpression(statement.expression);
+            if (val !== null && val !== undefined) {
+              console.log(val);
+            }
+          } else {
+            await interpreter.interpret({ type: 'Program', statements: [statement] });
+          }
+        }
+      } catch (err) {
+        console.error('Error:', err.message);
+      }
+    }
+    rl.prompt();
+  });
+
+  rl.on('close', () => {
+    process.exit(0);
+  });
+}
+
 const parsed = parseArgs(args);
 
 async function main() {
-  if (!parsed.file && !parsed.eval && !parsed.helpQuery && !parsed.encryptFile && !parsed.decryptFile) {
-    console.log(argsHeader);
-    process.exit(0);
+  if (parsed.repl || (!parsed.file && !parsed.eval && !parsed.helpQuery && !parsed.encryptFile && !parsed.decryptFile)) {
+    if (parsed.repl || process.stdin.isTTY) {
+      await startRepl();
+      return;
+    } else {
+      console.log(argsHeader);
+      process.exit(0);
+    }
   }
 
   if (parsed.encryptFile || parsed.decryptFile) {

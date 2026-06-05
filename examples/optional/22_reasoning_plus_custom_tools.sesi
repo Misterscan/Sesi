@@ -1,0 +1,21 @@
+// Example 22: Reasoning + Custom Tools
+// Demonstrates composing model() output with define_tool and tool_call.
+
+// COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
+
+// set_alias("fast", "gemini-3.1-flash-lite")
+// fn toBullet(text) {
+//  return "- " + text
+// }
+// fn addTag(text) {
+//  return text + " [ready]"
+// }
+// define_tool("to_bullet", toBullet, "Convert text to bullet format")
+// define_tool("add_tag", addTag, "Append release tag")
+// let draft = model("fast") {max_tokens: 180} {"Write one concise launch note for model aliases and custom tools."}
+// let bullet = tool_call(to_bullet)(draft)
+// let tagged = tool_call(add_tag)(bullet)
+// print "Raw draft:"
+// print draft
+// print "Processed output:"
+// print tagged

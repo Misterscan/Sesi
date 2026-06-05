@@ -1,0 +1,23 @@
+// Example 20: Model Aliases
+// Demonstrates:
+// 1. set_alias(alias, model)
+// 2. Using aliases with model()
+// 3. Using aliases inside workflow() steps
+
+// UNFORTUNTAELY WE HAVE TO COMMENT THIS OUT AS WELL
+// print "=== Registering model aliases ==="
+// set_alias("summary", "gemini-3.1-flash-lite")
+// set_alias("detailed", "gemini-3-flash-preview")
+// print "=== Fast summary call ==="
+// let quick = model("summary") {max_tokens: 100} {"Summarize the benefits of model aliases in two short bullet points."}
+// print quick
+// print "=== Deeper reasoning call ==="
+// let deepAnswer = model("detailed") {thinkingLevel: "medium", max_tokens: 320} {"Give one practical tradeoff between a fast model and a deep reasoning model."}
+// print deepAnswer
+// print "=== Workflow with aliased model names ==="
+// let steps = [
+//  {"model": "summary", "prompt": "Draft a one-line launch update about aliases: "},
+//  {"model": "summary", "prompt": "Tighten wording and remove fluff: "}
+//  ]
+// let flow = workflow(steps, "Custom model naming is now available")
+// print flow["final"]

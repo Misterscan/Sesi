@@ -1,0 +1,302 @@
+// Sesi Example 25: Webpage Server
+// Run with: node bin/sesi.js examples/main/25_webpage_server.sesi -l
+
+let siteData = {
+  "title": "Sesi Language",
+  "tagline": "Elegant, general-purpose systems development.",
+  "description": "A lightweight, secure programming language built from the ground up for developer ergonomics and concurrency.",
+  "features": [
+    {
+      "title": "Asynchronous Core",
+      "desc": "Built-in async/await primitives backed by isolated, secure execution pools."
+    },
+    {
+      "title": "Strict Security Sandboxing",
+      "desc": "Fine-grained, customizable controls over network, file systems, and system execution."
+    },
+    {
+      "title": "Zero External Dependencies",
+      "desc": "Compiler, interpreter, linter, and runtime self-contained in a compact framework."
+    }
+  ],
+  "stats": [
+    {
+      "label": "Language Version",
+      "value": "v1.5.0"
+    },
+    {
+      "label": "Test Coverage",
+      "value": "100%"
+    },
+    {
+      "label": "Startup Latency",
+      "value": "0.1ms"
+    }
+  ]
+}
+
+fn renderFeatures(features) {
+  let html = ""
+  let i = 0
+  let length = len(features)
+  while i < length {
+    let feat = features[i]
+    html = html + "
+      <div class='feature-card'>
+        <h3>" + feat.title + "</h3>
+        <p>" + feat.desc + "</p>
+      </div>
+    "
+    i = i + 1
+  }
+  return html
+}
+
+fn renderStats(stats) {
+  let html = ""
+  let i = 0
+  let length = len(stats)
+  while i < length {
+    let stat = stats[i]
+    html = html + "
+      <div class='stat-card'>
+        <div class='stat-value'>" + stat.value + "</div>
+        <div class='stat-label'>" + stat.label + "</div>
+      </div>
+    "
+    i = i + 1
+  }
+  return html
+}
+
+async fn handleRequest(req) {
+  print "Request path is:" req.path "with method:" req.method
+  
+  if req.path == "/" {
+    let featuresHtml = renderFeatures(siteData.features)
+    let statsHtml = renderStats(siteData.stats)
+    
+    let html = "<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <title>" + siteData.title + "</title>
+  <link rel='preconnect' href='https://fonts.googleapis.com'>
+  <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
+  <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap' rel='stylesheet'>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #09090b;
+      color: #f4f4f5;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    header {
+      border-bottom: 1px solid #27272a;
+      padding: 20px 0;
+    }
+    .nav-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 24px;
+      background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .nav-links a {
+      color: #a1a1aa;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+      margin-left: 24px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover {
+      color: #f4f4f5;
+    }
+    .hero {
+      padding: 80px 0 60px 0;
+      text-align: center;
+    }
+    .hero h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 24px;
+      line-height: 1.1;
+    }
+    .hero p {
+      color: #a1a1aa;
+      font-size: 18px;
+      max-width: 600px;
+      margin: 0 auto 32px auto;
+    }
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+      color: #ffffff;
+      padding: 12px 28px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-bottom: 60px;
+    }
+    .stat-card {
+      background-color: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+    .stat-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      color: #f4f4f5;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #f4f4f5 0%, #a1a1aa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .stat-label {
+      color: #a1a1aa;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .features-section {
+      padding: 40px 0 80px 0;
+    }
+    .features-section h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .feature-card {
+      background-color: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      padding: 32px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover {
+      border-color: #3f3f46;
+      transform: translateY(-4px);
+    }
+    .feature-card h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+    .feature-card p {
+      color: #a1a1aa;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    footer {
+      border-top: 1px solid #27272a;
+      padding: 40px 0;
+      text-align: center;
+      color: #71717a;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class='container nav-wrapper'>
+      <div class='logo'>" + siteData.title + "</div>
+      <div class='nav-links'>
+        <a href='/'>Home</a>
+        <a href='/api/json'>JSON API</a>
+      </div>
+    </div>
+  </header>
+  <main class='container'>
+    <section class='hero'>
+      <h1>" + siteData.tagline + "</h1>
+      <p>" + siteData.description + "</p>
+      <a href='/api/json' class='btn'>Explore the API</a>
+    </section>
+    <section class='stats-grid'>
+      " + statsHtml + "
+    </section>
+    <section class='features-section'>
+      <h2>Engine Capabilities</h2>
+      <div class='features-grid'>
+        " + featuresHtml + "
+      </div>
+    </section>
+  </main>
+  <footer>
+    <div class='container'>
+      <p>&copy; 2026 Sesi Project. Running on native Sesi HTTP Server.</p>
+    </div>
+  </footer>
+</body>
+</html>"
+
+    return {
+      "status": 200,
+      "headers": {
+        "Content-Type": "text/html"
+      },
+      "body": html
+    }
+  }
+  
+  if req.path == "/api/json" {
+    return {
+      "status": 200,
+      "body": siteData
+    }
+  }
+  
+  return {
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/plain"
+    },
+    "body": "Not Found"
+  }
+}
+
+// Start HTTP server on port 8080
+let port = 8080
+print "Starting native HTTP server on port" port "..."
+let server = listen(port, handleRequest)

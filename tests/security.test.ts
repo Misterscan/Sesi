@@ -112,6 +112,11 @@ async function main() {
       'spawn("test.sesi")',
       'Security Violation: spawn is disabled'
     );
+    await runExpectError(
+      'Block HTTP server listen in safe mode',
+      'fn handler(req) {}\nlisten(8080, handler)',
+      'Security Violation: Native HTTP Server is disabled in safe mode.'
+    );
   } finally {
     process.env.SESI_SAFE_MODE = 'false';
   }
@@ -128,6 +133,12 @@ async function main() {
     'Block spawn via static safeMode option (independent of env)',
     'spawn("test.sesi")',
     'Security Violation: spawn is disabled',
+    { safeMode: true }
+  );
+  await runExpectError(
+    'Block HTTP server listen via static safeMode option (independent of env)',
+    'fn handler(req) {}\nlisten(8080, handler)',
+    'Security Violation: Native HTTP Server is disabled in safe mode.',
     { safeMode: true }
   );
 

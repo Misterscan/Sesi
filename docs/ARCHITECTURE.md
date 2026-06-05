@@ -336,7 +336,7 @@ examples/
 ├── 08_model_call.sesi    # Basic Reasoning model calls
 ├── 09_structured_output.sesi # Schema-guided structured output with JSON recovery and empty-object fallback on failure
 ├── 10_code_generation.sesi   # Reasoning-powered code gen
-├── 11_memory_conversation.sesi # Reasoning-powered conversations
+├── 11_memory_storage.sesi # Memory storage
 ├── 12_classification.sesi    # Classification
 ├── 13_data_pipeline.sesi     # Pipeline demo
 ├── 14_folder_explainer.sesi  # Directory parsing & reasoning
@@ -347,7 +347,12 @@ examples/
 ├── 19_search_web.sesi        # Web search
 ├── 20_model_aliases.sesi     # Custom model naming via aliases
 ├── 21_custom_tools.sesi      # Runtime custom tool definitions
-└── 22_reasoning_plus_custom_tools.sesi # Compose reasoning with custom tools
+├── 22_reasoning_plus_custom_tools.sesi # Compose reasoning with custom tools
+├── 23_file_conversion.sesi         # Document and media conversion via `convert()`
+├── 24_http_server.sesi             # Native async HTTP server (`listen`)
+├── 25_webpage_server.sesi          # High-performance dynamic HTML site rendering
+├── 26_database.sesi                # Embedded Document Database (`std/db`) crud operations
+└── 27_robust_web_db.sesi           # Secured combined API server backed by persistent DB
 
 docs/
 ├── SPECIFICATION.md      # Language spec
@@ -356,7 +361,6 @@ docs/
 ├── CLI.md                # Comprehensive CLI & Parametric Eval guide
 ├── IMAGE_GENERATION.md   # Image generation guide
 ├── COMPARISON.md         # Language comparison showcase
-├── CONCURRENCY.md        # Concurrency & coordination guide
 ├── REASONING.md          # Reasoning and simple logic guide
 └── ROADMAP.md            # Future plans
 
@@ -408,7 +412,7 @@ The root-level `SKILLS.md` file is part of the practical repo architecture. It i
 
 ### Debug Output
 
-Enable debug logging (future):
+Enable debug statement tracing:
 
 ```bash
 SESI_DEBUG=1 sesi program.sesi
@@ -416,7 +420,7 @@ SESI_DEBUG=1 sesi program.sesi
 
 ### AST Visualization
 
-Print AST (future):
+Print the pretty-printed AST tree:
 
 ```bash
 sesi --ast program.sesi
@@ -424,7 +428,7 @@ sesi --ast program.sesi
 
 ### Token Stream
 
-Print tokens (future):
+Print the scanned token stream table:
 
 ```bash
 sesi --tokens program.sesi

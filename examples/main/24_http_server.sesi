@@ -1,0 +1,62 @@
+// Sesi Example 24: Native HTTP Server with Async Handlers
+// Run with: npm run sesi examples/main/24_http_server.sesi
+
+import { sleep } from "std/time"
+
+async fn handleRequest(req) {
+  print "Received request on path:" req.path "with method:" req.method
+
+  if req.path == "/" {
+    return {
+      "status": 200,
+      "headers": {
+        "Content-Type": "text/html"
+      },
+      "body": "<h1>Welcome to Sesi Native HTTP Server!</h1><p>Try visiting <a href='/api/info'>/api/info</a> or <a href='/api/echo?name=Sesi'>/api/echo?name=Sesi</a></p>"
+    }
+  }
+
+  if req.path == "/api/info" {
+    return {
+      "status": 200,
+      "body": {
+        "language": "Sesi",
+        "version": "1.5.0",
+        "features": ["async/await", "native HTTP server", "structured output", "tool calls"]
+      }
+    }
+  }
+
+  if req.path == "/api/echo" {
+    let name = "Guest"
+    if req.query.name {
+      name = req.query.name
+    }
+    return {
+      "status": 200,
+      "body": {
+        "message": "Hello, " + name,
+        "method": req.method,
+        "query": req.query,
+        "headers": req.headers
+      }
+    }
+  }
+
+  return {
+    "status": 404,
+    "body": "Page not found"
+  }
+}
+
+// Start HTTP server on port 8080
+let port = 8080
+print "Starting native HTTP server on port" port "..."
+let server = listen(port, handleRequest)
+
+// In a real application, you can keep the server running.
+// Since this is a self-running example, we will close the server after 2 seconds.
+sleep(2000)
+print "Closing server..."
+server.close()
+print "Server closed successfully."

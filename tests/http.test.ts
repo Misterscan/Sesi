@@ -48,7 +48,45 @@ async function main() {
     console.error('  ✗ web_send failed, response was:', postResVal);
   }
 
-  console.log('\nAll HTTP Client tests passed!');
+  // Test 3: Native HTTP Server listen & handler test
+  const int3 = new Interpreter(undefined, { safeMode: false });
+  await runTest('Start Native HTTP Server and Handle Requests', `
+    async fn handler(req) {
+      return {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "success": true,
+          "method": req.method,
+          "path": req.path,
+          "body": req.body
+        }
+      }
+    }
+    let server = listen(9876, handler)
+  `, int3);
+
+  const testUrl = 'http://localhost:9876/test-route';
+  const testPayload = JSON.stringify({ hello: 'world' });
+  const response = await fetch(testUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: testPayload,
+  });
+  const data = (await response.json()) as any;
+  if (data.success && data.method === 'POST' && data.path === '/test-route' && JSON.parse(data.body).hello === 'world') {
+    console.log('  ✓ Native HTTP Server correctly parsed and handled request');
+  } else {
+    console.error('  ✗ Native HTTP Server failed handling request:', data);
+  }
+
+  const serverVal = (int3 as any).currentEnv.get('server');
+  await int3.callSesiFunction(serverVal.close, []);
+  console.log('  ✓ Server closed successfully');
+
+  console.log('\nAll HTTP tests passed!');
 }
 
 main().catch((err) => {

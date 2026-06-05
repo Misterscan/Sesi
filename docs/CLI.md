@@ -15,7 +15,11 @@ Sesi’s CLI is a powerful, zero-footprint environment orchestrator. It allows y
 | `sesi -h "<query>"`          | Co-Pilot Help         | **Yes (Internal chatbot script)** | Converses with Sesi's internal Vector-RAG chatbot (`chatbot/sesi_db_chatbot.sesi`). |
 | `sesi <file> -h "<query>"`   | Grounded Help         | **Yes (Chatbot + context file)**  | Converses with the Co-Pilot using both the vector DB and the user's file.           |
 | `sesi -r <file>`             | AST Inspector         | Yes                               | Dumps raw syntax tokens and AST nodes without running code.                         |
+| `sesi --ast <file>`          | AST Visualization     | Yes                               | Prints a pretty-printed, indented hierarchical tree representation of the AST.      |
+| `sesi --tokens <file>`       | Token Stream          | Yes                               | Prints a structured, tabular grid detailing all tokens scanned by the Lexer.        |
+| `sesi --repl`                | Interactive REPL      | **No (Interactive)**              | Starts a live Sesi prompt session with auto-printing of evaluated expressions.      |
 | `sesi -enc <file> -p <pass>` | Encryption            | Yes                               | Secures a script file using AES-256 password protection.                            |
+| `sesi -c <file>`             | Dry Run               | Yes                               | Runs a dry run of the script.                                                       |
 | `sesi -dec <file> -p <pass>` | Decryption            | Yes                               | Decrypts an encrypted script file back to cleartext `.sesi`.                        |
 
 ---
@@ -101,7 +105,7 @@ sesi -h "how do I use standard json module?"
 Pass a script file along with `-h` to chat with the co-pilot about your code. The co-pilot will automatically ingest the file contents as grounding context:
 
 ```bash
-sesi examples/01_hello.sesi -h "how can i improve this script?"
+sesi examples/main/01_hello.sesi -h "how can i improve this script?"
 ```
 
 ---
@@ -130,15 +134,23 @@ sesi main/script.sesi -a "./data,./logs"
 
 ## 📦 5. Systems Utilities
 
-### A. AST Raw Parser Dumps (`-r` / `--raw`)
+### B. AST Visualization (`--ast`)
 
-Inspect exactly how Sesi's lexer tokenizes and parses code before execution:
+Renders a pretty-printed, indented hierarchical tree structure of the Abstract Syntax Tree (AST):
 
 ```bash
-sesi -r examples/01_hello.sesi
+sesi --ast examples/main/01_hello.sesi
 ```
 
-### B. AES-256 Script Encryption (`-enc` & `-dec`)
+### C. Token Stream Visualization (`--tokens`)
+
+Outputs a structured, formatted table showing all lexical tokens scanned by the lexer, detailing their Line, Column, Type, and raw Lexeme value:
+
+```bash
+sesi --tokens examples/main/01_hello.sesi
+```
+
+### D. AES-256 Script Encryption (`-enc` & `-dec`)
 
 Secure your proprietary reasoning instructions or pipelines using password-based encryption:
 
@@ -164,9 +176,35 @@ sesi -enc my_private_script.sesi
 sesi -dec my_private_script.sesi
 ```
 
+## 💬 6. Interactive REPL (`--repl` or no arguments)
+
+Sesi includes a full interactive Read-Eval-Print Loop (REPL). It keeps your variables and scopes persistent across statement entries.
+
+### Usage
+
+Start the REPL in your shell:
+
+```bash
+sesi --repl
+# or run `sesi` with no arguments in a terminal TTY
+sesi
+```
+
+Inside the REPL, any **Expression Statement** (like mathematical equations, string variables, or expressions) will auto-print its evaluated result to the terminal.
+
+```sesi
+Sesi Interactive REPL (v1.5.0)
+Type ".exit" or press Ctrl+C to exit.
+sesi> let x = 10
+sesi> let y = 20
+sesi> x + y
+30
+sesi> .exit
+```
+
 ---
 
-## 🛠️ 6. Package.json Script Shortcuts
+## 🛠️ 7. Package.json Script Shortcuts
 
 If you are working inside the Sesi repository, you can leverage native package manager shortcuts defined in `package.json` to execute, parse, or encrypt scripts:
 
@@ -176,10 +214,12 @@ If you are working inside the Sesi repository, you can leverage native package m
 | `npm run lint <file>`               | `sesi lint.sesi <file>`   | Audits a single file and prints directly to terminal. |
 | `npm run sesi <file>`               | `sesi <file>`             | Runs the Sesi script.                                 |
 | `npm run sesi:local <file>`         | `sesi -l <file>`          | Runs a script with safe-mode disabled.                |
+| `npm run sesi:dry <file>`           | `sesi -c <file>`          | Runs a dry run of the script.                         |
 | `npm run sesi:eval "<code_to_run>"` | `sesi -e "<code_to_run>"` | Evaluates Sesi code in-memory.                        |
 | `npm run sesi:parse <file>`         | `sesi -r <file>`          | Dumps the raw AST representation.                     |
 | `npm run sesi:encrypt <file>`       | `sesi -enc <file>`        | Encrypts a file (using env password fallback).        |
 | `npm run sesi:decrypt <file>`       | `sesi -dec <file>`        | Decrypts a file (using env password fallback).        |
+| `npm run repl`                      | `sesi --repl`             | Starts the interactive Sesi REPL.                     |
 | `npm run copilot "<query>"`         | `sesi -h "<query>"`       | Consults the RAG-trained Sesi Co-Pilot.               |
 | `npm run example:all`               | `sesi examples.sesi`      | Runs all examples in the examples/ directory.         |
 

@@ -1,0 +1,42 @@
+// Sesi Example 26: Embedded Document Database
+// Run with: sesi examples/main/26_database.sesi -l
+
+import { db_open } from "std/db"
+
+print "Initializing Sesi Database (local.db)..."
+let db = db_open("local.db")
+let items = db.collection("items")
+
+// Clear any existing items for a clean demo
+items.delete({})
+
+print "Inserting documents..."
+let item1 = items.insert({"name": "Widget A", "stock": 100, "category": "hardware"})
+let item2 = items.insert({"name": "Widget B", "stock": 150, "category": "hardware"})
+let item3 = items.insert({"name": "Gadget C", "stock": 50, "category": "electronics"})
+
+print "Inserted item 1 with ID:" item1._id
+
+print "Finding all items..."
+let allItems = items.find()
+print "Total items:" len(allItems)
+
+print "Finding hardware items..."
+let hardware = items.find({"category": "hardware"})
+print "Found hardware items:" len(hardware)
+
+print "Updating stock for Widget A..."
+let updated = items.update({"name": "Widget A"}, {"stock": 120})
+print "Updated count:" updated
+
+print "Deleting Gadget C..."
+let deleted = items.delete({"name": "Gadget C"})
+print "Deleted count:" deleted
+
+print "Final list of items:"
+let remaining = items.find()
+for it in remaining {
+  print "- Name:" it.name " | Stock:" it.stock " | Category:" it.category
+}
+
+print "Demo completed."
