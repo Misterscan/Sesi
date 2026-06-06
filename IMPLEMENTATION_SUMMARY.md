@@ -11,89 +11,6 @@
 3. **Simplicity First**: A custom tree-walking interpreter for clarity and maintainability.
 4. **Type Safety with Flexibility**: Static types for normal code, runtime checking for integration outputs.
 
-## 📁 Complete Project Structure
-
-```
-Sesi/
-├── SKILLS.md                        # Workspace context and repo guardrails
-├── eslint.config.mjs                # ESLint configuration
-├── example.js                       # Helper script to run basic examples
-├── example-ai.js                    # Helper script to run reasoning examples
-├── examples.sesi                    # Central execution suite for examples
-├── README.md                        # Project overview
-├── QUICKSTART.md                    # Getting started guide
-├── package.json                     # Dependencies & scripts
-├── tsconfig.json                    # TypeScript configuration
-├── dist/                            # Compiled TypeScript output
-│
-├── src/                             # Source code
-│   ├── types.ts                     # Type definitions & AST nodes (400+ lines)
-│   ├── lexer.ts                     # Tokenization (350+ lines)
-│   ├── parser.ts                    # Recursive descent parser (700+ lines)
-│   ├── interpreter.ts               # Tree-walking interpreter (600+ lines)
-│   ├── builtins.ts                  # Built-in functions (250+ lines)
-│   ├── ai-runtime.ts                # Integrated reasoning integration (120+ lines)
-│   └── index.ts                     # Entry point (30+ lines)
-│
-├── bin/
-│   └── sesi.js                      # CLI executable
-│
-├── main/
-│   └── tests/                       # Additional syntax validation scripts
-│
-├── docs/
-│   ├── SPECIFICATION.md             # Complete language spec (600+ lines)
-│   ├── ARCHITECTURE.md              # Runtime & system design (400+ lines)
-│   ├── BUILTINS.md                  # Built-in functions reference (450+ lines)
-│   ├── CLI.md                       # Comprehensive CLI & Parametric Eval guide
-│   ├── COMPARISON.md                # Language comparison showcase
-│   ├── IMAGE_GENERATION.md          # Image generation guide (>100 lines)
-│   ├── REASONING.md                 # Reasoning and simple logic guide (>500 lines)
-│   └── ROADMAP.md                   # V2-V4+ development plan (400+ lines)
-│
-├── examples/
-│   ├── main/                        # Standard language features and core APIs
-│   │   ├── 01_hello.sesi            # Hello World
-│   │   ├── 02_variables.sesi        # Variables & operations
-│   │   ├── 03_functions.sesi        # Functions with parameters
-│   │   ├── 04_conditionals.sesi     # If/else control flow
-│   │   ├── 05_loops.sesi            # While, for, for-in loops
-│   │   ├── 06_arrays_objects.sesi   # Collections
-│   │   ├── 07_prompts.sesi          # Message templates and prompts
-│   │   ├── 09_structured_output.sesi # Type-safe structured output extraction
-│   │   ├── 11_memory_storage.sesi   # Stateful reasoning memory
-│   │   ├── 12_classification.sesi   # Classification pipeline
-│   │   ├── 13_data_pipeline.sesi    # Concurrency and data flows
-│   │   ├── 16_modules.sesi          # Standard modules & imports/exports
-│   │   ├── 17_http_client.sesi      # Native HTTP web client
-│   │   ├── 18_parallel_requests.sesi # Concurrent multi-request execution
-│   │   ├── 19_search_web.sesi       # Native web search
-│   │   ├── 21_custom_tools.sesi     # Custom tool definition and calls
-│   │   ├── 23_file_conversion.sesi  # Native document/media file conversion
-│   │   ├── 24_http_server.sesi      # Native HTTP server listen
-│   │   ├── 25_webpage_server.sesi   # Serving dynamically rendered HTML sites
-│   │   ├── 26_database.sesi         # Embedded document database crud
-│   │   └── 27_robust_web_db.sesi    # Full API server backed by database
-│   └── optional/                    # AI/Reasoning specific examples
-│       ├── 08_model_call.sesi       # Simple Gemini API model calls
-│       ├── 10_code_generation.sesi  # Code generation tasks
-│       ├── 14_folder_explainer.sesi # Workspace indexing & folder explanation
-│       ├── 15_image_generation.sesi # Image generation API call
-│       ├── 20_model_aliases.sesi    # Custom model aliases configuration
-│       └── 22_reasoning_plus_custom_tools.sesi # Multi-turn tool calling
-│
-└── tests/                           # Engine test suite
-    ├── basic.test.ts                # Core parsing & evaluation tests
-    ├── cache.test.ts                # Execution caching tests
-    ├── http.test.ts                 # Web request builtins testing
-    ├── module.test.ts               # Imports & module loading tests
-    ├── parallel.test.ts             # Concurrent execution tests
-    ├── security.test.ts             # Sandbox & guardrail tests
-    ├── test-gemini.ts               # Base model integration test
-    ├── test-gemini2.ts              # Extended model integration test
-    └── workflow.test.ts             # Complex sequence workflows tests
-```
-
 ## 🔧 Technology Stack
 
 | Component | Technology               | Rationale                                |
@@ -106,12 +23,27 @@ Sesi/
 | Execution | Tree-walking interpreter | Easy to understand and modify            |
 | Testing   | Typescript               | Standard Node.js test framework          |
 
-**Why this stack?**
+### Why a tree-walking interpreter?
 
-- **Tree-walking interpreter over bytecode**: Easier to understand, modify, and debug. No premature optimization.
-- **TypeScript over JavaScript**: Catch errors early, better IDE support, self-documenting code.
-- **Recursive descent over other parsers**: Handles the grammar perfectly, easy to add language features.
-- **Gemini over other models**: Excellent instruction following, function calling support, cost-effective.
+- **Simplicity**: Easy to understand, modify, extend
+- **Debugging**: Can print AST and execution steps
+- **Iteration**: No compilation overhead, fast development
+- **Good enough**: Performance is adequate for v1+
+
+### Why recursive descent parser?
+
+- **Clarity**: Each grammar rule is a function
+- **Flexibility**: Easy to add new constructs
+- **Error recovery**: Can synchronize after errors
+- **No dependencies**: No external parser generators
+
+### Why Gemini specifically?
+
+- **Instruction following**: Excellent at understanding prompts
+- **Function calling**: Built-in tool use support
+- **Context window**: 1M tokens for long documents
+- **Cost**: Competitive pricing
+- **Availability**: Easy to use via official SDK
 
 ## 🌟 Language Features (V1)
 
@@ -242,21 +174,23 @@ print("Reasoning Response:", response)
 - `read_file(path)` - Read file contents
 - `write_file(path, content)` - Write file contents
 - `write_image(path, content)` - Write base64 image data to file
-- `from_json(path)` - Read a JSON file
 - `list_dir(path)` - List directory contents
 - `make_dir(path)` - Create a new directory
 - `spawn(path)` - Launch concurrent background process
 - `exec(command)` - Synchronous shell execution
 - `time()` - Unix timestamp (ms)
 - `random()` - Random number (0-1)
+- `debug()` - Pause execution and launch an interactive debugging REPL
 
-### Type Functions
+### Type & Conversion Functions
 
 - `type(value)` - Get type name
 - `str(value)` - Convert to string
 - `to_json(value)` - Convert to JSON string
+- `from_json(string)` - Parse JSON string back into a native Sesi primitive/array/object
 - `num(value)` - Convert to number
 - `bool(value)` - Convert to boolean
+- `convert(type) { config } { file }` - Convert file or document content between formats (e.g. Markdown to HTML, CSV to JSON, images, audio)
 
 ### Collection Functions
 
@@ -273,17 +207,23 @@ print("Reasoning Response:", response)
 
 - `web_get(url, headers)` - Perform HTTP GET request
 - `web_send(url, body, headers)` - Perform HTTP POST request
+- `listen(port, handler)` - Start a native HTTP server listening on the specified port
+- `api(port, handler)` - Start a native WebSocket server listening on the specified port
 
 ### Concurrency
 
-- `multi_req(fns)` - Concurrently execute multiple closures/functions
+- `multi_req(fns)` - Concurrently execute multiple closures/functions in parallel
+
+### Tools
+
+- `define_tool(name, fn, description)` - Register a custom tool
+- `list_tools()` - List custom tool names
+- `tool_call(name)(...)` - Call a custom tool
 
 ### Reasoning
 
 - `workflow(steps, input)` - Run a multi-step reasoning workflow
 - `set_alias(alias, model)` - Register a custom local name for a model
-- `define_tool(name, fn, description)` - Register a custom tool
-- `list_tools()` - List custom tool names
 
 ### Error Handling
 
@@ -293,6 +233,20 @@ print("Reasoning Response:", response)
 ### Math
 
 - `exp(x)` - Exponential function
+
+### Standard Library Modules
+
+Sesi supports importing standard utility library modules natively at runtime:
+
+- **`std/math`**: Constants `PI`, `E`, and functions `sin`, `cos`, `tan`, `sqrt`, `floor`, `ceil`, `abs`, `pow`, `log`, `exp`
+- **`std/time`**: `now()`, `sleep(ms)`, and `format(timestamp, options)` for timezone/locale formatting
+- **`std/json`**: `stringify(val)` and `parse(str)`
+- **`std/db`**: `db_open(filename, password?)` returning a Document Database instance (with automatic AES-256-CBC disk encryption if a passphrase is provided) supporting collections and CRUD operations:
+  - `db.collection(name)` -> Collection object
+  - `collection.insert(document)`
+  - `collection.find(query?)`
+  - `collection.update(query, update_obj)`
+  - `collection.delete(query)`
 
 ## 📊 Implementation Statistics
 
@@ -453,24 +407,14 @@ npm test
 | main/26_database.sesi                        | Embedded Document Database (`std/db`) crud operations |
 | main/27_robust_web_db.sesi                   | Secured combined API server backed by persistent DB   |
 
-## ✨ Unique Features
-
-1. **First-class Reasoning Integration**: Not a library, but language syntax
-2. **Prompt Blocks**: Composable, type-checked message templates
-3. **Structured Output**: Get typed responses from models
-4. **Memory Construct**: Native multi-turn conversation support
-5. **Simple Yet Complete**: All core features in ~3K lines of code
-6. **Well Documented**: 2000+ lines of documentation
-7. **Production Ready (for v1)**: Error handling, examples, tests
-
 ## 🔮 Future Directions
 
 ### V2: Async & Advanced Logic
 
-- Async/await for concurrent reasoning calls
+- Async/await
 - Streaming responses
 - Advanced memory with embeddings
-- finally blocks, custom error types, retry policies, timeout handling, and structured Reasoning error recovery
+- finally blocks, custom error types, retry policies, timeout handling
 
 ### V3: Systems Framework
 
@@ -494,50 +438,12 @@ npm test
 - Parser: AST structure correctness
 - Interpreter: Evaluation correctness
 
-**Integration Testing**
-
-- Example programs run successfully
-- Reasoning features work with real API
-- Error handling is graceful
-
 **Example Coverage**
 
-- 22 complete example programs
+- 27 complete example programs
 - Covers all major language features
 - Demonstrates reasoning integration
 - Real-world use cases
-
-## 🎯 Design Decisions Explained
-
-### Why a tree-walking interpreter?
-
-- **Simplicity**: Easy to understand, modify, extend
-- **Debugging**: Can print AST and execution steps
-- **Iteration**: No compilation overhead, fast development
-- **Good enough**: Performance is adequate for v1+
-
-### Why recursive descent parser?
-
-- **Clarity**: Each grammar rule is a function
-- **Flexibility**: Easy to add new constructs
-- **Error recovery**: Can synchronize after errors
-- **No dependencies**: No external parser generators
-
-### Why Gemini specifically?
-
-- **Instruction following**: Excellent at understanding prompts
-- **Function calling**: Built-in tool use support
-- **Context window**: 1M tokens for long documents
-- **Cost**: Competitive pricing
-- **Availability**: Easy to use via official SDK
-
-### Why does v1+ support a module system?
-
-- **Organization**: As Sesi programs grew, having a single-file system became limiting. Local module imports/exports and standard libraries (`std/math`, `std/time`, `std/json`) are natively supported in v1.x.
-
-### Why does v1+ support parallel execution?
-
-- **Concurrency**: While the interpreter remains tree-walking and single-threaded for simplicity, native concurrency is supported via the parallel request executor `multi_req(array<function>)`, executing asynchronous operations physically in parallel.
 
 ## 📖 Learning Path
 

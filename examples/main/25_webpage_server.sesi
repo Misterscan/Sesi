@@ -1,5 +1,5 @@
 // Sesi Example 25: Webpage Server
-// Run with: node bin/sesi.js examples/main/25_webpage_server.sesi -l
+// Run with: sesi examples/main/25_webpage_server.sesi -l
 
 let siteData = {
   "title": "Sesi Language",

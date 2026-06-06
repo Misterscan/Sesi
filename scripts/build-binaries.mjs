@@ -31,6 +31,51 @@ if (process.platform === 'win32') {
 
 console.log(`Host platform is ${process.platform}. Selected pkg targets: ${targets}`);
 
+// Windows specific pre-processing to set icon on base binary to avoid corruption
+if (process.platform === 'win32') {
+  const cacheDir = process.env.PKG_CACHE_PATH || path.join(
+    process.env.USERPROFILE || process.env.HOMEPATH || '',
+    '.pkg-cache',
+    'v3.4'
+  );
+
+  console.log(`Checking pkg cache directory: ${cacheDir}`);
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+  }
+
+  let fetchedFile = fs.readdirSync(cacheDir).find(f => f.startsWith('fetched-v18.') && f.endsWith('-win-x64'));
+
+  if (!fetchedFile) {
+    console.log('Fetched Windows binary not found in cache. Pre-fetching using pkg-fetch...');
+    try {
+      execSync('npx pkg-fetch -t node18-win-x64', { stdio: 'inherit', cwd: repoRoot });
+      fetchedFile = fs.readdirSync(cacheDir).find(f => f.startsWith('fetched-v18.') && f.endsWith('-win-x64'));
+    } catch (e) {
+      console.warn('pkg-fetch failed, pkg will try to fetch automatically:', e.message);
+    }
+  }
+
+  if (fetchedFile) {
+    const fetchedBin = path.join(cacheDir, fetchedFile);
+    const builtBin = path.join(cacheDir, fetchedFile.replace('fetched-', 'built-'));
+
+    console.log(`Preparing custom base binary: ${builtBin}`);
+    fs.copyFileSync(fetchedBin, builtBin);
+
+    try {
+      console.log('Applying icon to custom base binary via rcedit...');
+      const { rcedit } = await import('rcedit');
+      await rcedit(builtBin, { icon: path.join(repoRoot, 'favicon.ico') });
+      console.log('Successfully applied favicon.ico to custom base binary!');
+    } catch (e) {
+      console.warn('rcedit warning on base binary (non-fatal):', e.message);
+    }
+  } else {
+    console.warn('Warning: Could not locate fetched base binary to apply icon.');
+  }
+}
+
 try {
   execSync(
     `npx pkg dist/sesi.bundled.js --targets ${targets} --out-path releases`,
@@ -41,29 +86,30 @@ try {
   process.exit(1);
 }
 
-// Perform post-processing for Windows (rename & rcedit icon injection)
+// Perform post-processing for Windows (rename only)
 if (process.platform === 'win32') {
-  console.log('\n=== Step 3: Windows Post-Processing (rcedit) ===');
-  const sourceExe = path.join(releasesDir, 'sesi.bundled-win-x64.exe');
+  console.log('\n=== Step 3: Windows Post-Processing (rename) ===');
+  const sourceExe1 = path.join(releasesDir, 'sesi.bundled.exe');
+  const sourceExe2 = path.join(releasesDir, 'sesi.bundled-win-x64.exe');
   const targetExe = path.join(releasesDir, 'sesi.bundled-win.exe');
 
-  if (fs.existsSync(sourceExe)) {
-    console.log(`Renaming ${sourceExe} -> ${targetExe}`);
-    fs.copyFileSync(sourceExe, targetExe);
+  let renamed = false;
+  if (fs.existsSync(sourceExe1)) {
+    console.log(`Renaming ${sourceExe1} -> ${targetExe}`);
+    fs.copyFileSync(sourceExe1, targetExe);
+    fs.unlinkSync(sourceExe1);
+    renamed = true;
+  } else if (fs.existsSync(sourceExe2)) {
+    console.log(`Renaming ${sourceExe2} -> ${targetExe}`);
+    fs.copyFileSync(sourceExe2, targetExe);
+    fs.unlinkSync(sourceExe2);
+    renamed = true;
   }
 
-  if (fs.existsSync(targetExe)) {
-    try {
-      console.log('Applying icon to target executable via rcedit...');
-      // Dynamic import/require of rcedit to handle Windows icon editing
-      const { rcedit } = await import('rcedit');
-      await rcedit(targetExe, { icon: path.join(repoRoot, 'favicon.ico') });
-      console.log('Successfully applied favicon.ico to Sesi executable!');
-    } catch (e) {
-      console.warn('rcedit warning (non-fatal, building installer can still continue):', e.message);
-    }
+  if (renamed) {
+    console.log('Successfully prepared target executable: sesi.bundled-win.exe');
   } else {
-    console.error('Error: target executable not found for rcedit processing.');
+    console.error('Error: target executable not found for renaming.');
   }
 }
 

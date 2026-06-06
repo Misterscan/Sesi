@@ -1,6 +1,6 @@
 // main/tests/verify_db.sesi
 // Verification script running Sesi DB tests using the test-runner.sesi framework.
-// Run with: node bin/sesi.js main/tests/verify_db.sesi -l
+// Run with: sesi main/tests/verify_db.sesi -l
 
 import { assert_equals, assert_not_null, run_test_suite } from "test-runner"
 import { db_open } from "std/db"

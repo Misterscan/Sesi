@@ -19,9 +19,10 @@ When AI agents write or edit `.sesi` scripts, they must use this debugging loop:
 1. **Draft in file, isolate risky snippet:** Identify the smallest parser/runtime-risky block (prompt block, model call, object schema, loop, etc.).
 2. **Validate snippet with eval mode first:** Run `npm run sesi:eval <file>.sesi` to test the isolated block before full-script execution.
 3. **Apply fix in file only after eval passes:** If eval fails, iterate on snippet; do not repeatedly run full scripts while syntax is unresolved.
-4. **Run full script after snippet stabilization:** Execute `npm run sesi <file>.sesi` only once the isolated logic is valid.
-5. **Use file-aware help when blocked:** Run `npm run sesi:help <file>.sesi "<question>"` to get context-grounded help tied to the active script.
-6. **NEVER EDIT ANY .SESI FILES IN THE TERMINAL (ABSOLUTE RULE):**
+4. **Validate script with the `test-runner` first before full run:** Run your script actions with a test script using the exports from `bin/test-runner.sesi`. Refer to `main/tests/verify_db.sesi` for an example.
+5. **Run full script after validation:** Execute `npm run sesi <file>.sesi` only once the isolated logic is valid.
+6. **Use file-aware help when blocked:** Run `npm run sesi:help <file>.sesi "<question>"` to get context-grounded help tied to the active script.
+7. **NEVER EDIT ANY .SESI FILES IN THE TERMINAL (ABSOLUTE RULE):**
    - Do NOT run `sed`, `awk`, `perl`, or any other shell text-processing tools on `.sesi` files.
    - Do NOT use `npm run sesi:eval` to modify files; it is only for syntax validation.
    - Do NOT use Bash/Shell scripting to rewrite or patch Sesi source code.
@@ -29,13 +30,12 @@ When AI agents write or edit `.sesi` scripts, they must use this debugging loop:
    **Correct approach:** You MUST always use your native editor/IDE's file editing capabilities to make clean, safe changes directly to `.sesi` files.
    **Why:** Sesi syntax is sensitive to whitespace, newlines, and brace positioning. Terminal-based string replacement will invariably break code. Use the editor, not the terminal.
 
-7. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run sesi:eval <file>.sesi` or `node bin/sesi.js -e "..."`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.
+8. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run sesi:eval <file>.sesi` or `node bin/sesi.js -e "..."`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.
 
 ## Standards (ONLY REGARDING src/ FILES)
 
 - **Type-Only Imports (MANDATORY):** Use `import {type ...}` for AST nodes. **DO NOT REMOVE** these. Removing them will break the build.
 - **Interpreter Patterns (DO NOT "CLEAN UP"):** Dynamic casting and `any` are **EXPLICITLY PERMITTED** for tree-walking logic. They are a foundational part of the Sesi engine's design.
-- **Ignore Linting Noise:** If you see warnings like "Unexpected any" or "Unsafe member access", **IGNORE THEM**.
 - **Build Requirement:** You MUST run `npm run build` after every code change to the backend logic. Failure to build will result in testing stale code.
 
 This protocol is required to reduce noisy full-run failures and speed up AI-assisted iteration.
@@ -65,24 +65,6 @@ Sesi is **NOT** the following coding languages, therefore **NEVER UTILIZE THE SA
 - **NOT** Scala
 - **NOT** Any other programming language or scripting language.
 
-### ✅ REQUIRED — Sesi scripts must use the language's built-ins:
-
-Every script you write must use **at least one** of:
-
-- `prompt` - composable script templates, this is NOT related to AI at all
-- `structured_output` - structured data extraction, this is NOT related to AI at all
-- `memory` — stateful multi-turn context, this is NOT related to AI at all
-- `exec()` — concurrent process orchestration
-- `web_send()` - sending an HTTP request to a URL
-- `web_get()` - collecting data from a URL
-- `define_tool()` - categorizing tool calls
-- `list_tools()` - displaying custom tools
-- `tool_call()` - calling a predefined function, this is NOT related to AI at all
-- `multi_req()` - concurrent function execution
-- `import` / `export` - reusable configuration modules
-
-The bar is: **"Is this easy to write and read?"** If the answer is no, rewrite it.
-
 ## Mandatory Syntax Rules & Quirks
 
 - **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
@@ -95,7 +77,7 @@ The bar is: **"Is this easy to write and read?"** If the answer is no, rewrite i
 
 For all quirks and specific syntaxing, visit IMPLEMENTATION_SUMMARY.md, /docs/SPECIFICATION.md, /docs/BUILTINS.md, and /docs/CLI.
 
-## IGNORE THESE FILES
+## IGNORE THESE FILES/DIRECTORIES
 
 - `agent_native_programming.md`
 - `docs/REASONING.md`
@@ -105,4 +87,5 @@ For all quirks and specific syntaxing, visit IMPLEMENTATION_SUMMARY.md, /docs/SP
 - `query.txt`
 - `.sesi_cache.json`
 - `.sesi_chat_history.json`
-- `/landing-pages/`
+- `.ai-ignore/`
+- `AI-IGNORE/`
