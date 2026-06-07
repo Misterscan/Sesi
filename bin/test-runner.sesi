@@ -60,3 +60,23 @@ export fn run_test_suite(suiteName: string, results: array) {
   }
   return false
 }
+
+export fn test_runner() {
+  let tool_refs = {}
+
+  fn register_tool(name: string, func, desc: string) {
+    define_tool(name, func, desc)
+    tool_refs[name] = desc
+  }
+
+  register_tool("assert_equals", assert_equals, "Asserts if two values are equal, prints colored PASS/FAIL")
+  register_tool("assert_not_null", assert_not_null, "Asserts if a value is not null, prints colored PASS/FAIL")
+  register_tool("run_test_suite", run_test_suite, "Runs a test suite and prints a colored summary")
+  register_tool("test_runner", test_runner, "Returns a map of all test runner tools")
+
+  let _registry = list_tools()
+  print "📦 test-runner tool registry loaded —" str(len(_registry)) "tools available"
+  print to_json(tool_refs)
+}
+
+test_runner()
