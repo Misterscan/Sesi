@@ -2,7 +2,7 @@
   <Package
     Name="Sesi"
     Language="1033"
-    Version="1.5.1"
+    Version="1.5.2"
     Manufacturer="Misterscan"
     UpgradeCode="{E4A9B31A-BDA8-4C86-9BA6-6D3D5E8F8D31}"
     Scope="perMachine"
@@ -34,4 +34,4 @@
       <ComponentRef Id="SesiExeComponent" />
     </Feature>
   </Package>
-</Wix>
+</Wix>;

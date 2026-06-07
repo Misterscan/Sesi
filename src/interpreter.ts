@@ -1025,8 +1025,12 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       if (fs.existsSync(absoluteInputPath) && fs.statSync(absoluteInputPath).isFile()) {
         isFilePath = true;
       }
-    } catch (e) {
-      // Not a valid file path or path traversal block
+    } catch (e: any) {
+      // Re-throw security violations with a clear message
+      if (e.message && e.message.includes('Security Violation')) {
+        throw new Error(`${e.message}\n\nHint: Run with -l flag and -a <directory> to allow access to paths outside the workspace.\nExample: sesi ${process.argv[2] || 'script.sesi'} -l -a ${require('path').dirname(require('path').resolve(fileInput))}`);
+      }
+      // Otherwise the input is just raw text content, not a file path — that's fine
     }
 
     if (isFilePath && !fileType) {
@@ -1051,7 +1055,29 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       relativeOutputPath = path.join(path.dirname(fileInput), `${name}.${outputType}`);
     }
 
+    const getCommandPath = (cmd: string): string => {
+      if (process.platform === 'win32') {
+        try {
+          const res = execSync(`where ${cmd}`, { encoding: 'utf8' }).split('\n')[0].trim();
+          if (res) return res;
+        } catch {}
+      } else {
+        try {
+          const res = execSync(`which ${cmd}`, { encoding: 'utf8' }).trim();
+          if (res) return res;
+        } catch {}
+        if (process.platform === 'darwin') {
+          const fs = require('fs');
+          if (fs.existsSync(`/opt/homebrew/bin/${cmd}`)) return `/opt/homebrew/bin/${cmd}`;
+          if (fs.existsSync(`/usr/local/bin/${cmd}`)) return `/usr/local/bin/${cmd}`;
+        }
+      }
+      return cmd; // fallback
+    };
+
     const hasCommand = (cmd: string): boolean => {
+      const p = getCommandPath(cmd);
+      if (p !== cmd) return true;
       try {
         const checkCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
         execSync(checkCmd, { stdio: 'ignore' });
@@ -1075,7 +1101,8 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       // Check for native CLI pandoc if allowed and available
       if (isSafe && hasCommand('pandoc') && isFilePath) {
         try {
-          execSync(`pandoc "${absoluteInputPath}" -o "${absoluteOutputPath}"`);
+          const pandocPath = getCommandPath('pandoc');
+          execSync(`"${pandocPath}" "${absoluteInputPath}" -o "${absoluteOutputPath}"`);
           return relativeOutputPath;
         } catch (e: any) {
           // Fallback
@@ -1138,7 +1165,8 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           throw new Error(`ffmpeg CLI is required for audio/media conversion but was not found in PATH.`);
         }
         try {
-          execSync(`ffmpeg -y -i "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
+          const ffmpegPath = getCommandPath('ffmpeg');
+          execSync(`"${ffmpegPath}" -y -i "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
           return relativeOutputPath;
         } catch (e: any) {
           throw new Error(`ffmpeg conversion failed: ${e.message}`);
@@ -1146,16 +1174,19 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       } else {
         // Image/Video media conversion
         let convertedWithImageMagick = false;
+        let lastError = '';
         if (hasCommand('magick')) {
           try {
-            execSync(`magick "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
+            const magickPath = getCommandPath('magick');
+            execSync(`"${magickPath}" "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'pipe' });
             convertedWithImageMagick = true;
-          } catch {}
+          } catch (e: any) { lastError = e.stderr?.toString()?.trim() || e.message; }
         } else if (hasCommand('convert')) {
           try {
-            execSync(`convert "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
+            const convertPath = getCommandPath('convert');
+            execSync(`"${convertPath}" "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'pipe' });
             convertedWithImageMagick = true;
-          } catch {}
+          } catch (e: any) { lastError = e.stderr?.toString()?.trim() || e.message; }
         }
 
         if (convertedWithImageMagick) {
@@ -1165,12 +1196,17 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         // Check if ffmpeg can do it (e.g. for image sequences or videos)
         if (hasCommand('ffmpeg')) {
           try {
-            execSync(`ffmpeg -y -i "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
+            const ffmpegPath = getCommandPath('ffmpeg');
+            // Static image output types need special flags when source is animated/multi-frame
+            const staticImageTypes = new Set(['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff', 'tif', 'avif']);
+            const extraFlags = staticImageTypes.has(outputType ?? '') ? '-frames:v 1 -update 1' : '';
+            execSync(`"${ffmpegPath}" -y -i "${absoluteInputPath}" ${extraFlags} "${absoluteOutputPath}"`.trim(), { stdio: 'pipe' });
             return relativeOutputPath;
-          } catch {}
+          } catch (e: any) { lastError = e.stderr?.toString()?.trim() || e.message; }
         }
 
-        throw new Error(`No image/media conversion tool (magick/convert or ffmpeg) found or execution failed.`);
+        const hint = lastError ? `\nReason: ${lastError}` : '';
+        throw new Error(`No image/media conversion tool (magick/convert or ffmpeg) found or execution failed.${hint}`);
       }
     }
 

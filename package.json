@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {

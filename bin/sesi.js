@@ -7,7 +7,7 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.5.1
+Sesi Programming Language v1.5.2
 
 Usage:
   sesi <file> [options] <args>  Run a Sesi program
@@ -66,7 +66,7 @@ function parseArgs(args) {
     const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
 
     if (arg === '-v' || arg === '--version') {
-      console.log('Sesi v1.5.1');
+      console.log('Sesi v1.5.2');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -132,7 +132,7 @@ async function startRepl() {
 
   const interpreter = new Interpreter(process.cwd(), parsed.sesiOptions);
 
-  console.log('Sesi Interactive REPL (v1.5.1)');
+  console.log('Sesi Interactive REPL (v1.5.2)');
   console.log('Type ".exit" or press Ctrl+C to exit.');
 
   const rl = readline.createInterface({
