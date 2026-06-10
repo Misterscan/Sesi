@@ -1,0 +1,556 @@
+/* scaffold_project.sesi
+ A Sesi project scaffolder that creates a self-contained Sesi project.
+ Usage:
+  sesi scaffold.sesi [target_folder_name] [-rm] [-no-install] [optional_file_to_copy]
+*/
+
+import {sleep} from "std/time"
+
+// Resilience Helper: Safe file write with retry logic
+fn safe_write(path: string, content: string) -> bool {
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      write_file(path, content)
+      success = true
+    } catch (err) {
+      attempts = attempts + 1
+      sleep(100)
+    }
+  }
+  return success
+}
+
+// Resilience Helper: Safe file read with retry logic
+fn safe_read(path: string) -> string {
+  let result = ""
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      result = read_file(path)
+      success = true
+    } catch (err) {
+      attempts = attempts + 1
+      sleep(100)
+    }
+  }
+  return result
+}
+
+// Parse target folder name
+let target = "my-sesi-app"
+if len(args) > 0 {
+  target = args[0]
+}
+
+print "⚡ Scaffolding new Sesi project in:" target
+
+let agentsDir = target + "/.agents"
+let rulesDir = agentsDir + "/rules"
+let workflowsDir = agentsDir + "/workflows"
+let examplesMainDir = target + "/examples/main"
+let examplesOptionalDir = target + "/examples/optional"
+
+// Create base directories
+try {
+  make_dir(target)
+  make_dir(target + "/bin")
+  make_dir(target + "/dist")
+  make_dir(target + "/chatbot")
+  make_dir(target + "/sesi-db")
+  make_dir(agentsDir)
+  make_dir(rulesDir)
+  make_dir(workflowsDir)
+  make_dir(examplesMainDir)
+  make_dir(examplesOptionalDir)
+  print "✓ Directories created"
+} catch (err) {
+  print "⚠️ Failed to create directories:" err
+}
+
+// Copy CLI script (bin/sesi.js)
+let cliContent = safe_read("bin/sesi.js")
+if len(cliContent) > 0 {
+  let cliDest = target + "/bin/sesi.js"
+  if safe_write(cliDest, cliContent) {
+    print "✓ Copied CLI executable to bin/sesi.js"
+  } else {
+    print "⚠️ Failed to write bin/sesi.js"
+  }
+} else {
+  print "⚠️ Could not read source bin/sesi.js"
+}
+
+// Copy Engine files (dist/*)
+let distFiles = list_dir("dist")
+if type(distFiles) == "array" {
+  let copiedCount = 0
+  for file in distFiles {
+    let src = "dist/" + file
+    let dest = target + "/dist/" + file
+    let fileContent = safe_read(src)
+    if len(fileContent) > 0 {
+      if safe_write(dest, fileContent) {
+        copiedCount = copiedCount + 1
+      }
+    }
+  }
+  print "✓ Copied Sesi engine files to dist/:" copiedCount "files total"
+} else {
+  print "⚠️ Failed to read source dist/ directory"
+}
+
+// Generate package.json
+prompt packageJson {"{
+  \"name\": \"" target "\",
+  \"version\": \"1.0.0\",
+  \"description\": \"A self-contained Sesi project\",
+  \"main\": \"dist/index.js\",
+  \"bin\": {
+    \"sesi\": \"bin/sesi.js\"},
+  \"license\": \"MIT\",
+  \"private\": true,
+  \"scripts\": {
+    \"sesi\": \"node bin/sesi.js\",
+    \"start\": \"node bin/sesi.js -l main.sesi\",
+    \"eval\": \"node bin/sesi.js -e\",
+    \"help\": \"node bin/sesi.js -h\",
+    \"lint\": \"node bin/sesi.js bin/lint.sesi\",
+    \"encrypt\": \"node bin/sesi.js -enc\",
+    \"decrypt\": \"node bin/sesi.js -dec\"
+  },
+  \"dependencies\": {
+    \"@misterscan/sesi\": \"1.5.3\"
+  }
+}"}
+
+if safe_write(target + "/package.json", packageJson) {
+  print "✓ Generated package.json"
+} else {
+  print "⚠️ Failed to generate package.json"
+}
+
+// Generate .gitignore
+prompt gitIgnore {"node_modules/
+dist/
+.env
+.env.keys
+.sesi_cache.json
+.sesi_chat_history.json
+"}
+
+if safe_write(target + "/.gitignore", gitIgnore) {
+  print "✓ Generated .gitignore"
+} else {
+  print "⚠️ Failed to generate .gitignore"
+}
+
+// Generate main.sesi (Starter Sesi script)
+prompt mainSesi {"// main.sesi - Starter Sesi script
+
+// In Sesi, we use prompt blocks for string templating
+prompt welcome {\"Welcome to your self-contained Sesi project!\"}
+print welcome
+
+let msg = \"Sesi runs entirely locally from your project directory.\"
+print msg
+
+// Try generating a webpage with prompt blocks
+print \"Generating complex webpage...\"
+let formattedTime = exec('node -e \"process.stdout.write(new Date().toLocaleString())\"')
+prompt webpage {\"<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=\"\"utf-8\"\">
+    <meta name=\"\"viewport\"\" content=\"\"width=device-width, initial-scale=1.0\"\">
+    <title>Sesi Demo Page</title>
+  </head>
+  <body>
+    <h1>Sesi is Running!</h1>
+    <p>This page was generated using Sesi.</p>
+    <p>Current Time: \" formattedTime \"</p>
+  </body>
+</html>\"}
+print \"✓ Generated. View your demo html at: index.html\"
+
+  try {
+write_file(\"index.html\", webpage)
+  } catch (err) {
+    print \"⚠️ Failed to write index.html\" err
+  }
+
+
+"}
+
+if safe_write(target + "/main.sesi", mainSesi) {
+  print "✓ Generated main.sesi"
+} else {
+  print "⚠️ Failed to generate main.sesi"
+}
+
+// Generate README.md
+prompt readMe {"# " target "
+
+A self-contained Sesi project scaffolding.
+
+## Structure
+
+* `bin/` - Sesi CLI executable and lint engine.
+* `dist/` - Sesi engine files.
+* `.agents/` - AI agent configuration files.
+* `env.example` - Environment variables.
+* `main.sesi` - Entry point script.
+
+## Commands
+
+To execute your Sesi program:
+
+```bash
+npm start
+```
+
+To run inline Sesi code evaluations:
+
+```bash
+npm run eval \"print 'Hello from eval'\"
+```
+
+To run the linter:
+
+```bash
+npm run lint
+```
+
+To encrypt a file:
+
+```bash
+npm run encrypt <filename>
+```
+
+To decrypt a file:
+
+```bash
+npm run decrypt <filename>
+```
+"}
+
+if safe_write(target + "/README.md", readMe) {
+  print "✓ Generated README.md"
+} else {
+  print "⚠️ Failed to generate README.md"
+}
+
+// Generate .agents/rules/sesi-must-read.md
+prompt sesiMustReadRules {'---
+trigger: always_on
+---
+
+## Agent Debug Protocol (MANDATORY)
+
+When AI agents write or edit `.sesi` scripts, they must use this debugging loop:
+
+1. **Draft in file, isolate risky snippet:** Identify the smallest parser/runtime-risky block (prompt block, model call, object schema, loop, etc.).
+2. **Validate snippet with eval mode first:** Run `npm run sesi <file>.sesi` to test the isolated block before full-script execution.
+3. **Apply fix in file only after eval passes:** If eval fails, iterate on snippet; do not repeatedly run full scripts while syntax is unresolved.
+4. **Run full script after snippet stabilization:** Execute `npm run sesi <file>.sesi` only once the isolated logic is valid.
+5. **Use file-aware help when blocked:** Run `npm run help <file>.sesi "<question>"` to get context-grounded help tied to the active script.
+6. **NEVER EDIT ANY .SESI FILES IN THE TERMINAL (ABSOLUTE RULE):**
+   - Do NOT run `sed`, `awk`, `perl`, or any other shell text-processing tools on `.sesi` files.
+   - Do NOT use `npm run eval` to modify files; it is only for syntax validation.
+   - Do NOT use Bash/Shell scripting to rewrite or patch Sesi source code.
+
+   **Correct approach:** You MUST always use your native editor/IDE file editing capabilities to make clean, safe changes directly to `.sesi` files.
+   **Why:** Sesi syntax is sensitive to whitespace, newlines, and brace positioning. Terminal-based string replacement will invariably break code. Use the editor, not the terminal.
+
+7. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run eval <file>.sesi` or `node bin/sesi.js -e "..."`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.
+
+Sesi is **NOT** the following coding languages, therefore **NEVER UTILIZE THE SAME SYNTAX OR FORMATTING UNDER ANY CIRCUMSTANCES WHATSOEVER!!!!!**
+
+- **NOT** An "AI Wrapper"
+- **NOT** A "LLM Framework"
+- **NOT** An "AI-Native Programming Language"
+- **NOT** Python
+- **NOT** Rust
+- **NOT** Typescript
+- **NOT** YAML
+- **NOT** BAML
+- **NOT** Go
+- **NOT** C++
+- **NOT** C
+- **NOT** Java
+- **NOT** C#
+- **NOT** Javascript
+- **NOT** Bash
+- **NOT** Shell
+- **NOT** Ruby
+- **NOT** PHP
+- **NOT** Swift
+- **NOT** Julia
+- **NOT** Scala
+- **NOT** Any other programming language or scripting language.
+
+## Mandatory Syntax Rules & Quirks
+
+- **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
+- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print "User:" name`). It is highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
+- **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{"key": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
+- **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{"name": "Alice"}`).
+- **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
+- **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
+- **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
+
+For all quirks and specific syntaxing, visit dist/ and node_modules/@misterscan/sesi/ to verify against the actual engine specifications. Do not rely on training data or outdated documentation for syntax rules, always verify against the source.
+
+## IGNORE THESE FILES
+
+- `*.txt`
+- `*.log`
+- `.sesi_cache.json`'}
+
+if safe_write(rulesDir + "/sesi-must-read.md", sesiMustReadRules) {
+  print "✓ Generated .agents/rules/sesi-must-read.md"
+} else {
+  print "⚠️ Failed to generate .agents/rules/sesi-must-read.md"
+}
+
+// Generate .agents/workflows/create-sesi-script.md
+prompt createSesiScript {'---
+description: Intent-based development workflow for generating concise, syntax-accurate Sesi scripts using integrated web research and verified implementation patterns.
+---
+
+## Operational Directives
+
+1. **Let Sesi Do Its Job**: A Sesi builder script makes the system perfectly repeatable, infinitely scalable, and trivial to refactor. In this repository, the Sesi script is the core product; the end file(s) are merely the byproduct for post edits and making sure our scripts are behaving as anticipated.
+2. **Script Creation:** Your primary task is to generate scripts in Sesi.
+3. **Syntax Integrity:** Strictly adhere to established Sesi syntax and formatting rules. Never fabricate or hallucinate rules. If a pattern is not verified within Sesi, do not use it.
+4. **Language and Perspective:** Maintain a grounded, practical perspective. Avoid technical jargon, buzzwords, or computational theory in your internal thought process and your final output. Focus on what the user has requested at hand. Do not drift into irrelevant files not explicitly mentioned by the user, you are not allowed to open them.
+5. **Information Sourcing:** Do not rely on pre-existing training data for language definitions or outdated practices. Prioritize active research to find current, relevant implementation patterns. If a method or approach is flagged as outdated, discard it immediately.
+6. **Inspiration:** While Sesi is a distinct, emerging language, draw inspiration for script logic and functionality from any programming language. Ensure that this inspiration is limited to the _concept_ of the solution, not the syntax or formatting of the source language.
+7. **Cautious Integration:** Do NOT use model(), image(), or workflow(). The user is the only one with permission to use these functions. Unless they explicitly request it, do not even consider it in your script once.
+8. **Core Philosophy:** Sesi scripts must be concise, legible, and intent-based. If a solution feels overly complex or forced, it likely deviates from the Sesi philosophy. Keep the implementation direct.
+9. **Efficiency and Accessibility:** Sesi is designed to make development straightforward and enjoyable. Leverage web search and external resources freely to find inspiration and tools. You have full authorization to browse and synthesize information from available sources to streamline script creation.
+
+## Mandatory Syntax Rules & Quirks
+
+- **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
+- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print "User:" name`). It is highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
+- **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{"key": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
+- **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{"name": "Alice"}`).
+- **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
+- **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
+- **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
+
+## Agent Debug Protocol (MANDATORY)
+
+When AI agents write or edit `.sesi` scripts, they must use this debugging loop:
+
+1. **Draft in file, isolate risky snippet:** Identify the smallest parser/runtime-risky block (prompt block, model call, object schema, loop, etc.).
+2. **Validate snippet with eval mode first:** Run `npm run eval <file>.sesi` to test the isolated block before full-script execution.
+3. **Apply fix in file only after eval passes:** If eval fails, iterate on snippet; do not repeatedly run full scripts while syntax is unresolved.
+4. **Run full script after snippet stabilization:** Execute `npm run sesi <file>.sesi` only once the isolated logic is valid.
+5. **Use file-aware help when blocked:** Run `npm run help <file>.sesi "<question>"` to get context-grounded help tied to the active script.
+6. **NEVER EDIT ANY .SESI FILES IN THE TERMINAL (ABSOLUTE RULE):**
+   - Do NOT run `sed`, `awk`, `perl`, or any other shell text-processing tools on `.sesi` files.
+   - Do NOT use `npm run eval` to modify files; it is only for syntax validation.
+   - Do NOT use Bash/Shell scripting to rewrite or patch Sesi source code.
+
+   **Correct approach:** You MUST always use your native editor/IDE file editing capabilities to make clean, safe changes directly to `.sesi` files.
+   **Why:** Sesi syntax is sensitive to whitespace, newlines, and brace positioning. Terminal-based string replacement will invariably break code. Use the editor, not the terminal.
+
+7. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run eval <file>.sesi` or `node bin/sesi.js -e "..."`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.'}
+
+if safe_write(workflowsDir + "/create-sesi-script.md", createSesiScript) {
+  print "✓ Generated .agents/workflows/create-sesi-script.md"
+} else {
+  print "⚠️ Failed to generate .agents/workflows/create-sesi-script.md"
+}
+
+// Generate .agents/workflows/fix-sesi-script.md
+prompt fixSesiScript {'---
+description: Debugging and validation of error prone sesi scripts.
+---
+
+1. **Draft in file, isolate risky snippet:** Identify the smallest parser/runtime-risky block (prompt block, model call, object schema, loop, etc.).
+2. **Validate snippet with eval mode first:** Run `npm run eval "..."` to test the isolated block before full-script execution.
+3. **Run inline code evaluations instead of writing new `.sesi` files for quick tests.:** If eval fails, iterate on snippet; do not repeatedly run full scripts while syntax is unresolved.
+4. **Run full script after snippet stabilization:** Execute `npm run sesi <file>.sesi` only once the isolated logic is valid.
+5. **Use file-aware help when blocked:** Run `npm run help <file>.sesi "<question>"` to get context-grounded help tied to the active script.
+6. **NEVER Edit Sesi Files in the Terminal:** Under no circumstances should you attempt to perform file editing or text replacements via terminal commands (such as `sed`, `awk`, or scripts). **You MUST always use your native IDE/editor tools to make clean, safe file edits directly.**
+7. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npx run eval "..."` or `node bin/sesi.js -e "..."`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.
+8. **Always Check Specifications first:** Verify specifications in the `dist` folder or `.sesi` files before assuming language quirks.
+
+_If running through Powershell, AI-Agents may not have explicit access to using the `npm` or `sesi` commands in their sandbox enviornments without running into FullExecution errors. In this case, use `node bin/sesi.js <file> <option>` in replacement of `npm run sesi`._'}
+
+if safe_write(workflowsDir + "/fix-sesi-script.md", fixSesiScript) {
+  print "✓ Generated .agents/workflows/fix-sesi-script.md"
+} else {
+  print "⚠️ Failed to generate .agents/workflows/fix-sesi-script.md"
+}
+
+// Generate env.example
+prompt envExample {"# Copy this file into your own .env file and then run `dotenvx encrypt` in your terminal to encrypt it. Your API key should be automatically resolved at runtime.
+# Note: dotenvx is automatically installed by the scaffold script.
+
+GEMINI_API_KEY=your-api-key-here
+SESI_PASSWORD=your-password-here"}
+
+if safe_write(target + "/env.example", envExample) {
+  print "✓ Generated env.example"
+} else {
+  print "⚠️ Failed to generate env.example"
+}
+
+// Copy sesi-db-chatbot and all its .json files from sesi-db directory into the target folder.
+
+let dbChatbotContent = safe_read("chatbot/sesi_db_chatbot.sesi")
+if len(dbChatbotContent) > 0 {
+  let dbChatbotDest = target + "/chatbot/sesi_db_chatbot.sesi"
+  if safe_write(dbChatbotDest, dbChatbotContent) {
+    print "✓ Copied sesi-db-chatbot to chatbot/sesi_db_chatbot.sesi"
+  } else {
+    print "⚠️ Failed to write sesi-db-chatbot"
+  }
+} else {
+  print "⚠️ Could not read source sesi-db-chatbot"
+}
+
+let dbFiles = ["trained_brain.json"]
+for file in dbFiles {
+  let fileContent = safe_read("sesi-db/" + file)
+  if len(fileContent) > 0 {
+    let fileDest = target + "/sesi-db/" + file
+    if safe_write(fileDest, fileContent) {
+      print "✓ Copied" file "to sesi-db/" file
+    } else {
+      print "⚠️ Failed to write" file
+    }
+  } else {
+    print "⚠️ Could not read source" file
+  }
+}
+
+// Copy lint.sesi into target/lint.sesi
+let lintContent = safe_read("bin/lint.sesi")
+if len(lintContent) > 0 {
+  let lintDest = target + "/bin/lint.sesi"
+  if safe_write(lintDest, lintContent) {
+    print "✓ Copied bin/lint.sesi to:" target "/bin/lint.sesi"
+  } else {
+    print "⚠️ Failed to write bin/lint.sesi"
+  }
+} else {
+  print "⚠️ Could not read source bin/lint.sesi"
+}
+
+// Copy the examples folder and all its files
+try {
+  let examplesMainContent = list_dir("examples/main")
+  for file in examplesMainContent {
+    let fileContent = safe_read("examples/main/" + file)
+    if len(fileContent) > 0 {
+      let fileDest = target + "/examples/main/" + file
+      if safe_write(fileDest, fileContent) {
+        print "✓ Copied" file "to examples/main/" file
+      } else {
+        print "⚠️ Failed to write" file
+      }
+    } else {
+      print "⚠️ Could not read source" file
+    }
+  }
+} catch (e) {
+  print "⚠️ Could not read source examples/main"
+}
+
+try {
+  let examplesOptionalContent = list_dir("examples/optional")
+  for file in examplesOptionalContent {
+    let fileContent = safe_read("examples/optional/" + file)
+    if len(fileContent) > 0 {
+      let fileDest = target + "/examples/optional/" + file
+      if safe_write(fileDest, fileContent) {
+        print "✓ Copied" file "to examples/optional/" file
+      } else {
+        print "⚠️ Failed to write" file
+      }
+    } else {
+      print "⚠️ Could not read source" file
+    }
+  }
+} catch (e) {
+  print "⚠️ Could not read source examples/optional"
+}
+
+// Copy test-runner.sesi to target/test-runner.sesi
+let testRunnerContent = safe_read("bin/test-runner.sesi")
+if len(testRunnerContent) > 0 {
+  let testRunnerDest = target + "/bin/test-runner.sesi"
+  if safe_write(testRunnerDest, testRunnerContent) {
+    print "✓ Copied bin/test-runner.sesi to:" target "/bin/test-runner.sesi"
+  } else {
+    print "⚠️ Failed to write bin/test-runner.sesi"
+  }
+} else {
+  print "⚠️ Could not read source bin/test-runner.sesi"
+}
+
+// Copy a specified file into the folder via CLi
+let specifiedFile = ""
+if len(args) > 1 {
+  if args[1] != "-l" {
+    specifiedFile = args[1]
+  }
+}
+
+if len(specifiedFile) > 0 {
+  let specifiedFileContent = safe_read(specifiedFile)
+  if len(specifiedFileContent) > 0 {
+    let fileParts = split(specifiedFile, "/")
+    let filename = fileParts[len(fileParts) - 1]
+    let specifiedFileDest = target + "/" + filename
+    if safe_write(specifiedFileDest, specifiedFileContent) {
+      print "✓ Copied" filename "to" specifiedFileDest
+    } else {
+      print "⚠️ Failed to write" filename
+    }
+  } else {
+    print "⚠️ Could not read source" specifiedFile
+  }
+}
+
+// Remove the file that we just copied from the source directory if requested
+let wantRemove = false
+let skipInstall = false
+for arg in args {
+  if arg == "-rm" {
+    wantRemove = true
+  }
+  if arg == "-no-install" {
+    skipInstall = true
+  }
+}
+
+if len(specifiedFile) > 0 && wantRemove {
+  try {
+    exec("rm " + specifiedFile)
+    print "✓ Removed" specifiedFile "from source directory"
+  } catch (err) {
+    print "⚠️ Failed to remove" specifiedFile "from source directory."
+  }
+}
+
+// Run npm install to fetch @google/genai and @dotenvx/dotenvx
+if !skipInstall {
+  print "⚡ Running npm install to pull node_modules..."
+  try {
+    exec("npm install --prefix " + target)
+    print "✓ npm dependencies installed successfully!"
+  } catch (err) {
+    print "⚠️ Auto npm install failed. Please re-run with '-install' after scaffold finishes."
+  }
+}
+print "🎉 Scaffolding complete! Run your new project using:"
+print "   cd" target
+print "   npm start"

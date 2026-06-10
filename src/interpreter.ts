@@ -1123,11 +1123,11 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       }
 
       if (converted === null) {
-        // Use Gemini AI for general doc conversions
+        // Use Gemini for general doc conversions
         const promptText = `Convert the following document content from ${fType} format to ${oType} format. Return ONLY the raw converted content. Do NOT include markdown code blocks (e.g. \`\`\`xml or \`\`\`json) or any explanations or extra characters.\n\nContent:\n${content}`;
         try {
           const response = await aiRuntime.callModel({
-            model: 'gemini-3.1-flash-lite',
+            model: 'gemini-3.1-pro-preview',
             prompt: promptText
           });
           converted = response.text.trim();

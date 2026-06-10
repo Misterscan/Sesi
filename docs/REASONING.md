@@ -403,8 +403,8 @@ print analysis
 ### Reduce Token Usage
 
 ```sesi
-// Long prompts waste tokens
-// Bad:
+/* Long prompts waste tokens
+Bad: */
 let response = model("gemini-3-flash-preview") {"Here is a very long system prompt that repeats itself... Please analyze the following text very carefully..." text}
 print response
 
@@ -453,8 +453,8 @@ print "Memory size:" count_tokens(memory, model)
 let text = "Climate change is a long-term shift in global or regional climate patterns. Often climate change refers specifically to anthropogenic climate change, which is caused by human activities, primarily fossil fuel burning, which increases heat-trapping greenhouse gas levels in Earth's atmosphere. The term is frequently used interchangeably with the term global warming, though the latter refers specifically to the long-term heating of Earth's climate system observed since the pre-industrial period due to human activities."
 fn smartSummarize(text: string) -> string
 
-// Chain multiple Reasoning operations
-// Step 1: Extract key points
+/* Chain multiple Reasoning operations
+Step 1: Extract key points */
 {let keyPoints = model("gemini-3.1-pro-preview") {thinkingLevel: "low"} {"Extract 5 key points from: " text}
 
 // Step 2: Analyze topics

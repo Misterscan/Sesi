@@ -470,6 +470,20 @@ print "Elapsed time:" time() - start "ms"
 
 ---
 
+### format(timestamp, options) -> string
+
+Convert Unix timestamp to a human-readable string.
+
+```sesi
+let timestamp = now()
+let formatted = format(timestamp, {"timeZone": "America/New_York", "timeStyle": "medium"})
+print formatted
+```
+
+**Returns**: `string`
+
+---
+
 ### multi_req(fns) -> array
 
 Concurrently execute multiple Sesi function closures, builtins, or asynchronous functions in parallel and return their resolved results as an array.
@@ -862,11 +876,11 @@ import {db_open} from "std/db"
 let db = db_open("data.db", "secure-passphrase-here")
 let users = db.collection("users")
 
-// CRUD API:
-// users.insert(object) -> Returns inserted document (adds unique _id if missing)
-// users.find(query_object?) -> Returns array of matching documents (returns all if query omitted)
-// users.update(query_object, update_object) -> Returns number of updated documents
-// users.delete(query_object) -> Returns number of deleted documents
+/* CRUD API:
+users.insert(object) -> Returns inserted document (adds unique _id if missing)
+users.find(query_object?) -> Returns array of matching documents (returns all if query omitted)
+users.update(query_object, update_object) -> Returns number of updated documents
+users.delete(query_object) -> Returns number of deleted documents */
 ```
 
 ---

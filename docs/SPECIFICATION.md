@@ -37,11 +37,11 @@ Sesi is built on these core principles:
 - ✅ Loops (`while`, `for`)
 - ✅ Error Handling (`try/catch` blocks)
 - ✅ Data types (number, string, bool, array, object)
-- ✅ Process Execution (`spawn`, `exec`, `time`, `random`)
+- ✅ Process Execution (`spawn`, `exec`, `time`, `random`, `convert`, `format`)
 - ✅ Comments (`//`, `/* */`)
 - ✅ Operators (arithmetic, logical, comparison)
 - ✅ Standard library (print, len, range, etc.)
-- ✅ Interactive REPL shell environment (`sesi --repl`)
+- ✅ Interactive REPL shell environment (`sesi`)
 - ✅ Diagnostic Tools (`--ast` and `--tokens` pretty visualization)
 - ✅ Statement execution tracing (`SESI_DEBUG=1` env variable)
 - ✅ `prompt` blocks (composable templates for concise formatting)
@@ -415,6 +415,8 @@ spawn(string) -> number           // Concurrent process creation
 exec(string) -> string            // Synchronous shell execution
 time() -> number                  // Current Unix timestamp
 random() -> number                // Random float (0.0 to 1.0)
+format() -> string                // Convert time from Unix
+convert() -> bool                 // Convert between formats
 ```
 
 ### Built-in Global Variables
@@ -444,9 +446,9 @@ let result = add(10, 20)
 ### Built-in Standard Library Modules
 
 ```sesi
-import time from "std/time"    // Time/date functions
-import math from "std/math"    // Math operations
-import json from "std/json"    // JSON parsing
+import {time} from "std/time"    // Time/date functions
+import {math} from "std/math"    // Math operations
+import {json} from "std/json"    // JSON parsing
 ```
 
 ### Module Resolution Order (v1.x)
@@ -541,8 +543,8 @@ print "Image written to logo.png"
 
 ```sesi
 let result = structured_output({title: string, category: string, confidence: number})(model("gemini-3.1-flash-lite") {"Extract metadata from this text:" text})
-print result.title       // Access fields
-print result.confidence  // Type-safe access
+print result["title"]       // Access fields
+print result["confidence"]  // Type-safe access
 ```
 
 ### Reasoning with Tool Calling

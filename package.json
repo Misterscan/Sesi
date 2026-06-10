@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -16,7 +16,12 @@
     "main/tests",
     ".agents",
     "chatbot",
-    ".github"
+    ".github",
+    "tutorial",
+    "example.js",
+    "example-ai.js",
+    "examples.sesi",
+    "scaffold.sesi"
   ],
   "scripts": {
     "lint": "sesi -l bin/lint.sesi",
@@ -60,8 +65,8 @@
   "author": "Misterscan",
   "license": "MIT",
   "dependencies": {
-    "@dotenvx/dotenvx": "1.71.0",
-    "@dotenvx/dotenvx-ops": "0.54.0",
+    "@dotenvx/dotenvx": "1.71.2",
+    "@dotenvx/dotenvx-ops": "0.54.4",
     "@google/genai": "2.8.0",
     "ws": "8.21.0"
   },

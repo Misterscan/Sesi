@@ -274,6 +274,7 @@ make_dir(path)     // Create a new directory
 spawn(path)        // Launch concurrent background process
 exec(command)      // Synchronous shell execution
 time()             // Unix timestamp (ms)
+format()           // Normalize timestamp
 random()           // Random number (0-1)
 ```
 
@@ -409,9 +410,9 @@ let greeting = "Hello," + "World!"
 // Length
 let len = len(text)
 
-// Uppercase/lowercase (v2+)
-// let upper = upper(text)
-// let lower = lower(text)
+/* Uppercase/lowercase (v2+)
+let upper = upper(text)
+let lower = lower(text) */
 
 // Split and join
 let words = split(text, " ")
