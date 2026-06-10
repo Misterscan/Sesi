@@ -103,7 +103,7 @@
       "patterns": [
         {
           "name": "support.type.sesi",
-          "match": "\\b(number|string|bool|null|array|object)\\b"
+          "match": "\\b(number|string|bool|null|array|object|args)\\b"
         }
       ]
     },
@@ -127,11 +127,11 @@
       "patterns": [
         {
           "name": "support.function.builtin.reasoning.sesi",
-          "match": "\\b(set_alias|model|image|workflow|convert)\\b"
+          "match": "\\b(set_alias|model|image|workflow)\\b"
         },
         {
           "name": "support.function.builtin.general.sesi",
-          "match": "\\b(print|memory|prompt|structured_output|tool_call|define_tool|web_send|web_get|list_tools|error_type|raise_error|multi_req|len|range|type|str|num|bool|keys|values|push|pop|join|split|read_file|write_file|write_image|list_dir|make_dir|spawn|exec|time|random|exp|sin|cos|tan|sqrt|floor|ceil|abs|pow|log|now|sleep|parse|stringify|to_json|from_json|listen|db_open)\\b"
+          "match": "\\b(print|memory|prompt|structured_output|tool_call|define_tool|web_send|web_get|list_tools|error_type|raise_error|multi_req|len|range|type|str|num|bool|keys|values|push|pop|join|split|read_file|write_file|write_image|convert|list_dir|make_dir|spawn|exec|time|random|exp|sin|cos|tan|sqrt|floor|ceil|abs|pow|log|now|sleep|format|parse|stringify|to_json|from_json|listen|db_open)\\b"
         }
       ]
     },

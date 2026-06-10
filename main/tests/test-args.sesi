@@ -1,7 +1,0 @@
-print "Total arguments:" len(args)
-if len(args) > 0 {
-  print "First arg:" args[0]
-}
-if len(args) > 1 {
-  print "Second arg:" args[1]
-}

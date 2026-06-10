@@ -248,6 +248,12 @@ function activate(context) {
             description: 'Dispatches an HTTP POST request to the target web endpoint containing the payload data object.',
             example: 'let status = web_send("https://hooks.slack.com/services/...", {"text": "Workflow completed!"})'
         },
+        'api': {
+            signature: 'api(port, handler)',
+            source: 'HTTP Server Standard Library',
+            description: 'Starts a non-blocking, multi-threaded native WebSocket server listening on the specified port.',
+            example: 'fn handleMessage(client, msg) {\n print "WS received:" msg\n client.send("Echo: " + msg)\n}\n\nlet server = api(8080, handleMessage)'
+        },
         'to_json': {
             signature: 'to_json(value)',
             source: 'Serialization Standard Library',
@@ -290,6 +296,42 @@ function activate(context) {
             description: 'Outputs an arbitrary list of arguments sequentially to the Sesi terminal output standard stream.',
             example: 'let user = "developer"\nprint "[LOG] Session initialized by: " user'
         },
+        'push': {
+            signature: 'push(array, value)',
+            source: 'Array Standard Library',
+            description: 'Adds an element to the end of an array.',
+            example: 'let items = ["apple", "banana"]\npush(items, "cherry")\nprint items'
+        },
+        'pop': {
+            signature: 'pop(array)',
+            source: 'Array Standard Library',
+            description: 'Removes and returns the last element of an array.',
+            example: 'let items = ["apple", "banana", "cherry"]\nlet last = pop(items)\nprint last'
+        },
+        'join': {
+            signature: 'join(array, separator)',
+            source: 'Array Standard Library',
+            description: 'Join array elements into a string with separator.',
+            example: 'let items = ["apple", "banana", "cherry"]\nlet joined = join(items, ", ")\nprint joined'
+        },
+        'split': {
+            signature: 'split(string, separator',
+            source: 'Array Standard Library',
+            description: 'Split a string into an array by separator.',
+            example: 'split("a,b,c", ",")\nsplit("hello world", " ")'
+        },
+        'keys': {
+            signature: 'keys(collection)',
+            source: 'Array Standard Library',
+            description: 'Get all keys of an object.',
+            example: 'let obj = { "name": "Alice", "age": 30 }\nkeys(obj)'
+        },
+        'values': {
+            signature: 'values(collection)',
+            source: 'Array Standard Library',
+            description: 'Get all values of an object.',
+            example: 'let obj = { "name": "Alice", "age": 30 }\nvalues(obj)'
+        },
         'len': {
             signature: 'len(collection)',
             source: 'Utility Standard Library',
@@ -320,6 +362,18 @@ function activate(context) {
             description: 'Parses or casts the given string or boolean parameter value into its explicit numeric value form.',
             example: 'let value_num = num("1024")\nprint value_num + 1'
         },
+        'exp': {
+            signature: 'exp(value)',
+            source: 'Advanced Math Functions',
+            description: 'Returns Eulers number $e$ (approx. `2.71828`) raised to the power of $x$.',
+            example: 'exp(0)\nexp(1)\nlet sigmoid = 1.0 / (1.0 + exp(0.0 - 0.5))\nprint sigmoid'
+        },
+        'args': {
+            signature: 'args[number]',
+            source: 'System I/O Standard Library',
+            description: 'An array of strings containing the command-line arguments passed to the Sesi script.',
+            example: 'print "Number of script args:" len(args)\nif len(args) > 0 {\n  print "First script argument:" args[0]\n}'
+        },
         'listen': {
             signature: 'listen(port, handler_function)',
             source: 'Network Server Standard Library',
@@ -349,6 +403,18 @@ function activate(context) {
             source: 'Media Conversion Standard Library',
             description: 'Native media conversion primitive. Transforms images, videos, audio, or documents to the specified format.',
             example: 'let output = convert(media) { output_type: "jpg" } { "logo.png" }'
+        },
+        'format': {
+            signature: 'format(time, { "timeZone": ... })',
+            source: 'System I/O Standard Library',
+            description: 'Convert Unix timestamps into readable local format.',
+            example: 'format(now(), { "timeZone": "UTC", "dateStyle": "medium", "timeStyle": "short"})'
+        },
+        'debug': {
+            signature: 'debug(message)',
+            source: 'Debug Standard Library',
+            description: 'Pause execution and launche an interactive debugger REPL in your shell terminal.',
+            example: 'let x = 10\nlet y = 20\ndebug()\nprint x + y'
         }
     };
 
