@@ -1,7 +1,7 @@
-// Reasoning-powered text analysis using model calls
-// USING IT FOR AI IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
-// COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
+/* Reasoning-powered text analysis using model calls
+USING IT FOR AI IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
+COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
 
-// let text = "Sesi is transforming how we work and live"
-// let analysis = model("gemini-3.1-flash-lite") {temperature: 0.5, max_tokens: 400} {"Analyze the following text and provide 3 concise key insights. Keep the total response under 120 words. " text}
-// print "Analysis:" analysis
+let text = "Sesi is transforming how we work and live"
+let analysis = model("gemini-3.1-flash-lite") {temperature: 0.5, max_tokens: 400} {"Analyze the following text and provide 3 concise key insights. Keep the total response under 120 words. " text}
+print "Analysis:" analysis */

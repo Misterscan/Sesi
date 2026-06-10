@@ -1,5 +1,5 @@
-// Sesi Complex Data Pipeline
-// Native structured outputs, tool calling, and memory.
+/* Sesi Complex Data Pipeline
+Native structured outputs, tool calling, and memory.*/
 
 fn escalateTicket(customerId: string, reason: string) {
   print "ESCALATION: Customer" customerId "for" reason

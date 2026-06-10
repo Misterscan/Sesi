@@ -1,6 +1,6 @@
-// test-runner.sesi
-// A lightweight test-runner framework for modular Sesi scripts.
-// Includes beautiful custom color logs, assertion utilities, and final test suite counters.
+/* test-runner.sesi
+A lightweight test-runner framework for modular Sesi scripts.
+Includes beautiful custom color logs, assertion utilities, and final test suite counters. */
 
 let green_tick = "✓ "
 let red_cross = "❌ "

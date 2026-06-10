@@ -86,8 +86,8 @@
 - [x] String escape sequences & Multiline strings
 - [ ] Comments preservation (for docs)
 - [ ] Type hints in function signatures
-- [ ] Performance optimizations
-- [ ] Tutorial: Writing scripts
+- [x] Performance optimizations
+- [x] Tutorial: Writing scripts
 
 ---
 
@@ -404,6 +404,7 @@ The journey from v1 (interpreter) to v4+ (distributed compiler) maintains backwa
 - [Runtime Architecture](ARCHITECTURE.md)
 - [Built-in Functions Reference](BUILTINS.md)
 - [Command Line Interface (CLI) Reference](CLI.md)
+- [Tutorial: Writing Scripts](WRITING_SCRIPTS.md)
 - [Image Generation & Input](IMAGE_GENERATION.md)
 - [Compare to other languages](COMPARISON.md)
 - [Reasoning & Simple Logic](REASONING.md)

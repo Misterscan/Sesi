@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sesi Tutorial</title>
+<style>
+  :root { 
+    --bg: #1e1e1e; 
+    --panel: #252526; 
+    --text: #d4d4d4; 
+    --accent: #4af626; 
+    --accent-hover: #3bc71d;
+    --output: #111; 
+    --border: #444;
+  }
+  body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    margin: 0; 
+    background: var(--bg); 
+    color: var(--text); 
+    display: flex; 
+    height: 100vh; 
+    overflow: hidden; 
+  }
+  header { 
+    background: #333; 
+    padding: 0 20px; 
+    font-size: 1.2rem; 
+    font-weight: bold; 
+    color: #fff; 
+    width: 100%; 
+    position: absolute; 
+    top: 0; 
+    box-sizing: border-box; 
+    height: 50px; 
+    display: flex; 
+    align-items: center; 
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+  }
+  .container { 
+    display: flex; 
+    width: 100%; 
+    margin-top: 50px; 
+    height: calc(100vh - 50px); 
+  }
+  .sidebar { 
+    width: 30%; 
+    background: var(--panel); 
+    border-right: 1px solid var(--border); 
+    display: flex;
+    flex-direction: column;
+  }
+  .lesson-list {
+    flex: 0 0 auto;
+    padding: 15px;
+    border-bottom: 1px solid var(--border);
+    max-height: 40%;
+    overflow-y: auto;
+  }
+  .lesson-content { 
+    flex: 1 1 auto;
+    padding: 20px; 
+    overflow-y: auto;
+    line-height: 1.6; 
+  }
+  .lesson-content h3 {
+    margin-top: 0;
+    color: #fff;
+  }
+  .editor-pane { 
+    width: 70%; 
+    display: flex; 
+    flex-direction: column; 
+  }
+  .code-area { 
+    flex: 1; 
+    padding: 20px; 
+    background: #1e1e1e; 
+    display: flex; 
+    flex-direction: column; 
+  }
+  textarea { 
+    flex: 1; 
+    background: #1e1e1e; 
+    color: #d4d4d4; 
+    font-family: 'Consolas', 'Courier New', monospace; 
+    font-size: 15px; 
+    border: 1px solid var(--border); 
+    padding: 15px; 
+    resize: none; 
+    outline: none; 
+    border-radius: 4px;
+    line-height: 1.4;
+  }
+  textarea:focus {
+    border-color: var(--accent);
+  }
+  .toolbar { 
+    padding-bottom: 15px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+  }
+  button { 
+    background: var(--accent); 
+    color: #000; 
+    border: none; 
+    padding: 8px 20px; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    font-size: 14px; 
+    font-weight: bold; 
+    transition: background 0.2s;
+  }
+  button:hover { 
+    background: var(--accent-hover); 
+  }
+  button:disabled {
+    background: #555;
+    cursor: not-allowed;
+  }
+  .output-container {
+    height: 35%; 
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border); 
+  }
+  .output-header {
+    background: #333;
+    padding: 5px 15px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #aaa;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-area { 
+    flex: 1;
+    background: var(--output); 
+    padding: 15px; 
+    font-family: 'Consolas', 'Courier New', monospace; 
+    font-size: 14px; 
+    overflow-y: auto; 
+    color: var(--text); 
+    white-space: pre-wrap; 
+  }
+  .output-area.success { color: #4af626; }
+  .output-area.error { color: #f44336; }
+  
+  .lesson-item { 
+    padding: 10px; 
+    cursor: pointer; 
+    border-radius: 4px; 
+    margin-bottom: 5px; 
+    font-weight: 500;
+    transition: background 0.1s;
+  }
+  .lesson-item:hover { 
+    background: #333; 
+  }
+  .lesson-item.active { 
+    background: #37373d; 
+    color: var(--accent); 
+    border-left: 3px solid var(--accent);
+    border-radius: 0 4px 4px 0;
+  }
+  code { 
+    background: #000; 
+    padding: 2px 5px; 
+    border-radius: 3px; 
+    font-family: monospace; 
+    color: #569cd6; 
+  }
+</style>
+</head>
+<body>
+  <header>⚡ Sesi Tutorial</header>
+  <div class="container">
+    <div class="sidebar">
+      <div class="lesson-list" id="lesson-list"></div>
+      <div class="lesson-content" id="lesson-content"></div>
+    </div>
+    <div class="editor-pane">
+      <div class="code-area">
+        <div class="toolbar">
+          <span id="lesson-title" style="font-weight:bold; color:#fff; font-size: 1.1rem;">Select a lesson</span>
+          <button id="run-btn" onclick="runCode()">▶ Run Code</button>
+        </div>
+        <textarea id="code-editor" spellcheck="false"></textarea>
+      </div>
+      <div class="output-container">
+        <div class="output-header">TERMINAL OUTPUT</div>
+        <div class="output-area" id="output">Welcome to the Sesi Tutorial. Click 'Run Code' to execute the editor contents!</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const lessons = [
+      {
+        title: "1. Hello, Sesi!",
+        desc: "Welcome to Sesi! Sesi is designed to be highly legible with zero boilerplate.<br><br>Use the <code>print</code> statement to output text. Notice how it automatically spaces out arguments, so you don't need to manually concatenate strings.<br><br>Try changing the message and hitting <b>Run Code</b>!",
+        code: "print \"Hello, Sesi World!\"\nprint \"The answer is:\" 42"
+      },
+      {
+        title: "2. Variables & Math",
+        desc: "Declare variables using <code>let</code>. Sesi supports standard data types: numbers, strings, booleans, arrays, objects, and null.<br><br>Math operations work just as you'd expect.",
+        code: "let x = 10\nlet y = 20\nlet sum = x + y\n\nprint \"Sum:\" sum\nprint \"Multiplier:\" x * 5"
+      },
+      {
+        title: "3. Arrays & Objects",
+        desc: "Sesi has modern collections. Arrays use <code>[]</code> and objects use <code>{}</code>.<br><br>You can retrieve items using standard bracket notation.",
+        code: "let user = {\"name\": \"Alice\", \"role\": \"Admin\"}\nlet tags = [\"urgent\", \"review\"]\n\nprint \"User:\" user[\"name\"]\nprint \"First tag:\" tags[0]"
+      },
+      {
+        title: "4. Control Flow",
+        desc: "Sesi uses standard <code>if/else</code>, <code>while</code>, and <code>for</code> loops. <br><br>Notice the lack of parentheses around conditions—this keeps your code visually clean and readable.",
+        code: "let score = 85\n\nif score >= 90 {\n  print \"Grade: A\"\n} else if score >= 80 {\n  print \"Grade: B\"\n} else {\n  print \"Grade: C\"\n}\n\nfor i = 1 to 4 {\n  print \"Counting:\" i\n}"
+      },
+      {
+        title: "5. Functions",
+        desc: "Define functions with <code>fn</code>. You can easily specify default parameters. Functions inherently keep your scripts organized as they scale.",
+        code: "fn greet(name, punctuation = \"!\") {\n  return \"Hello, \" + name + punctuation\n}\n\nprint greet(\"Developer\")\nprint greet(\"World\", \"...\")"
+      },
+      {
+        title: "6. System & Files",
+        desc: "Sesi is an environment orchestrator. Reading files, listing directories, and executing commands are built in.<br><br>Hit run to see what files are in the current working directory of this project!",
+        code: "let dir_contents = list_dir(\".\")\nprint \"Files in current directory:\"\n\nlet count = 0\nfor item in dir_contents {\n  count = count + 1\n  if count <= 5 {\n    print \" -\" item\n  }\n}\nprint \"...and more!\""
+      },
+      {
+        title: "7. Reasoning",
+        desc: "Sesi's superpower is native Reasoning blocks. You don't need complex setup to call models.<br><br>Use the <code>model()</code> function combined with <code>prompt</code> blocks.<br><br><i>(Note: This requires GEMINI_API_KEY to be set in your .env file to work!)</i>",
+        code: "prompt request {\"Translate to French: Good morning, how are you?\"}\n\nprint \"Thinking...\"\nlet response = model(\"gemini-3.1-flash-lite\") {request}\n\nprint \"Response:\"\nprint response"
+      }
+    ];
+
+    function loadLesson(index) {
+      const lesson = lessons[index];
+      document.getElementById('lesson-title').innerText = lesson.title;
+      document.getElementById('lesson-content').innerHTML = "<h3>" + lesson.title + "</h3>" + lesson.desc;
+      document.getElementById('code-editor').value = lesson.code;
+      
+      const out = document.getElementById('output');
+      out.innerText = "Ready. Click 'Run Code' to test this snippet.";
+      out.className = "output-area";
+      
+      const items = document.querySelectorAll('.lesson-item');
+      items.forEach((item, i) => {
+        if(i === index) item.classList.add('active');
+        else item.classList.remove('active');
+      });
+    }
+
+    function renderList() {
+      const list = document.getElementById('lesson-list');
+      lessons.forEach((lesson, index) => {
+        const div = document.createElement('div');
+        div.className = 'lesson-item';
+        div.innerText = lesson.title;
+        div.onclick = () => loadLesson(index);
+        list.appendChild(div);
+      });
+    }
+
+    async function runCode() {
+      const code = document.getElementById('code-editor').value;
+      const outputDiv = document.getElementById('output');
+      const runBtn = document.getElementById('run-btn');
+      
+      runBtn.innerText = "Running...";
+      runBtn.disabled = true;
+      outputDiv.className = "output-area";
+      outputDiv.innerText = "Running...\n";
+
+      try {
+        const response = await fetch('/run', {
+          method: 'POST',
+          body: JSON.stringify({ code: code })
+        });
+        
+        const result = await response.json();
+        
+        if (result.error) {
+          outputDiv.className = "output-area error";
+          outputDiv.innerText = result.error;
+        } else {
+          outputDiv.className = "output-area success";
+          outputDiv.innerText = result.output || "Execution finished with no output.";
+        }
+      } catch (e) {
+        outputDiv.className = "output-area error";
+        outputDiv.innerText = "Network Error: " + e.message;
+      }
+
+      runBtn.innerText = "▶ Run Code";
+      runBtn.disabled = false;
+    }
+
+    // Enable tab insertion in textarea
+    document.getElementById('code-editor').addEventListener('keydown', function(e) {
+      if (e.key == 'Tab') {
+        e.preventDefault();
+        var start = this.selectionStart;
+        var end = this.selectionEnd;
+        this.value = this.value.substring(0, start) + "  " + this.value.substring(end);
+        this.selectionStart = this.selectionEnd = start + 2;
+      }
+    });
+
+    renderList();
+    loadLesson(0);
+  </script>
+</body>
+</html>

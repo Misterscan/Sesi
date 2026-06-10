@@ -1,5 +1,5 @@
-// Sesi Example 25: Webpage Server
-// Run with: sesi examples/main/25_webpage_server.sesi -l
+/* Example 25: Webpage Server
+Run with: sesi examples/main/25_webpage_server.sesi -l */
 
 let siteData = {
   "title": "Sesi Language",
@@ -296,7 +296,7 @@ async fn handleRequest(req) {
   }
 }
 
-// Start HTTP server on port 8080
+// Start HTTP server on port 8080 (feel free to change the port to your preference)
 let port = 8080
-print "Starting native HTTP server on port" port "..."
+print "Starting native HTTP server at localhost:8080"
 let server = listen(port, handleRequest)

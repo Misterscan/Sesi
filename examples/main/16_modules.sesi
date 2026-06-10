@@ -1,7 +1,7 @@
-// Example 16: Modules and Standard Library Namespace
-// Demonstrates:
-// 1. Importing named variables/functions from standard library modules.
-// 2. Importing custom Sesi modules using relative paths.
+/* Example 16: Modules and Standard Library Namespace
+Demonstrates:
+1. Importing named variables/functions from standard library modules.
+2. Importing custom Sesi modules using relative paths. */
 
 print "=== 1. Standard Math Module ==="
 import {PI, E, sqrt, pow, sin} from "std/math"
@@ -21,8 +21,8 @@ print "Deserialized Project Name:" restored["project"]
 print "Deserialized Version:" restored["version"]
 print "=== 3. Custom Sesi Module ==="
 
-// Relative imports let you reuse Sesi code across files cleanly.
-// We will import custom exported variables and functions from a local module.
+/* Relative imports let you reuse Sesi code across files cleanly.
+We will import custom exported variables and functions from a local module. */
 import {magic_number, multiply} from "main/tests/temp_math_mod"
 print "Imported magic number from local module:" + str(magic_number)
 print "Running imported multiply(5, 5):" + str(multiply(5, 5))

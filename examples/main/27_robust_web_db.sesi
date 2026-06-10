@@ -1,8 +1,8 @@
-// Sesi Example 27: Robust Web Application with Database
-// Run with: sesi examples/main/27_robust_web_db.sesi -l
+/* Example 27: Robust Web Application with Database
+Run with: sesi examples/main/27_robust_web_db.sesi -l */
 
-import { db_open } from "std/db"
-import { now } from "std/time"
+import {db_open} from "std/db"
+import {now} from "std/time"
 
 let db = db_open("app_data.db")
 let logs = db.collection("visitor_logs")

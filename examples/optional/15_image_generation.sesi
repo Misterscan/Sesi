@@ -1,18 +1,18 @@
-// Sesi Example: Batch Image Asset Generation
-// Demonstrates how to use in a practical workflow with directories.
-// COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
+/* Example: Batch Image Asset Generation
+Demonstrates how to use in a practical workflow with directories.
+COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
 
-// let outputDir = "assets/products/"
-// make_dir(outputDir)
-// let products = ["coffee_mug", "desk_lamp", "notebook"]
-// for product in products 
-// {print "Generating asset for:" product
-// prompt request {"A clean studio presentation photograph of a " product " on a solid white background."}
-// prompt filename { outputDir product ".png" }
-// try 
-// {let imageData = image("gemini-3.1-flash-image-preview") {ratio: '1:1', size: "1K"} {request}
-// let success = write_image(filename, imageData)
-// if success {print "Saved:" filename}} 
-// catch (e) {print "Failed processing" product ":"
-// print e}}
-// print "Asset generation complete."
+let outputDir = "assets/products/"
+make_dir(outputDir)
+let products = ["coffee_mug", "desk_lamp", "notebook"]
+for product in products 
+{print "Generating asset for:" product
+prompt request {"A clean studio presentation photograph of a " product " on a solid white background."}
+prompt filename {outputDir product ".png"}
+try 
+{let imageData = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "1K"} {request}
+let success = write_image(filename, imageData)
+if success {print "Saved:" filename}} 
+catch (e) {print "Failed processing" product ":"
+print e}}
+print "Asset generation complete." */

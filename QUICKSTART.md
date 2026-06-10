@@ -467,11 +467,12 @@ else {print "Response: " response}
 
 ## Next Steps
 
-1. **Read the spec**: [SPECIFICATION.md](docs/SPECIFICATION.md)
-2. **Learn about reasoning**: [REASONING.md](docs/REASONING.md)
-3. **Understand architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md)
-4. **Check roadmap**: [ROADMAP.md](docs/ROADMAP.md)
-5. **Study examples**: [examples/](examples/)
+1. **Tutorial: Writing Scripts**: [WRITING_SCRIPTS.md](docs/WRITING_SCRIPTS.md)
+2. **Read the spec**: [SPECIFICATION.md](docs/SPECIFICATION.md)
+3. **Learn about reasoning**: [REASONING.md](docs/REASONING.md)
+4. **Understand architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md)
+5. **Check roadmap**: [ROADMAP.md](docs/ROADMAP.md)
+6. **Study examples**: [examples/](examples/)
 
 ## Getting Help
 

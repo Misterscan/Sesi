@@ -1,6 +1,6 @@
-// support.sesi
-// Sesi Support Local Server
-// Handles visual dashboard requests and executes pure Sesi model queries offline!
+/* support.sesi
+Sesi Support Local Server
+Handles visual dashboard requests and executes pure Sesi model queries offline! */
 
 // Global session store
 let sessions = {}
@@ -191,7 +191,7 @@ async fn handleRequest(req) {
 let port = 8000
 print "=================================================="
 print "[STATUS] Sesi Support Online!"
-print "[URL] Serving on: http://localhost:8000/index.html"
+print "[URL] Serving at: http://localhost:8000/index.html"
 print "=================================================="
 
 let server = listen(port, handleRequest)

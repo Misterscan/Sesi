@@ -1,0 +1,165 @@
+/* main/api_server.sesi
+A production-ready RESTful JSON API server in Sesi.
+Supports GET, POST, PUT, DELETE operations on tasks collection.
+Usage:
+ node bin/sesi.js main/api_server.sesi -l
+*/
+
+import {db_open} from "std/db"
+
+let db = db_open("tasks.db")
+let tasks = db.collection("tasks")
+
+async fn handleRequest(req) {
+  print "API Request:" req.method req.path
+  
+  // CORS Headers
+  let corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Content-Type": "application/json"
+  }
+
+  // Handle preflight OPTIONS request
+  if req.method == "OPTIONS" {
+    return {
+      "status": 204,
+      "headers": corsHeaders,
+      "body": ""
+    }
+  }
+
+  // Route: /api/tasks
+  if req.path == "/api/tasks" {
+    
+    // GET: Retrieve all tasks
+    if req.method == "GET" {
+      let filter = {}
+      if req.query.status {
+        filter = { "status": req.query.status }
+      }
+      let allTasks = tasks.find(filter)
+      return {
+        "status": 200,
+        "headers": corsHeaders,
+        "body": allTasks
+      }
+    }
+
+    // POST: Create a new task
+    if req.method == "POST" {
+      try {
+        let taskData = from_json(req.body)
+        if !taskData.title {
+          return {
+            "status": 400,
+            "headers": corsHeaders,
+            "body": { "error": "Title parameter is required" }
+          }
+        }
+        
+        let newTask = tasks.insert({
+          "title": taskData.title,
+          "status": "pending",
+          "created_at": time()
+        })
+        
+        return {
+          "status": 201,
+          "headers": corsHeaders,
+          "body": newTask
+        }
+      } catch (err) {
+        return {
+          "status": 400,
+          "headers": corsHeaders,
+          "body": { "error": "Invalid JSON payload" }
+        }
+      }
+    }
+
+    // PUT: Update task status or title
+    if req.method == "PUT" {
+      try {
+        let updateData = from_json(req.body)
+        if !updateData.id {
+          return {
+            "status": 400,
+            "headers": corsHeaders,
+            "body": { "error": "Task ID ('id') is required for updates" }
+          }
+        }
+        
+        // Find existing to verify
+        let target = tasks.find({ "_id": updateData.id })
+        if len(target) == 0 {
+          return {
+            "status": 404,
+            "headers": corsHeaders,
+            "body": { "error": "Task not found" }
+          }
+        }
+        
+        let updates = {}
+        if updateData.title {
+          updates = { "title": updateData.title }
+        }
+        if updateData.status {
+          updates = { "status": updateData.status }
+        }
+        
+        let updatedCount = tasks.update({ "_id": updateData.id }, updates)
+        return {
+          "status": 200,
+          "headers": corsHeaders,
+          "body": { "updated": updatedCount }
+        }
+      } catch (err) {
+        return {
+          "status": 400,
+          "headers": corsHeaders,
+          "body": { "error": "Invalid update request or JSON" }
+        }
+      }
+    }
+
+    // DELETE: Remove a task
+    if req.method == "DELETE" {
+      try {
+        let deleteData = from_json(req.body)
+        if !deleteData.id {
+          return {
+            "status": 400,
+            "headers": corsHeaders,
+            "body": { "error": "Task ID ('id') is required for deletion" }
+          }
+        }
+        
+        let deletedCount = tasks.delete({ "_id": deleteData.id })
+        return {
+          "status": 200,
+          "headers": corsHeaders,
+          "body": { "deleted": deletedCount }
+        }
+      } catch (err) {
+        return {
+          "status": 400,
+          "headers": corsHeaders,
+          "body": { "error": "Invalid request parameters" }
+        }
+      }
+    }
+  }
+
+  // 404 Not Found route
+  return {
+    "status": 404,
+    "headers": corsHeaders,
+    "body": { "error": "Resource Not Found" }
+  }
+}
+
+let port = 8080
+print "Sesi RESTful API running at http://localhost:8080"
+let server = listen(port, handleRequest)

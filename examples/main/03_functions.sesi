@@ -21,15 +21,14 @@ fn calculate(operation: string, a: number, b: number) {
     }
 }
 
-calculate("add", 5, 3)
+calculate("multiply", 5, 3)
 
 // Define your functions and call it using a custom tool
-
-fn getSesiVersion() {
+fn getSesi() {
     return "1.5.0"
 }
 
-define_tool("sesi", getSesiVersion, "Get the current Sesi version")
-let v = tool_call(sesi)()
+define_tool("get-sesi", getSesi, "Get the current Sesi version")
+let v = tool_call(getSesi)() // or simply getSesi() since tool_call is optional for direct calls
 
 print "Current version:" v

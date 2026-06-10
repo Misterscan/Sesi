@@ -87,7 +87,11 @@
       "patterns": [
         {
           "name": "keyword.control.sesi",
-          "match": "\\b(if|else|while|for|in|to|return|break|continue|try|catch|async|await)\\b"
+          "match": "\\b(if|else|while|for|in|to|return|break|continue|try|catch|finally|async|await)\\b"
+        },
+        {
+          "name": "constant.other.property.sesi",
+          "match": "\\b(temperature|max_tokens|top_p|top_k|thinkingLevel|cache|search|ratio|size|output_type|file_type|max_retries|stream|stop|seed)\\b"
         },
         {
           "name": "keyword.declaration.sesi",
@@ -110,8 +114,12 @@
           "match": "\\b(true|false|null)\\b"
         },
         {
+          "name": "constant.language.context.sesi",
+          "match": "\\b(media|audio|video|text|doc)\\b"
+        },
+        {
           "name": "constant.other.math.sesi",
-          "match": "\\b(PI|E)\\b"
+          "match": "\\b(PI|E|INFINITY|NaN)\\b"
         }
       ]
     },

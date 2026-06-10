@@ -1,0 +1,5 @@
+let res = model("gemini-2.5-flash") {thinking_level: "low"} {"Say hi"}
+print "Response with thinking_level:" res
+
+let res2 = model("gemini-2.5-flash") {thinkingLevel: "low"} {"Say hi"}
+print "Response with thinkingLevel:" res2

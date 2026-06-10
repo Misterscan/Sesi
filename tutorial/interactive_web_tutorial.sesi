@@ -1,0 +1,56 @@
+/* Sesi Tutorial Server
+Start with: npm run tutorial */
+
+let PORT = 8080
+
+async fn handleRequest(req) {
+  if req.method == "GET" && req.path == "/" {
+    try {
+      let html = read_file("tutorial/tutorial_frontend.html")
+      return {
+        "status": 200,
+        "headers": {"Content-Type": "text/html"},
+        "body": html
+      }
+    } catch (err) {
+      return {"status": 500, "body": "Error loading frontend. Make sure tutorial_frontend.html exists."}
+    }
+  }
+
+  if req.method == "POST" && req.path == "/run" {
+    try {
+      let payload = from_json(req.body)
+      let code = payload["code"]
+      
+      write_file("tutorial/.tmp_run.sesi", code)
+      
+      // We run the user's code via a sub-process
+      let out = exec("node ./bin/sesi.js tutorial/.tmp_run.sesi -l")
+      
+      return {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": to_json({"output": out})
+      }
+    } catch (err) {
+      return {
+        "status": 200, // Return 200 so the frontend can display the error nicely
+        "headers": {"Content-Type": "application/json"},
+        "body": to_json({"error": str(err)})
+      }
+    }
+  }
+
+  return {
+    "status": 404,
+    "body": "Not found"
+  }
+}
+
+print "======================================================"
+print "⚡ Sesi Tutorial is online!"
+print "Open your browser to: http://localhost:8080"
+print "Press Ctrl+C to stop the server."
+print "======================================================"
+
+let server = listen(PORT, handleRequest)

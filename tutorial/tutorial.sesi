@@ -1,0 +1,114 @@
+// We use a progress file to keep track of where the user is
+let progress_file = "tutorial/.sesi_tutorial_progress.json"
+
+fn load_progress() {
+  try {
+    let content = read_file(progress_file)
+    return from_json(content)
+  } catch (err) {
+    // Default progress state
+    return {"step": 0, "name": "Developer"}
+  }
+}
+
+fn save_progress(state) {
+  try {
+    write_file(progress_file, to_json(state))
+  } catch (err) {
+    print "Error saving progress:" err
+  }
+}
+
+let state = load_progress()
+let cmd = ""
+
+// Sesi accepts args natively through the global `args` array!
+if len(args) > 0 {
+  cmd = args[0]
+}
+
+if cmd == "reset" {
+  state["step"] = 0
+  save_progress(state)
+  print "Tutorial reset! Run 'npm run tutorial:cli' to start over."
+  // Stop early
+  let early_exit = true
+} else if cmd == "next" {
+  state["step"] = state["step"] + 1
+  save_progress(state)
+  print "Moving to step" str(state["step"]) "...\n"
+} else if cmd == "name" {
+  if len(args) > 1 {
+    state["name"] = args[1]
+    save_progress(state)
+    print "Nice to meet you," state["name"] "!\n"
+  } else {
+    print "Please provide a name: npm run tutorial:cli name <your_name>"
+    let early_exit = true
+  }
+}
+
+let step = state["step"]
+
+if cmd != "reset" && len(args) == 0 || cmd == "next" || cmd == "name" {
+  if step == 0 {
+    print "======================================"
+    print "   Welcome to the Sesi CLI Tutorial!  "
+    print "======================================"
+    print "Hello," state["name"] "!"
+    print "Sesi scripts accept arguments natively via the global 'args' array."
+    print "To move forward, pass the 'next' argument:"
+    print ""
+    print "  👉 npm run tutorial:cli next"
+    print ""
+    print "Want to change your name? Run:"
+    print "  👉 npm run tutorial:cli name Alice"
+  } else if step == 1 {
+    print "--- Step 1: Variables & Printing ---"
+    print "In Sesi, you declare variables using 'let'."
+    print "  let x = 10"
+    print "  let msg = \"Hello\""
+    print "  print msg x"
+    print ""
+    print "Notice how 'print' automatically spaces out arguments!"
+    print ""
+    print "  👉 npm run tutorial:cli next"
+  } else if step == 2 {
+    print "--- Step 2: Arrays and Loops ---"
+    print "Sesi has modern collections and loops."
+    print "  let items = [1, 2, 3]"
+    print "  for item in items {"
+    print "    print item"
+    print "  }"
+    print ""
+    print "You can also use 'while' and numeric 'for' loops."
+    print "  for i = 0 to 5 { ... }"
+    print ""
+    print "  👉 npm run tutorial:cli next"
+  } else if step == 3 {
+    print "--- Step 3: Optional Reasoning ---"
+    print "Sesi has built-in Reasoning blocks. You don't need to set up anything."
+    print "  prompt request {"
+    print "    \"Summarize this text:\" text"
+    print "  }"
+    print "  let answer = model(\"gemini-3.1-flash-lite\") {request}"
+    print ""
+    print "It feels just like writing native code."
+    print ""
+    print "  👉 npm run tutorial:cli next"
+  } else if step >= 4 {
+    print "======================================"
+    print "          Tutorial Complete!          "
+    print "======================================"
+    print "Great job," state["name"] "! You learned how to:"
+    print "1. Pass native CLI args (using the args array)"
+    print "2. Manage variables and loops"
+    print "3. Read/write files (this script saved your progress!)"
+    print "4. Use native AI blocks"
+    print ""
+    print "Check docs/WRITING_SCRIPTS.md to build your own tools."
+    print ""
+    print "To restart:"
+    print "  👉 npm run tutorial:cli reset"
+  }
+}

@@ -218,6 +218,7 @@ const interpreter = new Interpreter(scriptDir, {
 
 - [Getting Started](./QUICKSTART.md)
 - [Examples](./examples/)
+- [Tutorial: Writing Scripts](./docs/WRITING_SCRIPTS.md)
 - [CLI Reference](./docs/CLI.md)
 - [Language Specification](./docs/SPECIFICATION.md)
 - [Language Comparison Showcase](./docs/COMPARISON.md)

@@ -1,9 +1,9 @@
-// sesi_db_chatbot.sesi
-// Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries!
+/* sesi_db_chatbot.sesi
+Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries! */
 
-// ==================================================
-// 💬 1. CHOOSE YOUR ADVANCED TECHNICAL QUERY HERE!
-// (Test it with custom phrases containing our keywords!)
+/* ==================================================
+💬 1. CHOOSE YOUR ADVANCED TECHNICAL QUERY HERE!
+(Test it with custom phrases containing our keywords!) */
 let queryText = "how do I parse a json string?"
 try {
   queryText = read_file(".ai-ignore/query.txt")
@@ -26,8 +26,8 @@ fn derivative(y) {
   return y * (1.0 - y)
 }
 
-// 72-Dimensional Bag-of-Words Vocabulary Vectorizer
-// Tracks only official Sesi language keywords, compiler builtins, and native standard library exports.
+/* 72-Dimensional Bag-of-Words Vocabulary Vectorizer
+Tracks only official Sesi language keywords, compiler builtins, and native standard library exports. */
 fn vectorize(text) {
   let vec = []
   let k = 0

@@ -1,9 +1,8 @@
 // Sesi Demo Script
-
 let userName = "Tony"
 
-// Define a prompt for generating a quote
-// NOTE: No '+' operator inside prompt block body
+/* Define a prompt for generating a quote
+NOTE: No '+' operator inside prompt block body*/
 prompt quotePrompt {"Generate a short, motivational quote for " userName ". Only return the quote text."}
 
 // Function to analyze sentiment using structured output

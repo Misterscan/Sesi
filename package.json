@@ -39,10 +39,12 @@
     "build:installer": "npm run build:exe && npm run msi:eula && npm run build:msi",
     "build:mac:pkg": "node ./scripts/build-macos-pkg.mjs",
     "build:mac:installer": "npm run build:exe && npm run build:mac:pkg",
-    "repl": "sesi --repl",
+    "repl": "sesi",
     "example": "node --no-deprecation example.js",
     "example:ai": "node --no-deprecation example-ai.js",
-    "example:all": "sesi examples.sesi",
+    "example:all": "sesi -l examples.sesi",
+    "tutorial": "sesi -l tutorial/interactive_web_tutorial.sesi",
+    "tutorial:cli": "sesi -l tutorial/tutorial.sesi",
     "upload": "npm run build && npm publish --access public"
   },
   "keywords": [

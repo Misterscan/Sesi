@@ -1,7 +1,7 @@
-// Sesi Example 24: Native HTTP Server with Async Handlers
-// Run with: npm run sesi examples/main/24_http_server.sesi
+/* Example 24: Native HTTP Server with Async Handlers
+Run with: npm run sesi examples/main/24_http_server.sesi */
 
-import { sleep } from "std/time"
+import {sleep} from "std/time"
 
 async fn handleRequest(req) {
   print "Received request on path:" req.path "with method:" req.method
@@ -54,8 +54,8 @@ let port = 8080
 print "Starting native HTTP server on port" port "..."
 let server = listen(port, handleRequest)
 
-// In a real application, you can keep the server running.
-// Since this is a self-running example, we will close the server after 2 seconds.
+/* In a real application, you can keep the server running.
+Since this is a self-running example, we will close the server after 2 seconds. */
 sleep(2000)
 print "Closing server..."
 server.close()

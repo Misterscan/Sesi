@@ -57,16 +57,16 @@ function activate(context) {
             example: 'fn add(a, b) {\n  return a + b\n}'
         },
         'try': {
-            signature: 'try { ... } catch err { ... }',
+            signature: 'try { ... } catch (error) { ... }',
             source: 'Sesi Resilience',
             description: 'Encloses a block of code that may raise a filesystem or execution error, pairing with a `catch` block to handle exceptions.',
-            example: 'try {\n  let content = read_file("missing.txt")\n} catch err {\n  print "Caught filesystem error: " err\n}'
+            example: 'try {\n  let content = read_file("missing.txt")\n} catch (e) {\n  print "Caught filesystem error: " e\n}'
         },
         'catch': {
-            signature: 'catch error { ... }',
+            signature: 'catch (error) { ... }',
             source: 'Sesi Resilience',
             description: 'Handles exceptions thrown within the preceding `try` block, binding the error metadata to the specified identifier.',
-            example: 'try {\n  raise_error("Operation failed")\n} catch e {\n  print "Error type: " error_type(e)\n}'
+            example: 'try {\n  raise_error("Operation failed")\n} catch (e) {\n  print "Error type: " error_type(e)\n}'
         },
         'break': {
             signature: 'break',
@@ -136,25 +136,25 @@ function activate(context) {
         },
         'model': {
             signature: 'model("model-name") { ... }',
-            source: 'Sesi AI Core',
+            source: 'Sesi AI',
             description: 'Reasoning model evaluation primitive. Calls a specified LLM configuration block to generate a reasoning response.',
-            example: 'model("gemini-2.5-pro") {\n  prompt {"Outline the systems architecture for a compiler pipeline."}\n}'
+            example: 'model("gemini-3.1-flash-lite") {"Outline the systems architecture for a compiler pipeline."}'
         },
         'image': {
             signature: 'image("prompt")',
-            source: 'Sesi AI Core',
+            source: 'Sesi AI',
             description: 'Generates a synthetic image using advanced text-to-image models based on the prompt parameter.',
             example: 'let graphic = image("A dark, technical isometric blueprint of a compiler lexer graph.")'
         },
         'memory': {
             signature: 'memory',
-            source: 'Sesi AI Core',
-            description: 'Stateful conversation memory primitive that persists contextual conversational thread arrays.',
-            example: '// Memory is injected directly inside conversational model workflows.'
+            source: 'Sesi Stateful Memory',
+            description: 'Stateful conversation memory primitive that persists contextual thread arrays.',
+            example: '// Memory is injected directly inside your script workflows.'
         },
         'workflow': {
             signature: 'workflow name { ... }',
-            source: 'Sesi AI Core',
+            source: 'Sesi AI',
             description: 'Chains sequential model executions, transformations, and processing scripts into a unified pipeline.',
             example: 'workflow build_doc {\n  // Sequence steps here\n}'
         },
@@ -168,7 +168,7 @@ function activate(context) {
             signature: 'prompt { ... }',
             source: 'Sesi Compostion',
             description: 'Constructs highly dynamic and concise template prompts. Safe from literal string hardcoding and concatenations.',
-            example: 'let task = "audit logs"\nprompt {\n  "Analyze the system performance regarding: " task\n}'
+            example: 'let task = "audit logs"\nprompt {"Analyze the system performance regarding: " task}'
         },
         'define_tool': {
             signature: 'define_tool("tool_name", schema) { ... }',
@@ -192,7 +192,7 @@ function activate(context) {
             signature: 'multi_req(requests_array)',
             source: 'Sesi Tooling Integration',
             description: 'Dispatches multiple concurrent model reasoning requests in parallel, returning their results together.',
-            example: 'let results = multi_req([\n  {"model": "gemini-2.5-flash", "prompt": "Audit index.html"},\n  {"model": "gemini-2.5-flash", "prompt": "Audit server.js"}\n])'
+            example: 'let results = multi_req([\n  {"model": "gemini-3-flash-preview", "prompt": "Audit index.html"},\n  {"model": "gemini-3.1-flash-lite", "prompt": "Audit server.js"}\n])'
         },
         'read_file': {
             signature: 'read_file(path)',
@@ -282,7 +282,7 @@ function activate(context) {
             signature: 'error_type(caught_error)',
             source: 'Exception Handling Standard Library',
             description: 'Extracts the descriptive string categorizing the exception type classification of a caught error.',
-            example: 'try {\n  let file = read_file("invalid.txt")\n} catch err {\n  print "Error category: " error_type(err)\n}'
+            example: 'try {\n  let file = read_file("invalid.txt")\n} catch (e) {\n  print "Error category: " error_type(e)\n}'
         },
         'print': {
             signature: 'print value1 value2 ...',
@@ -345,10 +345,10 @@ function activate(context) {
             example: 'let logs = await fetchLogs()'
         },
         'convert': {
-            signature: 'convert(doc_or_media) { file_type: ext, output_type: ext } { expression }',
+            signature: 'convert(doc_or_media_or_audio) { output_type: ext } { expression }',
             source: 'Media Conversion Standard Library',
-            description: 'Native media conversion primitive. Transforms images, audios, or documents to the specified format.',
-            example: 'let output = convert(image) { file_type: "png", output_type: "jpg" } { "logo.png" }'
+            description: 'Native media conversion primitive. Transforms images, videos, audio, or documents to the specified format.',
+            example: 'let output = convert(media) { output_type: "jpg" } { "logo.png" }'
         }
     };
 
