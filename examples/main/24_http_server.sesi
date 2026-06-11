@@ -21,7 +21,7 @@ async fn handleRequest(req) {
       "status": 200,
       "body": {
         "language": "Sesi",
-        "version": "1.5.0",
+        "version": "1.5.3",
         "features": ["async/await", "native HTTP server", "structured output", "tool calls"]
       }
     }

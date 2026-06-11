@@ -1,0 +1,116 @@
+/* 
+{
+  "name": "Classic Sesi",
+  "version": "1.5.0",
+  "description": "Premium high-contrast theme based on beta version signature settings.",  
+  "author": "Misterscan",
+  "icon": "🌌",  
+  "commands": ["Apply Classic Theme"]
+}
+*/
+/* Classic Sesi Theme */
+:root {
+  --bg-base: #070e1b;
+  --bg-panel: #0f172a;
+  --accent-cyan: #00e5ff;
+  --accent-blue: #0077ff;
+  --accent-green: #39ff14;
+  --accent-purple: #8b5cf6;
+  --accent-orange: #f59e0b;
+  --accent-pink: #ec4899;
+  --silver-light: #e2e8f0;
+  --silver-mid: #94a3b8;
+  --silver-dark: #475569;
+  --glass-bg: rgba(7, 14, 27, 0.95);
+  --glass-border: rgba(0, 229, 255, 0.2);
+  --glass-highlight: rgba(0, 229, 255, 0.25);
+}
+
+/* Update Monaco Theme dynamically if possible, otherwise this CSS handles the UI */
+body {
+  background-color: var(--bg-base) !important;
+  color: var(--silver-light) !important;
+}
+
+header {
+  background: rgba(7, 14, 27, 0.95) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.panel {
+  background: var(--bg-panel) !important;
+  border-color: var(--glass-border) !important;
+}
+
+.panel-header {
+  background: rgba(0, 229, 255, 0.05) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.panel-title {
+  color: var(--accent-cyan) !important;
+}
+
+.btn {
+  background: #1e293b !important;
+  border: 1px solid var(--glass-border) !important;
+  color: var(--silver-light) !important;
+}
+
+.btn:hover {
+  background: #334155 !important;
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+}
+
+.tab {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-right: 1px solid var(--glass-border) !important;
+}
+
+.tab.active {
+  background: var(--bg-panel) !important;
+  border-bottom: 2px solid var(--accent-cyan) !important;
+  color: #fff !important;
+}
+
+.file-item:hover {
+  background: rgba(0, 229, 255, 0.08) !important;
+  color: #fff !important;
+}
+
+.file-item.active {
+  background: rgba(0, 229, 255, 0.12) !important;
+  border-left: 2px solid var(--accent-cyan) !important;
+  color: var(--accent-cyan) !important;
+}
+
+.terminal-container-wrapper {
+  background: #000 !important;
+  border-top: 1px solid var(--glass-border) !important;
+}
+
+.chat-messages {
+  background: rgba(7, 14, 27, 0.4) !important;
+}
+
+.message.user {
+  background: #1e293b !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+.message.system {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(0, 229, 255, 0.1) !important;
+}
+
+.chat-input {
+  background: #000 !important;
+  border-color: var(--silver-dark) !important;
+  color: var(--accent-cyan) !important;
+}
+
+.chat-input:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
+}

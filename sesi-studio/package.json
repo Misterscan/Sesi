@@ -1,11 +1,11 @@
 {
   "name": "sesi-studio",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "Sesi Studio — IDE for the Sesi Programming Language",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "sesi studio.sesi",
+    "dev": "sesi studio.sesi"
   },
   "dependencies": {
     "express": "5.2.1",

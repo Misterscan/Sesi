@@ -1,0 +1,104 @@
+/* Sesi Web Scraper
+Fetches a webpage, validates its URL, extracts structured metadata,
+saves a JSON data record, and compiles a Markdown report. 
+Usage:
+  sesi scraper.sesi [url]
+*/
+
+import {now, format} from "std/time"
+
+// Ensure reports directory exists
+let outputDir = "reports"
+if list_dir(outputDir) == "" {
+  make_dir(outputDir)
+}
+
+// Retrieve target URL from arguments or default to Hacker News
+let target_url = "https://news.ycombinator.com/"
+if len(args) > 0 {
+  target_url = args[0]
+}
+
+// Define url validation function
+fn validate_url(url) {
+  let parts = split(url, "://")
+  if len(parts) > 1 {
+    let scheme = parts[0]
+    if scheme == "http" || scheme == "https" {
+      return true
+    }
+  }
+  return false
+}
+
+// Register as a custom tool
+define_tool("url_validator", validate_url, "Validates if the URL has http or https scheme")
+
+// Validate the URL using the registered tool
+let isValid = tool_call(url_validator)(target_url)
+if !isValid {
+  print "Error: Invalid URL specified:" target_url
+  print "The scraper requires a valid URL starting with http:// or https://"
+  raise_error("ValidationError", "Invalid URL scheme")
+}
+
+print "🌐 Fetching webpage content from:" target_url
+let html = ""
+try {
+  html = web_get(target_url)
+} catch (e) {
+  print "❌ Failed to retrieve page content:" e
+  raise_error("NetworkError", "Failed to retrieve webpage content")
+}
+
+print "🧠 Parsing HTML and extracting structured data..."
+let result = structured_output({pageTitle: string, siteTopic: string, headlines: array<string>, keyContent: string, highlights: string})(model("gemini-3.1-flash-lite") {temperature: 0.1} {"Extract the pageTitle, primary siteTopic, a list of headlines (as array of strings), key content, and highlights from: " html})
+
+let pageTitle = result["pageTitle"]
+let siteTopic = result["siteTopic"]
+let headlines = result["headlines"]
+if type(headlines) == "string" {
+  headlines = split(headlines, "; ")
+}
+let keyContent = result["keyContent"]
+let highlights = result["highlights"]
+
+print "✅ Extraction finished successfully!"
+print "Page Title:" pageTitle
+print "Primary Topic:" siteTopic
+print "Number of headlines found:" len(headlines)
+
+// Construct structured JSON database entry
+let outputData = {"url": target_url, "pageTitle": pageTitle, "siteTopic": siteTopic, "scrapedAt": format(now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "short"}), "headlines": headlines, "keyContent": keyContent, "highlights": highlights}
+
+write_file(outputDir + "/scraped_results.json", to_json(outputData))
+print "💾 Saved database entry to " outputDir "/scraped_results.json"
+
+// Compile Markdown report
+let mdHeadlines = ""
+for h in headlines {
+  mdHeadlines = mdHeadlines + "- " + h + "\n"
+}
+
+let timestamp = format(now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "medium"})
+prompt reportBody {"# Web Scraper Report
+
+- **Source URL**: " target_url "
+- **Page Title**: " pageTitle "
+- **Topic Category**: " siteTopic "
+- **Scraped At**: " timestamp "
+
+## Extracted Headlines
+
+" mdHeadlines "
+
+## Key Content
+
+" keyContent "
+
+## Highlights
+
+" highlights}
+
+write_file(outputDir + "/" + pageTitle + "-report-" + timestamp + ".md", reportBody)
+print "📄 Compiled and saved report to" outputDir "/" pageTitle "-report-" timestamp ".md"

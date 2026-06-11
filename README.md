@@ -25,6 +25,20 @@
   <a href="https://code-with-sesi.netlify.app/">Homepage</a>
 </p>
 
+## ✨ New: Sesi Studio IDE
+
+We are excited to announce the release of **Sesi Studio**, a high-performance, browser-based IDE built specifically for Sesi developers. It combines the power of VS Code's editor with deep native integration for the Sesi toolchain.
+
+- **Pro Editor Features**: Bracket pair colorization, document symbols, and go-to-definition.
+- **Integrated Terminal**: Run Sesi scripts and manage your system directly from the IDE.
+- **Sesi Co-Pilot**: Context-aware chat assistant that understands your codebase.
+- **Local Timeline**: Never lose code with built-in edit history.
+
+To launch Sesi Studio, you can:
+- Open **Sesi Studio.app** (macOS)
+- Run `./SesiStudio.command` from the root directory
+- Use the CLI: `sesi -s` (after installing Sesi)
+
 ## Installation
 
 You can install Sesi in three ways:

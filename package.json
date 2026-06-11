@@ -66,6 +66,7 @@
   "license": "MIT",
   "dependencies": {
     "@dotenvx/dotenvx": "1.71.2",
+    "@dotenvx/dotenvx-armor": "^0.54.4",
     "@dotenvx/dotenvx-ops": "0.54.4",
     "@google/genai": "2.8.0",
     "ws": "8.21.0"

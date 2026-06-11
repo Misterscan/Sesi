@@ -179,10 +179,16 @@ export class AIRuntime {
         
         let base64String = null;
         if (response.candidates && response.candidates.length > 0) {
-           for (const part of response.candidates[0].content.parts) {
-               if (part.inlineData) {
-                   base64String = part.inlineData.data;
-                   break;
+           const candidate = response.candidates[0];
+           if (candidate.finishReason && candidate.finishReason !== 'STOP') {
+               throw new Error(`Image generation failed with finish reason: ${candidate.finishReason}`);
+           }
+           if (candidate.content && candidate.content.parts) {
+               for (const part of candidate.content.parts) {
+                   if (part.inlineData) {
+                       base64String = part.inlineData.data;
+                       break;
+                   }
                }
            }
         }

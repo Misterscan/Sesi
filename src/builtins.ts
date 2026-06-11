@@ -868,7 +868,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
               }
             }
 
-            let responseBody = '';
+            let responseBody: any = '';
             if (result.body !== undefined) {
               if (typeof result.body === 'object' && result.body !== null) {
                 responseBody = JSON.stringify(result.body);
@@ -876,7 +876,17 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
                   headers['Content-Type'] = 'application/json';
                 }
               } else {
-                responseBody = String(result.body);
+                const contentType = String(headers['Content-Type'] || '').toLowerCase();
+                const isBinaryType = contentType.startsWith('image/') || contentType.startsWith('audio/') || contentType.startsWith('video/') || contentType.startsWith('application/octet-stream');
+                if (isBinaryType && typeof result.body === 'string') {
+                  try {
+                    responseBody = Buffer.from(result.body, 'base64');
+                  } catch (err) {
+                    responseBody = String(result.body);
+                  }
+                } else {
+                  responseBody = String(result.body);
+                }
               }
             } else {
               if (result.status === undefined && result.headers === undefined) {

@@ -4,10 +4,10 @@ Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers q
 /* ==================================================
 💬 1. CHOOSE YOUR ADVANCED TECHNICAL QUERY HERE!
 (Test it with custom phrases containing our keywords!) */
-let queryText = "how do I parse a json string?"
-try {
-  queryText = read_file(".ai-ignore/query.txt")
-} catch (e) {}
+let queryText = "how do I convert an image and display it through my web server?"
+if len(args) > 0 {
+  queryText = join(args, " ")
+}
 let fileContext = ""
 try {
   fileContext = read_file(".ai-ignore/help_context.txt")
@@ -26,12 +26,12 @@ fn derivative(y) {
   return y * (1.0 - y)
 }
 
-/* 72-Dimensional Bag-of-Words Vocabulary Vectorizer
+/* 74-Dimensional Bag-of-Words Vocabulary Vectorizer
 Tracks only official Sesi language keywords, compiler builtins, and native standard library exports. */
 fn vectorize(text) {
   let vec = []
   let k = 0
-  while k < 72 {
+  while k < 74 {
     push(vec, 0.0)
     k = k + 1
   }
@@ -197,7 +197,7 @@ try {
     let sum = 0.0
     let w_row = weights[j]
     let k = 0
-    while k < 72 {
+    while k < 74 {
       sum = sum + (query_vec[k] * w_row[k])
       k = k + 1
     }
@@ -226,26 +226,21 @@ try {
     print "   Please ask again."
   } else {
     let rec = database[best_class]
-    let docs_list = list_dir("docs")
+    let docs_list = ["BUILTINS.md", "CLI.md", "IMAGE_GENERATION.md", "SPECIFICATION.md", "WRITING_SCRIPTS.md"]
     let sesiDocs = ""
     let d = 0
     while d < len(docs_list) {
       let f_name = docs_list[d]
-      let parts = split(f_name, ".")
-      let ext = parts[len(parts) - 1]
-      
-      if ext == "md" {
-        let doc_content = read_file("docs/" + f_name)
-        sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
-      }
+      let doc_content = read_file("docs/" + f_name)
+      sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
       d = d + 1
     }
     
     let skills = read_file("SKILLS.md")
-    let instructions = "Instructions: " + skills + " If Active File Context is present, use it directly and talk about that file concretely. Be helpful and robust. Do NOT invent syntax. Do not mention that you got this from a database. Do not ask follow up questions. You are not in an interactive chat session with the user. CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins)."
+    let instructions = "Instructions: " + skills + " If Active File Context is present, use it directly and talk about that file concretely. Be helpful and robust. Do NOT invent syntax. Use the correct `/*\nMulti-line\nComment\n*/` style for multi-line comments. Do not mention that you got this from a database. Do not ask follow up questions. You are not in an interactive chat session with the user. CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins)."
     let ragPrompt = "Sesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nActive File Context:\n" + fileContext + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"]
     let persona = "Your name is Sesi Co-Pilot. You are an expert in Sesi and very efficient at coding. You prefer an original way of doing things. "
-    let generated_response = model("gemini-3.1-flash-lite") {temperature: 0.3, max_tokens: 2048} {ragPrompt persona instructions}
+    let generated_response = model("gemini-3.1-flash-lite") {thinkingLevel: "low", max_tokens: 4096} {instructions ragPrompt persona}
     
     let helpResponse = write_file("help_response.md", "# Help Response:\n\n" + generated_response)
     print "The Sesi Co-Pilot has provided a response to your question. Check help_response.md"

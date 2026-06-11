@@ -6,6 +6,7 @@ dist
 .DS_Store
 .env.keys
 venv
+*.db
 
 # Installer build outputs (generated)
 SesiInstaller.msi
@@ -67,7 +68,6 @@ guides.sesi
 profiles.sesi
 prompts.sesi
 retrorender.sesi
-sesi-studio/index.html
 docs/SKILLS.md
 .sesi_cache.json
 .sesi_chat_history.json
@@ -85,3 +85,7 @@ thoughts.txt
 lonely.sesi
 tutorial/.tmp_run.sesi
 Videos/
+help_response.md
+generated_images
+random_images
+Sesi Studio.app

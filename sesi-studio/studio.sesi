@@ -1,0 +1,322 @@
+/*
+Sesi Studio v2.0
+This native server replaces our now deprecated server.js script with a full-featured IDE backend written entirely in Sesi.
+Usage:
+  sesi -s
+*/
+
+let PROJECT_ROOT = exec("pwd")
+PROJECT_ROOT = split(PROJECT_ROOT, "\n")[0]
+
+let docs_list = ["BUILTINS.md", "CLI.md", "IMAGE_GENERATION.md", "SPECIFICATION.md", "WRITING_SCRIPTS.md"]
+let sesiDocs = ""
+for f_name in docs_list {
+  try {
+    let doc_content = read_file("docs/" + f_name)
+    sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
+  } catch (e) {}
+}
+
+memory copilotMemory { "You are Sesi Studio Co-Pilot, an expert programmer for the Sesi language. Here is the Sesi documentation to use for reference:\n" sesiDocs }
+
+print "Starting Sesi Studio natively with Sesi..."
+
+let favicon = ""
+try {
+  favicon = read_file("sesi-studio/img/favicon.png.base64")
+} catch (e) {
+  try {
+    let tmp = exec("node -e \"require('fs').writeFileSync('sesi-studio/img/favicon.png.base64', require('fs').readFileSync('sesi-studio/img/favicon.png').toString('base64'))\"")
+    favicon = read_file("sesi-studio/img/favicon.png.base64")
+  } catch (err) {}
+}
+
+fn handle_http(req) {
+  let path = req.path
+  let method = req.method
+  
+  if path == "/" {
+    try {
+      let content = read_file("sesi-studio/index.html")
+      return {"status": 200, "headers": {"Content-Type": "text/html"}, "body": content}
+    } catch (e) {
+      return {"status": 500, "body": "Failed to load index.html"}
+    }
+  }
+
+  if path == "/img/favicon.png" {
+    return {"status": 200, "headers": {"Content-Type": "image/png"}, "body": favicon}
+  }
+
+  if path == "/api/files" {
+    try {
+      let query_path = req.query["path"]
+      if query_path == "" || query_path == null {
+        query_path = "."
+      }
+      let items = list_dir(query_path)
+      let result = []
+      for item in items {
+        if item != ".git" && item != "node_modules" && item != ".DS_Store" {
+          let isDir = false
+          let item_path = item
+          if query_path != "." && query_path != "" {
+            item_path = query_path + "/" + item
+          }
+          try {
+            let tmp = list_dir(item_path)
+            if tmp != null {
+              isDir = true
+            }
+          } catch (err) {}
+          push(result, {"name": item, "isDir": isDir, "path": item_path})
+        }
+      }
+      return {"status": 200, "body": result}
+    } catch (e) {
+      return {"status": 500, "body": {"error": str(e)}}
+    }
+  }
+
+  if path == "/api/file" && method == "GET" {
+    try {
+      let query_path = req.query["path"]
+      let content = read_file(query_path)
+      return {"status": 200, "body": {"content": content, "path": query_path}}
+    } catch (e) {
+      return {"status": 500, "body": {"error": str(e)}}
+    }
+  }
+
+  if path == "/api/file" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      write_file(body_obj["path"], body_obj["content"])
+      return {"status": 200, "body": {"success": true}}
+    } catch (e) {
+      return {"status": 500, "body": {"error": str(e)}}
+    }
+  }
+
+  if path == "/api/chat" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let q = body_obj["query"]
+      
+      let res = ""
+      if body_obj["filePath"] != null {
+        let active_file = body_obj["filePath"]
+        let active_content = body_obj["fileContent"]
+        prompt chat_msg { "[Active File:" active_file "]\n```\n" active_content "\n```\n\nUser Question:" q }
+        res = model("gemini-3.1-flash-lite") {copilotMemory} {chat_msg}
+      } else {
+        prompt chat_msg { q }
+        res = model("gemini-3.1-flash-lite") {copilotMemory} {chat_msg}
+      }
+      
+      return {"status": 200, "body": {"response": res}}
+    } catch (e) {
+      return {"status": 200, "body": {"response": "⚠️ Co-pilot error: " + str(e)}}
+    }
+  }
+
+  if path == "/api/autocomplete" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let prefix = body_obj["prefix"]
+      let suffix = body_obj["suffix"]
+      let file_path = body_obj["filePath"]
+      if file_path == null {
+        file_path = "unsaved.sesi"
+      }
+      prompt completionPrompt { "You are a professional software engineer. Your job is to act as an inline code completion engine (like GitHub Copilot) for the Sesi programming language.\n\nHere is the context of the active file:\nFile name: " file_path "\n\nPrefix (code before cursor):\n" prefix "\n\nSuffix (code after cursor):\n" suffix "\n\nTask: Complete the code exactly from where the cursor left off.\nRules:\n- Respond ONLY with the raw code completion that immediately continues the prefix.\n- Do NOT wrap your response in markdown code blocks.\n- Do NOT include the prefix or suffix in your response.\n- Do NOT provide explanations, commentary, or comments.\n- Complete only the immediate logical block, line, or expression.\n- If no completion makes sense, return absolutely nothing." }
+      let res = model("gemini-3.1-flash-lite") {thinkingLevel: "minimal", max_tokens: 300} {copilotMemory completionPrompt}
+      return {"status": 200, "body": {"suggestion": res}}
+    } catch (e) {
+      print "Autocomplete Error: " str(e)
+      return {"status": 200, "body": {"suggestion": ""}}
+    }
+  }
+
+  if path == "/api/syntax" {
+    try {
+      // Use a brief Node script to leverage RegEx for extracting TextMate syntax safely
+      let script = "const fs=require('fs');const t=JSON.parse(fs.readFileSync('editors/vscode/syntaxes/sesi.tmLanguage.json'));const e=fs.readFileSync('editors/vscode/extension.js','utf8');const x=p=>{let m=[];if(p)p.forEach(r=>{if(r.match)m=m.concat(r.match.replace(/\\\\\\\\b/g,'').replace(/\\\\b/g,'').replace(/^\\(\\?\\:/,'(').replace(/^\\(/,'').replace(/\\)$/,'').split('|'))});return m};let dm=e.match(/const docs = ({[\\s\\S]*?});\\s*(?:let|const) hoverProvider/);console.log(JSON['stringify']({keywords:x(t.repository?.keywords?.patterns),typeKeywords:x(t.repository?.types?.patterns),constants:x(t.repository?.constants?.patterns),builtins:x(t.repository?.builtins?.patterns),docs:dm?eval('('+dm[1]+')'):{}}));"
+      let result = exec("node -e \"" + script + "\"")
+      return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": result}
+    } catch (e) {
+      return {"status": 500, "body": {"error": "Failed to load syntax config"}}
+    }
+  }
+
+  if path == "/api/extensions" {
+    try {
+      make_dir("sesi-studio/extensions")
+      make_dir("sesi-studio/extensions/themes")
+      let items = list_dir("sesi-studio/extensions")
+      let theme_items = list_dir("sesi-studio/extensions/themes")
+      let result = []
+      
+      fn get_metadata(base_path, file_name) {
+        let full_path = base_path + "/" + file_name
+        try {
+          // Use Node to safely extract the first comment block as JSON
+          // Using indexOf to avoid complex Regex escaping issues in Sesi/Shell strings
+          let script = "const fs=require('fs');const c=fs.readFileSync('" + full_path + "','utf8');const s=c.indexOf('/*');const e=c.indexOf('*/');if(s===-1||e===-1)process.stdout.write('null');else process.stdout.write(c.slice(s+2,e).trim())"
+          let json_str = exec("node -e \"" + script + "\"")
+          if json_str == "null" || json_str == "" {
+            return null
+          }
+          return from_json(json_str)
+        } catch (e) {
+          return null
+        }
+      }
+
+      // Top level extensions
+      for item in items {
+        let file_parts = split(item, ".")
+        let ext = file_parts[len(file_parts) - 1]
+        if ext == "js" || ext == "css" {
+          let meta = get_metadata("sesi-studio/extensions", item)
+          let entry = {"name": item, "type": ext}
+          if meta != null {
+            entry["displayName"] = meta["name"]
+            entry["version"] = meta["version"]
+            entry["description"] = meta["description"]
+            entry["author"] = meta["author"]
+            entry["commands"] = meta["commands"]
+            entry["icon"] = meta["icon"]
+          }
+          push(result, entry)
+        }
+      }
+      
+      // Themes subfolder
+      for item in theme_items {
+        let file_parts = split(item, ".")
+        let ext = file_parts[len(file_parts) - 1]
+        if ext == "css" {
+          let meta = get_metadata("sesi-studio/extensions/themes", item)
+          let entry = {"name": "themes/" + item, "type": ext}
+          if meta != null {
+            entry["displayName"] = meta["name"]
+            entry["version"] = meta["version"]
+            entry["description"] = meta["description"]
+            entry["author"] = meta["author"]
+            entry["commands"] = meta["commands"]
+            entry["icon"] = meta["icon"]
+          }
+          push(result, entry)
+        }
+      }
+      
+      return {"status": 200, "body": result}
+    } catch (e) {
+      return {"status": 500, "body": {"error": str(e)}}
+    }
+  }
+
+  let ext_parts = split(path, "/extensions/")
+  if len(ext_parts) == 2 && ext_parts[0] == "" {
+    let subpath = ext_parts[1]
+    try {
+      let content = read_file("sesi-studio/extensions/" + subpath)
+      let content_type = "text/plain"
+      let file_parts = split(subpath, ".")
+      let ext = file_parts[len(file_parts) - 1]
+      if ext == "js" {
+        content_type = "application/javascript"
+      }
+      if ext == "css" {
+        content_type = "text/css"
+      }
+      if ext == "svg" {
+        content_type = "image/svg+xml"
+      }
+      if ext == "png" || ext == "jpg" || ext == "jpeg" {
+        // Handle binary files by converting to base64 via node since read_file is utf-8
+        let script = "console.log(require('fs').readFileSync('sesi-studio/extensions/" + subpath + "').toString('base64'))"
+        let b64 = exec("node -e \"" + script + "\"")
+        // We return the raw buffer as a response body - most Sesi web implementations 
+        // will handle a base64 string if we provide the right content type or we might need 
+        // to tell the client to decode it. For simplicity, let's assume we can serve text-based icons (SVG/Emoji)
+        // and for binary we'll rely on the static server in server.js if it exists.
+      }
+      return {"status": 200, "headers": {"Content-Type": content_type}, "body": content}
+    } catch (e) {
+      return {"status": 404, "body": "Extension file not found"}
+    }
+  }
+
+  return {"status": 404, "body": "Not Found"}
+}
+
+let term_buffer = ""
+
+fn handle_ws(client, msg) {
+  try {
+    let parsed = from_json(msg)
+    if parsed["type"] == "input" {
+      let data_str = parsed["data"]
+      if data_str == "backspace" || data_str == "escape" || data_str == "ctrl-c" {
+        if data_str == "backspace" {
+          if len(term_buffer) > 0 {
+            let term_chars = split(term_buffer, "")
+            let garbage = pop(term_chars)
+            term_buffer = join(term_chars, "")
+            client.send(to_json({"type": "output", "data": "backspace"}))
+          }
+        } else if data_str == "ctrl-c" {
+          client.send(to_json({"type": "output", "data": "^C\r\n$ "}))
+          term_buffer = ""
+        }
+      } else {
+        let chars = split(data_str, "")
+        for char in chars {
+          if char == "\r" || char == "\n" {
+            client.send(to_json({"type": "output", "data": "\r\n"}))
+            if len(term_buffer) > 0 {
+              try {
+                let clean_cmd = join(split(term_buffer, "\r"), "")
+                clean_cmd = join(split(clean_cmd, "\n"), "")
+                let result = exec(clean_cmd)
+                let formatted = join(split(result, "\r"), "")
+                formatted = join(split(formatted, "\n"), "\r\n")
+                client.send(to_json({"type": "output", "data": formatted + "\r\n"}))
+              } catch (e) {
+                let err_msg = join(split(str(e), "\r"), "")
+                err_msg = join(split(err_msg, "\n"), "\r\n")
+                client.send(to_json({"type": "output", "data": "Error: " + err_msg + "\r\n"}))
+              }
+              term_buffer = ""
+            }
+            client.send(to_json({"type": "output", "data": "$ "}))
+          } else {
+            term_buffer = term_buffer + char
+            client.send(to_json({"type": "output", "data": char}))
+          }
+        }
+      }
+    }
+  } catch (e) {
+    print "WS Error:" str(e)
+  }
+}
+
+let http_port = 3050
+let ws_port = 3051
+
+print ""
+print "  ╔══════════════════════════════════════════╗"
+print "  ║                                          ║"
+print "  ║   🧠 Sesi Studio v2.0                    ║"
+print "  ║   → http://localhost:" str(http_port) "              ║"
+print "  ║                                          ║"
+print "  ╚══════════════════════════════════════════╝"
+print ""
+print "  Press Ctrl+C to stop the server..."
+print ""
+
+let http_server = listen(http_port, handle_http)
+let ws_server = api(ws_port, handle_ws)
