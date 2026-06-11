@@ -78,7 +78,7 @@ if (process.platform === 'win32') {
 
 try {
   execSync(
-    `npx pkg dist/sesi.bundled.js --targets ${targets} --out-path releases`,
+    `npx pkg dist/sesi.bundled.js --config pkg.json --targets ${targets} --out-path releases`,
     { stdio: 'inherit', cwd: repoRoot }
   );
 } catch (e) {
@@ -108,6 +108,15 @@ if (process.platform === 'win32') {
 
   if (renamed) {
     console.log('Successfully prepared target executable: sesi.bundled-win.exe');
+    try {
+      const pkgJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+      const version = pkgJson.version;
+      const versionedExe = path.join(releasesDir, `sesi-${version}.bundled-win.exe`);
+      console.log(`Creating versioned release binary: ${versionedExe}`);
+      fs.copyFileSync(targetExe, versionedExe);
+    } catch (e) {
+      console.error('Failed to create versioned executable:', e.message);
+    }
   } else {
     console.error('Error: target executable not found for renaming.');
   }

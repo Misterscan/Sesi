@@ -1,6 +1,11 @@
-/* lint.sesi
-A high-fidelity, native Sesi static syntax auditor and workspace quality gates tool.
-Tokenizes and audits Sesi code completely natively in pure Sesi. */
+/* 
+    lint.sesi
+    A high-fidelity, native Sesi static syntax auditor and workspace quality gates tool.
+    Tokenizes and audits Sesi code completely natively in pure Sesi.
+  
+  Usage:
+    npm run lint <filename>
+*/
 
 fn lex(content) {
   let tokens = []

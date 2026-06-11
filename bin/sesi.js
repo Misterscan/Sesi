@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 require('@dotenvx/dotenvx').config();
+delete process.env.PKG_EXECPATH;
 const { runSesiFile, runSesi } = require('../dist/index.js');
 const fs = require('fs');
 const path = require('path');

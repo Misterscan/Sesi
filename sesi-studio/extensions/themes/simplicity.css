@@ -1,0 +1,307 @@
+/*
+{
+  "name": "Pastoral Simplicity",
+  "version": "1.0.0",
+  "description": "A modern take on pastoral simplicity. Warm accents, soft herbal tones, and cozy cream typography that feels like a warm hug and a cup of tea.",
+  "author": "Misterscan",
+  "icon": "🍵",
+  "commands": ["Apply Pastoral Simplicity"]
+}
+*/
+
+:root {
+  --bg-base: #1e1b18;
+  --bg-panel: #272320;
+  --accent-cyan: #df9f56;
+  --accent-blue: #93a285;
+  --accent-green: #b8c4a4;
+  --silver-light: #f7f3eb;
+  --silver-mid: #cfc4b6;
+  --silver-dark: #8c7e70;
+  --glass-bg: rgba(39, 35, 32, 0.85);
+  --glass-border: rgba(223, 159, 86, 0.15);
+  --glass-highlight: rgba(247, 243, 235, 0.05);
+}
+
+/* Custom Scrollbars - Soft wood & linen tones */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+  background: #3e3730;
+  border-radius: 4px;
+  border: 2px solid var(--bg-base);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cyan);
+}
+
+/* Global Body Override */
+body {
+  background-color: var(--bg-base);
+  color: var(--silver-light);
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: 0.1px;
+}
+
+/* Header styling */
+header {
+  background: rgba(30, 27, 24, 0.95) !important;
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.brand h1 {
+  font-weight: 500;
+  color: var(--silver-light);
+}
+
+.glow-text {
+  color: var(--accent-cyan) !important;
+  text-shadow: 0 0 12px rgba(223, 159, 86, 0.25);
+}
+
+/* Cozy Buttons */
+.btn {
+  background: #36302b;
+  border: 1px solid rgba(223, 159, 86, 0.25);
+  color: var(--silver-mid);
+  border-radius: 8px;
+  padding: 6px 16px;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+  background: var(--accent-cyan);
+  color: #1e1b18;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 2px 8px rgba(223, 159, 86, 0.2);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* Panels */
+.panel {
+  background: var(--glass-bg);
+  border-right: 1px solid var(--glass-border);
+}
+
+.panel-header {
+  background: rgba(30, 27, 24, 0.4) !important;
+  border-bottom: 1px solid var(--glass-border);
+  height: 38px;
+}
+
+.panel-title {
+  color: var(--accent-cyan);
+  font-weight: 600;
+  letter-spacing: 0.8px;
+}
+
+/* File Tree */
+#fileTree {
+  padding: 12px 0;
+}
+
+.file-item {
+  padding: 8px 18px;
+  border-radius: 4px;
+  margin: 2px 8px;
+  color: var(--silver-mid);
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  background: rgba(147, 162, 133, 0.1);
+  color: var(--silver-light);
+}
+
+.file-item.active {
+  background: rgba(223, 159, 86, 0.12);
+  border-left: 3px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+/* Tab Bar & Tabs */
+.tab-bar {
+  background: rgba(24, 21, 19, 0.8) !important;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.tab {
+  background: rgba(39, 35, 32, 0.4);
+  border-right: 1px solid var(--glass-border);
+  color: var(--silver-mid);
+  transition: all 0.2s ease;
+  border-top: 2px solid transparent;
+}
+
+.tab:hover {
+  background: rgba(39, 35, 32, 0.7);
+  color: var(--silver-light);
+}
+
+.tab.active {
+  background: var(--bg-panel);
+  color: var(--silver-light);
+  border-bottom: none;
+  border-top: 2px solid var(--accent-cyan);
+}
+
+.tab-close {
+  transition: color 0.15s ease;
+}
+
+.tab-close:hover {
+  color: #d96a6a !important;
+}
+
+/* Terminal Panel */
+.terminal-container-wrapper {
+  background: #181513 !important;
+  border-top: 1px solid var(--glass-border);
+}
+
+#terminalContainer {
+  background: #181513 !important;
+}
+
+/* Co-Pilot Chat */
+.chat-messages {
+  background: rgba(30, 27, 24, 0.25) !important;
+}
+
+.chat-tabs {
+  background: rgba(24, 21, 19, 0.9) !important;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.chat-tab {
+  border-right: 1px solid var(--glass-border);
+  transition: all 0.2s ease;
+}
+
+.chat-tab.active {
+  background: rgba(223, 159, 86, 0.12) !important;
+  color: var(--accent-cyan) !important;
+  border-bottom: 2px solid var(--accent-cyan);
+}
+
+.message {
+  border-radius: 8px;
+  line-height: 1.6;
+  padding: 12px 16px;
+}
+
+.message.system {
+  background: rgba(147, 162, 133, 0.08) !important;
+  border: 1px solid rgba(147, 162, 133, 0.2) !important;
+  color: var(--silver-light);
+}
+
+.message.user {
+  background: rgba(223, 159, 86, 0.06) !important;
+  border: 1px solid rgba(223, 159, 86, 0.2) !important;
+  color: var(--silver-light);
+}
+
+.message code {
+  color: var(--accent-cyan) !important;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.message pre {
+  background: #181513 !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 8px;
+}
+
+.code-actions-header {
+  background: rgba(30, 27, 24, 0.9) !important;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.code-action-btn {
+  border-color: var(--accent-blue) !important;
+  color: var(--accent-blue) !important;
+  border-radius: 4px;
+  padding: 3px 8px;
+  transition: all 0.15s ease;
+}
+
+.code-action-btn:hover {
+  background: var(--accent-blue) !important;
+  color: #1e1b18 !important;
+}
+
+/* Chat Input */
+.chat-input-area {
+  background: rgba(30, 27, 24, 0.6) !important;
+  border-top: 1px solid var(--glass-border);
+}
+
+.chat-input {
+  background: #181513 !important;
+  border: 1px solid rgba(223, 159, 86, 0.25) !important;
+  color: var(--silver-light) !important;
+  border-radius: 6px;
+  padding: 10px 14px;
+  transition: all 0.2s ease;
+}
+
+.chat-input:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 10px rgba(223, 159, 86, 0.15) !important;
+}
+
+/* Settings Hub Modal */
+#settingsModal {
+  background: rgba(24, 21, 19, 0.85) !important;
+}
+
+#settingsModal > div {
+  background: var(--bg-panel) !important;
+  border: 1px solid rgba(223, 159, 86, 0.25) !important;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+}
+
+.settings-tab {
+  transition: all 0.2s ease;
+}
+
+.settings-tab:hover {
+  background: rgba(223, 159, 86, 0.08) !important;
+  color: var(--silver-light) !important;
+}
+
+.settings-tab.active {
+  background: rgba(223, 159, 86, 0.12) !important;
+  color: var(--accent-cyan) !important;
+  border-left: 3px solid var(--accent-cyan) !important;
+  font-weight: 600;
+}
+
+.setting-item {
+  border-bottom: 1px solid rgba(223, 159, 86, 0.1) !important;
+}
+
+.settings-section h3 {
+  color: var(--accent-cyan) !important;
+  font-weight: 600;
+}
+
+/* Timeline/Local History Header */
+.panel-header[style*="background: rgba(139, 92, 246, 0.05);"] {
+  background: rgba(223, 159, 86, 0.05) !important;
+}

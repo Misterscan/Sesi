@@ -1,5 +1,6 @@
 
 // Main entry point for Sesi
+delete process.env.PKG_EXECPATH;
 export { Lexer } from './lexer';
 export { Parser } from './parser';
 export { Interpreter } from './interpreter';

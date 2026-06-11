@@ -166,6 +166,8 @@ fn vectorize(text) {
     if tok == "web_send" { vec[69] = 1.0 }
     if tok == "listen" { vec[70] = 1.0 }
     if tok == "convert" { vec[71] = 1.0 }
+    if tok == "prompt" { vec[72] = 1.0 }
+    if tok == "api" { vec[73] = 1.0 }
     i = i + 1
   }
   return vec

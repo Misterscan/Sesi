@@ -1,0 +1,262 @@
+/*
+{
+  "name": "Catppuccin",
+  "version": "1.0.0",
+  "description": "A community-favorite soft pastel theme. Balances muted colors like rosewater, lavender, and blue to create a low-contrast, easy-on-the-eyes aesthetic.",
+  "author": "Community",
+  "icon": "🐱",
+  "commands": ["Apply Catppuccin"]
+}
+*/
+
+:root {
+  --bg-base: #1e1e2e;
+  --bg-panel: #181825;
+  --accent-cyan: #b4befe; /* Lavender */
+  --accent-blue: #89b4fa; /* Blue */
+  --accent-green: #a6e3a1; /* Green */
+  --silver-light: #cdd6f4; /* Text */
+  --silver-mid: #a6adc8; /* Subtext0 */
+  --silver-dark: #585b70; /* Surface2 */
+  --glass-bg: rgba(24, 24, 37, 0.75);
+  --glass-border: rgba(180, 190, 254, 0.12);
+  --glass-highlight: rgba(180, 190, 254, 0.2);
+  
+  /* Catppuccin Specific Palette */
+  --ctp-rosewater: #f5e0dc;
+  --ctp-flamingo: #f2cdcd;
+  --ctp-pink: #f5c2e7;
+  --ctp-mauve: #cba6f7;
+  --ctp-red: #f38ba8;
+  --ctp-peach: #fab387;
+  --ctp-yellow: #f9e2af;
+  --ctp-teal: #94e2d5;
+  --ctp-sky: #89dceb;
+  --ctp-sapphire: #74c7ec;
+  --ctp-crust: #11111b;
+  --ctp-mantle: #181825;
+  --ctp-base: #1e1e2e;
+  --ctp-surface0: #313244;
+  --ctp-surface1: #45475a;
+  --ctp-surface2: #585b70;
+}
+
+/* Global Overrides */
+body {
+  background-color: var(--ctp-base);
+  color: var(--ctp-rosewater);
+}
+
+header {
+  background: rgba(24, 24, 37, 0.85) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.brand h1 {
+  color: var(--silver-light);
+}
+
+.glow-text {
+  color: var(--ctp-pink) !important;
+  text-shadow: 0 0 10px rgba(245, 194, 231, 0.2);
+}
+
+/* Buttons */
+.btn {
+  background: var(--ctp-surface0);
+  border: 1px solid var(--ctp-surface1);
+  color: var(--silver-light);
+}
+
+.btn:hover {
+  background: var(--ctp-surface1);
+  border-color: var(--accent-cyan);
+  color: #fff;
+}
+
+/* Panels */
+.panel {
+  background: var(--glass-bg);
+  border-right: 1px solid var(--glass-border);
+}
+
+.panel-header {
+  background: rgba(17, 17, 27, 0.4) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.panel-title {
+  color: var(--accent-cyan) !important;
+}
+
+/* File Tree */
+#fileTree {
+  background: transparent;
+}
+
+.file-item {
+  color: var(--silver-mid);
+}
+
+.file-item:hover {
+  background: rgba(180, 190, 254, 0.08) !important;
+  color: var(--ctp-rosewater) !important;
+}
+
+.file-item.active {
+  background: rgba(180, 190, 254, 0.15) !important;
+  border-left: 2px solid var(--accent-cyan) !important;
+  color: var(--accent-cyan) !important;
+}
+
+/* Tabs */
+.tab-bar {
+  background: rgba(17, 17, 27, 0.5) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.tab {
+  background: rgba(17, 17, 27, 0.2) !important;
+  border-right: 1px solid var(--glass-border) !important;
+  color: var(--silver-mid);
+}
+
+.tab.active {
+  background: var(--ctp-base) !important;
+  color: var(--silver-light) !important;
+  border-bottom: 2px solid var(--accent-cyan) !important;
+}
+
+.tab-close:hover {
+  color: var(--ctp-red) !important;
+}
+
+/* Terminal */
+.terminal-container-wrapper {
+  background: var(--ctp-crust) !important;
+  border-top: 1px solid var(--glass-border) !important;
+}
+
+/* Co-Pilot Chat */
+.chat-messages {
+  background: rgba(17, 17, 27, 0.3) !important;
+}
+
+.chat-tabs {
+  background: rgba(17, 17, 27, 0.5) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.chat-tab {
+  border-right: 1px solid var(--glass-border) !important;
+  color: var(--silver-mid);
+}
+
+.chat-tab.active {
+  background: rgba(180, 190, 254, 0.1) !important;
+  color: var(--accent-cyan) !important;
+}
+
+.chat-tab-add {
+  color: var(--accent-green) !important;
+}
+
+.chat-tab-close:hover {
+  color: var(--ctp-red) !important;
+}
+
+.message.system {
+  background: rgba(49, 50, 68, 0.4) !important;
+  border: 1px solid var(--glass-border) !important;
+  color: var(--silver-light) !important;
+}
+
+.message.user {
+  background: var(--ctp-surface0) !important;
+  border: 1px solid var(--glass-border) !important;
+  color: var(--silver-light) !important;
+}
+
+.message pre {
+  background: var(--ctp-crust) !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+.code-actions-header {
+  background: rgba(24, 24, 37, 0.9) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.code-action-btn {
+  border: 1px solid var(--accent-cyan) !important;
+  color: var(--accent-cyan) !important;
+}
+
+.code-action-btn:hover {
+  background: var(--accent-cyan) !important;
+  color: var(--ctp-crust) !important;
+}
+
+.message code {
+  color: var(--ctp-pink) !important;
+}
+
+.chat-input-area {
+  background: rgba(17, 17, 27, 0.4) !important;
+  border-top: 1px solid var(--glass-border) !important;
+}
+
+.chat-input {
+  background: var(--ctp-crust) !important;
+  border: 1px solid var(--ctp-surface1) !important;
+  color: var(--silver-light) !important;
+}
+
+.chat-input:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 8px rgba(180, 190, 254, 0.2) !important;
+}
+
+/* Settings Modal */
+#settingsModal {
+  background: rgba(17, 17, 27, 0.85) !important;
+}
+
+#settingsModal > div {
+  background: var(--ctp-mantle) !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+.settings-tab:hover {
+  background: rgba(180, 190, 254, 0.08) !important;
+  color: #fff !important;
+}
+
+.settings-tab.active {
+  background: rgba(180, 190, 254, 0.15) !important;
+  color: var(--accent-cyan) !important;
+  border-left: 3px solid var(--accent-cyan) !important;
+}
+
+.settings-section h3 {
+  color: var(--accent-cyan) !important;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--ctp-crust);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ctp-surface0);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ctp-surface1);
+}

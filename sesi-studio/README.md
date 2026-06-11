@@ -37,15 +37,16 @@ Sesi Studio is a premium, high-density development environment built specificall
 ## Getting Started
 
 ### Launching the Studio
-If you are working in the Sesi repository, simply run:
-```bash
-./SesiStudio.command
-```
-Or start the backend server manually:
-```bash
-sesi -s
-```
-Then navigate to `http://localhost:3051` in your browser.
+- **Windows (Native App)**: Double-click `Sesi Studio.exe` in the project root to launch Sesi Studio as a standalone native window. If you want to rebuild the wrapper from source, run `build-app.bat`.
+- **macOS / Linux**: Run the launcher script:
+  ```bash
+  ./SesiStudio.command
+  ```
+- **Manual CLI Launch**: Start the backend server manually from the repository root:
+  ```bash
+  sesi -s
+  ```
+  Then navigate to `http://localhost:3050` in your browser.
 
 ## Documentation
 - [Extensions & Themes Guide](./EXTENSIONS.md): Learn how to build your own themes and tools for Sesi Studio.

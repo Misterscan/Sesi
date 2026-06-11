@@ -1,0 +1,94 @@
+/* 
+    customize_css.sesi
+    Generate a customized theme for Sesi Studio using `model()`.
+    
+    This script is designed to be run from the command line to create new 
+    visual themes for the Sesi Studio IDE.
+
+  Usage:
+    npm run sesi sesi-studio/customize_css.sesi                                          # uses default theme description
+    npm run sesi sesi-studio/customize_css.sesi "Beautiful, premium modern UX design. Dynamic sky blues"  # custom style description
+*/
+
+print "Sesi Studio Theme Generator — creating a custom IDE theme"
+print ""
+
+let studioReadme = read_file("README.md")
+let studioHtml = read_file("index.html")
+
+// Pass your style description as the first CLI argument.
+let style = ""
+if len(args) > 0 {
+  style = args[0]
+}
+
+if len(style) > 0 {
+  print "Theme style description:" 
+  print style
+} else {
+
+  // If no argument is provided the model uses its own defaults.
+  let styleDefault = "Midnight Nebula: Deep indigo and obsidian backgrounds, vibrant violet and cosmic teal accents, soft glowing borders, and high-legibility silver text for the editor."
+  print "No style provided, using default:"
+  print styleDefault
+  style = styleDefault
+}
+
+// Providing the README and index.html as context helps the model understand the IDE's density, feature set, and intended feel.
+let context = "Sesi Studio Overview (README): \n" + studioReadme + "\n\nSesi Studio UI Structure (index.html): \n" + studioHtml
+prompt need {"IDE Theme Style: " style " Target elements: Sesi Studio UI components including panels, tabs, buttons, and specifically the CSS variables in :root (--bg-base, --bg-panel, --accent-cyan, etc.). Focus on the legiblity of text and surrounding elements."}
+
+print ""
+print "Theme Prompt:" 
+print to_json(need)
+print ""
+
+let instruction = "You are a UI Theme Designer for Sesi Studio. Produce a complete, valid CSS stylesheet that overrides the default studio theme. You MUST target the CSS variables defined in :root (like --bg-base, --bg-panel, --accent-cyan, --accent-blue, --accent-green, --silver-light, --silver-mid, --silver-dark, --glass-bg, --glass-border, --glass-highlight) to change the overall look. You can also add specific styles for .panel, .btn, .tab, .file-item, etc. to match the requested style: " + style + ". Use the provided index.html structure for reference. Output ONLY the raw CSS content with no explanations, no ```css backticks, or extra text."
+prompt required {"At the very top, you **MUST** include this schema:
+
+/*
+{
+  ""name"": [name of theme],
+  ""version"": 1.0.0,
+  ""description"": [description of theme],
+  ""author"": ""Misterscan"",
+  ""icon"": [emoji or svg icon that matches the theme.], 
+  ""commands"": [""Apply <theme-name>""]
+}
+*/
+// ...rest of the CSS...
+
+# THE `name`, `version`, `description`, `author`, `icon`, AND `commands` FIELDS **MUST** USE QUOTATION MARKS ON BOTH SIDES. THIS IS A NON-NEGOTIABLE REQUIREMENT.
+
+"}
+
+print "Requesting theme CSS from model..."
+
+/* Change the model and parameters as needed. 
+  - gemini-3-flash-preview is a good choice for code generation tasks, but feel free to experiment with other models or settings.
+  - gemini-3.5-flash for higher quality but token hungry
+  - gemini-3.1-pro-preview for a more polished and refined output.
+  - Both may take slightly longer than gemini-3-flash-preview, but can produce higher quality CSS with better adherence to best practices and design principles.
+  Note: We set cache: false to ensure we get a fresh response each time, which is important during development when you may be iterating on the style description. */
+let css = model("gemini-3.5-flash") {thinkingLevel: "medium", temperature: 0.4, max_tokens: 8192, cache: false} {instruction required "User theme need: " need context ". Only output CSS."}
+
+print "Received CSS preview (first 6 lines):"
+try {
+  let lines = split(css, "\n")
+  let n = len(lines)
+  if n > 6 { n = 6 }
+  for i = 0 to n - 1 { print lines[i] }
+} catch (err) {
+  print "  (preview failed):" err
+}
+
+print ""
+print "Writing sesi-studio/extensions/themes/generated-custom.css..."
+try {
+  write_file("extensions/themes/generated-custom.css", css)
+  print "  ✓ sesi-studio/extensions/themes/generated-custom.css written"
+} catch (err) {
+  print "  ✗ Failed to write theme file:" err
+}
+
+print "Done. You can now select 'generated-custom' in Sesi Studio's theme settings."

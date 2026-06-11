@@ -1,0 +1,271 @@
+/*
+{
+  "name": "Early Y2K",
+  "version": "1.0.0",
+  "description": "A low-resolution digital aesthetic featuring 16-bit color constraints, beveled UI elements, and dithered gradients reminiscent of 90s multimedia software.",
+  "author": "Misterscan",
+  "icon": "💿",
+  "commands": ["Apply Early Y2K"]
+}
+*/
+
+:root {
+  --bg-base: #101020;
+  --bg-panel: #222233;
+  --accent-cyan: #00ffff;
+  --accent-blue: #5555ff;
+  --accent-green: #00ff00;
+  --silver-light: #dfdfdf;
+  --silver-mid: #808080;
+  --silver-dark: #404040;
+  --glass-bg: #1a1a2a;
+  --glass-border: #555577;
+  --glass-highlight: #ffffff;
+  
+  /* Dither Patterns */
+  --dither-pattern: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVQImWMQFBRkYGBgYGAECQAAHwAB6Y6Z3QAAAABJRU5ErkJggg==");
+}
+
+body {
+  image-rendering: pixelated;
+  background-color: var(--bg-base);
+  background-image: var(--dither-pattern);
+  background-size: 2px 2px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+  letter-spacing: 0px;
+}
+
+header {
+  background: #000080 !important; /* Classic Win95 Title Blue */
+  border-bottom: 2px solid var(--silver-dark);
+  box-shadow: inset 0 -1px 0 #000;
+  height: 40px !important;
+}
+
+.brand h1 {
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 2px 2px #000;
+}
+
+.glow-text {
+  color: var(--accent-cyan) !important;
+  text-shadow: 1px 1px #000;
+}
+
+/* Beveled Panels */
+.panel {
+  background: var(--bg-panel) !important;
+  border: 2px solid !important;
+  border-color: var(--silver-light) var(--silver-dark) var(--silver-dark) var(--silver-light) !important;
+  margin: 2px;
+}
+
+.panel-header {
+  background: repeating-linear-gradient(45deg, #333344, #333344 2px, #222233 2px, #222233 4px) !important;
+  border-bottom: 2px solid var(--silver-dark) !important;
+  height: 28px !important;
+}
+
+.panel-title {
+  font-size: 10px !important;
+  color: #fff !important;
+  text-shadow: 1px 1px #000;
+}
+
+/* 16-bit Buttons */
+.btn {
+  background: var(--silver-mid) !important;
+  border: 2px solid !important;
+  border-color: var(--silver-light) var(--silver-dark) var(--silver-dark) var(--silver-light) !important;
+  border-radius: 0px !important;
+  color: #000 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: bold !important;
+  text-transform: uppercase;
+  padding: 4px 10px !important;
+}
+
+.btn:hover {
+  background: var(--silver-light) !important;
+}
+
+.btn:active {
+  border-color: var(--silver-dark) var(--silver-light) var(--silver-light) var(--silver-dark) !important;
+  padding: 5px 9px 3px 11px !important;
+}
+
+/* Tabs */
+.tab-bar {
+  background: #111 !important;
+  height: 30px !important;
+  padding-top: 4px;
+}
+
+.tab {
+  background: var(--silver-mid) !important;
+  border: 2px solid !important;
+  border-color: var(--silver-light) var(--silver-dark) transparent var(--silver-light) !important;
+  border-radius: 4px 4px 0 0 !important;
+  margin-right: 2px;
+  color: #000 !important;
+  font-size: 11px !important;
+}
+
+.tab.active {
+  background: var(--bg-panel) !important;
+  color: var(--accent-cyan) !important;
+  border-bottom: 2px solid var(--bg-panel) !important;
+  margin-top: -2px;
+  height: calc(100% + 2px);
+  z-index: 2;
+}
+
+/* File Tree */
+.file-item {
+  border: 1px solid transparent;
+}
+
+.file-item:hover {
+  background: var(--accent-blue) !important;
+  color: #fff !important;
+  border: 1px dotted #fff;
+}
+
+.file-item.active {
+  background: #000080 !important;
+  color: #fff !important;
+  border: 1px dotted var(--accent-cyan) !important;
+}
+
+/* Chat Messages */
+.chat-messages {
+  background-image: var(--dither-pattern) !important;
+  background-color: #000 !important;
+}
+
+.message {
+  border-radius: 0px !important;
+  border: 2px solid !important;
+  font-size: 12px !important;
+}
+
+.message.system {
+  background: #222244 !important;
+  border-color: var(--silver-light) var(--silver-dark) var(--silver-dark) var(--silver-light) !important;
+  color: #fff !important;
+}
+
+.message.user {
+  background: #442244 !important;
+  border-color: var(--silver-light) var(--silver-dark) var(--silver-dark) var(--silver-light) !important;
+  color: var(--accent-cyan) !important;
+}
+
+.message pre {
+  background: #000 !important;
+  border: 1px solid var(--silver-mid) !important;
+  border-radius: 0px !important;
+}
+
+/* Terminal */
+.terminal-container-wrapper {
+  border-top: 4px double var(--silver-mid) !important;
+}
+
+.xterm-viewport {
+  background-color: #000 !important;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--silver-mid);
+  background-image: var(--dither-pattern);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--silver-mid);
+  border: 2px solid;
+  border-color: var(--silver-light) var(--silver-dark) var(--silver-dark) var(--silver-light);
+}
+
+::-webkit-scrollbar-thumb:active {
+  border-color: var(--silver-dark) var(--silver-light) var(--silver-light) var(--silver-dark);
+}
+
+/* Inputs */
+.chat-input {
+  background: #000 !important;
+  border: 2px solid !important;
+  border-color: var(--silver-dark) var(--silver-light) var(--silver-light) var(--silver-dark) !important;
+  border-radius: 0px !important;
+  color: var(--accent-green) !important;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Monaco Overrides */
+.monaco-editor, .monaco-editor .margin, .monaco-editor-background {
+  background-color: #000 !important;
+}
+
+.monaco-editor .line-numbers {
+  color: var(--silver-mid) !important;
+}
+
+.monaco-editor .current-line {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border: 1px dotted var(--silver-mid);
+}
+
+/* Settings Modal */
+#settingsModal > div {
+  border-radius: 0px !important;
+  border: 3px solid var(--silver-light) !important;
+  box-shadow: 10px 10px 0px rgba(0,0,0,0.5) !important;
+}
+
+.settings-tab.active {
+  background: #000080 !important;
+  color: #fff !important;
+  border: 1px dotted #fff !important;
+}
+
+.setting-item {
+  border-bottom: 1px dashed var(--silver-dark) !important;
+}
+
+/* Code Action Buttons */
+.code-action-btn {
+  border-radius: 0px !important;
+  background: var(--silver-mid) !important;
+  border: 1px solid !important;
+  border-color: var(--silver-light) var(--silver-dark) var(--silver-dark) var(--silver-light) !important;
+  color: #000 !important;
+}
+
+.code-action-btn:hover {
+  background: var(--accent-cyan) !important;
+  color: #000 !important;
+}
+
+/* CRT Scanline Overlay Effect (Optional/Subtle) */
+.studio-container::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+  z-index: 9999;
+  background-size: 100% 4px, 3px 100%;
+  pointer-events: none;
+}

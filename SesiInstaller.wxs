@@ -14,7 +14,7 @@
         <Component Id="SesiExeComponent" Guid="*">
           <File
             Id="SesiExeFile"
-            Source="releases\sesi.bundled-win.exe"
+            Source="releases\sesi-1.5.3.bundled-win.exe"
             Name="sesi.exe"
             KeyPath="yes"
           />
@@ -34,4 +34,4 @@
       <ComponentRef Id="SesiExeComponent" />
     </Feature>
   </Package>
-</Wix>;
+</Wix>

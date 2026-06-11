@@ -1,0 +1,248 @@
+/*
+{
+  "name": "StormCenter 95",
+  "version": "1.0.0",
+  "description": "A nostalgic broadcast-inspired aesthetic modeled after 90s cable news weather graphics, featuring blue gradients and low-fidelity digital overlays.",
+  "author": "Misterscan",
+  "icon": "⛈️",
+  "commands": ["Apply StormCenter 95"]
+}
+*/
+
+:root {
+  --bg-base: #003399;
+  --bg-panel: #0044bb;
+  --accent-cyan: #ffff00; /* Bright yellow for that classic weather alert look */
+  --accent-blue: #00f2ff;
+  --accent-green: #00ff00;
+  --silver-light: #ffffff;
+  --silver-mid: #99ccff;
+  --silver-dark: #002266;
+  --glass-bg: rgba(0, 40, 150, 0.9);
+  --glass-border: #ffffff;
+  --glass-highlight: rgba(255, 255, 255, 0.4);
+  --news-gradient: linear-gradient(180deg, #003399 0%, #0066ff 50%, #003399 100%);
+  --ticker-bg: #cc0000;
+}
+
+body {
+  background: var(--bg-base);
+  background-image: 
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  background-size: 100% 4px, 3px 100%;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+}
+
+/* CRT Scanline Overlay */
+body::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+  z-index: 9999;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+}
+
+header {
+  background: var(--news-gradient) !important;
+  border-bottom: 3px solid var(--accent-cyan) !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  height: 60px !important;
+}
+
+.brand h1 {
+  font-family: 'Arial Black', sans-serif;
+  text-transform: uppercase;
+  font-style: italic;
+  letter-spacing: 1px;
+  color: #fff;
+  filter: drop-shadow(2px 2px 0px #000);
+}
+
+.brand h1::before {
+  content: "LIVE";
+  background: var(--ticker-bg);
+  color: white;
+  padding: 2px 6px;
+  font-size: 10px;
+  margin-right: 8px;
+  border-radius: 0;
+  vertical-align: middle;
+  animation: blink 1s steps(2) infinite;
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.btn {
+  background: #dddddd !important;
+  border: 2px solid #ffffff !important;
+  border-right-color: #444 !important;
+  border-bottom-color: #444 !important;
+  color: #000 !important;
+  border-radius: 0 !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  box-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+}
+
+.btn:hover {
+  background: var(--accent-cyan) !important;
+}
+
+.panel {
+  background: var(--bg-panel) !important;
+  border: 2px solid var(--silver-dark) !important;
+}
+
+.panel-header {
+  background: var(--news-gradient) !important;
+  border-bottom: 2px solid var(--silver-light) !important;
+}
+
+.panel-title {
+  color: var(--accent-cyan) !important;
+  font-family: 'Arial Black', sans-serif;
+  text-shadow: 2px 2px #000;
+}
+
+.tab-bar {
+  background: #002266 !important;
+  padding-top: 4px;
+}
+
+.tab {
+  background: #0044bb !important;
+  border: 2px solid #ffffff !important;
+  border-bottom: none !important;
+  margin-right: 4px;
+  color: #fff !important;
+  font-weight: bold;
+  border-radius: 8px 8px 0 0 !important;
+}
+
+.tab.active {
+  background: var(--accent-cyan) !important;
+  color: #000 !important;
+  border-bottom: none !important;
+}
+
+.file-item {
+  color: #fff !important;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.file-item:hover {
+  background: rgba(255,255,255,0.2) !important;
+}
+
+.file-item.active {
+  background: var(--accent-cyan) !important;
+  color: #000 !important;
+  border: none !important;
+}
+
+.terminal-container-wrapper {
+  border-top: 4px solid var(--accent-cyan) !important;
+  background: #000 !important;
+}
+
+.chat-input {
+  background: #fff !important;
+  color: #000 !important;
+  border: 3px solid #000 !important;
+  border-radius: 0 !important;
+}
+
+.message.system {
+  background: #003399 !important;
+  border: 2px solid var(--accent-cyan) !important;
+  color: #fff !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0px rgba(0,0,0,0.3);
+}
+
+.message.user {
+  background: #dddddd !important;
+  color: #000 !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+}
+
+/* Custom Ticker Tape for the Sidebar History Header */
+#sidebarHistory::before {
+  content: "LOCAL WEATHER • FORECAST: CLOUDY WITH A CHANCE OF BUGS • HUMIDITY: 98% • ";
+  display: block;
+  background: var(--ticker-bg);
+  color: white;
+  white-space: nowrap;
+  padding: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  overflow: hidden;
+  border-bottom: 2px solid #fff;
+}
+
+/* Scrollbar styling for that 90s chunky look */
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+::-webkit-scrollbar-track {
+  background: #888;
+  border: 1px solid #444;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border: 2px solid #fff;
+  border-right-color: #444;
+  border-bottom-color: #444;
+}
+
+.code-action-btn {
+  background: var(--accent-cyan) !important;
+  color: #000 !important;
+  border: 1px solid #000 !important;
+  border-radius: 0 !important;
+}
+
+#editorContainer {
+  border: 4px solid #002266;
+}
+
+.monaco-editor, .monaco-editor .margin, .monaco-editor-background {
+  background-color: #001133 !important;
+}
+
+.glow-text {
+  color: var(--accent-cyan) !important;
+  text-shadow: 0 0 8px var(--accent-cyan);
+}
+
+/* Settings Modal Broadcast Style */
+#settingsModal > div {
+  background: #003399 !important;
+  border: 4px solid #fff !important;
+  border-radius: 0 !important;
+}
+
+.settings-tab.active {
+  background: var(--accent-cyan) !important;
+  color: #000 !important;
+  border: none !important;
+  padding-left: 24px !important;
+}
+
+.setting-item {
+  border-bottom: 2px solid rgba(255,255,255,0.2) !important;
+}

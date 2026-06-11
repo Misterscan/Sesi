@@ -4,9 +4,29 @@ This native server replaces our now deprecated server.js script with a full-feat
 Usage:
   sesi -s
 */
+import {now} from "std/time"
 
-let PROJECT_ROOT = exec("pwd")
+let PROJECT_ROOT = ""
+try {
+  PROJECT_ROOT = exec("cd")
+} catch (e) {}
+PROJECT_ROOT = split(PROJECT_ROOT, "\r")[0]
 PROJECT_ROOT = split(PROJECT_ROOT, "\n")[0]
+
+if PROJECT_ROOT == "" {
+  try {
+    PROJECT_ROOT = exec("pwd")
+    PROJECT_ROOT = split(PROJECT_ROOT, "\n")[0]
+  } catch (e) {}
+}
+
+fn exec_node(args) {
+  try {
+    return exec("node " + args)
+  } catch (e) {
+    return exec("node.exe " + args)
+  }
+}
 
 let docs_list = ["BUILTINS.md", "CLI.md", "IMAGE_GENERATION.md", "SPECIFICATION.md", "WRITING_SCRIPTS.md"]
 let sesiDocs = ""
@@ -17,23 +37,71 @@ for f_name in docs_list {
   } catch (e) {}
 }
 
-memory copilotMemory { "You are Sesi Studio Co-Pilot, an expert programmer for the Sesi language. Here is the Sesi documentation to use for reference:\n" sesiDocs }
+set_alias("copilot", "gemini-3.1-flash-lite")
+set_alias("chat", "gemini-3.1-pro-preview")
+let timestamp = now()
 
-print "Starting Sesi Studio natively with Sesi..."
+prompt mandatory {"## Mandatory Syntax Rules & Quirks
+
+- **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
+- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print ""User:"" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
+- **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{""key"": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
+- **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{""name"": ""Alice""}`).
+- **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
+- **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
+- **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
+- **Forbidden:** Do NOT invent syntax. Use the correct:
+  ```
+  /*
+  Multi-line
+  Comment
+  */
+  ```
+style for multi-line comments. 
+- Do not mention that you got this from a database.
+- CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins).
+"}
+
+memory copilotMemory { "Your name is Sesi Co-Pilot, an expert programmer for the Sesi language. You are very efficient at coding. You prefer an original, creative way of doing things. \n" mandatory "Here is the Sesi documentation to use for reference:\n" sesiDocs }
+
+print "Starting Sesi Studio Sesi..."
+try {
+  write_file("studio_startup.log", "docs len: " + str(len(sesiDocs)) + " copilotMemory len: " + str(len(copilotMemory)) + " pwd: " + PROJECT_ROOT)
+} catch (e) {}
 
 let favicon = ""
 try {
   favicon = read_file("sesi-studio/img/favicon.png.base64")
 } catch (e) {
   try {
-    let tmp = exec("node -e \"require('fs').writeFileSync('sesi-studio/img/favicon.png.base64', require('fs').readFileSync('sesi-studio/img/favicon.png').toString('base64'))\"")
+    let tmp = exec_node("-e \"require('fs').writeFileSync('sesi-studio/img/favicon.png.base64', require('fs').readFileSync('sesi-studio/img/favicon.png').toString('base64'))\"")
     favicon = read_file("sesi-studio/img/favicon.png.base64")
   } catch (err) {}
 }
 
+let pending_file_to_open = ""
+
 fn handle_http(req) {
   let path = req.path
   let method = req.method
+  
+  if path == "/api/open" {
+    let file = req.query["file"]
+    if file != null && file != "" {
+      pending_file_to_open = file
+      return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"status": "success"}}
+    }
+    return {"status": 400, "body": "Missing file parameter"}
+  }
+
+  if path == "/api/open-pending" {
+    let result = pending_file_to_open
+    pending_file_to_open = ""
+    if result != "" {
+      return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"filePath": result}}
+    }
+    return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"filePath": null}}
+  }
   
   if path == "/" {
     try {
@@ -44,7 +112,7 @@ fn handle_http(req) {
     }
   }
 
-  if path == "/img/favicon.png" {
+  if path == "/img/favicon.png" || path == "/favicon.ico" {
     return {"status": 200, "headers": {"Content-Type": "image/png"}, "body": favicon}
   }
 
@@ -107,11 +175,11 @@ fn handle_http(req) {
       if body_obj["filePath"] != null {
         let active_file = body_obj["filePath"]
         let active_content = body_obj["fileContent"]
-        prompt chat_msg { "[Active File:" active_file "]\n```\n" active_content "\n```\n\nUser Question:" q }
-        res = model("gemini-3.1-flash-lite") {copilotMemory} {chat_msg}
+        prompt chat_msg { "[Active File:" active_file "]\n```\n" active_content "\n```\n\nUser Question:" q "\n\n====IGNORE ME====\n\n" timestamp }
+        res = model("chat") {thinkingLevel: "low", max_tokens: 4096, cache: false} {copilotMemory chat_msg}
       } else {
-        prompt chat_msg { q }
-        res = model("gemini-3.1-flash-lite") {copilotMemory} {chat_msg}
+        prompt chat_msg { q "\n\n====IGNORE ME====\n\n" timestamp }
+        res = model("chat") {thinkingLevel: "low", max_tokens: 4096, cache: false} {copilotMemory chat_msg}
       }
       
       return {"status": 200, "body": {"response": res}}
@@ -130,7 +198,7 @@ fn handle_http(req) {
         file_path = "unsaved.sesi"
       }
       prompt completionPrompt { "You are a professional software engineer. Your job is to act as an inline code completion engine (like GitHub Copilot) for the Sesi programming language.\n\nHere is the context of the active file:\nFile name: " file_path "\n\nPrefix (code before cursor):\n" prefix "\n\nSuffix (code after cursor):\n" suffix "\n\nTask: Complete the code exactly from where the cursor left off.\nRules:\n- Respond ONLY with the raw code completion that immediately continues the prefix.\n- Do NOT wrap your response in markdown code blocks.\n- Do NOT include the prefix or suffix in your response.\n- Do NOT provide explanations, commentary, or comments.\n- Complete only the immediate logical block, line, or expression.\n- If no completion makes sense, return absolutely nothing." }
-      let res = model("gemini-3.1-flash-lite") {thinkingLevel: "minimal", max_tokens: 300} {copilotMemory completionPrompt}
+      let res = model("copilot") {thinkingLevel: "low", max_tokens: 300} {copilotMemory completionPrompt}
       return {"status": 200, "body": {"suggestion": res}}
     } catch (e) {
       print "Autocomplete Error: " str(e)
@@ -142,7 +210,7 @@ fn handle_http(req) {
     try {
       // Use a brief Node script to leverage RegEx for extracting TextMate syntax safely
       let script = "const fs=require('fs');const t=JSON.parse(fs.readFileSync('editors/vscode/syntaxes/sesi.tmLanguage.json'));const e=fs.readFileSync('editors/vscode/extension.js','utf8');const x=p=>{let m=[];if(p)p.forEach(r=>{if(r.match)m=m.concat(r.match.replace(/\\\\\\\\b/g,'').replace(/\\\\b/g,'').replace(/^\\(\\?\\:/,'(').replace(/^\\(/,'').replace(/\\)$/,'').split('|'))});return m};let dm=e.match(/const docs = ({[\\s\\S]*?});\\s*(?:let|const) hoverProvider/);console.log(JSON['stringify']({keywords:x(t.repository?.keywords?.patterns),typeKeywords:x(t.repository?.types?.patterns),constants:x(t.repository?.constants?.patterns),builtins:x(t.repository?.builtins?.patterns),docs:dm?eval('('+dm[1]+')'):{}}));"
-      let result = exec("node -e \"" + script + "\"")
+      let result = exec_node("-e \"" + script + "\"")
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": result}
     } catch (e) {
       return {"status": 500, "body": {"error": "Failed to load syntax config"}}
@@ -160,10 +228,10 @@ fn handle_http(req) {
       fn get_metadata(base_path, file_name) {
         let full_path = base_path + "/" + file_name
         try {
-          // Use Node to safely extract the first comment block as JSON
-          // Using indexOf to avoid complex Regex escaping issues in Sesi/Shell strings
+          /* Use Node to safely extract the first comment block as JSON
+          Using indexOf to avoid complex Regex escaping issues in Sesi/Shell strings */
           let script = "const fs=require('fs');const c=fs.readFileSync('" + full_path + "','utf8');const s=c.indexOf('/*');const e=c.indexOf('*/');if(s===-1||e===-1)process.stdout.write('null');else process.stdout.write(c.slice(s+2,e).trim())"
-          let json_str = exec("node -e \"" + script + "\"")
+          let json_str = exec_node("-e \"" + script + "\"")
           if json_str == "null" || json_str == "" {
             return null
           }
@@ -235,13 +303,14 @@ fn handle_http(req) {
         content_type = "image/svg+xml"
       }
       if ext == "png" || ext == "jpg" || ext == "jpeg" {
-        // Handle binary files by converting to base64 via node since read_file is utf-8
+
+        /* Handle binary files by converting to base64 via node since read_file is utf-8
+        We return the raw buffer as a response body - most Sesi web implementations 
+        will handle a base64 string if we provide the right content type or we might need 
+        to tell the client to decode it. For simplicity, let's assume we can serve text-based icons (SVG/Emoji)
+        and for binary we'll rely on the static server in server.js if it exists. */
         let script = "console.log(require('fs').readFileSync('sesi-studio/extensions/" + subpath + "').toString('base64'))"
-        let b64 = exec("node -e \"" + script + "\"")
-        // We return the raw buffer as a response body - most Sesi web implementations 
-        // will handle a base64 string if we provide the right content type or we might need 
-        // to tell the client to decode it. For simplicity, let's assume we can serve text-based icons (SVG/Emoji)
-        // and for binary we'll rely on the static server in server.js if it exists.
+        let b64 = exec_node("-e \"" + script + "\"")
       }
       return {"status": 200, "headers": {"Content-Type": content_type}, "body": content}
     } catch (e) {
@@ -306,6 +375,12 @@ fn handle_ws(client, msg) {
 
 let http_port = 3050
 let ws_port = 3051
+try {
+  let test_win = exec("cd")
+  if test_win != "" {
+    ws_port = 3052
+  }
+} catch (e) {}
 
 print ""
 print "  ╔══════════════════════════════════════════╗"

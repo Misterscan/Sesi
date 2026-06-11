@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sesi Studio — Native Systems IDE</title>
-  
+  <title>Sesi Studio</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png">
+
   <!-- Monaco Editor CSS & Loader -->
-  <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/editor/editor.main.css">
-  
+  <link rel="stylesheet" data-name="vs/editor/editor.main"
+    href="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/editor/editor.main.css">
+
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <!-- xterm.css for terminal styling -->
@@ -15,6 +18,7 @@
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
     :root {
       --bg-base: #0f1012;
       --bg-panel: #161719;
@@ -283,6 +287,7 @@
       border-bottom: 1px solid var(--glass-border);
       overflow-x: auto;
     }
+
     .chat-tab {
       padding: 0 12px;
       display: flex;
@@ -294,18 +299,22 @@
       border-right: 1px solid var(--glass-border);
       white-space: nowrap;
     }
+
     .chat-tab.active {
       background: rgba(0, 229, 255, 0.1);
       color: var(--accent-cyan);
     }
+
     .chat-tab-add {
       padding: 0 10px;
       color: var(--accent-green);
       cursor: pointer;
     }
+
     .chat-tab-close {
       font-size: 8px;
     }
+
     .chat-tab-close:hover {
       color: #ff5f56;
     }
@@ -413,15 +422,18 @@
       background: rgba(139, 92, 246, 0.1);
       color: #fff !important;
     }
+
     .settings-tab.active {
       background: rgba(139, 92, 246, 0.15);
       color: var(--accent-cyan) !important;
       border-left: 3px solid var(--accent-cyan);
       padding-left: 21px !important;
     }
+
     .settings-section {
       margin-bottom: 32px;
     }
+
     .settings-section h3 {
       font-size: 14px;
       color: var(--accent-cyan);
@@ -430,29 +442,34 @@
       text-transform: uppercase;
       letter-spacing: 1px;
     }
+
     .setting-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 16px;
       padding-bottom: 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
+
     .setting-label {
       display: flex;
       flex-direction: column;
       gap: 4px;
     }
+
     .setting-title {
       font-size: 13px;
       color: var(--silver-light);
     }
+
     .setting-desc {
       font-size: 11px;
       color: var(--silver-dark);
     }
   </style>
 </head>
+
 <body>
 
   <!-- Header -->
@@ -471,13 +488,15 @@
 
   <!-- Studio Workspace -->
   <div class="studio-container">
-    
+
     <!-- File tree sidebar -->
     <div class="panel" style="display: flex; flex-direction: column; border-right: 1px solid var(--glass-border);">
-      <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--glass-border);">
+      <div
+        style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--glass-border);">
         <div class="panel-header">
           <span class="panel-title">Workspace</span>
-          <button onclick="loadWorkspaceFiles(currentDirectoryPath)" style="background:none; border:none; color:var(--accent-cyan); cursor:pointer; font-size:11px;">Refresh</button>
+          <button onclick="loadWorkspaceFiles(currentDirectoryPath)"
+            style="background:none; border:none; color:var(--accent-cyan); cursor:pointer; font-size:11px;">Refresh</button>
         </div>
         <ul id="fileTree" style="flex: 1; overflow-y: auto;">
           <li style="padding: 16px; color: var(--silver-dark); text-align: center;">Loading...</li>
@@ -496,7 +515,7 @@
 
     <!-- Center: Editor & Terminal -->
     <div class="editor-section">
-      
+
       <!-- Editor -->
       <div class="editor-container-wrapper">
         <div class="tab-bar" id="tabBar">
@@ -509,7 +528,8 @@
       <div class="terminal-container-wrapper">
         <div class="panel-header">
           <span class="panel-title">Terminal</span>
-          <button onclick="clearTerminal()" style="background:none; border:none; color:var(--accent-cyan); cursor:pointer; font-size:11px;">Clear</button>
+          <button onclick="clearTerminal()"
+            style="background:none; border:none; color:var(--accent-cyan); cursor:pointer; font-size:11px;">Clear</button>
         </div>
         <div id="terminalContainer"></div>
       </div>
@@ -520,14 +540,17 @@
     <div class="panel copilot-panel">
       <div class="panel-header">
         <span class="panel-title">Sesi Co-Pilot Chat</span>
-        <button onclick="clearCurrentChat()" style="background:none; border:none; color:#ff5f56; cursor:pointer; font-size:10px; font-weight:bold;">CLEAR CHAT</button>
+        <button onclick="clearCurrentChat()"
+          style="background:none; border:none; color:#ff5f56; cursor:pointer; font-size:10px; font-weight:bold;">CLEAR
+          CHAT</button>
       </div>
       <div class="chat-tabs" id="chatTabs">
         <!-- Tabs injected here -->
       </div>
       <div class="chat-messages" id="chatMessages">
         <div class="message system">
-          Hello! I'm your native **Sesi Co-Pilot**. I remember your chat history and index your repository documentation. How can I help you write Sesi script today?
+          Hello! I'm your native **Sesi Co-Pilot**. I remember your chat history and index your repository
+          documentation. How can I help you write Sesi script today?
         </div>
       </div>
       <div class="chat-input-area">
@@ -539,31 +562,45 @@
   </div>
 
   <!-- Settings Hub Modal -->
-  <div id="settingsModal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); display: none; justify-content: center; align-items: center; z-index: 2000; font-family: 'Space Grotesk', sans-serif;">
-    <div style="background: var(--bg-panel); border: 1px solid var(--glass-border); width: 800px; height: 600px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-      <div style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2);">
-        <h2 style="font-size: 18px; color: var(--accent-cyan); margin: 0; display: flex; align-items: center; gap: 8px;">
+  <div id="settingsModal"
+    style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); display: none; justify-content: center; align-items: center; z-index: 2000; font-family: 'Space Grotesk', sans-serif;">
+    <div
+      style="background: var(--bg-panel); border: 1px solid var(--glass-border); width: 800px; height: 600px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+      <div
+        style="padding: 16px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2);">
+        <h2
+          style="font-size: 18px; color: var(--accent-cyan); margin: 0; display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 20px;">⚙️</span> Sesi Studio Settings
         </h2>
         <button class="btn" onclick="toggleSettingsModal()">Close</button>
       </div>
-      
+
       <div style="flex: 1; display: flex; overflow: hidden;">
         <!-- Settings Sidebar -->
-        <div style="width: 200px; border-right: 1px solid var(--glass-border); background: rgba(0,0,0,0.1); padding: 12px 0;">
-          <div class="settings-tab active" onclick="switchSettingsTab('general', this)" style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-light); transition: all 0.2s;">General</div>
-          <div class="settings-tab" onclick="switchSettingsTab('appearance', this)" style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">Appearance & Themes</div>
-          <div class="settings-tab" onclick="switchSettingsTab('extensions', this)" style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">Extensions</div>
-          <div class="settings-tab" onclick="switchSettingsTab('shortcuts', this)" style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">Keyboard Shortcuts</div>
+        <div
+          style="width: 200px; border-right: 1px solid var(--glass-border); background: rgba(0,0,0,0.1); padding: 12px 0;">
+          <div class="settings-tab active" onclick="switchSettingsTab('general', this)"
+            style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-light); transition: all 0.2s;">
+            General</div>
+          <div class="settings-tab" onclick="switchSettingsTab('appearance', this)"
+            style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">
+            Appearance & Themes</div>
+          <div class="settings-tab" onclick="switchSettingsTab('extensions', this)"
+            style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">
+            Extensions</div>
+          <div class="settings-tab" onclick="switchSettingsTab('shortcuts', this)"
+            style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">
+            Keyboard Shortcuts</div>
         </div>
-        
+
         <!-- Settings Content -->
         <div id="settingsContent" style="flex: 1; padding: 24px; overflow-y: auto;">
           <!-- Content injected here -->
         </div>
       </div>
-      
-      <div style="padding: 12px 24px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); font-size: 11px; color: var(--silver-dark); display: flex; justify-content: space-between;">
+
+      <div
+        style="padding: 12px 24px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); font-size: 11px; color: var(--silver-dark); display: flex; justify-content: space-between;">
         <span>Sesi Studio v2.0.0</span>
         <span>Environment: Native Browser IDE</span>
       </div>
@@ -626,8 +663,8 @@
     // Load Monaco Editor
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs' } });
     require(['vs/editor/editor.main'], async function () {
-      
-      let syntax = { 
+
+      let syntax = {
         keywords: [
           'if', 'else', 'while', 'for', 'in', 'to', 'return', 'break', 'continue', 'try', 'catch', 'finally', 'async', 'await',
           'temperature', 'max_tokens', 'top_p', 'top_k', 'thinkingLevel', 'cache', 'search', 'ratio', 'size', 'output_type', 'file_type', 'max_retries', 'stream', 'stop', 'seed',
@@ -639,7 +676,7 @@
           'set_alias', 'model', 'image', 'workflow',
           'print', 'memory', 'prompt', 'structured_output', 'tool_call', 'define_tool', 'web_send', 'web_get', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'len', 'range', 'type', 'str', 'num', 'bool', 'keys', 'values', 'push', 'pop', 'join', 'split', 'read_file', 'write_file', 'write_image', 'convert', 'list_dir', 'make_dir', 'spawn', 'exec', 'time', 'random', 'exp', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'now', 'sleep', 'format', 'parse', 'stringify', 'to_json', 'from_json', 'listen', 'db_open'
         ],
-        docs: {} 
+        docs: {}
       };
       try {
         const res = await fetch('/api/syntax');
@@ -658,7 +695,7 @@
 
       // Register Sesi Language for Syntax Highlighting
       monaco.languages.register({ id: 'sesi' });
-      
+
       monaco.languages.setMonarchTokensProvider('sesi', {
         keywords: syntax.keywords,
         typeKeywords: syntax.typeKeywords,
@@ -680,50 +717,54 @@
                 '@default': 'identifier'
               }
             }],
-            
+
             // whitespace
             { include: '@whitespace' },
-            
+
             // delimiters and operators
             [/[{}()\[\]]/, '@brackets'],
             [/[<>](?!@symbols)/, '@brackets'],
-            [/@symbols/, { cases: { '@operators': 'operator',
-                                    '@default': '' } }],
-                                    
+            [/@symbols/, {
+              cases: {
+                '@operators': 'operator',
+                '@default': ''
+              }
+            }],
+
             // numbers
             [/\b\d+\.\d+([eE][+-]?\d+)?\b/, 'number.float'],
             [/\b\d+\b/, 'number'],
-            
+
             // delimiter: member
             [/[;,.]/, 'delimiter'],
-            
+
             // strings
-            [/"/,  { token: 'string.quote', bracket: '@open', next: '@string' } ],
-            [/'/,  { token: 'string.quote', bracket: '@open', next: '@string_single' } ],
+            [/"/, { token: 'string.quote', bracket: '@open', next: '@string' }],
+            [/'/, { token: 'string.quote', bracket: '@open', next: '@string_single' }],
           ],
 
           string: [
-            [/[^\\"]+/,  'string'],
-            [/\\./,      'string.escape'],
-            [/"/,        { token: 'string.quote', bracket: '@close', next: '@pop' } ]
+            [/[^\\"]+/, 'string'],
+            [/\\./, 'string.escape'],
+            [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }]
           ],
 
           string_single: [
-            [/[^\\']+/,  'string'],
-            [/\\./,      'string.escape'],
-            [/'/,        { token: 'string.quote', bracket: '@close', next: '@pop' } ]
+            [/[^\\']+/, 'string'],
+            [/\\./, 'string.escape'],
+            [/'/, { token: 'string.quote', bracket: '@close', next: '@pop' }]
           ],
-          
+
           whitespace: [
             [/[ \t\r\n]+/, 'white'],
-            [/\/\*/,       'comment', '@comment' ],
-            [/\/\/.*$/,    'comment'],
+            [/\/\*/, 'comment', '@comment'],
+            [/\/\/.*$/, 'comment'],
           ],
-          
+
           comment: [
-            [/[^\/*]+/, 'comment' ],
-            [/\*\//,    'comment', '@pop'  ],
-            [/[\/*]/,   'comment' ]
+            [/[^\/*]+/, 'comment'],
+            [/\*\//, 'comment', '@pop'],
+            [/[\/*]/, 'comment']
           ],
         }
       });
@@ -780,7 +821,7 @@
         provideHover: function (model, position) {
           const word = model.getWordAtPosition(position);
           if (!word) return null;
-          
+
           const docs = syntax.docs;
           const item = docs[word.word];
           if (item) {
@@ -877,7 +918,7 @@
       monaco.languages.registerCompletionItemProvider('sesi', {
         provideCompletionItems: (model, position) => {
           const suggestions = [];
-          
+
           if (syntax.keywords) {
             syntax.keywords.forEach(kw => {
               suggestions.push({
@@ -888,16 +929,16 @@
               });
             });
           }
-          
+
           if (syntax.docs) {
             Object.keys(syntax.docs).forEach(key => {
               if (syntax.keywords && syntax.keywords.includes(key)) return;
               const doc = syntax.docs[key];
-              
+
               let kind = monaco.languages.CompletionItemKind.Function;
               if (syntax.typeKeywords && syntax.typeKeywords.includes(key)) kind = monaco.languages.CompletionItemKind.Struct;
               else if (syntax.constants && syntax.constants.includes(key)) kind = monaco.languages.CompletionItemKind.Constant;
-              
+
               suggestions.push({
                 label: key,
                 kind: kind,
@@ -965,7 +1006,7 @@
                 suffix: textAfterPosition
               })
             });
-            
+
             if (!response.ok) return { items: [] };
             const data = await response.json();
 
@@ -988,8 +1029,34 @@
 
           return { items: [] };
         },
-        freeInlineCompletions: function () {}
+        freeInlineCompletions: function () { }
       });
+
+      let currentFontSize = 13;
+      window.adjustZoom = function (delta, reset = false) {
+        if (reset) {
+          currentFontSize = 13;
+        } else {
+          currentFontSize = Math.max(8, Math.min(30, currentFontSize + (delta * 10)));
+        }
+        if (window.editor) {
+          window.editor.updateOptions({ fontSize: currentFontSize });
+        }
+      };
+
+      window.triggerMonacoAction = function (actionId) {
+        if (window.editor) {
+          window.editor.focus();
+          const action = window.editor.getAction(actionId);
+          if (action) {
+            action.run();
+          } else {
+            // Fallback for standard editing commands
+            if (actionId === 'undo') document.execCommand('undo');
+            if (actionId === 'redo') document.execCommand('redo');
+          }
+        }
+      };
 
       window.editor = monaco.editor.create(document.getElementById('editorContainer'), {
         value: '// Select a file from the workspace sidepanel to start editing.',
@@ -1022,11 +1089,38 @@
         saveActiveFile();
       });
 
-      // Global Keybinding for Ctrl+S / Cmd+S
+      // Global Keybinding for Ctrl+S, Ctrl+N, Ctrl+Shift+S, Ctrl+Shift+E
       window.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const cmdKey = isMac ? e.metaKey : e.ctrlKey;
+        
+        if (cmdKey && e.key === 's') {
           e.preventDefault();
           saveActiveFile();
+        }
+        if (cmdKey && e.key === 'n') {
+          e.preventDefault();
+          createNewBuffer();
+        }
+        if (cmdKey && e.shiftKey && e.key === 'S') {
+          e.preventDefault();
+          toggleSettingsModal();
+        }
+        if (cmdKey && e.shiftKey && e.key === 'E') {
+          e.preventDefault();
+          loadExtensions();
+        }
+        if (cmdKey && (e.key === '=' || e.key === '+')) {
+          e.preventDefault();
+          adjustZoom(0.1);
+        }
+        if (cmdKey && e.key === '-') {
+          e.preventDefault();
+          adjustZoom(-0.1);
+        }
+        if (cmdKey && e.key === '0') {
+          e.preventDefault();
+          adjustZoom(0, true);
         }
         if (e.key === 'Escape') {
           const m = document.getElementById('settingsModal');
@@ -1040,9 +1134,30 @@
       initChatSystem();
       loadExtensions();
       refreshLocalHistory();
+
+      // Check for ?open query parameter on startup
+      const openParam = new URLSearchParams(window.location.search).get('open');
+      if (openParam) {
+        window.openFileWhenReady(openParam);
+      }
+
+      // Poll for files requested to be opened externally (e.g. via app.cs double click)
+      setInterval(async () => {
+        try {
+          const res = await fetch('/api/open-pending');
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.filePath) {
+              window.openFileWhenReady(data.filePath);
+            }
+          }
+        } catch (e) {
+          // Ignore network errors during polling
+        }
+      }, 1000);
     });
 
-    window.addToHistory = async function(path, content) {
+    window.addToHistory = async function (path, content) {
       if (!path) return;
       const db = await dbPromise;
       const tx = db.transaction('history', 'readwrite');
@@ -1057,10 +1172,10 @@
       };
     };
 
-    window.refreshLocalHistory = async function() {
+    window.refreshLocalHistory = async function () {
       const sidebar = document.getElementById('sidebarHistory');
       if (!sidebar) return;
-      
+
       if (!window.activeFilePath) {
         sidebar.innerHTML = '<div style="padding: 12px; font-size: 11px; color: var(--silver-dark);">Select a file to see history.</div>';
         return;
@@ -1071,11 +1186,11 @@
       const store = tx.objectStore('history');
       const index = store.index('path');
       const request = index.getAll(window.activeFilePath);
-      
+
       request.onsuccess = () => {
         const history = request.result.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         sidebar.innerHTML = '';
-        
+
         if (history.length === 0) {
           sidebar.innerHTML = '<div style="padding: 12px; font-size: 11px; color: var(--silver-dark);">No history for this file.</div>';
           return;
@@ -1087,10 +1202,10 @@
           div.style.justifyContent = 'space-between';
           div.style.fontSize = '11px';
           div.style.padding = '4px 12px';
-          
+
           const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
           const date = new Date(item.timestamp).toLocaleDateString();
-          
+
           div.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:2px;">
               <span style="color: var(--silver-mid);">${time}</span>
@@ -1103,7 +1218,7 @@
       };
     };
 
-    window.restoreHistory = async function(id) {
+    window.restoreHistory = async function (id) {
       const db = await dbPromise;
       const tx = db.transaction('history', 'readonly');
       const store = tx.objectStore('history');
@@ -1134,11 +1249,11 @@
       // Update active state in sidebar
       document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
       el.classList.add('active');
-      
+
       const content = document.getElementById('settingsContent');
       content.innerHTML = '';
-      
-      switch(tab) {
+
+      switch (tab) {
         case 'general':
           renderGeneralSettings(content);
           break;
@@ -1225,23 +1340,23 @@
           </div>
         </div>
       `;
-      
+
       try {
         const res = await fetch('/api/extensions');
         const list = await res.json();
         const themes = list.filter(item => item.type === 'css' && item.name.startsWith('themes/'));
         const themeList = document.getElementById('themeList');
         themeList.innerHTML = '';
-        
+
         // Add Default option
         themes.unshift({ name: '', isDefault: true });
-        
+
         const currentTheme = localStorage.getItem('sesi-studio-theme') || '';
-        
+
         themes.forEach(theme => {
           const name = theme.displayName || (theme.isDefault ? 'Default Sesi' : theme.name.replace('themes/', '').replace('.css', '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '));
           const description = theme.description || (theme.isDefault ? 'The original glass-dark aesthetic.' : 'Premium color palette.');
-          
+
           let iconHtml = '';
           const iconValue = theme.icon || (theme.isDefault ? '🎨' : '🌈');
           if (iconValue.includes('.') || iconValue.startsWith('http') || iconValue.startsWith('data:')) {
@@ -1292,13 +1407,13 @@
           </div>
         </div>
       `;
-      
+
       try {
         const res = await fetch('/api/extensions');
         const items = await res.json();
         const extTable = document.getElementById('extTable');
         extTable.innerHTML = '';
-        
+
         if (items.length === 0) {
           extTable.innerHTML = '<div style="color: var(--silver-dark); padding: 20px; text-align: center;">No extensions found.</div>';
           return;
@@ -1306,10 +1421,10 @@
 
         items.forEach(item => {
           if (item.name.startsWith('themes/')) return;
-          
+
           const name = item.displayName || item.name.replace('.js', '').replace('.css', '');
           const description = item.description || `${item.type.toUpperCase()} Extension`;
-          
+
           let iconHtml = '';
           const iconValue = item.icon || (item.type === 'js' ? '⚙️' : '🎨');
           if (iconValue.includes('.') || iconValue.startsWith('http') || iconValue.startsWith('data:')) {
@@ -1383,7 +1498,7 @@
             if (item.type === 'css') {
               // Skip items in the themes/ folder - let Theme Manager handle them
               if (item.name.startsWith('themes/')) continue;
-              
+
               const link = document.createElement('link');
               link.rel = 'stylesheet';
               link.href = `/extensions/${item.name}`;
@@ -1438,10 +1553,10 @@
     function closeChat(id, e) {
       if (e) e.stopPropagation();
       if (window.chats.length <= 1) return;
-      
+
       const index = window.chats.findIndex(c => c.id === id);
       window.chats.splice(index, 1);
-      
+
       if (window.activeChatId === id) {
         window.activeChatId = window.chats[0].id;
       }
@@ -1453,7 +1568,7 @@
     function renderChatTabs() {
       const tabsEl = document.getElementById('chatTabs');
       tabsEl.innerHTML = '';
-      
+
       window.chats.forEach(chat => {
         const tab = document.createElement('div');
         tab.className = `chat-tab ${window.activeChatId === chat.id ? 'active' : ''}`;
@@ -1476,7 +1591,7 @@
       const chat = window.chats.find(c => c.id === window.activeChatId);
       const chatMessages = document.getElementById('chatMessages');
       chatMessages.innerHTML = '';
-      
+
       chat.messages.forEach(msg => {
         appendMessage(msg.text, msg.isUser, false, true);
       });
@@ -1508,7 +1623,7 @@
     function initTerminal() {
       // Diagnostic log
       console.log('initTerminal called. WebSocket URL:', `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/terminal`);
-      
+
       // Use existing Terminal global if available, otherwise try to load it
       if (typeof Terminal === 'undefined' || typeof window.FitAddon === 'undefined') {
         console.warn('Terminal or FitAddon not defined yet, retrying in 500ms...');
@@ -1545,34 +1660,57 @@
       document.getElementById('terminalContainer').addEventListener('click', () => {
         window.terminal.focus();
       });
-      
+
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const hostname = window.location.hostname || 'localhost';
-      const socketUrl = `${protocol}//${hostname}:3051/terminal`;
-      console.log('Connecting to terminal socket:', socketUrl);
-      window.terminalSocket = new WebSocket(socketUrl);
+      let portIndex = 0;
+      const portsToTry = [3051, 3052];
 
-      window.terminalSocket.onopen = () => {
-        console.log('Terminal socket connected');
-        // Request a keypress to trigger shell prompt if none appears
-        window.terminalSocket.send(JSON.stringify({ type: 'input', data: '\r' }));
-      };
-
-      window.terminalSocket.onerror = (err) => {
-        console.error('Terminal socket error:', err);
-        window.terminal.write('\r\n\x1b[31m[ERROR] Failed to connect to terminal server.\x1b[0m\r\n');
-      };
-
-      window.terminalSocket.onmessage = (event) => {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'output') {
-          if (msg.data === 'backspace') {
-            window.terminal.write('\b \b');
-          } else {
-            window.terminal.write(msg.data);
-          }
+      function tryConnect() {
+        if (portIndex >= portsToTry.length) {
+          window.terminal.write('\r\n\x1b[31m[ERROR] Failed to connect to terminal server.\x1b[0m\r\n');
+          return;
         }
-      };
+
+        const port = portsToTry[portIndex];
+        const socketUrl = `${protocol}//${hostname}:${port}/terminal`;
+        console.log('Connecting to terminal socket:', socketUrl);
+        const ws = new WebSocket(socketUrl);
+        window.terminalSocket = ws;
+
+        let hasOpened = false;
+
+        ws.onopen = () => {
+          hasOpened = true;
+          console.log('Terminal socket connected on port ' + port);
+          ws.send(JSON.stringify({ type: 'input', data: '\r' }));
+        };
+
+        ws.onerror = (err) => {
+          console.error('Terminal socket error on port ' + port + ':', err);
+        };
+
+        ws.onclose = () => {
+          if (!hasOpened) {
+            console.log('Failed to connect on port ' + port + ', trying next port...');
+            portIndex++;
+            tryConnect();
+          }
+        };
+
+        ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'output') {
+            if (msg.data === 'backspace') {
+              window.terminal.write('\b \b');
+            } else {
+              window.terminal.write(msg.data);
+            }
+          }
+        };
+      }
+
+      tryConnect();
 
       window.terminal.onData((data) => {
         if (window.terminalSocket.readyState === WebSocket.OPEN) {
@@ -1587,7 +1725,7 @@
           window.terminalSocket.send(JSON.stringify({ type: 'input', data: payload }));
         }
       });
-      
+
       // Auto-fit terminal on window resize
       const resizeHandler = () => {
         if (window.terminal) {
@@ -1616,7 +1754,7 @@
         window.currentDirectoryPath = path === '.' ? '' : path;
         const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
         const files = await response.json();
-        
+
         const fileTreeEl = document.getElementById('fileTree');
         fileTreeEl.innerHTML = '';
 
@@ -1630,7 +1768,7 @@
           const parts = path.split('/');
           parts.pop();
           const parentPath = parts.join('/');
-          
+
           const li = document.createElement('li');
           li.className = 'file-item';
           li.innerHTML = `<span class="file-icon">📁</span> ..`;
@@ -1641,10 +1779,10 @@
         files.forEach(file => {
           const li = document.createElement('li');
           li.className = `file-item ${window.activeFilePath === file.path ? 'active' : ''}`;
-          
+
           const icon = file.isDir ? '📁' : '📄';
           li.innerHTML = `<span class="file-icon">${icon}</span> ${file.name}`;
-          
+
           if (file.isDir) {
             li.onclick = () => loadWorkspaceFiles(file.path);
           } else {
@@ -1671,14 +1809,14 @@
       try {
         const response = await fetch(`/api/file?path=${encodeURIComponent(filePath)}`);
         const file = await response.json();
-        
+
         window.openFiles[filePath] = {
           content: file.content,
           isDirty: false
         };
-        
+
         window.activeFilePath = filePath;
-        
+
         // Refresh history
         refreshLocalHistory();
 
@@ -1708,7 +1846,7 @@
     }
 
     // Expose a safe file opener that retries until Monaco is fully ready
-    window.openFileWhenReady = function(filePath) {
+    window.openFileWhenReady = function (filePath) {
       if (window.editor) {
         openFile(filePath);
       } else {
@@ -1731,7 +1869,7 @@
     function updateTabBar() {
       const tabBar = document.getElementById('tabBar');
       tabBar.innerHTML = '';
-      
+
       const openedPaths = Object.keys(window.openFiles);
       if (openedPaths.length === 0) {
         tabBar.innerHTML = '<div class="tab active">No open file</div>';
@@ -1741,7 +1879,7 @@
       openedPaths.forEach(path => {
         const name = path.split('/').pop();
         const dirtyMarker = window.openFiles[path].isDirty ? ' ●' : '';
-        
+
         const tab = document.createElement('div');
         tab.className = `tab ${window.activeFilePath === path ? 'active' : ''}`;
         tab.innerHTML = `
@@ -1776,15 +1914,15 @@
         // If it's a new unsaved buffer, prompt for a name
         const newName = prompt("Enter a filename to save as (e.g. script.sesi):", "untitled.sesi");
         if (!newName) return;
-        
+
         // Create the entry in openFiles if it was purely an empty editor state
         const content = window.editor.getValue();
         const fullPath = (window.currentDirectoryPath && window.currentDirectoryPath !== '.') ? `${window.currentDirectoryPath}/${newName}` : newName;
-        
+
         window.openFiles[fullPath] = { content, isDirty: true };
         window.activeFilePath = fullPath;
       }
-      
+
       let fileData = window.openFiles[window.activeFilePath];
       if (!fileData) {
         fileData = { content: window.editor.getValue(), isDirty: true };
@@ -1792,7 +1930,7 @@
       }
       const saveBtn = document.getElementById('saveBtn');
       const originalText = "Save (Ctrl+S)";
-      
+
       try {
         saveBtn.innerText = "Saving...";
         saveBtn.disabled = true;
@@ -1810,10 +1948,10 @@
           fileData.isDirty = false;
           updateTabBar();
           window.terminal.write(`\r\n\x1b[32m[SYSTEM] Saved ${window.activeFilePath.split('/').pop()} successfully.\x1b[0m\r\n`);
-          
+
           // Add to local history
           addToHistory(window.activeFilePath, fileData.content);
-          
+
           saveBtn.innerText = "Saved!";
           setTimeout(() => {
             saveBtn.innerText = originalText;
@@ -1838,10 +1976,10 @@
         });
         return;
       }
-      
+
       const runBtn = document.getElementById('runBtn');
       const originalText = "Run active script";
-      
+
       runBtn.innerText = "Running...";
       runBtn.disabled = true;
 
@@ -1849,7 +1987,7 @@
         // Send execution command directly into terminal shell input
         const cmd = `sesi -l ${window.activeFilePath}\r`;
         window.terminalSocket.send(JSON.stringify({ type: 'input', data: cmd }));
-        
+
         setTimeout(() => {
           runBtn.innerText = originalText;
           runBtn.disabled = false;
@@ -1922,7 +2060,7 @@
           body: JSON.stringify(payload)
         });
         const data = await response.json();
-        
+
         // Remove thinking placeholder and append real response
         thinkingEl.remove();
         appendMessage(data.response);
@@ -1942,7 +2080,7 @@
       msgDiv.className = `message ${isUser ? 'user' : 'system'}`;
 
       let formattedText = text;
-      
+
       if (!isUser && !isPlaceholder) {
         // Parse code blocks, extract them, and replace with decorated containers
         const codeBlockRegex = /```(?:sesi|javascript|json|markdown|python)?([\s\S]+?)```/g;
@@ -1951,7 +2089,7 @@
           const codeContent = match[1].trim();
           responseCodeBlocks.push(codeContent);
           const index = responseCodeBlocks.length - 1;
-          
+
           const decoratedBlock = `
             <pre>
               <div class="code-actions-header">
@@ -1961,7 +2099,7 @@
               <code>${codeContent.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code>
             </pre>
           `.trim();
-          
+
           formattedText = formattedText.replace(match[0], decoratedBlock);
         }
       }
@@ -1973,11 +2111,11 @@
 
       // Fix pre newline tags caused by global formatting
       msgDiv.innerHTML = formattedText;
-      
+
       const chatMessages = document.getElementById('chatMessages');
       chatMessages.appendChild(msgDiv);
       chatMessages.scrollTop = chatMessages.scrollHeight;
-      
+
       return msgDiv;
     }
 
@@ -1987,4 +2125,5 @@
     });
   </script>
 </body>
+
 </html>
