@@ -3,8 +3,7 @@
   "name": "Theme Manager",
   "version": "1.0.0",
   "description": "Handles theme switching and synchronization with the Monaco editor.",
-  "author": "Misterscan",
-  "icon": "🎭",
+  "icon": "extensions/assets/Theme-Manager.svg",
   "commands": ["Switch Theme"]
 }
 */

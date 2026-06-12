@@ -164,8 +164,8 @@
 
 - [x] Web scraper with reasoning analysis
 - [ ] Document processor (PDF, DOCX)
-- [ ] Chatbot with memory
-- [ ] Data pipeline with reasoning
+- [x] Chatbot with memory
+- [x] Data pipeline with reasoning
 - [x] API server (with async)
 
 ---

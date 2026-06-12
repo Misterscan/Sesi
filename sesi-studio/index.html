@@ -1900,6 +1900,20 @@
       }
     }
 
+    function compareVersions(v1, v2) {
+      if (!v1) return -1;
+      if (!v2) return 1;
+      const parts1 = v1.replace(/^v/, '').split('.').map(Number);
+      const parts2 = v2.replace(/^v/, '').split('.').map(Number);
+      for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+        const p1 = parts1[i] || 0;
+        const p2 = parts2[i] || 0;
+        if (p1 > p2) return 1;
+        if (p1 < p2) return -1;
+      }
+      return 0;
+    }
+
     async function renderMarketplace(container) {
       container.innerHTML = `
         <div class="settings-section">
@@ -1909,7 +1923,7 @@
           </p>
           <div style="display: flex; gap: 10px; margin-bottom: 20px;">
             <input type="text" id="mktSearch" placeholder="Search marketplace..." style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 4px; color: #fff; font-size: 12px;">
-            <input type="text" id="mktRegistry" value="https://raw.githubusercontent.com/misterscan/sesi-marketplace/main/marketplace.json" style="width: 250px; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 4px; color: #fff; font-size: 11px; font-family: monospace;">
+            <input type="text" id="mktRegistry" value="https://raw.githubusercontent.com/misterscan/sesi-marketplace/refs/heads/main/marketplace.json" style="width: 250px; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 4px; color: #fff; font-size: 11px; font-family: monospace;">
             <button class="btn" id="mktRefresh" style="padding: 8px 12px; font-size: 12px;">Refresh</button>
           </div>
           <div id="mktList" style="display: flex; flex-direction: column; gap: 12px;">
@@ -1924,13 +1938,20 @@
       const mktRefresh = container.querySelector('#mktRefresh');
 
       let items = [];
+      let installedItems = [];
 
       const loadItems = async () => {
         mktList.innerHTML = '<div style="color: var(--silver-dark);">Fetching catalog...</div>';
         try {
           const registryUrl = mktRegistry.value;
-          const res = await fetch(`/api/marketplace/list?registryUrl=${encodeURIComponent(registryUrl)}`);
-          items = await res.json();
+          const [mktRes, extRes] = await Promise.all([
+            fetch(`/api/marketplace/list?registryUrl=${encodeURIComponent(registryUrl)}`),
+            fetch('/api/extensions')
+          ]);
+          items = await mktRes.json();
+          if (extRes.ok) {
+            installedItems = await extRes.json();
+          }
           renderList();
         } catch (err) {
           mktList.innerHTML = `<div style="color: #ff5f56;">Error loading marketplace: ${err.message}</div>`;
@@ -1967,6 +1988,32 @@
             iconHtml = `<span style="font-size: 24px;">${iconValue}</span>`;
           }
 
+          // Check if installed
+          const installedItem = installedItems.find(inst => 
+            inst.displayName && inst.displayName.toLowerCase() === item.name.toLowerCase()
+          );
+
+          let btnText = 'Install';
+          let btnBg = 'var(--accent-cyan)';
+          let btnColor = 'var(--bg-base)';
+          let isInstalled = false;
+          let isNewer = false;
+
+          if (installedItem) {
+            isInstalled = true;
+            const cmp = compareVersions(item.version, installedItem.version);
+            if (cmp > 0) {
+              isNewer = true;
+              btnText = `Update (v${installedItem.version} → v${item.version})`;
+              btnBg = '#e67e22'; // Warm orange
+              btnColor = '#fff';
+            } else {
+              btnText = '✓ Up to Date';
+              btnBg = 'rgba(255, 255, 255, 0.08)';
+              btnColor = 'var(--silver-mid)';
+            }
+          }
+
           card.innerHTML = `
             <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
               ${iconHtml}
@@ -1982,7 +2029,7 @@
               </div>
             </div>
             <div>
-              <button class="btn btn-primary" id="btn-install-${item.id}" style="font-size: 11px; padding: 6px 12px; font-weight: bold; background: var(--accent-cyan); color: var(--bg-base); border: none; border-radius: 4px; cursor: pointer;">Install</button>
+              <button class="btn btn-primary" id="btn-install-${item.id}" style="font-size: 11px; padding: 6px 12px; font-weight: bold; background: ${btnBg}; color: ${btnColor}; border: none; border-radius: 4px; cursor: pointer;">${btnText}</button>
             </div>
           `;
 
@@ -2005,17 +2052,24 @@
                 installBtn.textContent = '✓ Installed';
                 installBtn.style.background = '#28a745';
                 installBtn.style.color = '#fff';
+                
+                // Refresh list of installed items
+                const extRes = await fetch('/api/extensions');
+                if (extRes.ok) {
+                  installedItems = await extRes.json();
+                }
+                
                 if (window.loadExtensions) {
                   window.loadExtensions();
                 }
               } else {
                 alert('Install failed: ' + resData.error);
-                installBtn.textContent = 'Install';
+                installBtn.textContent = isNewer ? 'Update' : (isInstalled ? '✓ Up to Date' : 'Install');
                 installBtn.disabled = false;
               }
             } catch (err) {
               alert('Error installing: ' + err.message);
-              installBtn.textContent = 'Install';
+              installBtn.textContent = isNewer ? 'Update' : (isInstalled ? '✓ Up to Date' : 'Install');
               installBtn.disabled = false;
             }
           };

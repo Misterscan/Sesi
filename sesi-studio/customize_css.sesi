@@ -51,14 +51,15 @@ prompt required {"At the very top, you **MUST** include this schema:
   ""name"": [name of theme],
   ""version"": 1.0.0,
   ""description"": [description of theme],
-  ""author"": ""Misterscan"",
-  ""icon"": [emoji or svg icon that matches the theme.], 
+  ""author"": ""Community"",
+  ""icon"": [emoji that matches the theme.], 
+  ""license"": ""MIT"",
   ""commands"": [""Apply <theme-name>""]
 }
 */
 // ...rest of the CSS...
 
-# THE `name`, `version`, `description`, `author`, `icon`, AND `commands` FIELDS **MUST** USE QUOTATION MARKS ON BOTH SIDES. THIS IS A NON-NEGOTIABLE REQUIREMENT.
+# THE `name`, `version`, `description`, `author`, `icon`, `license`, AND `commands` FIELDS **MUST** USE QUOTATION MARKS ON BOTH SIDES. THIS IS A NON-NEGOTIABLE REQUIREMENT.
 
 "}
 
@@ -69,8 +70,9 @@ print "Requesting theme CSS from model..."
   - gemini-3.5-flash for higher quality but token hungry
   - gemini-3.1-pro-preview for a more polished and refined output.
   - Both may take slightly longer than gemini-3-flash-preview, but can produce higher quality CSS with better adherence to best practices and design principles.
-  Note: We set cache: false to ensure we get a fresh response each time, which is important during development when you may be iterating on the style description. */
-let css = model("gemini-3.5-flash") {thinkingLevel: "medium", temperature: 0.4, max_tokens: 8192, cache: false} {instruction required "User theme need: " need context ". Only output CSS."}
+  Note: We set cache: false to ensure we get a fresh response each time, which is important during development when you may be iterating on the style description. 
+*/
+let css = model("gemini-3.5-flash") {thinkingLevel: "medium", temperature: 0.5, max_tokens: 8192, cache: false} {instruction required "User theme need: " need context ". Only output CSS."}
 
 print "Received CSS preview (first 6 lines):"
 try {
@@ -82,13 +84,14 @@ try {
   print "  (preview failed):" err
 }
 
+let filename = model("gemini-3.1-flash-lite") {temperature: 0} {"Return a filename for the theme from the name in the following CSS stylesheet: " css "\n\nIf the name is two words use a hyphen to separate the two words. Only return the filename in the response without .css extension."}
 print ""
-print "Writing sesi-studio/extensions/themes/generated-custom.css..."
+print "Writing sesi-studio/extensions/themes/" filename ".css..."
 try {
-  write_file("extensions/themes/generated-custom.css", css)
-  print "  ✓ sesi-studio/extensions/themes/generated-custom.css written"
+  write_file("extensions/themes/" + filename + ".css", css)
+  print "  ✓ sesi-studio/extensions/themes/" filename ".css written"
 } catch (err) {
   print "  ✗ Failed to write theme file:" err
 }
 
-print "Done. You can now select 'generated-custom' in Sesi Studio's theme settings."
+print "Done. You can now select " filename " in Sesi Studio's theme settings."

@@ -877,7 +877,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
                 }
               } else {
                 const contentType = String(headers['Content-Type'] || '').toLowerCase();
-                const isBinaryType = contentType.startsWith('image/') || contentType.startsWith('audio/') || contentType.startsWith('video/') || contentType.startsWith('application/octet-stream');
+                const isBinaryType = (contentType.startsWith('image/') && contentType !== 'image/svg+xml') || contentType.startsWith('audio/') || contentType.startsWith('video/') || contentType.startsWith('application/octet-stream');
                 if (isBinaryType && typeof result.body === 'string') {
                   try {
                     responseBody = Buffer.from(result.body, 'base64');

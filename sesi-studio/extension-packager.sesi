@@ -39,6 +39,112 @@ fn validate_metadata(meta) {
   return true
 }
 
+fn exec_node(args) {
+  try {
+    return exec("node " + args)
+  } catch (e) {
+    return exec("node.exe " + args)
+  }
+}
+
+fn get_parent_dir(path_str) {
+  let parts = split(path_str, "/")
+  if len(parts) == 1 {
+    parts = split(path_str, "\\")
+  }
+  if len(parts) <= 1 {
+    return "."
+  }
+  let parent_parts = []
+  for i = 0 to len(parts) - 2 {
+    push(parent_parts, parts[i])
+  }
+  return join(parent_parts, "/")
+}
+
+fn get_filename(path_str) {
+  let parts = split(path_str, "/")
+  let last = parts[len(parts) - 1]
+  let subparts = split(last, "\\")
+  return subparts[len(subparts) - 1]
+}
+
+fn find_svg_content(icon_path, file_path) {
+  let parent = get_parent_dir(file_path)
+  let filename = get_filename(icon_path)
+  
+  let candidates = [
+    icon_path,
+    parent + "/" + icon_path,
+    parent + "/" + filename,
+    "sesi-studio/" + icon_path,
+    "sesi-studio/extensions/" + icon_path,
+    "sesi-studio/extensions/themes/" + filename
+  ]
+  
+  for candidate in candidates {
+    try {
+      let content = read_file(candidate)
+      if content != "" && content != null {
+        return { "content": content, "path": candidate }
+      }
+    } catch (e) {}
+  }
+  return null
+}
+
+fn process_icon_svg(meta, file_path) {
+  let icon = meta["icon"]
+  if icon == null || type(icon) != "string" {
+    return null
+  }
+  
+  let parts = split(icon, ".")
+  let ext = parts[len(parts) - 1]
+  
+  let starts_with_data = false
+  let icon_parts = split(icon, "data:")
+  if len(icon_parts) > 1 && icon_parts[0] == "" {
+    starts_with_data = true
+  }
+  
+  if ext == "svg" && !starts_with_data {
+    let svg_info = find_svg_content(icon, file_path)
+    if svg_info != null {
+      let svg_content = svg_info["content"]
+      let svg_path = svg_info["path"]
+      let size = len(svg_content)
+      
+      print "  → Detected local SVG icon: " + svg_path + " (size: " + str(size) + " bytes)"
+      
+      let encoded_uri = ""
+      if size <= 2048 {
+        let node_script = "const fs=require('fs');const s=fs.readFileSync('" + svg_path + "','utf8');process.stdout.write('data:image/svg+xml;utf8,'+encodeURIComponent(s))"
+        try {
+          encoded_uri = exec_node("-e \"" + node_script + "\"")
+          print "  → Inline encoded as URL-encoded SVG."
+        } catch (e) {
+          print "  ✗ Failed to URL encode SVG: " + str(e)
+        }
+      } else {
+        let node_script = "const fs=require('fs');const buf=fs.readFileSync('" + svg_path + "');process.stdout.write('data:image/svg+xml;base64,'+buf.toString('base64'))"
+        try {
+          encoded_uri = exec_node("-e \"" + node_script + "\"")
+          print "  → Inline encoded as Base64 SVG."
+        } catch (e) {
+          print "  ✗ Failed to Base64 encode SVG: " + str(e)
+        }
+      }
+      
+      if encoded_uri != "" {
+        meta["icon"] = encoded_uri
+      }
+    } else {
+      print "  ⚠ Warning: Could not locate SVG icon file: " + icon
+    }
+  }
+}
+
 // --- Main CLI Commands ---
 
 fn pack_extension(args_list) {
@@ -104,6 +210,8 @@ fn pack_extension(args_list) {
     print "Error: Failed to parse manifest JSON. Make sure keys and strings are double-quoted."
     return false
   }
+
+  process_icon_svg(meta, file_path)
 
   if !validate_metadata(meta) {
     print "Error: Extension metadata validation failed."

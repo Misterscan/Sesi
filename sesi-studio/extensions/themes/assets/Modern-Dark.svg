@@ -1,0 +1,47 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#141417;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#09090b;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="micaOverlay" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.12" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0.03" />
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="25" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+    <filter id="innerLight">
+      <feComponentTransfer in="SourceAlpha">
+        <feFuncA type="table" tableValues="1 0" />
+      </feComponentTransfer>
+      <feGaussianBlur stdDeviation="2" />
+      <feOffset dx="0" dy="1" result="offsetblur" />
+      <feFlood flood-color="#ffffff" flood-opacity="0.1" result="color" />
+      <feComposite in2="offsetblur" operator="in" />
+      <feComposite in2="SourceAlpha" operator="in" />
+      <feMerge>
+        <feMergeNode in="SourceGraphic" />
+        <feMergeNode />
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bgGradient)" />
+  
+  <!-- Mica Card -->
+  <rect x="64" y="64" width="384" height="384" rx="80" fill="url(#micaOverlay)" filter="url(#softShadow)" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" />
+  
+  <!-- Accent Shape (Subtle Glow) -->
+  <circle cx="256" cy="256" r="120" fill="white" opacity="0.02" filter="blur(40px)" />
+  
+  <!-- Typography -->
+  <text x="50%" y="48%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="110" fill="#ffffff" style="letter-spacing: -4px; filter: url(#innerLight);">
+    MD
+  </text>
+  
+  <text x="50%" y="62%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="500" font-size="24" fill="#a1a1aa" style="letter-spacing: 6px; text-transform: uppercase;">
+    Modern Dark
+  </text>
+</svg>

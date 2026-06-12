@@ -1,8 +1,14 @@
 /*
-Sesi Studio v2.0
-This native server replaces our now deprecated server.js script with a full-featured IDE backend written entirely in Sesi.
-Usage:
-  sesi -s
+  Sesi Studio v2.0
+  This native server replaces our now deprecated server.js script with a full-featured IDE backend written entirely in Sesi.
+
+  Usage:
+    sesi -s
+
+  Marketplace Info:
+    - https://github.com/misterscan/sesi-marketplace
+    - https://github.com/misterscan/sesi/tree/main/sesi-studio/extensions
+    - https://github.com/misterscan/sesi/tree/main/sesi-studio/themes
 */
 import {now} from "std/time"
 
@@ -259,8 +265,10 @@ fn handle_http(req) {
       fn get_metadata(base_path, file_name) {
         let full_path = base_path + "/" + file_name
         try {
-          /* Use Node to safely extract the first comment block as JSON
-          Using indexOf to avoid complex Regex escaping issues in Sesi/Shell strings */
+          /* 
+            Use Node to safely extract the first comment block as JSON
+            Using indexOf to avoid complex Regex escaping issues in Sesi/Shell strings 
+          */
           let script = "const fs=require('fs');const c=fs.readFileSync('" + full_path + "','utf8');const s=c.indexOf('/*');const e=c.indexOf('*/');if(s===-1||e===-1)process.stdout.write('null');else process.stdout.write(c.slice(s+2,e).trim())"
           let json_str = exec_node("-e \"" + script + "\"")
           if json_str == "null" || json_str == "" {
@@ -536,17 +544,237 @@ fn handle_http(req) {
       }
       if ext == "png" || ext == "jpg" || ext == "jpeg" {
 
-        /* Handle binary files by converting to base64 via node since read_file is utf-8
-        We return the raw buffer as a response body - most Sesi web implementations 
-        will handle a base64 string if we provide the right content type or we might need 
-        to tell the client to decode it. For simplicity, let's assume we can serve text-based icons (SVG/Emoji)
-        and for binary we'll rely on the static server in server.js if it exists. */
+        /* 
+          Handle binary files by converting to base64 via node since read_file is utf-8
+          We return the raw buffer as a response body - most Sesi web implementations 
+          will handle a base64 string if we provide the right content type or we might need 
+          to tell the client to decode it. For simplicity, let's assume we can serve text-based icons (SVG/Emoji)
+          and for binary we'll rely on the static server in server.js if it exists. 
+        */
         let script = "console.log(require('fs').readFileSync('sesi-studio/extensions/" + subpath + "').toString('base64'))"
         let b64 = exec_node("-e \"" + script + "\"")
       }
       return {"status": 200, "headers": {"Content-Type": content_type}, "body": content}
     } catch (e) {
       return {"status": 404, "body": "Extension file not found"}
+    }
+  }
+
+  if path == "/api/git" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let action = body_obj["action"]
+      
+      if action == "status" {
+        let initialized = true
+        let status_out = ""
+        let branch_out = ""
+        try {
+          status_out = exec("git status --porcelain")
+          branch_out = exec("git branch --show-current")
+          branch_out = split(branch_out, "\r")[0]
+          branch_out = split(branch_out, "\n")[0]
+        } catch (e) {
+          initialized = false
+        }
+        
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "initialized": initialized,
+            "status": status_out,
+            "branch": branch_out
+          }
+        }
+      }
+      
+      if action == "init" {
+        let out = exec("git init")
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"success": true, "output": out}
+        }
+      }
+      
+      if action == "add" {
+        let file = body_obj["file"]
+        let out = exec("git add \"" + file + "\"")
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"success": true, "output": out}
+        }
+      }
+      
+      if action == "unstage" {
+        let file = body_obj["file"]
+        let out = exec("git restore --staged \"" + file + "\"")
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"success": true, "output": out}
+        }
+      }
+      
+      if action == "discard" {
+        let file = body_obj["file"]
+        let out = exec("git restore \"" + file + "\"")
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"success": true, "output": out}
+        }
+      }
+      
+      if action == "commit" {
+        let msg = body_obj["message"]
+        write_file("sesi-studio/.git-commit-msg.tmp", msg)
+        let out = ""
+        try {
+          out = exec("git commit -F sesi-studio/.git-commit-msg.tmp")
+          out = split(out, "\r")[0]
+        } catch (e) {
+          try {
+            exec("rm sesi-studio/.git-commit-msg.tmp")
+          } catch (e2) {}
+          return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": str(e)}}
+        }
+        try {
+          exec("rm sesi-studio/.git-commit-msg.tmp")
+        } catch (e2) {}
+        
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"success": true, "output": out}
+        }
+      }
+      
+      if action == "push" {
+        let out = exec("git push")
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"success": true, "output": out}
+        }
+      }
+      
+      if action == "pull" {
+        let out = exec("git pull")
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"success": true, "output": out}
+        }
+      }
+      
+      if action == "diff" {
+        let file = body_obj["file"]
+        let original = ""
+        let current = ""
+        
+        try {
+          original = exec("git show HEAD:\"" + file + "\"")
+        } catch (e) {
+          original = ""
+        }
+        
+        try {
+          current = read_file(file)
+        } catch (e) {
+          current = ""
+        }
+        
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "success": true,
+            "original": original,
+            "modified": current
+          }
+        }
+      }
+
+      if action == "log" {
+        let log_out = ""
+        try {
+          log_out = exec("git log --oneline -n 15")
+        } catch (e) {
+          log_out = "No commits yet."
+        }
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"success": true, "log": log_out}
+        }
+      }
+
+      if action == "generate_commit_msg" {
+        let diff_str = ""
+        try {
+          diff_str = exec("git diff --staged")
+        } catch (e) {
+          diff_str = ""
+        }
+        
+        if diff_str == "" {
+          return {
+            "status": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": {
+              "success": false,
+              "error": "No staged changes detected. Please stage files first."
+            }
+          }
+        }
+        
+        if len(diff_str) > 12000 {
+          let lines = split(diff_str, "\n")
+          let trimmed_lines = []
+          let total_len = 0
+          for line in lines {
+            if total_len < 10000 {
+              push(trimmed_lines, line)
+              total_len = total_len + len(line)
+            }
+          }
+          diff_str = join(trimmed_lines, "\n") + "\n... [diff truncated] ..."
+        }
+        prompt commitPrompt {"You are an AI git assistant. Generate a detailed, pretty-printed, multi-line Conventional Commits-compliant commit message based on the following diff of staged changes.
+Do NOT return a single-line message. You MUST return a subject line under 72 characters, followed by a blank line, and then a bulleted body detailing the changes.
+Do NOT wrap your response in markdown code blocks or quotes. Respond ONLY with the raw commit message text.
+
+Staged Diff:
+" diff_str}
+        
+        let generated_msg = ""
+        try {
+          generated_msg = model("copilot") {temperature: 0.2, max_tokens: 150, cache: false} {copilotMemory commitPrompt}
+          generated_msg = split(generated_msg, "\r")[0]
+        } catch (e) {
+          return {
+            "status": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": {"success": false, "error": "AI model error: " + str(e)}
+          }
+        }
+        
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "success": true,
+            "message": generated_msg
+          }
+        }
+      }
+      
+      return {"status": 400, "body": {"error": "Unknown git action"}}
+    } catch (e) {
+      return {"status": 500, "body": {"error": str(e)}}
     }
   }
 

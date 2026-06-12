@@ -3,8 +3,7 @@
   "name": "Extension Manager",
   "version": "1.1.0",
   "description": "Core system for managing and discovering Sesi Studio extensions.",
-  "author": "Misterscan",
-  "icon": "🧩",
+  "icon": "extensions/assets/Extension-Manager.svg",
   "commands": ["Refresh List", "Toggle Modal"]
 }
 */

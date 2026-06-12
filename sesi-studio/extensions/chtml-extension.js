@@ -3,8 +3,7 @@
   "name": "ClearHTML Support",
   "version": "1.0.0",
   "description": "Provides rich hover documentation and link navigation for CHTML files.",
-  "author": "Misterscan",
-  "icon": "💎",
+  "icon": "extensions/assets/Clear-HTML-Support.svg",
   "commands": ["Show Docs", "Navigate Path"]
 }
 */

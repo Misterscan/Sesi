@@ -1,3 +1,12 @@
+/* 
+{
+  "name": "Hello Sesi",
+  "version": "1.0.0",
+  "description": "A simple hello from Sesi Studio.",
+  "icon": "👋",
+  "commands": ["Say Hello"]
+}
+*/
 console.log("🚀 Sesi Studio: Hello Extension loaded successfully!");
 
 // Wait for Monaco Editor to be fully loaded and initialized
