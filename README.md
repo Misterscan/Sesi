@@ -33,8 +33,11 @@ We are excited to announce the release of **Sesi Studio**, a high-performance, b
 - **Integrated Terminal**: Run Sesi scripts and manage your system directly from the IDE.
 - **Sesi Co-Pilot**: Context-aware chat assistant that understands your codebase.
 - **Local Timeline**: Never lose code with built-in edit history.
+- **Command Palette**: Access all workspace operations, extension actions, zoom controls, and theme settings with a single keystroke (`Cmd/Ctrl+P`).
+- **Extension & Theme Packagers & Installers**: Pack CSS themes into portable `.sesitheme` bundles and JS extensions into `.sesiext` bundles. Validate, distribute, and install themes/extensions dynamically via the Settings Hub or Command Palette.
 
 To launch Sesi Studio, you can:
+
 - Open **Sesi Studio.app** (macOS)
 - Run `./SesiStudio.command` from the root directory
 - Use the CLI: `sesi -s` (after installing Sesi)
@@ -158,6 +161,20 @@ npm run sesi:help "how to make a directory?"
 # Encrypt / Decrypt scripts (uses SESI_PASSWORD from your .env automatically)
 npm run sesi:encrypt "secret.sesi"
 npm run sesi:decrypt "secret.sesi"
+```
+
+```bash
+# Sesi Studio Theme Packager
+npm run studio:css:pack <css-file-path> [output-dir]
+npm run studio:css:unpack <sesitheme-file-path> [output-dir]
+npm run studio:css:validate <css-file-path>
+```
+
+```bash
+# Sesi Studio Extension Packager
+npm run studio:ext:pack <js-file-path> [output-dir]
+npm run studio:ext:unpack <sesiext-file-path> [output-dir]
+npm run studio:ext:validate <js-file-path>
 ```
 
 ```bash

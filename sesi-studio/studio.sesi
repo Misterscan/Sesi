@@ -50,14 +50,15 @@ prompt mandatory {"## Mandatory Syntax Rules & Quirks
 - **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
 - **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
-- **Forbidden:** Do NOT invent syntax. Use the correct:
+- **Forbidden:** Do NOT invent syntax. 
+- **Comments:** Use the correct multi-line comments style shown here:
   ```
-  /*
-  Multi-line
-  Comment
-  */
+  /* <- This always has to be on a seperate line from the comment text.
+    This is how you do a multi-line comment.
+    Notice it spans multiple lines.
+    Without repeating // on each line.
+  */ <- This always has to be on a seperate line from the comment text.
   ```
-style for multi-line comments. 
 - Do not mention that you got this from a database.
 - CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins).
 "}
@@ -217,6 +218,36 @@ fn handle_http(req) {
     }
   }
 
+  if path == "/api/validate" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let content = body_obj["content"]
+      let temp_name = ".sesi_cache_temp_" + str(time()) + ".sesi"
+      write_file(temp_name, content)
+      
+      let check_result = ""
+      let success = true
+      try {
+        check_result = exec_node("bin/sesi.js -c " + temp_name)
+      } catch (e) {
+        check_result = str(e)
+        success = false
+      }
+      
+      try {
+        exec("rm " + temp_name)
+      } catch (e_rm) {
+        try {
+          exec("del " + temp_name)
+        } catch (e_del) {}
+      }
+      
+      return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": success, "output": check_result}}
+    } catch (e) {
+      return {"status": 500, "body": {"error": "Failed to validate: " + str(e)}}
+    }
+  }
+
   if path == "/api/extensions" {
     try {
       make_dir("sesi-studio/extensions")
@@ -255,6 +286,7 @@ fn handle_http(req) {
             entry["author"] = meta["author"]
             entry["commands"] = meta["commands"]
             entry["icon"] = meta["icon"]
+            entry["license"] = meta["license"]
           }
           push(result, entry)
         }
@@ -274,6 +306,7 @@ fn handle_http(req) {
             entry["author"] = meta["author"]
             entry["commands"] = meta["commands"]
             entry["icon"] = meta["icon"]
+            entry["license"] = meta["license"]
           }
           push(result, entry)
         }
@@ -282,6 +315,205 @@ fn handle_http(req) {
       return {"status": 200, "body": result}
     } catch (e) {
       return {"status": 500, "body": {"error": str(e)}}
+    }
+  }
+
+  if path == "/api/install-theme" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let content = ""
+      if body_obj["filePath"] != null && body_obj["filePath"] != "" {
+        content = read_file(body_obj["filePath"])
+      } else if body_obj["themeContent"] != null && body_obj["themeContent"] != "" {
+        content = body_obj["themeContent"]
+      } else {
+        return {"status": 400, "body": {"error": "Missing 'filePath' or 'themeContent' parameter."}}
+      }
+      
+      let bundle = from_json(content)
+      if bundle == null {
+        return {"status": 400, "body": {"error": "Invalid theme bundle JSON."}}
+      }
+      
+      let meta = bundle["metadata"]
+      let css = bundle["css"]
+      if meta == null || css == null {
+        return {"status": 400, "body": {"error": "Theme bundle is missing 'metadata' or 'css' payload."}}
+      }
+      
+      let theme_name = meta["name"]
+      if theme_name == null || theme_name == "" {
+        return {"status": 400, "body": {"error": "Theme manifest is missing a name."}}
+      }
+      
+      let safe_name = join(split(theme_name, " "), "-")
+      safe_name = join(split(safe_name, "/"), "-")
+      
+      make_dir("sesi-studio/extensions")
+      make_dir("sesi-studio/extensions/themes")
+      
+      let out_path = "sesi-studio/extensions/themes/" + safe_name + ".css"
+      let css_file_content = "/*\n" + to_json(meta) + "\n*/\n" + css
+      
+      write_file(out_path, css_file_content)
+      return {"status": 200, "body": {"success": true, "themeName": theme_name, "installedPath": out_path}}
+    } catch (e) {
+      return {"status": 500, "body": {"error": str(e)}}
+    }
+  }
+
+  if path == "/api/install-extension" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let content = ""
+      if body_obj["filePath"] != null && body_obj["filePath"] != "" {
+        content = read_file(body_obj["filePath"])
+      } else if body_obj["extensionContent"] != null && body_obj["extensionContent"] != "" {
+        content = body_obj["extensionContent"]
+      } else {
+        return {"status": 400, "body": {"error": "Missing 'filePath' or 'extensionContent' parameter."}}
+      }
+      
+      let bundle = from_json(content)
+      if bundle == null {
+        return {"status": 400, "body": {"error": "Invalid extension bundle JSON."}}
+      }
+      
+      let meta = bundle["metadata"]
+      let js = bundle["js"]
+      if meta == null || js == null {
+        return {"status": 400, "body": {"error": "Extension bundle is missing 'metadata' or 'js' payload."}}
+      }
+      
+      let ext_name = meta["name"]
+      if ext_name == null || ext_name == "" {
+        return {"status": 400, "body": {"error": "Extension manifest is missing a name."}}
+      }
+      
+      let safe_name = join(split(ext_name, " "), "-")
+      safe_name = join(split(safe_name, "/"), "-")
+      
+      make_dir("sesi-studio/extensions")
+      
+      let out_path = "sesi-studio/extensions/" + safe_name + ".js"
+      let js_file_content = "/*\n" + to_json(meta) + "\n*/\n" + js
+      
+      write_file(out_path, js_file_content)
+      return {"status": 200, "body": {"success": true, "extensionName": ext_name, "installedPath": out_path}}
+    } catch (e) {
+      return {"status": 500, "body": {"error": str(e)}}
+    }
+  }
+
+  if path == "/marketplace.json" {
+    try {
+      let content = read_file("sesi-studio/marketplace.json")
+      return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": content}
+    } catch (e) {
+      return {"status": 404, "body": "Marketplace catalog not found"}
+    }
+  }
+
+  let rel_parts = split(path, "/releases/")
+  if len(rel_parts) == 2 && rel_parts[0] == "" {
+    let subpath = rel_parts[1]
+    try {
+      let content = read_file("sesi-studio/releases/" + subpath)
+      let content_type = "application/json"
+      return {"status": 200, "headers": {"Content-Type": content_type}, "body": content}
+    } catch (e) {
+      return {"status": 404, "body": "Release file not found"}
+    }
+  }
+
+  if path == "/api/marketplace/list" && method == "GET" {
+    try {
+      let registry_url = req.query["registryUrl"]
+      if registry_url == null || registry_url == "" {
+        registry_url = "https://raw.githubusercontent.com/misterscan/sesi-marketplace/main/marketplace.json"
+      }
+      let catalog_str = web_get(registry_url)
+      return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": catalog_str}
+    } catch (e) {
+      return {"status": 500, "body": {"error": "Failed to fetch marketplace: " + str(e)}}
+    }
+  }
+
+  if path == "/api/marketplace/install" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let item_id = body_obj["id"]
+      let download_url = body_obj["downloadUrl"]
+      let item_type = body_obj["type"]
+      
+      if download_url == null || download_url == "" {
+        return {"status": 400, "body": {"error": "Missing downloadUrl parameter"}}
+      }
+      
+      print "Marketplace: downloading " + download_url
+      let bundle_content = web_get(download_url)
+      let bundle = from_json(bundle_content)
+      if bundle == null {
+        return {"status": 400, "body": {"error": "Downloaded bundle is not valid JSON"}}
+      }
+      
+      let meta = bundle["metadata"]
+      if meta == null {
+        return {"status": 400, "body": {"error": "Bundle metadata is missing"}}
+      }
+      let item_name = meta["name"]
+      if item_name == null || item_name == "" {
+        return {"status": 400, "body": {"error": "Bundle metadata name is missing"}}
+      }
+      
+      let safe_name = join(split(item_name, " "), "-")
+      safe_name = join(split(safe_name, "/"), "-")
+      
+      if item_type == "theme" {
+        let css = bundle["css"]
+        if css == null {
+          return {"status": 400, "body": {"error": "Theme bundle is missing 'css' payload"}}
+        }
+        make_dir("sesi-studio/extensions/themes")
+        let out_path = "sesi-studio/extensions/themes/" + safe_name + ".css"
+        let css_file_content = "/*\n" + to_json(meta) + "\n*/\n" + css
+        write_file(out_path, css_file_content)
+        return {"status": 200, "body": {"success": true, "name": item_name, "installedPath": out_path}}
+      } else if item_type == "extension" {
+        let js = bundle["js"]
+        if js == null {
+          return {"status": 400, "body": {"error": "Extension bundle is missing 'js' payload"}}
+        }
+        make_dir("sesi-studio/extensions")
+        let out_path = "sesi-studio/extensions/" + safe_name + ".js"
+        let js_file_content = "/*\n" + to_json(meta) + "\n*/\n" + js
+        write_file(out_path, js_file_content)
+        return {"status": 200, "body": {"success": true, "name": item_name, "installedPath": out_path}}
+      } else {
+        return {"status": 400, "body": {"error": "Invalid type parameter. Must be 'theme' or 'extension'."}}
+      }
+    } catch (e) {
+      return {"status": 500, "body": {"error": str(e)}}
+    }
+  }
+
+  let nm_parts = split(path, "/node_modules/")
+  if len(nm_parts) == 2 && nm_parts[0] == "" {
+    let subpath = nm_parts[1]
+    try {
+      let content = read_file("sesi-studio/node_modules/" + subpath)
+      let content_type = "text/plain"
+      let file_parts = split(subpath, ".")
+      let ext = file_parts[len(file_parts) - 1]
+      if ext == "js" {
+        content_type = "application/javascript"
+      }
+      if ext == "css" {
+        content_type = "text/css"
+      }
+      return {"status": 200, "headers": {"Content-Type": content_type}, "body": content}
+    } catch (e) {
+      return {"status": 404, "body": "Module file not found: " + str(e)}
     }
   }
 

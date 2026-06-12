@@ -1,13 +1,13 @@
 /* 
 {
-  "name": "Vintage Monochrome",
+  "name": "Vintage",
   "version": "1.0.0",
   "description": "Old-school computer terminal aesthetic with amber glow and scanlines.",
   "icon": "📟",
   "commands": ["Apply Vintage"]
 }
 */
-/* Sesi Studio Theme: Vintage Monochrome */
+/* Sesi Studio Theme: Vintage */
 :root {
   --bg-base: #1a1b12;
   --bg-panel: #24251a;

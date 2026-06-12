@@ -89,3 +89,5 @@ help_response.md
 generated_images
 random_images
 Sesi Studio.app
+*.sesiext
+*.sesitheme

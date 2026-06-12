@@ -1,4 +1,6 @@
 const vscode = require('vscode');
+const path = require('path');
+
 
 function activate(context) {
     const docs = {
@@ -446,7 +448,118 @@ function activate(context) {
         }
     });
 
+    const diagnosticCollection = vscode.languages.createDiagnosticCollection('sesi');
+    context.subscriptions.push(diagnosticCollection);
+
+    let debounceTimer;
+    function triggerDiagnostics(document) {
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+        }
+        debounceTimer = setTimeout(() => {
+            runValidation(document);
+        }, 300);
+    }
+
+    function runValidation(document) {
+        const text = document.getText();
+        
+        let workspaceRoot = '';
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders && workspaceFolders.length > 0) {
+            workspaceRoot = workspaceFolders[0].uri.fsPath;
+        }
+        
+        const fs = require('fs');
+        const localSesiPath = path.join(workspaceRoot, 'bin', 'sesi.js');
+        let command;
+        if (workspaceRoot && fs.existsSync(localSesiPath)) {
+            command = `node "${localSesiPath}" -c -`;
+        } else {
+            command = `npx sesi -c -`;
+        }
+
+        const cp = require('child_process');
+        const child = cp.spawn(command, [], {
+            shell: true,
+            cwd: workspaceRoot || process.cwd()
+        });
+
+        let stderr = '';
+        let stdout = '';
+        child.stdout.on('data', data => { stdout += data; });
+        child.stderr.on('data', data => { stderr += data; });
+
+        child.on('close', (code) => {
+            const diagnostics = [];
+            const output = stderr || stdout;
+            
+            // Clean up output (remove dotenvx log prefix)
+            let cleanedOutput = output.replace(/◇ retrieving[\s\S]*?dotenvx@[\d.]+/g, '').trim();
+            
+            const lineColMatch = cleanedOutput.match(/at line (\d+), column (-?\d+)/);
+            if (lineColMatch) {
+                const lineNum = parseInt(lineColMatch[1], 10) - 1; // 0-indexed in VS Code
+                let colNum = parseInt(lineColMatch[2], 10);
+                if (colNum < 0) colNum = 0;
+                
+                if (lineNum >= 0 && lineNum < document.lineCount) {
+                    const lineText = document.lineAt(lineNum).text;
+                    const range = new vscode.Range(
+                        new vscode.Position(lineNum, Math.max(0, colNum - 1)),
+                        new vscode.Position(lineNum, lineText.length)
+                    );
+                    
+                    diagnostics.push(new vscode.Diagnostic(
+                        range,
+                        cleanedOutput,
+                        vscode.DiagnosticSeverity.Error
+                    ));
+                }
+            } else if (code !== 0 && cleanedOutput) {
+                // Fallback for general execution errors
+                const range = new vscode.Range(
+                    new vscode.Position(0, 0),
+                    new vscode.Position(0, document.lineAt(0).text.length)
+                );
+                diagnostics.push(new vscode.Diagnostic(
+                    range,
+                    cleanedOutput,
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+            
+            diagnosticCollection.set(document.uri, diagnostics);
+        });
+
+        child.stdin.write(text);
+        child.stdin.end();
+    }
+
     context.subscriptions.push(hoverProvider);
+
+    context.subscriptions.push(
+        vscode.workspace.onDidOpenTextDocument(document => {
+            if (document.languageId === 'sesi') {
+                triggerDiagnostics(document);
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument(event => {
+            if (event.document.languageId === 'sesi') {
+                triggerDiagnostics(event.document);
+            }
+        })
+    );
+
+    // Initial check for all open documents
+    vscode.workspace.textDocuments.forEach(document => {
+        if (document.languageId === 'sesi') {
+            triggerDiagnostics(document);
+        }
+    });
 }
 
 function deactivate() {}

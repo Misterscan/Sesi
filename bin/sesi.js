@@ -100,7 +100,7 @@ function parseArgs(args) {
     } else if (arg === '-a' || arg === '--allowed-paths') {
       const paths = args[++i].split(',');
       options.sesiOptions.allowedPaths.push(...paths.map(p => path.resolve(p)));
-    } else if (!arg.startsWith('-') && !options.file && !options.eval && !options.encryptFile && !options.decryptFile) {
+    } else if ((!arg.startsWith('-') || arg === '-') && !options.file && !options.eval && !options.encryptFile && !options.decryptFile) {
       options.file = arg;
     } else if (arg == '-r' || arg == '--raw') {
       options.sesiOptions.raw = true;

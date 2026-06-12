@@ -1,0 +1,298 @@
+/*
+  Sesi Extension Packager
+  A native tool to pack, unpack, and validate Sesi Studio JS extensions.
+*/
+
+import { floor } from "std/math"
+
+// --- Helper: Clean Comment Asterisks ---
+fn clean_manifest_json(raw) {
+  let lines = split(raw, "\n")
+  let clean_str = ""
+  for line in lines {
+    let parts = split(line, "*")
+    let line_content = line
+    if len(parts) > 1 {
+      // If there was a leading asterisk, strip it
+      line_content = parts[1]
+      for j = 2 to len(parts) {
+        line_content = line_content + "*" + parts[j]
+      }
+    }
+    clean_str = clean_str + line_content + "\n"
+  }
+  return clean_str
+}
+
+// --- Helper: Validate Extension Manifest ---
+fn validate_metadata(meta) {
+  if meta["license"] == null {
+    meta["license"] = "MIT"
+  }
+  let required = ["name", "version", "description", "icon", "commands", "license"]
+  for field in required {
+    if meta[field] == null {
+      print "  ✗ Missing required manifest field: \"" + field + "\""
+      return false
+    }
+  }
+  return true
+}
+
+// --- Main CLI Commands ---
+
+fn pack_extension(args_list) {
+  if len(args_list) < 1 {
+    print "Error: pack command requires a JS file path."
+    return false
+  }
+  let file_path = args_list[0]
+  let releaseDir = "../sesi-marketplace/releases/extensions"
+  make_dir(releaseDir)
+  let out_dir = releaseDir
+  if len(args_list) > 1 {
+    out_dir = args_list[1]
+  }
+
+  print "Packing extension: " + file_path
+  let content = ""
+  try {
+    content = read_file(file_path)
+  } catch (e) {
+    print "Error: Failed to read extension JS file: " + file_path
+    return false
+  }
+
+  let parts = split(content, "/*")
+  if len(parts) < 2 {
+    print "Error: No manifest comment block (/* ... */) found in the JS file."
+    return false
+  }
+
+  let rest = ""
+  for i = 1 to len(parts) {
+    if i > 1 {
+      rest = rest + "/*" + parts[i]
+    } else {
+      rest = parts[1]
+    }
+  }
+
+  let subparts = split(rest, "*/")
+  if len(subparts) < 2 {
+    print "Error: Manifest comment block is not closed (missing */)."
+    return false
+  }
+
+  let raw_manifest = subparts[0]
+  
+  let js_content = ""
+  for i = 1 to len(subparts) {
+    if i > 1 {
+      js_content = js_content + "*/" + subparts[i]
+    } else {
+      js_content = subparts[1]
+    }
+  }
+
+  let cleaned_json = clean_manifest_json(raw_manifest)
+
+  let meta = null
+  try {
+    meta = from_json(cleaned_json)
+  } catch (e) {
+    print "Error: Failed to parse manifest JSON. Make sure keys and strings are double-quoted."
+    return false
+  }
+
+  if !validate_metadata(meta) {
+    print "Error: Extension metadata validation failed."
+    return false
+  }
+
+  let bundle = {
+    "metadata": meta,
+    "js": js_content
+  }
+
+  try {
+    make_dir(out_dir)
+  } catch (e) {
+    // Directory might already exist
+  }
+
+  let safe_name = join(split(meta["name"], " "), "-")
+  let out_path = out_dir + "/" + safe_name + ".sesiext"
+
+  try {
+    write_file(out_path, to_json(bundle))
+    print "✓ Packed extension successfully!"
+    print "  Bundle saved to: " + out_path
+    return true
+  } catch (e) {
+    print "Error: Failed to write bundle file: " + out_path
+    return false
+  }
+}
+
+fn unpack_extension(args_list) {
+  if len(args_list) < 1 {
+    print "Error: unpack command requires a .sesiext file path."
+    return false
+  }
+  let ext_path = args_list[0]
+  let out_dir = "sesi-studio/extensions/downloaded"
+  make_dir(out_dir)
+  if len(args_list) > 1 {
+    out_dir = args_list[1]
+  }
+
+  print "Unpacking extension: " + ext_path
+  let content = ""
+  try {
+    content = read_file(ext_path)
+  } catch (e) {
+    print "Error: Failed to read extension bundle file: " + ext_path
+    return false
+  }
+
+  let bundle = null
+  try {
+    bundle = from_json(content)
+  } catch (e) {
+    print "Error: Failed to parse bundle JSON."
+    return false
+  }
+
+  let meta = bundle["metadata"]
+  let js = bundle["js"]
+
+  if meta == null || js == null {
+    print "Error: Bundle is missing metadata or JS body."
+    return false
+  }
+
+  if !validate_metadata(meta) {
+    print "Error: Extension metadata validation failed inside bundle."
+    return false
+  }
+
+  try {
+    make_dir(out_dir)
+  } catch (e) {
+    // Directory might already exist
+  }
+
+  let safe_name = join(split(meta["name"], " "), "-")
+  let out_path = out_dir + "/" + safe_name + ".js"
+  let js_file_content = "/*\n" + to_json(meta) + "\n*/\n" + js
+
+  try {
+    write_file(out_path, js_file_content)
+    print "✓ Unpacked extension successfully!"
+    print "  Installed JS extension to: " + out_path
+    return true
+  } catch (e) {
+    print "Error: Failed to write JS file: " + out_path
+    return false
+  }
+}
+
+fn validate_extension(args_list) {
+  if len(args_list) < 1 {
+    print "Error: validate command requires a JS file path."
+    return false
+  }
+  let file_path = args_list[0]
+  let content = ""
+  try {
+    content = read_file(file_path)
+  } catch (e) {
+    print "Error: Failed to read JS file: " + file_path
+    return false
+  }
+
+  let parts = split(content, "/*")
+  if len(parts) < 2 {
+    print "Error: No manifest comment block (/* ... */) found."
+    return false
+  }
+
+  let rest = ""
+  for i = 1 to len(parts) {
+    if i > 1 {
+      rest = rest + "/*" + parts[i]
+    } else {
+      rest = parts[1]
+    }
+  }
+
+  let subparts = split(rest, "*/")
+  if len(subparts) < 2 {
+    print "Error: Manifest comment block is not closed (missing */)."
+    return false
+  }
+
+  let raw_manifest = subparts[0]
+  let cleaned_json = clean_manifest_json(raw_manifest)
+
+  let meta = null
+  try {
+    meta = from_json(cleaned_json)
+  } catch (e) {
+    print "Error: Failed to parse manifest JSON."
+    return false
+  }
+
+  print "Validating extension manifest for: " + file_path
+  if validate_metadata(meta) {
+    print "✓ Extension manifest is valid!"
+    print "  Name: " + meta["name"]
+    print "  Version: " + meta["version"]
+    print "  Description: " + meta["description"]
+    print "  License: " + meta["license"]
+    return true
+  } else {
+    print "✗ Extension validation failed."
+    return false
+  }
+}
+
+// --- Register Tools ---
+define_tool("pack",      pack_extension,     "Packs a JS extension into a .sesiext bundle")
+define_tool("unpack",    unpack_extension,   "Unpacks a .sesiext bundle into a JS extension")
+define_tool("validate",  validate_extension, "Validates a JS extension manifest")
+
+// --- CLI Runner ---
+fn run_cli() {
+  if len(args) < 1 {
+    print "Sesi Extension Packager CLI"
+    print "=========================="
+    print "Usage:"
+    print "  npm run studio:ext:pack <js-file-path> [output-dir]"
+    print "  npm run studio:ext:unpack <sesiext-file-path> [output-dir]"
+    print "  npm run studio:ext:validate <js-file-path>"
+    print ""
+    print "Examples:"
+    print "  npm run studio:ext:pack extensions/word-counter.js"
+    return null
+  }
+
+  let command = args[0]
+  let cmd_args = []
+  for i = 1 to len(args) {
+    push(cmd_args, args[i])
+  }
+
+  if command == "pack" {
+    tool_call(pack)(cmd_args)
+  } else if command == "unpack" {
+    tool_call(unpack)(cmd_args)
+  } else if command == "validate" {
+    tool_call(validate)(cmd_args)
+  } else {
+    print "Unknown command: " + command
+  }
+}
+
+run_cli()

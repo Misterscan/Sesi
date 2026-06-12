@@ -11,10 +11,10 @@
   <link rel="stylesheet" data-name="vs/editor/editor.main"
     href="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/editor/editor.main.css">
 
-  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+  <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
   <!-- xterm.css for terminal styling -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+  <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -467,6 +467,46 @@
       font-size: 11px;
       color: var(--silver-dark);
     }
+
+    /* Command Palette Styles */
+    .command-palette-item {
+      padding: 10px 20px;
+      font-size: 13px;
+      color: var(--silver-light);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 3px solid transparent;
+      transition: all 0.15s ease;
+    }
+    
+    .command-palette-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: #fff;
+    }
+    
+    .command-palette-item.selected {
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--accent-cyan);
+      border-left: 3px solid var(--accent-cyan);
+      padding-left: 17px;
+    }
+
+    .command-palette-shortcut {
+      font-size: 10px;
+      color: var(--silver-dark);
+      font-family: monospace;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .command-palette-item.selected .command-palette-shortcut {
+      color: var(--accent-cyan);
+      background: rgba(0, 229, 255, 0.1);
+    }
   </style>
 </head>
 
@@ -482,6 +522,7 @@
       <button class="btn" id="newBtn" onclick="createNewBuffer()">+ New File</button>
       <button class="btn" id="saveBtn" onclick="saveActiveFile()">Save (Ctrl+S)</button>
       <button class="btn" id="runBtn" onclick="runActiveFile()">Run active script</button>
+      <button class="btn" id="paletteBtn" onclick="toggleCommandPalette()" title="Command Palette (Ctrl+P)">⌨️ Commands</button>
       <button class="btn" id="settingsBtn" onclick="toggleSettingsModal()" title="Settings Hub">⚙️ Settings</button>
     </div>
   </header>
@@ -561,6 +602,23 @@
 
   </div>
 
+  <!-- Command Palette Modal -->
+  <div id="commandPaletteModal"
+    style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: flex-start; padding-top: 10vh; z-index: 3000; font-family: 'Space Grotesk', sans-serif;">
+    <div id="commandPaletteContainer"
+      style="background: var(--bg-panel); border: 1px solid var(--glass-border); width: 600px; max-height: 450px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6); transform: scale(0.95); transition: transform 0.15s ease-out;">
+      <input type="text" id="commandPaletteInput" placeholder="Type a command or search..."
+        style="padding: 16px 20px; font-size: 15px; border: none; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); color: #fff; outline: none; width: 100%; box-sizing: border-box; font-family: 'Space Grotesk', sans-serif;" autocomplete="off" />
+      <div id="commandPaletteList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 8px 0; max-height: 350px;">
+        <!-- Injected list items -->
+      </div>
+      <div style="padding: 8px 20px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.1); display: flex; justify-content: space-between; font-size: 10px; color: var(--silver-dark);">
+        <span>Use <kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">↑↓</kbd> to navigate, <kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">Enter</kbd> to execute</span>
+        <span><kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">Esc</kbd> to close</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Settings Hub Modal -->
   <div id="settingsModal"
     style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); display: none; justify-content: center; align-items: center; z-index: 2000; font-family: 'Space Grotesk', sans-serif;">
@@ -588,6 +646,9 @@
           <div class="settings-tab" onclick="switchSettingsTab('extensions', this)"
             style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">
             Extensions</div>
+          <div class="settings-tab" onclick="switchSettingsTab('marketplace', this)"
+            style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">
+            🛒 Marketplace</div>
           <div class="settings-tab" onclick="switchSettingsTab('shortcuts', this)"
             style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">
             Keyboard Shortcuts</div>
@@ -1076,11 +1137,17 @@
       });
 
       // Track editor changes
+      let validateTimeout;
       window.editor.onDidChangeModelContent(() => {
         if (window.activeFilePath && window.openFiles[window.activeFilePath]) {
           window.openFiles[window.activeFilePath].content = window.editor.getValue();
           window.openFiles[window.activeFilePath].isDirty = true;
           updateTabBar();
+
+          if (window.activeFilePath.endsWith('.sesi')) {
+            if (validateTimeout) clearTimeout(validateTimeout);
+            validateTimeout = setTimeout(validateActiveFile, 400);
+          }
         }
       });
 
@@ -1089,7 +1156,15 @@
         saveActiveFile();
       });
 
-      // Global Keybinding for Ctrl+S, Ctrl+N, Ctrl+Shift+S, Ctrl+Shift+E
+      // Keybinding for Ctrl+P / Cmd+P (Command Palette)
+      window.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
+        toggleCommandPalette();
+      });
+      window.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => {
+        toggleCommandPalette();
+      });
+
+      // Global Keybinding for Ctrl+S, Ctrl+N, Ctrl+Shift+S, Ctrl+Shift+E, Ctrl+P
       window.addEventListener('keydown', (e) => {
         const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
         const cmdKey = isMac ? e.metaKey : e.ctrlKey;
@@ -1101,6 +1176,14 @@
         if (cmdKey && e.key === 'n') {
           e.preventDefault();
           createNewBuffer();
+        }
+        if (cmdKey && e.key === 'p') {
+          e.preventDefault();
+          toggleCommandPalette();
+        }
+        if (cmdKey && e.shiftKey && e.key === 'P') {
+          e.preventDefault();
+          toggleCommandPalette();
         }
         if (cmdKey && e.shiftKey && e.key === 'S') {
           e.preventDefault();
@@ -1125,6 +1208,8 @@
         if (e.key === 'Escape') {
           const m = document.getElementById('settingsModal');
           if (m && m.style.display === 'flex') toggleSettingsModal();
+          const p = document.getElementById('commandPaletteModal');
+          if (p && p.style.display === 'flex') toggleCommandPalette();
         }
       });
 
@@ -1237,6 +1322,267 @@
       };
     };
 
+    // --- COMMAND PALETTE LOGIC ---
+    window.registeredCommands = [];
+    window.extensionCommands = {};
+
+    window.registerCommand = function(name, callback, shortcut = '') {
+      window.extensionCommands[name] = callback;
+      // Also register to command palette if it exists in list
+      addCommandToPalette(name, 'Extension', callback, shortcut);
+    };
+
+    function addCommandToPalette(name, category, action, shortcut = '') {
+      if (window.registeredCommands.some(c => c.name === name)) return;
+      window.registeredCommands.push({ name, category, action, shortcut });
+    }
+
+    function initCommandPalette() {
+      window.registeredCommands = [];
+
+      // 1. Built-in IDE Commands
+      addCommandToPalette('New File', 'IDE', () => createNewBuffer(), 'Ctrl+N');
+      addCommandToPalette('Save File', 'IDE', () => saveActiveFile(), 'Ctrl+S');
+      addCommandToPalette('Run Active Script', 'IDE', () => runActiveFile(), 'F5');
+      addCommandToPalette('Toggle Settings Hub', 'IDE', () => toggleSettingsModal(), 'Ctrl+Shift+S');
+      addCommandToPalette('Refresh Workspace Files', 'IDE', () => loadWorkspaceFiles(currentDirectoryPath));
+      addCommandToPalette('Zoom In', 'Editor', () => adjustZoom(0.1), 'Ctrl++');
+      addCommandToPalette('Zoom Out', 'Editor', () => adjustZoom(-0.1), 'Ctrl+-');
+      addCommandToPalette('Reset Zoom', 'Editor', () => adjustZoom(0, true), 'Ctrl+0');
+      addCommandToPalette('Clear Terminal', 'Terminal', () => window.terminal?.clear());
+      addCommandToPalette('Clear Chat History', 'Co-Pilot', () => {
+        if (confirm('Clear chat history?')) {
+          localStorage.removeItem('sesi_chat_history');
+          const chatMsgEl = document.getElementById('chatMessages');
+          if (chatMsgEl) chatMsgEl.innerHTML = '';
+        }
+      });
+      addCommandToPalette('Install .sesitheme...', 'Appearance', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.sesitheme';
+        input.onchange = e => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async event => {
+            const content = event.target.result;
+            try {
+              const response = await fetch('/api/install-theme', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ themeContent: content })
+              });
+              const resData = await response.json();
+              if (resData.success) {
+                alert(`Theme "${resData.themeName}" installed successfully!`);
+                initCommandPalette();
+                if (window.loadExtensions) {
+                  window.loadExtensions();
+                }
+              } else {
+                alert('Failed to install theme: ' + resData.error);
+              }
+            } catch (err) {
+              alert('Error installing theme: ' + err.message);
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      });
+      addCommandToPalette('Install from .sesiext...', 'Extension', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.sesiext';
+        input.onchange = e => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async event => {
+            const content = event.target.result;
+            try {
+              const response = await fetch('/api/install-extension', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ extensionContent: content })
+              });
+              const resData = await response.json();
+              if (resData.success) {
+                alert(`Extension "${resData.extensionName}" installed successfully!`);
+                initCommandPalette();
+                if (window.loadExtensions) {
+                  window.loadExtensions();
+                }
+              } else {
+                alert('Failed to install extension: ' + resData.error);
+              }
+            } catch (err) {
+              alert('Error installing extension: ' + err.message);
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      });
+
+      // 2. Monaco Editor Built-in Actions
+      if (window.editor) {
+        addCommandToPalette('Format Document', 'Editor', () => window.triggerMonacoAction('editor.action.formatDocument'), 'Shift+Alt+F');
+        addCommandToPalette('Find', 'Editor', () => window.triggerMonacoAction('actions.find'), 'Ctrl+F');
+        addCommandToPalette('Replace', 'Editor', () => window.triggerMonacoAction('editor.action.startFindReplaceAction'), 'Ctrl+H');
+        addCommandToPalette('Go to Line', 'Editor', () => window.triggerMonacoAction('editor.action.gotoLine'), 'Ctrl+G');
+        addCommandToPalette('Toggle Line Comment', 'Editor', () => window.triggerMonacoAction('editor.action.commentLine'), 'Ctrl+/');
+      }
+
+      // 3. Extension-Registered Commands
+      for (const [name, callback] of Object.entries(window.extensionCommands)) {
+        addCommandToPalette(name, 'Extension', callback);
+      }
+
+      // 4. Themes list
+      fetch('/api/extensions')
+        .then(res => res.json())
+        .then(list => {
+          const themes = list.filter(item => item.type === 'css' && item.name.startsWith('themes/'));
+          addCommandToPalette('Apply Theme: Default Sesi', 'Appearance', () => {
+            window.applyThemeFromManager ? window.applyThemeFromManager('') : alert('Theme Manager extension not loaded');
+          });
+          themes.forEach(theme => {
+            const displayName = theme.displayName || theme.name.replace('themes/', '').replace('.css', '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            addCommandToPalette(`Apply Theme: ${displayName}`, 'Appearance', () => {
+              window.applyThemeFromManager ? window.applyThemeFromManager(theme.name) : alert('Theme Manager extension not loaded');
+            });
+          });
+        })
+        .catch(err => console.error('Failed to load themes for Command Palette:', err));
+    }
+
+    let selectedPaletteIndex = 0;
+    let filteredPaletteCommands = [];
+
+    window.toggleCommandPalette = function() {
+      const modal = document.getElementById('commandPaletteModal');
+      const container = document.getElementById('commandPaletteContainer');
+      const input = document.getElementById('commandPaletteInput');
+      
+      if (modal.style.display === 'flex') {
+        modal.style.display = 'none';
+        container.style.transform = 'scale(0.95)';
+        if (window.editor) window.editor.focus();
+      } else {
+        initCommandPalette();
+        modal.style.display = 'flex';
+        setTimeout(() => {
+          container.style.transform = 'scale(1)';
+        }, 10);
+        
+        input.value = '';
+        selectedPaletteIndex = 0;
+        filterPaletteCommands();
+        input.focus();
+      }
+    };
+
+    function filterPaletteCommands() {
+      const query = document.getElementById('commandPaletteInput').value.toLowerCase();
+      filteredPaletteCommands = window.registeredCommands.filter(cmd => 
+        cmd.name.toLowerCase().includes(query) || 
+        cmd.category.toLowerCase().includes(query)
+      );
+      
+      if (selectedPaletteIndex >= filteredPaletteCommands.length) {
+        selectedPaletteIndex = Math.max(0, filteredPaletteCommands.length - 1);
+      }
+      
+      renderPaletteList();
+    }
+
+    function renderPaletteList() {
+      const listEl = document.getElementById('commandPaletteList');
+      listEl.innerHTML = '';
+      
+      if (filteredPaletteCommands.length === 0) {
+        listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--silver-dark); font-size: 13px;">No commands found.</div>';
+        return;
+      }
+      
+      filteredPaletteCommands.forEach((cmd, idx) => {
+        const item = document.createElement('div');
+        item.className = 'command-palette-item' + (idx === selectedPaletteIndex ? ' selected' : '');
+        item.onclick = () => executePaletteCommand(cmd);
+        
+        const label = document.createElement('div');
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.gap = '8px';
+        label.innerHTML = `<span style="font-size: 10px; color: var(--silver-dark); background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">${cmd.category}</span> <span>${cmd.name}</span>`;
+        
+        item.appendChild(label);
+        
+        if (cmd.shortcut) {
+          const shortcut = document.createElement('span');
+          shortcut.className = 'command-palette-shortcut';
+          shortcut.textContent = cmd.shortcut;
+          item.appendChild(shortcut);
+        }
+        
+        listEl.appendChild(item);
+      });
+
+      const selectedItem = listEl.children[selectedPaletteIndex];
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    function executePaletteCommand(cmd) {
+      window.toggleCommandPalette();
+      try {
+        cmd.action();
+      } catch (err) {
+        console.error('Failed to run command:', err);
+      }
+    }
+
+    // Set up Input Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('commandPaletteInput');
+      const modal = document.getElementById('commandPaletteModal');
+      
+      if (input) {
+        input.addEventListener('input', () => {
+          selectedPaletteIndex = 0;
+          filterPaletteCommands();
+        });
+        
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedPaletteIndex = (selectedPaletteIndex + 1) % filteredPaletteCommands.length;
+            renderPaletteList();
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedPaletteIndex = (selectedPaletteIndex - 1 + filteredPaletteCommands.length) % filteredPaletteCommands.length;
+            renderPaletteList();
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (filteredPaletteCommands[selectedPaletteIndex]) {
+              executePaletteCommand(filteredPaletteCommands[selectedPaletteIndex]);
+            }
+          }
+        });
+      }
+      
+      if (modal) {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            window.toggleCommandPalette();
+          }
+        });
+      }
+    });
+
     window.toggleSettingsModal = () => {
       const m = document.getElementById('settingsModal');
       m.style.display = m.style.display === 'none' ? 'flex' : 'none';
@@ -1262,6 +1608,9 @@
           break;
         case 'extensions':
           renderExtensionsSettings(content);
+          break;
+        case 'marketplace':
+          renderMarketplace(content);
           break;
         case 'shortcuts':
           renderShortcutsSettings(content);
@@ -1333,13 +1682,56 @@
     async function renderAppearanceSettings(container) {
       container.innerHTML = `
         <div class="settings-section">
-          <h3>Studio Themes</h3>
-          <p style="font-size: 12px; color: var(--silver-mid); margin-bottom: 20px;">Choose a high-fidelity visual style for your workspace.</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+              <h3>Studio Themes</h3>
+              <p style="font-size: 12px; color: var(--silver-mid); margin: 4px 0 0 0;">Choose a high-fidelity visual style for your workspace.</p>
+            </div>
+            <button id="installThemeBtn" class="btn" style="padding: 6px 12px; font-size: 12px; border-radius: 4px; border: 1px solid var(--accent-cyan); color: var(--accent-cyan); background: transparent; cursor: pointer;">Install Theme...</button>
+          </div>
           <div id="themeList" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
             <div style="color: var(--silver-dark);">Loading themes...</div>
           </div>
         </div>
       `;
+
+      const installBtn = document.getElementById('installThemeBtn');
+      if (installBtn) {
+        installBtn.onclick = () => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.sesitheme';
+          input.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async event => {
+              const content = event.target.result;
+              try {
+                const response = await fetch('/api/install-theme', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ themeContent: content })
+                });
+                const resData = await response.json();
+                if (resData.success) {
+                  alert(`Theme "${resData.themeName}" installed successfully!`);
+                  renderAppearanceSettings(container);
+                  if (window.loadExtensions) {
+                    window.loadExtensions();
+                  }
+                } else {
+                  alert('Failed to install theme: ' + resData.error);
+                }
+              } catch (err) {
+                alert('Error installing theme: ' + err.message);
+              }
+            };
+            reader.readAsText(file);
+          };
+          input.click();
+        };
+      }
 
       try {
         const res = await fetch('/api/extensions');
@@ -1382,7 +1774,10 @@
                 ${iconHtml}
                 <div style="display: flex; flex-direction: column;">
                   <div style="font-size: 14px; color: ${currentTheme === theme.name ? 'var(--accent-cyan)' : 'var(--silver-light)'}; font-weight: bold;">${name}</div>
-                  ${theme.author ? `<div style="font-size: 9px; color: var(--silver-dark);">by ${theme.author}</div>` : ''}
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    ${theme.author ? `<div style="font-size: 9px; color: var(--silver-dark);">by ${theme.author}</div>` : ''}
+                    ${theme.license ? `<div style="font-size: 9px; color: var(--silver-dark); border: 1px solid rgba(255,255,255,0.1); padding: 0 4px; border-radius: 2px;">${theme.license}</div>` : ''}
+                  </div>
                 </div>
               </div>
               ${theme.version ? `<div style="font-size: 9px; color: var(--silver-dark); background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">v${theme.version}</div>` : ''}
@@ -1401,12 +1796,53 @@
       container.innerHTML = `
         <div class="settings-section">
           <h3>Installed Extensions</h3>
-          <p style="font-size: 12px; color: var(--silver-mid); margin-bottom: 20px;">Manage functional add-ons for the studio. Add files to <code>/extensions</code> to install.</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px;">
+            <p style="font-size: 12px; color: var(--silver-mid); margin: 0;">Manage functional add-ons for the studio. Add files to <code>/extensions</code> or upload a <code>.sesiext</code> bundle.</p>
+            <button class="btn btn-primary" id="installExtBtn" style="font-size: 11px; padding: 6px 12px; white-space: nowrap; background: var(--accent-cyan); color: var(--bg-base); font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">Install Extension...</button>
+          </div>
           <div id="extTable" style="display: flex; flex-direction: column; gap: 8px;">
             <div style="color: var(--silver-dark);">Loading extensions...</div>
           </div>
         </div>
       `;
+
+      const installBtn = container.querySelector('#installExtBtn');
+      if (installBtn) {
+        installBtn.onclick = () => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.sesiext';
+          input.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async event => {
+              const content = event.target.result;
+              try {
+                const response = await fetch('/api/install-extension', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ extensionContent: content })
+                });
+                const resData = await response.json();
+                if (resData.success) {
+                  alert(`Extension "${resData.extensionName}" installed successfully!`);
+                  renderExtensionsSettings(container);
+                  if (window.loadExtensions) {
+                    window.loadExtensions();
+                  }
+                } else {
+                  alert('Failed to install extension: ' + resData.error);
+                }
+              } catch (err) {
+                alert('Error installing extension: ' + err.message);
+              }
+            };
+            reader.readAsText(file);
+          };
+          input.click();
+        };
+      }
 
       try {
         const res = await fetch('/api/extensions');
@@ -1447,6 +1883,7 @@
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span style="font-size: 13px; color: var(--silver-light); font-weight: bold;">${name}</span>
                   <span style="font-size: 9px; color: var(--silver-dark); background: rgba(255,255,255,0.05); padding: 1px 4px; border-radius: 3px;">v${item.version || '0.0.1'}</span>
+                  ${item.license ? `<span style="font-size: 9px; color: var(--silver-dark); border: 1px solid rgba(255,255,255,0.1); padding: 0 4px; border-radius: 2px;">${item.license}</span>` : ''}
                   ${item.author ? `<span style="font-size: 9px; color: var(--silver-dark);">by ${item.author}</span>` : ''}
                 </div>
                 <span style="font-size: 10px; color: var(--silver-mid); line-height: 1.3;">${description}</span>
@@ -1461,6 +1898,135 @@
       } catch (err) {
         extTable.innerHTML = '<div style="color: #ff5f56;">Error loading extensions.</div>';
       }
+    }
+
+    async function renderMarketplace(container) {
+      container.innerHTML = `
+        <div class="settings-section">
+          <h3>🛒 Sesi Extension & Theme Marketplace</h3>
+          <p style="font-size: 12px; color: var(--silver-mid); margin-bottom: 20px;">
+            Browse and dynamically install community extensions and themes directly from the open source Sesi Registry.
+          </p>
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <input type="text" id="mktSearch" placeholder="Search marketplace..." style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 4px; color: #fff; font-size: 12px;">
+            <input type="text" id="mktRegistry" value="https://raw.githubusercontent.com/misterscan/sesi-marketplace/main/marketplace.json" style="width: 250px; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 4px; color: #fff; font-size: 11px; font-family: monospace;">
+            <button class="btn" id="mktRefresh" style="padding: 8px 12px; font-size: 12px;">Refresh</button>
+          </div>
+          <div id="mktList" style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="color: var(--silver-dark);">Loading marketplace items...</div>
+          </div>
+        </div>
+      `;
+
+      const mktList = container.querySelector('#mktList');
+      const mktSearch = container.querySelector('#mktSearch');
+      const mktRegistry = container.querySelector('#mktRegistry');
+      const mktRefresh = container.querySelector('#mktRefresh');
+
+      let items = [];
+
+      const loadItems = async () => {
+        mktList.innerHTML = '<div style="color: var(--silver-dark);">Fetching catalog...</div>';
+        try {
+          const registryUrl = mktRegistry.value;
+          const res = await fetch(`/api/marketplace/list?registryUrl=${encodeURIComponent(registryUrl)}`);
+          items = await res.json();
+          renderList();
+        } catch (err) {
+          mktList.innerHTML = `<div style="color: #ff5f56;">Error loading marketplace: ${err.message}</div>`;
+        }
+      };
+
+      const renderList = () => {
+        const query = mktSearch.value.toLowerCase();
+        const filtered = items.filter(item => 
+          item.name.toLowerCase().includes(query) || 
+          item.description.toLowerCase().includes(query) ||
+          item.type.toLowerCase().includes(query)
+        );
+
+        mktList.innerHTML = '';
+        if (filtered.length === 0) {
+          mktList.innerHTML = '<div style="color: var(--silver-dark); text-align: center; padding: 20px;">No matching items found.</div>';
+          return;
+        }
+
+        filtered.forEach(item => {
+          const card = document.createElement('div');
+          card.style.cssText = `
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border);
+            padding: 16px; border-radius: 8px; transition: all 0.2s;
+          `;
+
+          let iconHtml = '';
+          const iconValue = item.icon || (item.type === 'theme' ? '🎨' : '⚙️');
+          if (iconValue.includes('.') || iconValue.startsWith('http') || iconValue.startsWith('data:')) {
+            iconHtml = `<img src="${iconValue}" style="width: 24px; height: 24px; object-fit: contain;">`;
+          } else {
+            iconHtml = `<span style="font-size: 24px;">${iconValue}</span>`;
+          }
+
+          card.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
+              ${iconHtml}
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 14px; color: var(--silver-light); font-weight: bold;">${item.name}</span>
+                  <span style="font-size: 9px; color: var(--silver-dark); background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">${item.type}</span>
+                  <span style="font-size: 9px; color: var(--silver-dark);">v${item.version}</span>
+                  ${item.license ? `<span style="font-size: 9px; color: var(--silver-dark); border: 1px solid rgba(255,255,255,0.1); padding: 0 4px; border-radius: 2px;">${item.license}</span>` : ''}
+                  ${item.author ? `<span style="font-size: 9px; color: var(--silver-dark);">by ${item.author}</span>` : ''}
+                </div>
+                <span style="font-size: 11px; color: var(--silver-mid); line-height: 1.4;">${item.description}</span>
+              </div>
+            </div>
+            <div>
+              <button class="btn btn-primary" id="btn-install-${item.id}" style="font-size: 11px; padding: 6px 12px; font-weight: bold; background: var(--accent-cyan); color: var(--bg-base); border: none; border-radius: 4px; cursor: pointer;">Install</button>
+            </div>
+          `;
+
+          const installBtn = card.querySelector(`#btn-install-${item.id}`);
+          installBtn.onclick = async () => {
+            installBtn.textContent = 'Installing...';
+            installBtn.disabled = true;
+            try {
+              const res = await fetch('/api/marketplace/install', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  id: item.id,
+                  downloadUrl: item.downloadUrl,
+                  type: item.type
+                })
+              });
+              const resData = await res.json();
+              if (resData.success) {
+                installBtn.textContent = '✓ Installed';
+                installBtn.style.background = '#28a745';
+                installBtn.style.color = '#fff';
+                if (window.loadExtensions) {
+                  window.loadExtensions();
+                }
+              } else {
+                alert('Install failed: ' + resData.error);
+                installBtn.textContent = 'Install';
+                installBtn.disabled = false;
+              }
+            } catch (err) {
+              alert('Error installing: ' + err.message);
+              installBtn.textContent = 'Install';
+              installBtn.disabled = false;
+            }
+          };
+
+          mktList.appendChild(card);
+        });
+      };
+
+      mktSearch.oninput = renderList;
+      mktRefresh.onclick = loadItems;
+      loadItems();
     }
 
     function renderShortcutsSettings(container) {
@@ -1795,6 +2361,61 @@
       }
     }
 
+    // Real-time syntax validation for Sesi files
+    async function validateActiveFile() {
+      if (!window.activeFilePath || !window.activeFilePath.endsWith('.sesi')) return;
+      const model = window.editor.getModel();
+      if (!model) return;
+      
+      try {
+        const content = model.getValue();
+        const response = await fetch('/api/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        const result = await response.json();
+        
+        const markers = [];
+        if (!result.success && result.output) {
+          // Clean up output (remove dotenvx log prefix if present)
+          let cleanedOutput = result.output.replace(/◇ retrieving[\s\S]*?dotenvx@[\d.]+/g, '').trim();
+          
+          const lineColMatch = cleanedOutput.match(/at line (\d+), column (-?\d+)/);
+          if (lineColMatch) {
+            const lineNum = parseInt(lineColMatch[1], 10);
+            let colNum = parseInt(lineColMatch[2], 10);
+            if (colNum < 0) colNum = 1;
+            
+            const lineText = model.getLineContent(lineNum) || "";
+            
+            markers.push({
+              severity: monaco.MarkerSeverity.Error,
+              message: cleanedOutput,
+              startLineNumber: lineNum,
+              startColumn: Math.max(1, colNum - 1),
+              endLineNumber: lineNum,
+              endColumn: lineText.length + 1
+            });
+          } else {
+            // Fallback for general execution errors
+            markers.push({
+              severity: monaco.MarkerSeverity.Error,
+              message: cleanedOutput,
+              startLineNumber: 1,
+              startColumn: 1,
+              endLineNumber: 1,
+              endColumn: (model.getLineContent(1) || "").length + 1
+            });
+          }
+        }
+        
+        monaco.editor.setModelMarkers(model, 'sesi-validation', markers);
+      } catch (err) {
+        console.error('Validation error:', err);
+      }
+    }
+
     // Open file into Monaco Editor
     async function openFile(filePath) {
       if (window.openFiles[filePath]) {
@@ -1840,6 +2461,10 @@
 
         updateTabBar();
         highlightActiveFileInTree();
+        
+        if (filePath.endsWith('.sesi')) {
+          validateActiveFile();
+        }
       } catch (err) {
         console.error('Failed to open file:', err);
       }

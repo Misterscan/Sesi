@@ -44,6 +44,22 @@
       };
       */
 
+      if (window.registerCommand) {
+        window.registerCommand("Switch Theme", () => {
+          if (window.toggleSettingsModal) {
+            const m = document.getElementById('settingsModal');
+            if (!m || m.style.display !== 'flex') {
+              window.toggleSettingsModal();
+            }
+            setTimeout(() => {
+              const tabEl = Array.from(document.querySelectorAll('.settings-tab')).find(el => el.textContent.includes('Appearance'));
+              if (tabEl && window.switchSettingsTab) {
+                window.switchSettingsTab('appearance', tabEl);
+              }
+            }, 50);
+          }
+        });
+      }
     } catch (err) {
       console.error('Theme Manager error:', err);
     }

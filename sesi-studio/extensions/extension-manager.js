@@ -38,6 +38,11 @@
 
     // Initial populate
     refreshSidebarExtensions();
+
+    if (window.registerCommand) {
+      window.registerCommand("Refresh List", () => refreshSidebarExtensions());
+      window.registerCommand("Toggle Modal", () => window.toggleExtensionModal());
+    }
   }
 
   window.refreshSidebarExtensions = async function() {

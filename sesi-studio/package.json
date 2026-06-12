@@ -2,11 +2,16 @@
   "name": "sesi-studio",
   "version": "2.0.0",
   "description": "Sesi Studio — IDE for the Sesi Programming Language",
-  "main": "server.js",
+  "main": "studio.sesi",
+  "author": "Misterscan",
+  "license": "MIT",
   "scripts": {
-    "start": "sesi studio.sesi",
-    "dev": "sesi studio.sesi",
-    "css": "sesi customize_css.sesi"
+    "start": "sesi -l studio.sesi",
+    "dev": "sesi -l studio.sesi",
+    "css": "sesi customize_css.sesi",
+    "css:pack": "sesi -l theme-packager.sesi pack",
+    "css:unpack": "sesi -l theme-packager.sesi unpack",
+    "css:validate": "sesi -l theme-packager.sesi validate"
   },
   "dependencies": {
     "express": "5.2.1",

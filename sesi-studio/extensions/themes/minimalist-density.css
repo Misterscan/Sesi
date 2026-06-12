@@ -1,13 +1,13 @@
 /* 
 {
-  "name": "Minimalist Density",
+  "name": "Minimalist",
   "version": "1.0.0",
   "description": "Ultra-compact light theme designed for maximum information density.",
-  "icon": "📄",
+  "icon": "⚪️",
   "commands": ["Apply Minimalist"]
 }
 */
-/* Sesi Studio Theme: Minimalist Density */
+/* Sesi Studio Theme: Minimalist */
 :root {
   --bg-base: #ffffff;
   --bg-panel: #f8f9fa;

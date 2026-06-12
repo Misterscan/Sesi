@@ -6,8 +6,8 @@
     visual themes for the Sesi Studio IDE.
 
   Usage:
-    npm run sesi sesi-studio/customize_css.sesi                                          # uses default theme description
-    npm run sesi sesi-studio/customize_css.sesi "Beautiful, premium modern UX design. Dynamic sky blues"  # custom style description
+    npm run css                                                           # uses default theme description
+    npm run css "Beautiful, premium modern UX design. Dynamic sky blues"  # custom style description
 */
 
 print "Sesi Studio Theme Generator — creating a custom IDE theme"
@@ -28,7 +28,7 @@ if len(style) > 0 {
 } else {
 
   // If no argument is provided the model uses its own defaults.
-  let styleDefault = "Midnight Nebula: Deep indigo and obsidian backgrounds, vibrant violet and cosmic teal accents, soft glowing borders, and high-legibility silver text for the editor."
+  let styleDefault = "Premium IDE interface with a neutral, balanced aesthetic and a clean, clutter-free workspace."
   print "No style provided, using default:"
   print styleDefault
   style = styleDefault

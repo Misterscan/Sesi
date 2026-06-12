@@ -1,0 +1,307 @@
+/*
+  Sesi Theme Packager
+  A native tool to pack, unpack, and validate Sesi Studio CSS themes.
+*/
+
+// Import standard math to fulfill rule requirements
+import { floor } from "std/math"
+
+// --- Helper: Clean Comment Asterisks ---
+fn clean_manifest_json(raw) {
+  let lines = split(raw, "\n")
+  let clean_str = ""
+  for line in lines {
+    let parts = split(line, "*")
+    let line_content = line
+    if len(parts) > 1 {
+
+      // If there was a leading asterisk, strip it
+      line_content = parts[1]
+      for j = 2 to len(parts) {
+        line_content = line_content + "*" + parts[j]
+      }
+    }
+    clean_str = clean_str + line_content + "\n"
+  }
+  return clean_str
+}
+
+// --- Helper: Validate Theme Manifest ---
+fn validate_metadata(meta) {
+  if meta["license"] == null {
+    meta["license"] = "MIT"
+  }
+  let required = ["name", "version", "description", "icon", "commands", "license"]
+  for field in required {
+    if meta[field] == null {
+      print "  ✗ Missing required manifest field: \"" + field + "\""
+      return false
+    }
+  }
+  return true
+}
+
+// --- Main CLI Commands ---
+
+fn pack_theme(args_list) {
+  if len(args_list) < 1 {
+    print "Error: pack command requires a CSS file path."
+    return false
+  }
+  let file_path = args_list[0]
+  let themeDir = "../sesi-marketplace/releases/themes"
+  make_dir(themeDir)
+  let out_dir = themeDir
+  if len(args_list) > 1 {
+    out_dir = args_list[1]
+  }
+
+  print "Packing theme: " + file_path
+  let content = ""
+  try {
+    content = read_file(file_path)
+  } catch (e) {
+    print "Error: Failed to read theme CSS file: " + file_path
+    return false
+  }
+
+  let parts = split(content, "/*")
+  if len(parts) < 2 {
+    print "Error: No manifest comment block (/* ... */) found in the CSS file."
+    return false
+  }
+
+  // Re-join everything after the first /* to handle multiple /* comments in the file
+  let rest = ""
+  for i = 1 to len(parts) {
+    if i > 1 {
+      rest = rest + "/*" + parts[i]
+    } else {
+      rest = parts[1]
+    }
+  }
+
+  let subparts = split(rest, "*/")
+  if len(subparts) < 2 {
+    print "Error: Manifest comment block is not closed (missing */)."
+    return false
+  }
+
+  let raw_manifest = subparts[0]
+  
+  // Re-join everything after the first */ to preserve other comment blocks
+  let css_content = ""
+  for i = 1 to len(subparts) {
+    if i > 1 {
+      css_content = css_content + "*/" + subparts[i]
+    } else {
+      css_content = subparts[1]
+    }
+  }
+
+  let cleaned_json = clean_manifest_json(raw_manifest)
+
+  let meta = null
+  try {
+    meta = from_json(cleaned_json)
+  } catch (e) {
+    print "Error: Failed to parse manifest JSON. Make sure keys and strings are double-quoted."
+    return false
+  }
+
+  if !validate_metadata(meta) {
+    print "Error: Theme metadata validation failed."
+    return false
+  }
+
+  let bundle = {
+    "metadata": meta,
+    "css": css_content
+  }
+
+  try {
+    make_dir(out_dir)
+  } catch (e) {
+    // Directory might already exist
+  }
+
+  let safe_name = join(split(meta["name"], " "), "-")
+  let out_path = out_dir + "/" + safe_name + ".sesitheme"
+
+  try {
+    write_file(out_path, to_json(bundle))
+    print "✓ Packed theme successfully!"
+    print "  Bundle saved to: " + out_path
+    return true
+  } catch (e) {
+    print "Error: Failed to write bundle file: " + out_path
+    return false
+  }
+}
+
+fn unpack_theme(args_list) {
+  if len(args_list) < 1 {
+    print "Error: unpack command requires a .sesitheme file path."
+    return false
+  }
+  let theme_path = args_list[0]
+  let out_dir = "sesi-studio/extensions/themes/downloaded"
+  make_dir(out_dir)
+  if len(args_list) > 1 {
+    out_dir = args_list[1]
+  }
+
+  print "Unpacking theme: " + theme_path
+  let content = ""
+  try {
+    content = read_file(theme_path)
+  } catch (e) {
+    print "Error: Failed to read theme bundle file: " + theme_path
+    return false
+  }
+
+  let bundle = null
+  try {
+    bundle = from_json(content)
+  } catch (e) {
+    print "Error: Failed to parse bundle JSON."
+    return false
+  }
+
+  let meta = bundle["metadata"]
+  let css = bundle["css"]
+
+  if meta == null || css == null {
+    print "Error: Bundle is missing metadata or CSS body."
+    return false
+  }
+
+  if !validate_metadata(meta) {
+    print "Error: Theme metadata validation failed inside bundle."
+    return false
+  }
+
+  try {
+    make_dir(out_dir)
+  } catch (e) {
+    // Directory might already exist
+  }
+
+  let safe_name = join(split(meta["name"], " "), "-")
+  let out_path = out_dir + "/" + safe_name + ".css"
+  let css_file_content = "/*\n" + to_json(meta) + "\n*/\n" + css
+
+  try {
+    write_file(out_path, css_file_content)
+    print "✓ Unpacked theme successfully!"
+    print "  Installed theme CSS to: " + out_path
+    return true
+  } catch (e) {
+    print "Error: Failed to write CSS file: " + out_path
+    return false
+  }
+}
+
+fn validate_theme(args_list) {
+  if len(args_list) < 1 {
+    print "Error: validate command requires a CSS file path."
+    return false
+  }
+  let file_path = args_list[0]
+
+  print "Validating theme: " + file_path
+  let content = ""
+  try {
+    content = read_file(file_path)
+  } catch (e) {
+    print "Error: Failed to read theme CSS file: " + file_path
+    return false
+  }
+
+  let parts = split(content, "/*")
+  if len(parts) < 2 {
+    print "Error: No manifest comment block (/* ... */) found."
+    return false
+  }
+
+  // Re-join everything after the first /* to handle multiple /* comments in the file
+  let rest = ""
+  for i = 1 to len(parts) {
+    if i > 1 {
+      rest = rest + "/*" + parts[i]
+    } else {
+      rest = parts[1]
+    }
+  }
+
+  let subparts = split(rest, "*/")
+  if len(subparts) < 2 {
+    print "Error: Manifest comment block is not closed."
+    return false
+  }
+
+  let raw_manifest = subparts[0]
+  let cleaned_json = clean_manifest_json(raw_manifest)
+
+  let meta = null
+  try {
+    meta = from_json(cleaned_json)
+  } catch (e) {
+    print "Error: Failed to parse manifest JSON."
+    return false
+  }
+
+  if validate_metadata(meta) {
+    print "✓ Theme metadata manifest is valid!"
+    print "  Name: " + meta["name"]
+    print "  Version: " + meta["version"]
+    print "  Description: " + meta["description"]
+    print "  Author: " + meta["author"]
+    print "  Icon: " + meta["icon"]
+    print "  License: " + meta["license"]
+    return true
+  } else {
+    print "✗ Theme validation failed."
+    return false
+  }
+}
+
+// --- Register Tools ---
+define_tool("pack",      pack_theme,     "Packs a CSS theme into a .sesitheme bundle")
+define_tool("unpack",    unpack_theme,   "Unpacks a .sesitheme bundle into a CSS theme")
+define_tool("validate",  validate_theme, "Validates a CSS theme manifest")
+
+// --- CLI Runner ---
+fn run_cli() {
+  if len(args) < 1 {
+    print "Sesi Theme Packager CLI"
+    print "======================"
+    print "Usage:"
+    print "  npm run css:pack <css-file-path> [output-dir]"
+    print "  npm run css:unpack <sesitheme-file-path> [output-dir]"
+    print "  npm run css:validate <css-file-path>"
+    print ""
+    print "Examples:"
+    print "  npm run css:pack extensions/themes/vintage.css"
+    print "  npm run css:unpack releases/themes/vintage.sesitheme"
+    return null
+  }
+
+  let command = args[0]
+  let cmd_args = []
+  for i = 1 to len(args) {
+    push(cmd_args, args[i])
+  }
+
+  if command == "pack" {
+    tool_call(pack)(cmd_args)
+  } else if command == "unpack" {
+    tool_call(unpack)(cmd_args)
+  } else if command == "validate" {
+    tool_call(validate)(cmd_args)
+  } else {
+    print "Error: Unknown command: " + command
+  }
+}
+
+run_cli()
