@@ -2,6 +2,7 @@
 {
   "name": "Theme Manager",
   "version": "1.0.0",
+  "author": "Sesi",
   "description": "Handles theme switching and synchronization with the Monaco editor.",
   "icon": "extensions/assets/Theme-Manager.svg",
   "commands": ["Switch Theme"]

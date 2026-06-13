@@ -164,6 +164,12 @@
       font-size: 11.5px;
     }
 
+    #fileTree ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
     .file-item {
       padding: 6px 16px;
       cursor: pointer;
@@ -678,6 +684,36 @@
     window.terminalSocket = null;
     window.openFiles = {}; // path -> { content, isDirty }
     window.activeFilePath = null;
+    window.workspaceRoot = '.';
+
+    window.setWorkspaceRoot = (path) => {
+      window.workspaceRoot = path;
+      window.currentDirectoryPath = path;
+      // Close all files when switching workspace
+      window.openFiles = {};
+      window.activeFilePath = null;
+      if (window.editor) {
+        window.editor.setModel(monaco.editor.createModel('', 'plaintext'));
+      }
+      updateTabBar();
+      
+      // Update UI title
+      document.querySelector('.panel-title').textContent = path.split('/').pop() || path;
+      
+      loadWorkspaceFiles(path);
+      
+      // Notify backend of the new workspace root
+      fetch('/api/workspace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: path })
+      }).catch(err => console.error('Failed to update backend workspace root:', err));
+
+      // Update terminal working directory (best effort)
+      if (window.terminalSocket && window.terminalSocket.readyState === WebSocket.OPEN) {
+        window.terminalSocket.send(JSON.stringify({ type: 'input', data: `cd "${path}"\r` }));
+      }
+    };
 
     // Chat Tabs & State
     window.chats = []; // Array of { id, title, messages }
@@ -1342,6 +1378,14 @@
 
       // 1. Built-in IDE Commands
       addCommandToPalette('New File', 'IDE', () => createNewBuffer(), 'Ctrl+N');
+      addCommandToPalette('Open Folder...', 'IDE', () => {
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openFolder) {
+          window.webkit.messageHandlers.openFolder.postMessage(null);
+        } else {
+          const path = prompt("Enter the absolute path of the folder to open:", window.workspaceRoot);
+          if (path) window.setWorkspaceRoot(path);
+        }
+      }, 'Ctrl+O');
       addCommandToPalette('Save File', 'IDE', () => saveActiveFile(), 'Ctrl+S');
       addCommandToPalette('Run Active Script', 'IDE', () => runActiveFile(), 'F5');
       addCommandToPalette('Toggle Settings Hub', 'IDE', () => toggleSettingsModal(), 'Ctrl+Shift+S');
@@ -2369,51 +2413,146 @@
     let currentDirectoryPath = '';
 
     // Load workspace files via API
-    async function loadWorkspaceFiles(path = '') {
+    async function loadWorkspaceFiles(path = window.workspaceRoot) {
       try {
-        window.currentDirectoryPath = path === '.' ? '' : path;
-        const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
-        const files = await response.json();
+        if (path === '' || path === '.' || path === window.workspaceRoot || path === window.currentDirectoryPath) {
+          const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
+          const files = await response.json();
 
-        const fileTreeEl = document.getElementById('fileTree');
-        fileTreeEl.innerHTML = '';
+          const fileTreeEl = document.getElementById('fileTree');
+          fileTreeEl.innerHTML = '';
 
-        if (files.error) {
-          fileTreeEl.innerHTML = `<li style="padding:16px; color:#ff5f56;">Error: ${files.error}</li>`;
-          return;
-        }
-
-        // Add "Go Up" option if we are in a subdirectory
-        if (path !== '') {
-          const parts = path.split('/');
-          parts.pop();
-          const parentPath = parts.join('/');
-
-          const li = document.createElement('li');
-          li.className = 'file-item';
-          li.innerHTML = `<span class="file-icon">📁</span> ..`;
-          li.onclick = () => loadWorkspaceFiles(parentPath);
-          fileTreeEl.appendChild(li);
-        }
-
-        files.forEach(file => {
-          const li = document.createElement('li');
-          li.className = `file-item ${window.activeFilePath === file.path ? 'active' : ''}`;
-
-          const icon = file.isDir ? '📁' : '📄';
-          li.innerHTML = `<span class="file-icon">${icon}</span> ${file.name}`;
-
-          if (file.isDir) {
-            li.onclick = () => loadWorkspaceFiles(file.path);
-          } else {
-            li.onclick = () => openFile(file.path);
+          if (files.error) {
+            fileTreeEl.innerHTML = `<li style="padding:16px; color:#ff5f56; list-style: none;">Error: ${files.error}</li>`;
+            return;
           }
-          fileTreeEl.appendChild(li);
-        });
+
+          // Sort directories first, then files, alphabetically
+          files.sort((a, b) => {
+            if (a.isDir && !b.isDir) return -1;
+            if (!a.isDir && b.isDir) return 1;
+            return a.name.localeCompare(b.name);
+          });
+
+          files.forEach(file => {
+            createFileTreeNode(file, 0, fileTreeEl);
+          });
+
+          await revealActiveFile();
+        }
       } catch (err) {
         console.error('Failed to load file tree:', err);
       }
     }
+
+    function createFileTreeNode(file, depth, containerEl) {
+      const li = document.createElement('li');
+      li.style.listStyle = 'none';
+      li.style.margin = '0';
+      li.style.padding = '0';
+
+      const row = document.createElement('div');
+      row.className = `file-item ${window.activeFilePath === file.path ? 'active' : ''}`;
+      row.setAttribute('data-path', file.path);
+      row.style.paddingLeft = `${16 + depth * 12}px`;
+
+      const icon = file.isDir ? '📁' : '📄';
+      row.innerHTML = `<span class="file-icon" style="margin-right: 8px;">${icon}</span><span class="file-name">${file.name}</span>`;
+
+      li.appendChild(row);
+
+      if (file.isDir) {
+        row.setAttribute('data-expanded', 'false');
+        row.setAttribute('data-loaded', 'false');
+
+        const childrenContainer = document.createElement('ul');
+        childrenContainer.style.padding = '0';
+        childrenContainer.style.margin = '0';
+        childrenContainer.style.display = 'none';
+        li.appendChild(childrenContainer);
+
+        row.onclick = (e) => {
+          e.stopPropagation();
+          toggleFolder(file, row, childrenContainer, depth);
+        };
+      } else {
+        row.onclick = (e) => {
+          e.stopPropagation();
+          openFile(file.path);
+        };
+      }
+
+      containerEl.appendChild(li);
+    }
+
+    async function toggleFolder(file, row, childrenContainer, depth) {
+      const isExpanded = row.getAttribute('data-expanded') === 'true';
+      const iconEl = row.querySelector('.file-icon');
+
+      if (isExpanded) {
+        row.setAttribute('data-expanded', 'false');
+        iconEl.textContent = '📁';
+        childrenContainer.style.display = 'none';
+      } else {
+        row.setAttribute('data-expanded', 'true');
+        iconEl.textContent = '📂';
+        childrenContainer.style.display = 'block';
+        window.currentDirectoryPath = file.path;
+
+        const isLoaded = row.getAttribute('data-loaded') === 'true';
+        if (!isLoaded) {
+          childrenContainer.innerHTML = `<li style="padding: 6px ${16 + (depth + 1) * 12}px; color: var(--silver-dark); list-style: none;">Loading...</li>`;
+          try {
+            const response = await fetch(`/api/files?path=${encodeURIComponent(file.path)}`);
+            const files = await response.json();
+            childrenContainer.innerHTML = '';
+
+            if (files.error) {
+              childrenContainer.innerHTML = `<li style="padding: 6px ${16 + (depth + 1) * 12}px; color: #ff5f56; list-style: none;">Error loading files</li>`;
+              return;
+            }
+
+            // Sort directories first, then files, alphabetically
+            files.sort((a, b) => {
+              if (a.isDir && !b.isDir) return -1;
+              if (!a.isDir && b.isDir) return 1;
+              return a.name.localeCompare(b.name);
+            });
+
+            files.forEach(child => {
+              createFileTreeNode(child, depth + 1, childrenContainer);
+            });
+            row.setAttribute('data-loaded', 'true');
+            highlightActiveFileInTree();
+          } catch (err) {
+            console.error('Failed to load subfolder:', err);
+            childrenContainer.innerHTML = `<li style="padding: 6px ${16 + (depth + 1) * 12}px; color: #ff5f56; list-style: none;">Error loading files</li>`;
+          }
+        }
+      }
+    }
+
+    async function revealActiveFile() {
+      if (!window.activeFilePath) return;
+      const parts = window.activeFilePath.split('/');
+      let currentPath = '';
+      
+      for (let i = 0; i < parts.length - 1; i++) {
+        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+        const row = document.querySelector(`.file-item[data-path="${currentPath}"]`);
+        if (row) {
+          const isExpanded = row.getAttribute('data-expanded') === 'true';
+          if (!isExpanded) {
+            const childrenContainer = row.nextElementSibling;
+            const depth = parseInt(row.style.paddingLeft.replace('px', '')) - 16;
+            const file = { path: currentPath, isDir: true, name: parts[i] };
+            await toggleFolder(file, row, childrenContainer, Math.floor(depth / 12));
+          }
+        }
+      }
+      highlightActiveFileInTree();
+    }
+
 
     // Real-time syntax validation for Sesi files
     async function validateActiveFile() {
@@ -2472,11 +2611,17 @@
 
     // Open file into Monaco Editor
     async function openFile(filePath) {
+      if (filePath) {
+        const parts = filePath.split('/');
+        parts.pop();
+        window.currentDirectoryPath = parts.join('/');
+      }
+
       if (window.openFiles[filePath]) {
         window.activeFilePath = filePath;
         window.editor.setValue(window.openFiles[filePath].content);
         updateTabBar();
-        highlightActiveFileInTree();
+        revealActiveFile();
         refreshLocalHistory();
         return;
       }
@@ -2514,7 +2659,7 @@
         window.editor.setModel(model);
 
         updateTabBar();
-        highlightActiveFileInTree();
+        revealActiveFile();
         
         if (filePath.endsWith('.sesi')) {
           validateActiveFile();
@@ -2538,7 +2683,7 @@
       const items = document.querySelectorAll('.file-item');
       items.forEach(item => {
         item.classList.remove('active');
-        if (window.activeFilePath && item.textContent.includes(window.activeFilePath.split('/').pop())) {
+        if (window.activeFilePath && item.getAttribute('data-path') === window.activeFilePath) {
           item.classList.add('active');
         }
       });
@@ -2596,7 +2741,12 @@
 
         // Create the entry in openFiles if it was purely an empty editor state
         const content = window.editor.getValue();
-        const fullPath = (window.currentDirectoryPath && window.currentDirectoryPath !== '.') ? `${window.currentDirectoryPath}/${newName}` : newName;
+        let fullPath = newName;
+        if (window.currentDirectoryPath && window.currentDirectoryPath !== '.') {
+          fullPath = `${window.currentDirectoryPath}/${newName}`;
+        } else if (window.workspaceRoot && window.workspaceRoot !== '.') {
+          fullPath = `${window.workspaceRoot}/${newName}`;
+        }
 
         window.openFiles[fullPath] = { content, isDirty: true };
         window.activeFilePath = fullPath;

@@ -2,6 +2,7 @@
 {
   "name": "Extension Manager",
   "version": "1.1.0",
+  "author": "Sesi",
   "description": "Core system for managing and discovering Sesi Studio extensions.",
   "icon": "extensions/assets/Extension-Manager.svg",
   "commands": ["Refresh List", "Toggle Modal"]

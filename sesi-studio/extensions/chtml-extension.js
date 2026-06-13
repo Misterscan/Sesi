@@ -2,6 +2,7 @@
 {
   "name": "ClearHTML Support",
   "version": "1.0.0",
+  "author": "ClearHTML",
   "description": "Provides rich hover documentation and link navigation for CHTML files.",
   "icon": "extensions/assets/Clear-HTML-Support.svg",
   "commands": ["Show Docs", "Navigate Path"]

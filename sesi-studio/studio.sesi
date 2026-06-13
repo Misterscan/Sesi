@@ -11,20 +11,23 @@
     - https://github.com/misterscan/sesi/tree/main/sesi-studio/themes
 */
 import {now} from "std/time"
+import {db_open} from "std/db"
 
-let PROJECT_ROOT = ""
+let SESI_ROOT = ""
 try {
-  PROJECT_ROOT = exec("cd")
+  SESI_ROOT = exec("cd")
 } catch (e) {}
-PROJECT_ROOT = split(PROJECT_ROOT, "\r")[0]
-PROJECT_ROOT = split(PROJECT_ROOT, "\n")[0]
+SESI_ROOT = split(SESI_ROOT, "\r")[0]
+SESI_ROOT = split(SESI_ROOT, "\n")[0]
 
-if PROJECT_ROOT == "" {
+if SESI_ROOT == "" {
   try {
-    PROJECT_ROOT = exec("pwd")
-    PROJECT_ROOT = split(PROJECT_ROOT, "\n")[0]
+    SESI_ROOT = exec("pwd")
+    SESI_ROOT = split(SESI_ROOT, "\n")[0]
   } catch (e) {}
 }
+
+let PROJECT_ROOT = SESI_ROOT
 
 fn exec_node(args) {
   try {
@@ -33,6 +36,49 @@ fn exec_node(args) {
     return exec("node.exe " + args)
   }
 }
+
+fn exec_in_project(cmd) {
+  if PROJECT_ROOT != "" && PROJECT_ROOT != "." {
+    // Basic attempt to change directory before running command.
+    // Handles most POSIX environments and Windows cmd.exe basics.
+    return exec("cd \"" + PROJECT_ROOT + "\" && " + cmd)
+  }
+  return exec(cmd)
+}
+
+fn get_db_collections(db_path, password) {
+  try {
+    let content = read_file(db_path)
+    let is_encrypted = false
+    let parts = split(content, ":")
+    if len(parts) == 2 {
+      is_encrypted = true
+    }
+    
+    let db_json = ""
+    if is_encrypted {
+      if password == null || password == "" {
+        return null
+      }
+      let safe_path = join(split(db_path, "\\"), "/")
+      let safe_pass = join(split(password, "\\"), "/")
+      safe_pass = join(split(safe_pass, "\""), "\\\"")
+      let node_script = "const fs=require('fs'); let c=fs.readFileSync('" + safe_path + "','utf8'); const crypto=require('crypto'); const p=c.split(':'); const key=crypto.createHash('sha256').update('" + safe_pass + "').digest(); const iv=Buffer.from(p[0],'hex'); const decipher=crypto.createDecipheriv('aes-256-cbc',key,iv); let dec=decipher.update(p[1],'hex','utf8'); dec+=decipher.final('utf8'); console.log(dec);"
+      db_json = exec_node("-e \"" + node_script + "\"")
+    } else {
+      db_json = content
+    }
+    
+    let parsed = from_json(db_json)
+    if parsed == null {
+      return []
+    }
+    return keys(parsed)
+  } catch (e) {
+    return []
+  }
+}
+
 
 let docs_list = ["BUILTINS.md", "CLI.md", "IMAGE_GENERATION.md", "SPECIFICATION.md", "WRITING_SCRIPTS.md"]
 let sesiDocs = ""
@@ -108,6 +154,21 @@ fn handle_http(req) {
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"filePath": result}}
     }
     return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"filePath": null}}
+  }
+
+  if path == "/api/workspace" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let new_root = body_obj["path"]
+      if new_root != null && new_root != "" {
+        PROJECT_ROOT = new_root
+        print "Sesi Studio: Workspace changed to " + PROJECT_ROOT
+        return {"status": 200, "body": {"success": true}}
+      }
+      return {"status": 400, "body": {"error": "Missing path parameter"}}
+    } catch (e) {
+      return {"status": 500, "body": {"error": str(e)}}
+    }
   }
   
   if path == "/" {
@@ -234,7 +295,7 @@ fn handle_http(req) {
       let check_result = ""
       let success = true
       try {
-        check_result = exec_node("bin/sesi.js -c " + temp_name)
+        check_result = exec_node("\"" + SESI_ROOT + "/bin/sesi.js\" -c \"" + temp_name + "\"")
       } catch (e) {
         check_result = str(e)
         success = false
@@ -254,6 +315,84 @@ fn handle_http(req) {
     }
   }
 
+  if path == "/api/ast" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let content = body_obj["content"]
+      let temp_name = ".sesi_ast_temp_" + str(time()) + ".sesi"
+      let js_temp_name = ".sesi_ast_runner_" + str(time()) + ".js"
+      
+      write_file(temp_name, content)
+      
+      let js_code = "const {Lexer,Parser}=require('./dist/index.js'); const fs=require('fs'); try { const code=fs.readFileSync('" + temp_name + "','utf8'); const tokens=new Lexer(code).scanTokens(); const parser=new Parser(tokens); const prog=parser.parse(); if(parser.errors.length > 0){ console.error(parser.errors.join('\\n')); process.exit(1); } console.log(JSON.stringify(prog)); } catch(e) { console.error(e.message); process.exit(1); }"
+      write_file(js_temp_name, js_code)
+      
+      let parse_result = ""
+      let success = true
+      try {
+        parse_result = exec_node(js_temp_name)
+      } catch (e) {
+        parse_result = str(e)
+        success = false
+      }
+      
+      try {
+        exec("rm " + temp_name)
+      } catch (e_rm) {
+        try {
+          exec("del " + temp_name)
+        } catch (e_del) {}
+      }
+      
+      try {
+        exec("rm " + js_temp_name)
+      } catch (e_rm_js) {
+        try {
+          exec("del " + js_temp_name)
+        } catch (e_del_js) {}
+      }
+      
+      if success {
+        return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": true, "ast": from_json(parse_result)}}
+      } else {
+        return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": parse_result}}
+      }
+    } catch (e) {
+      return {"status": 500, "body": {"error": "Failed to parse AST: " + str(e)}}
+    }
+  }
+
+  if path == "/api/profile" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let content = body_obj["content"]
+      let temp_name = ".sesi_profile_temp_" + str(time()) + ".sesi"
+      write_file(temp_name, content)
+      
+      let output_str = ""
+      let success = true
+      try {
+        output_str = exec_in_project("SESI_DEBUG=1 node \"" + SESI_ROOT + "/bin/sesi.js\" -l \"" + temp_name + "\"")
+      } catch (e) {
+        output_str = str(e)
+        success = false
+      }
+      
+      try {
+        exec("rm " + temp_name)
+      } catch (e_rm) {
+        try {
+          exec("del " + temp_name)
+        } catch (e_del) {}
+      }
+      
+      return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": success, "output": output_str}}
+    } catch (e) {
+      return {"status": 500, "body": {"error": "Failed to profile script: " + str(e)}}
+    }
+  }
+
+
   if path == "/api/extensions" {
     try {
       make_dir("sesi-studio/extensions")
@@ -270,7 +409,7 @@ fn handle_http(req) {
             Using indexOf to avoid complex Regex escaping issues in Sesi/Shell strings 
           */
           let script = "const fs=require('fs');const c=fs.readFileSync('" + full_path + "','utf8');const s=c.indexOf('/*');const e=c.indexOf('*/');if(s===-1||e===-1)process.stdout.write('null');else process.stdout.write(c.slice(s+2,e).trim())"
-          let json_str = exec_node("-e \"" + script + "\"")
+          let json_str = exec_node('-e "' + script + '"')
           if json_str == "null" || json_str == "" {
             return null
           }
@@ -570,8 +709,8 @@ fn handle_http(req) {
         let status_out = ""
         let branch_out = ""
         try {
-          status_out = exec("git status --porcelain")
-          branch_out = exec("git branch --show-current")
+          status_out = exec_in_project("git status --porcelain")
+          branch_out = exec_in_project("git branch --show-current")
           branch_out = split(branch_out, "\r")[0]
           branch_out = split(branch_out, "\n")[0]
         } catch (e) {
@@ -590,7 +729,7 @@ fn handle_http(req) {
       }
       
       if action == "init" {
-        let out = exec("git init")
+        let out = exec_in_project("git init")
         return {
           "status": 200,
           "headers": {"Content-Type": "application/json"},
@@ -600,7 +739,7 @@ fn handle_http(req) {
       
       if action == "add" {
         let file = body_obj["file"]
-        let out = exec("git add \"" + file + "\"")
+        let out = exec_in_project("git add \"" + file + "\"")
         return {
           "status": 200,
           "headers": {"Content-Type": "application/json"},
@@ -610,7 +749,7 @@ fn handle_http(req) {
       
       if action == "unstage" {
         let file = body_obj["file"]
-        let out = exec("git restore --staged \"" + file + "\"")
+        let out = exec_in_project("git restore --staged \"" + file + "\"")
         return {
           "status": 200,
           "headers": {"Content-Type": "application/json"},
@@ -620,7 +759,7 @@ fn handle_http(req) {
       
       if action == "discard" {
         let file = body_obj["file"]
-        let out = exec("git restore \"" + file + "\"")
+        let out = exec_in_project("git restore \"" + file + "\"")
         return {
           "status": 200,
           "headers": {"Content-Type": "application/json"},
@@ -633,7 +772,7 @@ fn handle_http(req) {
         write_file("sesi-studio/.git-commit-msg.tmp", msg)
         let out = ""
         try {
-          out = exec("git commit -F sesi-studio/.git-commit-msg.tmp")
+          out = exec_in_project("git commit -F sesi-studio/.git-commit-msg.tmp")
           out = split(out, "\r")[0]
         } catch (e) {
           try {
@@ -653,7 +792,7 @@ fn handle_http(req) {
       }
       
       if action == "push" {
-        let out = exec("git push")
+        let out = exec_in_project("git push")
         return {
           "status": 200,
           "headers": {"Content-Type": "application/json"},
@@ -662,7 +801,7 @@ fn handle_http(req) {
       }
       
       if action == "pull" {
-        let out = exec("git pull")
+        let out = exec_in_project("git pull")
         return {
           "status": 200,
           "headers": {"Content-Type": "application/json"},
@@ -676,7 +815,7 @@ fn handle_http(req) {
         let current = ""
         
         try {
-          original = exec("git show HEAD:\"" + file + "\"")
+          original = exec_in_project("git show HEAD:\"" + file + "\"")
         } catch (e) {
           original = ""
         }
@@ -701,7 +840,7 @@ fn handle_http(req) {
       if action == "log" {
         let log_out = ""
         try {
-          log_out = exec("git log --oneline -n 15")
+          log_out = exec_in_project("git log --oneline -n 15")
         } catch (e) {
           log_out = "No commits yet."
         }
@@ -715,7 +854,7 @@ fn handle_http(req) {
       if action == "generate_commit_msg" {
         let diff_str = ""
         try {
-          diff_str = exec("git diff --staged")
+          diff_str = exec_in_project("git diff --staged")
         } catch (e) {
           diff_str = ""
         }
@@ -778,6 +917,171 @@ Staged Diff:
     }
   }
 
+  if path == "/api/db" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let action = body_obj["action"]
+      let db_path = body_obj["dbPath"]
+      let password = body_obj["password"]
+      if password == "" {
+        password = null
+      }
+      
+      if action == "list_databases" {
+        let items = list_dir(".")
+        let dbs = []
+        for item in items {
+          let parts = split(item, ".")
+          let ext = parts[len(parts) - 1]
+          if ext == "db" || ext == "json" {
+            if item != "package.json" && item != "package-lock.json" && item != "marketplace.json" {
+              push(dbs, item)
+            }
+          }
+        }
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"databases": dbs}
+        }
+      }
+
+      if action == "get_schema" {
+        if db_path == null || db_path == "" {
+          return {
+            "status": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": {"error": "Missing dbPath"}
+          }
+        }
+        
+        let cols = get_db_collections(db_path, password)
+        let collections_list = []
+        if cols != null {
+          for col in cols {
+            push(collections_list, {"name": col})
+          }
+        }
+        
+        let is_enc = false
+        try {
+          let content = read_file(db_path)
+          let parts = split(content, ":")
+          if len(parts) == 2 {
+            is_enc = true
+          }
+        } catch (e) {}
+
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "encrypted": is_enc,
+            "authenticated": (cols != null),
+            "collections": collections_list
+          }
+        }
+      }
+
+      if action == "get_documents" {
+        let col_name = body_obj["collection"]
+        let query_str = body_obj["query"]
+        let query = null
+        if query_str != null && query_str != "" {
+          try {
+            query = from_json(query_str)
+          } catch (e) {}
+        }
+        
+        let db = db_open(db_path, password)
+        let col = db.collection(col_name)
+        let docs = col.find(query)
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"documents": docs}
+        }
+      }
+
+      if action == "save_document" {
+        let col_name = body_obj["collection"]
+        let doc = body_obj["document"]
+        let db = db_open(db_path, password)
+        let col = db.collection(col_name)
+        let saved = col.insert(doc)
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"success": true, "document": saved}
+        }
+      }
+
+      if action == "delete_document" {
+        let col_name = body_obj["collection"]
+        let doc_id = body_obj["documentId"]
+        let db = db_open(db_path, password)
+        let col = db.collection(col_name)
+        let deleted = col.delete({"_id": doc_id})
+        return {
+          "status": 200,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"success": true, "deletedCount": deleted}
+        }
+      }
+
+      return {
+        "status": 400,
+        "headers": {"Content-Type": "application/json"},
+        "body": {"error": "Unknown db action"}
+      }
+    } catch (e) {
+      return {
+        "status": 500,
+        "headers": {"Content-Type": "application/json"},
+        "body": {"error": str(e)}
+      }
+    }
+  }
+
+  if path == "/api/proxy" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let req_url = body_obj["url"]
+      let req_method = body_obj["method"]
+      let req_headers = body_obj["headers"]
+      let req_body = body_obj["body"]
+
+      if req_headers == null {
+        req_headers = {}
+      }
+
+      let res_body = ""
+      if req_method == "GET" {
+        res_body = web_get(req_url, req_headers)
+      } else {
+        res_body = web_send(req_url, req_body, req_headers)
+      }
+
+      return {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": {
+          "success": true,
+          "response": res_body
+        }
+      }
+    } catch (e) {
+      return {
+        "status": 500,
+        "headers": {"Content-Type": "application/json"},
+        "body": {
+          "success": false,
+          "error": str(e)
+        }
+      }
+    }
+  }
+
   return {"status": 404, "body": "Not Found"}
 }
 
@@ -786,7 +1090,10 @@ let term_buffer = ""
 fn handle_ws(client, msg) {
   try {
     let parsed = from_json(msg)
-    if parsed["type"] == "input" {
+    if parsed["type"] == "terminal_write" {
+      let data_str = parsed["data"]
+      client.send(to_json({"type": "output", "data": data_str}))
+    } else if parsed["type"] == "input" {
       let data_str = parsed["data"]
       if data_str == "backspace" || data_str == "escape" || data_str == "ctrl-c" {
         if data_str == "backspace" {
