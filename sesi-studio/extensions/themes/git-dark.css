@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "A clean, high-contrast theme inspired by GitHub's dark mode.",
   "author": "Community",
-  "icon": "extensions/themes/assets/Git-Dark.svg",
+  "icon": "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%0D%0A%20%20%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2220%22%20fill%3D%22%230d1117%22%2F%3E%0D%0A%20%20%3Cellipse%20cx%3D%2250%22%20cy%3D%2242%22%20rx%3D%2228%22%20ry%3D%2224%22%20fill%3D%22%2330363d%22%2F%3E%0D%0A%20%20%3Cpath%20d%3D%22M30%2062%20Q%2015%2085%2035%2085%22%20stroke%3D%22%2330363d%22%20stroke-width%3D%2210%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%0D%0A%20%20%3Cpath%20d%3D%22M70%2062%20Q%2085%2085%2065%2085%22%20stroke%3D%22%2330363d%22%20stroke-width%3D%2210%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M50%2066%20V%2090%22%20stroke%3D%22%2330363d%22%20stroke-width%3D%2210%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2242%22%20r%3D%224%22%20fill%3D%22%23c9d1d9%22%2F%3E%3Ccircle%20cx%3D%2260%22%20cy%3D%2242%22%20r%3D%224%22%20fill%3D%22%23c9d1d9%22%2F%3E%3C%2Fsvg%3E",
   "license": "MIT",
   "commands": ["Apply Git Dark"]
 }

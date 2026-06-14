@@ -486,12 +486,12 @@
       border-left: 3px solid transparent;
       transition: all 0.15s ease;
     }
-    
+
     .command-palette-item:hover {
       background: rgba(255, 255, 255, 0.04);
       color: #fff;
     }
-    
+
     .command-palette-item.selected {
       background: rgba(139, 92, 246, 0.15);
       color: var(--accent-cyan);
@@ -528,7 +528,8 @@
       <button class="btn" id="newBtn" onclick="createNewBuffer()">+ New File</button>
       <button class="btn" id="saveBtn" onclick="saveActiveFile()">Save (Ctrl+S)</button>
       <button class="btn" id="runBtn" onclick="runActiveFile()">Run active script</button>
-      <button class="btn" id="paletteBtn" onclick="toggleCommandPalette()" title="Command Palette (Ctrl+P)">⌨️ Commands</button>
+      <button class="btn" id="paletteBtn" onclick="toggleCommandPalette()" title="Command Palette (Ctrl+P)">⌨️
+        Commands</button>
       <button class="btn" id="settingsBtn" onclick="toggleSettingsModal()" title="Settings Hub">⚙️ Settings</button>
     </div>
   </header>
@@ -614,13 +615,19 @@
     <div id="commandPaletteContainer"
       style="background: var(--bg-panel); border: 1px solid var(--glass-border); width: 600px; max-height: 450px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6); transform: scale(0.95); transition: transform 0.15s ease-out;">
       <input type="text" id="commandPaletteInput" placeholder="Type a command or search..."
-        style="padding: 16px 20px; font-size: 15px; border: none; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); color: #fff; outline: none; width: 100%; box-sizing: border-box; font-family: 'Space Grotesk', sans-serif;" autocomplete="off" />
-      <div id="commandPaletteList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 8px 0; max-height: 350px;">
+        style="padding: 16px 20px; font-size: 15px; border: none; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); color: #fff; outline: none; width: 100%; box-sizing: border-box; font-family: 'Space Grotesk', sans-serif;"
+        autocomplete="off" />
+      <div id="commandPaletteList"
+        style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 8px 0; max-height: 350px;">
         <!-- Injected list items -->
       </div>
-      <div style="padding: 8px 20px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.1); display: flex; justify-content: space-between; font-size: 10px; color: var(--silver-dark);">
-        <span>Use <kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">↑↓</kbd> to navigate, <kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">Enter</kbd> to execute</span>
-        <span><kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">Esc</kbd> to close</span>
+      <div
+        style="padding: 8px 20px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.1); display: flex; justify-content: space-between; font-size: 10px; color: var(--silver-dark);">
+        <span>Use <kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">↑↓</kbd> to
+          navigate, <kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">Enter</kbd> to
+          execute</span>
+        <span><kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">Esc</kbd> to
+          close</span>
       </div>
     </div>
   </div>
@@ -696,12 +703,12 @@
         window.editor.setModel(monaco.editor.createModel('', 'plaintext'));
       }
       updateTabBar();
-      
+
       // Update UI title
       document.querySelector('.panel-title').textContent = path.split('/').pop() || path;
-      
+
       loadWorkspaceFiles(path);
-      
+
       // Notify backend of the new workspace root
       fetch('/api/workspace', {
         method: 'POST',
@@ -1204,7 +1211,7 @@
       window.addEventListener('keydown', (e) => {
         const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
         const cmdKey = isMac ? e.metaKey : e.ctrlKey;
-        
+
         if (cmdKey && e.key === 's') {
           e.preventDefault();
           saveActiveFile();
@@ -1362,7 +1369,7 @@
     window.registeredCommands = [];
     window.extensionCommands = {};
 
-    window.registerCommand = function(name, callback, shortcut = '') {
+    window.registerCommand = function (name, callback, shortcut = '') {
       window.extensionCommands[name] = callback;
       // Also register to command palette if it exists in list
       addCommandToPalette(name, 'Extension', callback, shortcut);
@@ -1505,11 +1512,11 @@
     let selectedPaletteIndex = 0;
     let filteredPaletteCommands = [];
 
-    window.toggleCommandPalette = function() {
+    window.toggleCommandPalette = function () {
       const modal = document.getElementById('commandPaletteModal');
       const container = document.getElementById('commandPaletteContainer');
       const input = document.getElementById('commandPaletteInput');
-      
+
       if (modal.style.display === 'flex') {
         modal.style.display = 'none';
         container.style.transform = 'scale(0.95)';
@@ -1520,7 +1527,7 @@
         setTimeout(() => {
           container.style.transform = 'scale(1)';
         }, 10);
-        
+
         input.value = '';
         selectedPaletteIndex = 0;
         filterPaletteCommands();
@@ -1530,47 +1537,47 @@
 
     function filterPaletteCommands() {
       const query = document.getElementById('commandPaletteInput').value.toLowerCase();
-      filteredPaletteCommands = window.registeredCommands.filter(cmd => 
-        cmd.name.toLowerCase().includes(query) || 
+      filteredPaletteCommands = window.registeredCommands.filter(cmd =>
+        cmd.name.toLowerCase().includes(query) ||
         cmd.category.toLowerCase().includes(query)
       );
-      
+
       if (selectedPaletteIndex >= filteredPaletteCommands.length) {
         selectedPaletteIndex = Math.max(0, filteredPaletteCommands.length - 1);
       }
-      
+
       renderPaletteList();
     }
 
     function renderPaletteList() {
       const listEl = document.getElementById('commandPaletteList');
       listEl.innerHTML = '';
-      
+
       if (filteredPaletteCommands.length === 0) {
         listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--silver-dark); font-size: 13px;">No commands found.</div>';
         return;
       }
-      
+
       filteredPaletteCommands.forEach((cmd, idx) => {
         const item = document.createElement('div');
         item.className = 'command-palette-item' + (idx === selectedPaletteIndex ? ' selected' : '');
         item.onclick = () => executePaletteCommand(cmd);
-        
+
         const label = document.createElement('div');
         label.style.display = 'flex';
         label.style.alignItems = 'center';
         label.style.gap = '8px';
         label.innerHTML = `<span style="font-size: 10px; color: var(--silver-dark); background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">${cmd.category}</span> <span>${cmd.name}</span>`;
-        
+
         item.appendChild(label);
-        
+
         if (cmd.shortcut) {
           const shortcut = document.createElement('span');
           shortcut.className = 'command-palette-shortcut';
           shortcut.textContent = cmd.shortcut;
           item.appendChild(shortcut);
         }
-        
+
         listEl.appendChild(item);
       });
 
@@ -1593,13 +1600,13 @@
     document.addEventListener('DOMContentLoaded', () => {
       const input = document.getElementById('commandPaletteInput');
       const modal = document.getElementById('commandPaletteModal');
-      
+
       if (input) {
         input.addEventListener('input', () => {
           selectedPaletteIndex = 0;
           filterPaletteCommands();
         });
-        
+
         input.addEventListener('keydown', (e) => {
           if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -1617,7 +1624,7 @@
           }
         });
       }
-      
+
       if (modal) {
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
@@ -1967,7 +1974,7 @@
           </p>
           <div style="display: flex; gap: 10px; margin-bottom: 20px;">
             <input type="text" id="mktSearch" placeholder="Search marketplace..." style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 4px; color: #fff; font-size: 12px;">
-            <input type="text" id="mktRegistry" value="https://raw.githubusercontent.com/misterscan/sesi-marketplace/refs/heads/main/marketplace.json" style="width: 250px; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 4px; color: #fff; font-size: 11px; font-family: monospace;">
+            <input type="text" id="mktRegistry" value="https://raw.githubusercontent.com/Misterscan/sesi-marketplace/refs/heads/main/marketplace.json" style="width: 250px; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 4px; color: #fff; font-size: 11px; font-family: monospace;">
             <button class="btn" id="mktRefresh" style="padding: 8px 12px; font-size: 12px;">Refresh</button>
           </div>
           <div id="mktList" style="display: flex; flex-direction: column; gap: 12px;">
@@ -2004,8 +2011,8 @@
 
       const renderList = () => {
         const query = mktSearch.value.toLowerCase();
-        const filtered = items.filter(item => 
-          item.name.toLowerCase().includes(query) || 
+        const filtered = items.filter(item =>
+          item.name.toLowerCase().includes(query) ||
           item.description.toLowerCase().includes(query) ||
           item.type.toLowerCase().includes(query)
         );
@@ -2033,7 +2040,7 @@
           }
 
           // Check if installed
-          const installedItem = installedItems.find(inst => 
+          const installedItem = installedItems.find(inst =>
             inst.displayName && inst.displayName.toLowerCase() === item.name.toLowerCase()
           );
 
@@ -2096,13 +2103,13 @@
                 installBtn.textContent = '✓ Installed';
                 installBtn.style.background = '#28a745';
                 installBtn.style.color = '#fff';
-                
+
                 // Refresh list of installed items
                 const extRes = await fetch('/api/extensions');
                 if (extRes.ok) {
                   installedItems = await extRes.json();
                 }
-                
+
                 if (window.loadExtensions) {
                   window.loadExtensions();
                 }
@@ -2536,7 +2543,7 @@
       if (!window.activeFilePath) return;
       const parts = window.activeFilePath.split('/');
       let currentPath = '';
-      
+
       for (let i = 0; i < parts.length - 1; i++) {
         currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
         const row = document.querySelector(`.file-item[data-path="${currentPath}"]`);
@@ -2559,7 +2566,7 @@
       if (!window.activeFilePath || !window.activeFilePath.endsWith('.sesi')) return;
       const model = window.editor.getModel();
       if (!model) return;
-      
+
       try {
         const content = model.getValue();
         const response = await fetch('/api/validate', {
@@ -2568,20 +2575,20 @@
           body: JSON.stringify({ content })
         });
         const result = await response.json();
-        
+
         const markers = [];
         if (!result.success && result.output) {
           // Clean up output (remove dotenvx log prefix if present)
           let cleanedOutput = result.output.replace(/◇ retrieving[\s\S]*?dotenvx@[\d.]+/g, '').trim();
-          
+
           const lineColMatch = cleanedOutput.match(/at line (\d+), column (-?\d+)/);
           if (lineColMatch) {
             const lineNum = parseInt(lineColMatch[1], 10);
             let colNum = parseInt(lineColMatch[2], 10);
             if (colNum < 0) colNum = 1;
-            
+
             const lineText = model.getLineContent(lineNum) || "";
-            
+
             markers.push({
               severity: monaco.MarkerSeverity.Error,
               message: cleanedOutput,
@@ -2602,7 +2609,7 @@
             });
           }
         }
-        
+
         monaco.editor.setModelMarkers(model, 'sesi-validation', markers);
       } catch (err) {
         console.error('Validation error:', err);
@@ -2660,7 +2667,7 @@
 
         updateTabBar();
         revealActiveFile();
-        
+
         if (filePath.endsWith('.sesi')) {
           validateActiveFile();
         }

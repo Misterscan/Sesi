@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "author": "Sesi",
   "description": "Handles theme switching and synchronization with the Monaco editor.",
-  "icon": "extensions/assets/Theme-Manager.svg",
+  "icon": "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%0D%0A%20%20%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2220%22%20fill%3D%22%231e1e1e%22%2F%3E%0D%0A%20%20%3Cpath%20d%3D%22M50%2025a25%2025%200%200%201%200%2050V25z%22%20fill%3D%22%23ffffff%22%2F%3E%0D%0A%20%20%3Cpath%20d%3D%22M50%2025a25%2025%200%200%200%200%2050V25z%22%20fill%3D%22%23444444%22%2F%3E%0D%0A%20%20%3Cpath%20d%3D%22M82%2050c0-17.7-14.3-32-32-32M18%2050c0%2017.7%2014.3%2032%2032%2032%22%20fill%3D%22none%22%20stroke%3D%22%233794ff%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22%2F%3E%0D%0A%20%20%3Cpath%20d%3D%22M72%2018h10v10M28%2082h-10v-10%22%20fill%3D%22none%22%20stroke%3D%22%233794ff%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%0D%0A%3C%2Fsvg%3E",
   "commands": ["Switch Theme"]
 }
 */

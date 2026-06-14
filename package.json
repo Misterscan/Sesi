@@ -73,14 +73,14 @@
   "author": "Misterscan",
   "license": "MIT",
   "dependencies": {
-    "@dotenvx/dotenvx": "1.71.2",
-    "@dotenvx/dotenvx-armor": "^0.54.4",
-    "@dotenvx/dotenvx-ops": "0.54.4",
+    "@dotenvx/dotenvx": "1.71.3",
+    "@dotenvx/dotenvx-armor": "0.55.1",
+    "@dotenvx/dotenvx-ops": "0.55.1",
     "@google/genai": "2.8.0",
     "ws": "8.21.0"
   },
   "devDependencies": {
-    "@types/node": "25.9.2",
+    "@types/node": "25.9.3",
     "globals": "^17.6.0",
     "rcedit": "^5.0.2",
     "typescript": "6.0.3"
