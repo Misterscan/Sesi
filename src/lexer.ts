@@ -40,6 +40,8 @@ export class Lexer {
     ['from', 'FROM'],
     ['export', 'EXPORT'],
     ['to', 'TO'], // Used in for loops
+    ['allow', 'ALLOW'],
+    ['with', 'WITH'],
   ]);
 
   constructor(source: string) {

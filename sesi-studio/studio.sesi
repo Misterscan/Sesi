@@ -891,7 +891,7 @@ Staged Diff:
         
         let generated_msg = ""
         try {
-          generated_msg = model("copilot") {temperature: 0.2, max_tokens: 150, cache: false} {copilotMemory commitPrompt}
+          generated_msg = model("copilot") {temperature: 0.4, max_tokens: 300, cache: false} {copilotMemory commitPrompt}
           generated_msg = split(generated_msg, "\r")[0]
         } catch (e) {
           return {

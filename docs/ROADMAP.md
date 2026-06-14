@@ -77,7 +77,7 @@
 - [x] Concurrency capabilities (File-based lock pattern)
 - [x] API reference (`BUILTINS.md`)
 - [x] Tutorial: Getting started (`QUICKSTART.md`)
-- [x] Cookbook: Common patterns (`PROCESS_EXECUTION.md`)
+- [x] Cookbook: Common patterns (`WRITING_SCRIPTS.md`)
 
 ### Deferred to V2.0 ⏳
 
@@ -102,12 +102,12 @@
 - [x] Promise-like operations
 - [x] Concurrent execution (Multi-process via `spawn`)
 
-### Advanced Reasoning Features
+### Advanced Features
 
-- [ ] Streaming responses
+- [x] Streaming responses
 - [x] Extended thinking
 - [x] Multi-step workflows
-- [ ] Tool composition and piping
+- [x] Tool composition and piping
 - [x] Custom tool definitions
 - [ ] Function calling with automatic orchestration
 - [x] Web search grounding
@@ -124,8 +124,8 @@
 
 - [x] finally blocks (try/catch completed in V1)
 - [x] Custom error types
-- [ ] Error recovery strategies
-- [ ] Retry logic with exponential backoff
+- [x] Error recovery strategies
+- [x] Retry logic with exponential backoff
 - [ ] Timeout handling
 
 ### Performance
@@ -137,8 +137,8 @@
 
 ### New Built-ins
 
-- [ ] String functions (upper, lower, trim, slice, etc.)
-- [ ] Array functions (map, filter, reduce, find, etc.)
+- [x] String functions (to_upper, to_lower, trim, slice, swap)
+- [x] Array functions (map, filter, reduce, find, etc.)
 - [x] Math functions (sqrt, sin, cos, floor, ceil, etc.)
 - [x] Date/time functions
 - [x] JSON parsing and serialization
@@ -149,7 +149,7 @@
 - [x] import/export statements
 - [x] Standard library modules (std/math, std/time, etc.)
 - [ ] Third-party package management
-- [ ] Namespace support
+- [x] Lib support
 
 ### Tooling
 
@@ -163,7 +163,7 @@
 ### Examples
 
 - [x] Web scraper with reasoning analysis
-- [ ] Document processor (PDF, DOCX)
+- [x] Command line utility expansion
 - [x] Chatbot with memory
 - [x] Data pipeline with reasoning
 - [x] API server (with async)
@@ -200,16 +200,16 @@
 
 ### Ecosystem
 
-- [ ] Package registry
+- [x] Package registry
 - [ ] Community extensions
 - [ ] Plugin system
-- [ ] API server template
+- [x] API server template
 - [ ] Dashboard/UI toolkit
 
 ### Examples
 
 - [ ] Automated code formatting process
-- [ ] Command line utility expansion
+- [ ] Document processor (PDF, DOCX)
 - [ ] Code generation and testing
 - [ ] Data analysis pipeline
 - [ ] Multi-process reasoning debate

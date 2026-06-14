@@ -20,6 +20,7 @@ import {
   type ContinueStatement,
   type TryStatement,
   type ImportStatement,
+  type AllowStatement,
   type ExportStatement,
   type MemoryStatement,
   type Literal,
@@ -87,6 +88,7 @@ export class Parser {
       if (this.match('CONTINUE')) return this.continueStatement();
       if (this.match('TRY')) return this.tryStatement();
       if (this.match('IMPORT')) return this.importStatement();
+      if (this.match('ALLOW')) return this.allowStatement();
       if (this.match('EXPORT')) return this.exportStatement();
       if (this.match('MEMORY')) return this.memoryStatement();
       if (this.check('LEFT_BRACE')) return this.blockStatement();
@@ -330,16 +332,23 @@ export class Parser {
     const line = this.previous().line;
     const names: string[] = [];
 
+    this.skipNewlines();
     if (this.match('LEFT_BRACE')) {
+      this.skipNewlines();
       do {
+        this.skipNewlines();
         names.push(this.consume('IDENTIFIER', 'Expected import name').lexeme);
+        this.skipNewlines();
       } while (this.match('COMMA'));
+      this.skipNewlines();
       this.consume('RIGHT_BRACE', 'Expected } after imports');
     } else {
       names.push(this.consume('IDENTIFIER', 'Expected import name').lexeme);
     }
 
+    this.skipNewlines();
     this.consume('FROM', 'Expected "from" in import statement');
+    this.skipNewlines();
     const source = this.consume('STRING', 'Expected module path').literal;
 
     this.consumeStatementEnd();
@@ -347,6 +356,44 @@ export class Parser {
       type: 'ImportStatement',
       names,
       source: source as string,
+      line,
+    };
+  }
+
+  private allowStatement(): AllowStatement {
+    const line = this.previous().line;
+    this.skipNewlines();
+    const source = this.consume('STRING', 'Expected module path').literal;
+
+    this.skipNewlines();
+    this.consume('IN', 'Expected "in" in allow statement');
+
+    this.skipNewlines();
+    this.consume('WITH', 'Expected "with" in allow statement');
+
+    this.skipNewlines();
+    let binding: string | string[];
+
+    if (this.match('LEFT_BRACE')) {
+      const names: string[] = [];
+      this.skipNewlines();
+      do {
+        this.skipNewlines();
+        names.push(this.consume('IDENTIFIER', 'Expected import name').lexeme);
+        this.skipNewlines();
+      } while (this.match('COMMA'));
+      this.skipNewlines();
+      this.consume('RIGHT_BRACE', 'Expected } after imports');
+      binding = names;
+    } else {
+      binding = this.consume('IDENTIFIER', 'Expected library namespace identifier').lexeme;
+    }
+
+    this.consumeStatementEnd();
+    return {
+      type: 'AllowStatement',
+      source: source as string,
+      binding,
       line,
     };
   }
@@ -468,11 +515,11 @@ export class Parser {
   }
 
   private logicalOr(): Expression {
-    let expr = this.logicalAnd();
+    let expr = this.pipe();
 
     while (this.match('PIPE_PIPE')) {
       const operator = this.previous().lexeme;
-      const right = this.logicalAnd();
+      const right = this.pipe();
       expr = {
         type: 'LogicalOp',
         left: expr,
@@ -480,6 +527,33 @@ export class Parser {
         right,
         line: this.previous().line,
       };
+    }
+
+    return expr;
+  }
+
+  private pipe(): Expression {
+    let expr = this.logicalAnd();
+
+    while (this.match('PIPE')) {
+      const line = this.previous().line;
+      const right = this.logicalAnd();
+      if (right.type === 'CallExpression') {
+        const call = right as any;
+        expr = {
+          type: 'CallExpression',
+          callee: call.callee,
+          arguments: [expr, ...call.arguments],
+          line: call.line,
+        };
+      } else {
+        expr = {
+          type: 'CallExpression',
+          callee: right,
+          arguments: [expr],
+          line,
+        };
+      }
     }
 
     return expr;
@@ -1347,6 +1421,9 @@ export class Parser {
     const syncTokens: TokenType[] = ['FN', 'LET', 'CONST', 'FOR', 'IF', 'WHILE', 'RETURN'];
 
     while (!this.isAtEnd()) {
+      if (this.previous().type === 'SEMICOLON' || this.previous().type === 'NEWLINE') {
+        return;
+      }
       if (syncTokens.includes(this.peek().type)) {
         return;
       }

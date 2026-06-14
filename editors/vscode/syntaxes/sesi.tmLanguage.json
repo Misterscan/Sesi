@@ -87,7 +87,7 @@
       "patterns": [
         {
           "name": "keyword.control.sesi",
-          "match": "\\b(if|else|while|for|in|to|return|break|continue|try|catch|finally|async|await)\\b"
+          "match": "\\b(if|else|while|for|in|to|return|break|continue|try|catch|finally|async|await|allow|with)\\b"
         },
         {
           "name": "constant.other.property.sesi",
@@ -103,7 +103,7 @@
       "patterns": [
         {
           "name": "support.type.sesi",
-          "match": "\\b(number|string|bool|null|array|object|args)\\b"
+          "match": "\\b(number|string|bool|null|array|object)\\b"
         }
       ]
     },
@@ -131,7 +131,7 @@
         },
         {
           "name": "support.function.builtin.general.sesi",
-          "match": "\\b(print|memory|prompt|structured_output|tool_call|define_tool|web_send|web_get|list_tools|error_type|raise_error|multi_req|len|range|type|str|num|bool|keys|values|push|pop|join|split|read_file|write_file|write_image|convert|list_dir|make_dir|spawn|exec|time|random|exp|sin|cos|tan|sqrt|floor|ceil|abs|pow|log|now|sleep|format|parse|stringify|to_json|from_json|listen|db_open)\\b"
+          "match": "\\b(print|memory|prompt|structured_output|tool_call|define_tool|web_send|web_get|list_tools|error_type|raise_error|multi_req|args|len|range|type|str|num|bool|keys|values|push|pop|join|split|to_upper|to_lower|trim|slice|swap|contains|locate|map|filter|reduce|find|retry|read_file|write_file|write_image|convert|list_dir|make_dir|spawn|exec|time|random|exp|sin|cos|tan|sqrt|floor|ceil|abs|pow|log|now|sleep|format|parse|stringify|to_json|from_json|listen|db_open|input)\\b"
         }
       ]
     },

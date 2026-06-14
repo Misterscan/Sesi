@@ -17,6 +17,22 @@ print [1, 2, 3]
 
 ---
 
+### input(prompt) -> string
+
+Prompt the user for terminal input, wait for them to press Enter, and return their response.
+
+```sesi
+let name = input("Enter your name: ")
+print "Hello," name
+```
+
+**Parameters**:
+- `prompt` (`string`): The text to display as a prompt before reading input. Optional.
+
+**Returns**: `string`
+
+---
+
 ## Type Functions
 
 ### type(value) -> string
@@ -204,6 +220,113 @@ split("hello world", " ")  // ["hello", "world"]
 
 ---
 
+### to_upper(string) -> string
+
+Converts all alphabetic characters in a string to uppercase.
+
+```sesi
+to_upper("hello")      // "HELLO"
+to_upper("Sesi V2.0")  // "SESI V2.0"
+```
+
+**Returns**: `string` or `null` if not a string
+
+---
+
+### to_lower(string) -> string
+
+Converts all alphabetic characters in a string to lowercase.
+
+```sesi
+to_lower("WORLD")      // "world"
+to_lower("Sesi V2.0")  // "sesi v2.0"
+```
+
+**Returns**: `string` or `null` if not a string
+
+---
+
+### trim(string) -> string
+
+Removes whitespace from both ends of a string.
+
+```sesi
+trim("  spaces  ")  // "spaces"
+```
+
+**Returns**: `string` or `null` if not a string
+
+---
+
+### slice(collection, start, end = null) -> string | array
+
+Extracts a section of a string or array and returns it as a new string or array, without modifying the original.
+
+```sesi
+slice("abcdef", 1, 4)         // "bcd"
+slice([10, 20, 30, 40], 2)    // [30, 40]
+```
+
+**Parameters**:
+- `collection` (`string` or `array`): The collection to slice.
+- `start` (`number`): The zero-based index at which to begin extraction.
+- `end` (`number`, optional): The zero-based index *before* which to end extraction. If omitted, slices to the end of the collection.
+
+**Returns**: `string` or `array` based on the input collection type, or `null` if arguments are invalid
+
+---
+
+### swap(string, target, replacement) -> string
+
+Replaces all occurrences of a target substring within a string with a replacement substring.
+
+```sesi
+swap("a_b_c", "_", "-")    // "a-b-c"
+```
+
+**Parameters**:
+- `string` (`string`): The source string.
+- `target` (`string`): The substring to be replaced.
+- `replacement` (`string`): The substring that replaces the target.
+
+**Returns**: `string` or `null` if arguments are invalid
+
+---
+
+### contains(string, sub) -> bool
+
+Returns `true` if the string contains the given substring, `false` otherwise.
+
+```sesi
+contains("hello.sesi", ".sesi")  // true
+contains("hello.sesi", ".ts")    // false
+```
+
+**Parameters**:
+- `string` (`string`): The string to search within.
+- `sub` (`string`): The substring to search for.
+
+**Returns**: `bool` or `null` if arguments are invalid
+
+---
+
+### locate(string, sub) -> number
+
+Returns the index of the first occurrence of a substring within a string. Returns `-1` if the substring is not found.
+
+```sesi
+locate("hello.sesi", ".")    // 5
+locate("hello.sesi", "ts")   // -1
+```
+
+**Parameters**:
+- `string` (`string`): The string to search within.
+- `sub` (`string`): The substring to find.
+
+**Returns**: `number` (zero-based index, or `-1` if not found), or `null` if arguments are invalid
+
+---
+
 ### keys(object) -> array
 
 Get all keys of an object.
@@ -227,6 +350,80 @@ values(obj)        // ["Alice", 30]
 ```
 
 **Returns**: `array<any>` or `null` if not an object
+
+---
+
+### map(array, callback) -> array
+
+Creates a new array populated with the results of calling a provided function on every element in the calling array.
+
+```sesi
+let numbers = [1, 2, 3]
+fn square(x) { return x * x }
+let squares = map(numbers, square) // [1, 4, 9]
+```
+
+**Parameters**:
+- `array` (`array`): The source array.
+- `callback` (`fn`): Function to execute on each element. Receives arguments: `(item, index, array)`.
+
+**Returns**: `array`
+
+---
+
+### filter(array, callback) -> array
+
+Creates a shallow copy of a portion of a given array, filtered down to just the elements from the given array that pass the test implemented by the provided function.
+
+```sesi
+let numbers = [1, 2, 3, 4]
+fn isEven(x) { return x % 2 == 0 }
+let evens = filter(numbers, isEven) // [2, 4]
+```
+
+**Parameters**:
+- `array` (`array`): The source array.
+- `callback` (`fn`): Function is a predicate, to test each element of the array. Return a truthy value to keep the element. Receives arguments: `(item, index, array)`.
+
+**Returns**: `array`
+
+---
+
+### reduce(array, callback, initialValue = null) -> any
+
+Executes a user-supplied "reducer" callback function on each element of the array, in order, passing in the return value from the calculation on the preceding element. The final result of running the reducer across all elements of the array is a single value.
+
+```sesi
+let numbers = [1, 2, 3, 4]
+fn sum(acc, x) { return acc + x }
+let total = reduce(numbers, sum) // 10
+let totalWithInitial = reduce(numbers, sum, 10) // 20
+```
+
+**Parameters**:
+- `array` (`array`): The source array.
+- `callback` (`fn`): A function to execute on each element in the array (except the first, if no `initialValue` is provided). Receives arguments: `(accumulator, currentValue, index, array)`.
+- `initialValue` (`any`, optional): A value to which `accumulator` is initialized on the first call. If no initial value is supplied, the first element in the array is used as the initial accumulator value, and `reduce()` starts executing the callback from the second element (index 1).
+
+**Returns**: `any`
+
+---
+
+### find(array, callback) -> any
+
+Returns the first element in the provided array that satisfies the provided testing function. If no values satisfy the testing function, `null` is returned.
+
+```sesi
+let numbers = [1, 3, 4, 7]
+fn isEven(x) { return x % 2 == 0 }
+let match = find(numbers, isEven) // 4
+```
+
+**Parameters**:
+- `array` (`array`): The source array.
+- `callback` (`fn`): Function to execute on each value in the array. Receives arguments: `(item, index, array)`.
+
+**Returns**: `any` or `null`
 
 ---
 
@@ -600,6 +797,40 @@ raise_error(err)
 ```
 
 **Returns**: never (always throws)
+
+---
+
+### retry(action, options = null) -> any
+
+Executes a function, automatically catching errors and retrying execution with exponential backoff if it fails.
+
+```sesi
+fn volatileTask() {
+  if random() > 0.8 {
+    return "Success!"
+  }
+  raise_error("TemporaryError", "Task failed unpredictably")
+}
+
+// Retry up to 5 times (default backoff options)
+let result = retry(volatileTask, 5)
+
+// Retry with custom configuration object
+let result2 = retry(volatileTask, {
+  max_retries: 4,
+  initial_delay: 500,
+  backoff_factor: 1.5
+})
+```
+
+**Parameters**:
+- `action` (`fn`): The function to execute.
+- `options` (`number` or `object`): Either a number representing `max_retries`, or a configuration object with fields:
+  - `max_retries` (`number`): The maximum number of retry attempts (default: `3`).
+  - `initial_delay` (`number`): Initial wait time in milliseconds before the first retry (default: `1000`).
+  - `backoff_factor` (`number`): Multiplier applied to the delay after each failure (default: `2.0`).
+
+**Returns**: `any` (the return value of the successfully executed `action` function). Throws the last encountered error if all retry attempts are exhausted.
 
 ---
 

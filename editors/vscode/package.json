@@ -2,7 +2,7 @@
   "name": "sesi-syntax",
   "displayName": "Sesi Developer Kit",
   "description": "Native syntax highlighting and rich hover tooltips for the Sesi Programming Language.",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "publisher": "misterscan",
   "repository": {
     "type": "git",

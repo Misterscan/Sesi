@@ -298,6 +298,12 @@ function activate(context) {
             description: 'Outputs an arbitrary list of arguments sequentially to the Sesi terminal output standard stream.',
             example: 'let user = "developer"\nprint "[LOG] Session initialized by: " user'
         },
+        'input': {
+            signature: 'input(prompt)',
+            source: 'Console I/O Standard Library',
+            description: 'Prompts the user for console input, halts execution until they press enter, and returns the entered string response.',
+            example: 'let name = input("Enter your name: ")\nprint "Hello," name'
+        },
         'push': {
             signature: 'push(array, value)',
             source: 'Array Standard Library',
@@ -417,6 +423,90 @@ function activate(context) {
             source: 'Debug Standard Library',
             description: 'Pause execution and launche an interactive debugger REPL in your shell terminal.',
             example: 'let x = 10\nlet y = 20\ndebug()\nprint x + y'
+        },
+        'allow': {
+            signature: 'allow "module" in with LibName\nallow "module" in with { names }',
+            source: 'Sesi Modules / Libs',
+            description: 'Imports a module or specific module functions, binding it to a scoped library namespace or importing names directly.',
+            example: 'allow "std/math" in with Math\nprint Math.PI'
+        },
+        'with': {
+            signature: 'allow "module" in with LibName\nallow "module" in with { names }',
+            source: 'Sesi Modules / Libs',
+            description: 'Used in allow statements to designate the namespace identifier or function list to bind.',
+            example: 'allow "std/math" in with Math'
+        },
+        'to_upper': {
+            signature: 'to_upper(string)',
+            source: 'String Utility Standard Library',
+            description: 'Returns the uppercase representation of the input string.',
+            example: 'let text = to_upper("hello")\nprint text'
+        },
+        'to_lower': {
+            signature: 'to_lower(string)',
+            source: 'String Utility Standard Library',
+            description: 'Returns the lowercase representation of the input string.',
+            example: 'let text = to_lower("WORLD")\nprint text'
+        },
+        'trim': {
+            signature: 'trim(string)',
+            source: 'String Utility Standard Library',
+            description: 'Removes leading and trailing whitespace from the string parameter.',
+            example: 'let cleaned = trim("  hello  ")\nprint cleaned'
+        },
+        'slice': {
+            signature: 'slice(collection, start, end = null)',
+            source: 'Collection Utility Standard Library',
+            description: 'Extracts a slice from a string or array starting at the start index up to (but not including) the end index.',
+            example: 'let part = slice("Hello World", 0, 5)\nprint part'
+        },
+        'swap': {
+            signature: 'swap(string, target, replacement)',
+            source: 'String Utility Standard Library',
+            description: 'Globally searches for the target string/character within the input string and replaces all occurrences with the replacement string.',
+            example: 'let res = swap("hello world", " ", "_")\nprint res'
+        },
+        'contains': {
+            signature: 'contains(string, sub)',
+            source: 'String Utility Standard Library',
+            description: 'Returns `true` if the string contains the given substring, `false` otherwise. Returns `null` if either argument is not a string.',
+            example: 'let found = contains("hello.sesi", ".sesi")\nprint found // true\nprint contains("hello.sesi", ".ts") // false'
+        },
+        'locate': {
+            signature: 'locate(string, sub)',
+            source: 'String Utility Standard Library',
+            description: 'Returns the zero-based index of the first occurrence of a substring within a string. Returns `-1` if not found, or `null` if either argument is not a string.',
+            example: 'let idx = locate("hello.sesi", ".")\nprint idx // 5\nprint locate("hello.sesi", "ts") // -1'
+        },
+        'map': {
+            signature: 'map(array, fn)',
+            source: 'Array Utility Standard Library',
+            description: 'Applies a mapping function to each element of the array and returns a new array of mapped values.',
+            example: 'fn double(x) { return x * 2 }\nlet doubled = map([1, 2, 3], double)'
+        },
+        'filter': {
+            signature: 'filter(array, fn)',
+            source: 'Array Utility Standard Library',
+            description: 'Filters the elements of the array using a predicate function, returning a new array with all matching elements.',
+            example: 'fn isEven(x) { return x % 2 == 0 }\nlet evens = filter([1, 2, 3, 4], isEven)'
+        },
+        'reduce': {
+            signature: 'reduce(array, fn, initialValue = null)',
+            source: 'Array Utility Standard Library',
+            description: 'Reduces the elements of the array to a single value using an accumulator function starting with an optional initial value.',
+            example: 'fn add(acc, x) { return acc + x }\nlet sum = reduce([1, 2, 3, 4], add, 0)'
+        },
+        'find': {
+            signature: 'find(array, fn)',
+            source: 'Array Utility Standard Library',
+            description: 'Returns the first element in the array that satisfies the provided predicate function, or null if no element matches.',
+            example: 'fn isThree(x) { return x == 3 }\nlet item = find([1, 2, 3], isThree)'
+        },
+        'retry': {
+            signature: 'retry(fn, options)',
+            source: 'Fault Tolerance Standard Library',
+            description: 'Executes the given function with automatic retry and exponential backoff configuration upon encountering an exception.',
+            example: 'fn dangerousAction() { ... }\nlet res = retry(dangerousAction, { "max_retries": 3 })'
         }
     };
 

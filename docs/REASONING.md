@@ -67,6 +67,33 @@ print creative
 // - top_k / top_p: parameter options for specialized sampling configurations
 ```
 
+### Streaming Responses
+
+Stream model output chunk-by-chunk in real time using the `stream` config key.
+
+- **`stream: true`** — Streams tokens directly to stdout as they arrive.
+- **`stream: callback`** — Passes each chunk to a Sesi function as it arrives.
+
+```sesi
+// Option 1: Stream directly to stdout
+let resp = model("gemini-3.5-flash") {stream: true} {"Explain how compilers work in detail."}
+
+// Option 2: Handle chunks with a callback
+fn onChunk(chunk) {
+  print "chunk:" chunk
+}
+let resp2 = model("gemini-3.5-flash") {stream: onChunk} {"Write a short story about a robot."}
+```
+
+> **Note:** Both modes return the full accumulated response string when complete, so the return value can still be used for file I/O or further processing.
+
+```sesi
+// Stream to stdout AND use the result afterward
+let summary = model("gemini-3.1-flash-lite") {stream: true} {"Summarize this article: " text}
+write_file("summary.txt", summary)
+print "Saved to summary.txt"
+```
+
 ### Model Selection
 
 ```sesi

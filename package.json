@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.5.3",
+  "version": "1.5.5",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -52,6 +52,7 @@
     "build:installer": "npm run build:exe && npm run msi:eula && npm run build:msi",
     "build:mac:pkg": "node ./scripts/build-macos-pkg.mjs",
     "build:mac:installer": "npm run build:exe && npm run build:mac:pkg",
+    "extension:package": "cd editors/vscode && npx @vscode/vsce package",
     "repl": "sesi",
     "example": "node --no-deprecation example.js",
     "example:ai": "node --no-deprecation example-ai.js",

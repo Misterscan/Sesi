@@ -1,0 +1,29 @@
+/* 
+  Example 29: Tool Piping and Composition
+
+  Demonstrates:
+    1. Chaining functions together using the pipe operator (|).
+    2. Passing data sequentially through multiple functions. 
+*/
+
+fn addTen(val) {
+  return val + 10
+}
+
+fn multiplyByTwo(val) {
+  return val * 2
+}
+
+fn formatResult(val) {
+  return "Final result: " + str(val)
+}
+
+print "=== Piping values through functions ==="
+
+/* 
+  5 goes into addTen(5) -> 15
+  15 goes into multiplyByTwo(15) -> 30
+  30 goes into formatResult(30) -> "Final result: 30"
+*/
+let output = 5 | addTen | multiplyByTwo | formatResult
+print output
