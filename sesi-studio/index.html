@@ -744,24 +744,58 @@
     });
 
     async function dbSaveChats() {
-      const db = await dbPromise;
-      const tx = db.transaction('chats', 'readwrite');
-      const store = tx.objectStore('chats');
-      // Clear all first to sync with memory (simple approach)
-      store.clear();
-      window.chats.forEach(chat => store.put(chat));
-      // Save active ID as well (using a special record or localStorage)
+      // 1. Save to local IndexedDB as local fallback/cache
+      try {
+        const db = await dbPromise;
+        const tx = db.transaction('chats', 'readwrite');
+        const store = tx.objectStore('chats');
+        store.clear();
+        window.chats.forEach(chat => store.put(chat));
+      } catch (err) {
+        console.error('IndexedDB save failed:', err);
+      }
       localStorage.setItem('activeChatId', window.activeChatId);
+
+      // 2. Persist to backend studio_copilot db
+      try {
+        await fetch('/api/chats/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chats: window.chats })
+        });
+      } catch (err) {
+        console.error('Backend database save failed:', err);
+      }
     }
 
     async function dbLoadChats() {
-      const db = await dbPromise;
-      return new Promise((resolve) => {
-        const tx = db.transaction('chats', 'readonly');
-        const store = tx.objectStore('chats');
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result);
-      });
+      // Try to load from backend studio_copilot db first
+      try {
+        const response = await fetch('/api/chats');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.chats && data.chats.length > 0) {
+            return data.chats;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load chats from backend, falling back to IndexedDB:', err);
+      }
+
+      // Fallback to local IndexedDB
+      try {
+        const db = await dbPromise;
+        return new Promise((resolve) => {
+          const tx = db.transaction('chats', 'readonly');
+          const store = tx.objectStore('chats');
+          const request = store.getAll();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => resolve([]);
+        });
+      } catch (err) {
+        console.error('IndexedDB load failed:', err);
+        return [];
+      }
     }
 
     // Load Monaco Editor
@@ -2886,6 +2920,7 @@
       try {
         const payload = {
           query,
+          sessionId: window.activeChatId,
           filePath: activeFilePath,
           fileContent: activeFilePath ? editor.getValue() : null
         };
