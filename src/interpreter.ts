@@ -272,6 +272,9 @@ export class Interpreter {
         case 'ImportStatement':
           await this.executeImport(statement);
           break;
+        case 'AllowStatement':
+          await this.executeAllow(statement);
+          break;
         case 'ExportStatement':
           await this.executeExport(statement);
           break;
@@ -785,6 +788,19 @@ export class Interpreter {
       }
     }
 
+    let stream: any | undefined;
+    if (expr.config?.stream) {
+      const raw = await this.evaluateExpression(expr.config.stream);
+      if (typeof raw === 'boolean') {
+        stream = raw;
+      } else if (typeof raw === 'object' && raw !== null && (raw as any).type === 'function') {
+        const sesiFn = raw as RuntimeFunction;
+        stream = async (chunk: string) => {
+          await this.callSesiFunction(sesiFn, [chunk]);
+        };
+      }
+    }
+
     const response = await aiRuntime.callModel({
       model: this.resolveModelName(expr.modelName),
       prompt: promptText,
@@ -794,6 +810,7 @@ export class Interpreter {
       thinkingLevel,
       cache,
       search,
+      stream,
     });
 
     return response.text;
@@ -908,8 +925,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     this.exports.set(name, val);
   }
 
-  private async executeImport(stmt: import('./types').ImportStatement): Promise<void> {
-    const source = stmt.source;
+  private async getModuleExports(source: string): Promise<Map<string, RuntimeValue>> {
     let moduleExports: Map<string, RuntimeValue> | null = null;
 
     if (source.startsWith('std/')) {
@@ -959,7 +975,6 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       const parser = new Parser(lexer.scanTokens());
       const program = parser.parse();
 
-      // Sub-interpreter inherits the resolved module's own directory so its imports also resolve correctly
       const subInterpreter = new Interpreter(path.dirname(resolvedPath), {
         safeMode: this.safeMode,
         allowLocalFs: this.allowLocalFs,
@@ -974,6 +989,12 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       throw new Error(`Failed to load module: ${source}`);
     }
 
+    return moduleExports;
+  }
+
+  private async executeImport(stmt: import('./types').ImportStatement): Promise<void> {
+    const moduleExports = await this.getModuleExports(stmt.source);
+
     if (stmt.names.length === 1 && stmt.names[0] === stmt.names[0].toLowerCase() && !moduleExports.has(stmt.names[0])) {
       const nsObj: any = {};
       for (const [key, val] of moduleExports.entries()) {
@@ -983,7 +1004,26 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     } else {
       for (const name of stmt.names) {
         if (!moduleExports.has(name)) {
-          throw new Error(`Module "${source}" does not export "${name}"`);
+          throw new Error(`Module "${stmt.source}" does not export "${name}"`);
+        }
+        this.currentEnv.define(name, moduleExports.get(name)!);
+      }
+    }
+  }
+
+  private async executeAllow(stmt: import('./types').AllowStatement): Promise<void> {
+    const moduleExports = await this.getModuleExports(stmt.source);
+
+    if (typeof stmt.binding === 'string') {
+      const nsObj: any = {};
+      for (const [key, val] of moduleExports.entries()) {
+        nsObj[key] = val;
+      }
+      this.currentEnv.define(stmt.binding, nsObj);
+    } else {
+      for (const name of stmt.binding) {
+        if (!moduleExports.has(name)) {
+          throw new Error(`Module "${stmt.source}" does not export "${name}"`);
         }
         this.currentEnv.define(name, moduleExports.get(name)!);
       }

@@ -8,42 +8,39 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.5.3
+Sesi Programming Language v1.5.5
 
 Usage:
   sesi <file> [options] <args>  Run a Sesi program
+  sesi -l                Run a Sesi program with local file access
   sesi -e "code"         Evaluate Sesi code directly
   sesi -h <query>        Ask for help from our Sesi Co-Pilot
-  sesi --studio          Launch Sesi Studio IDE
+  sesi -s                Launch Sesi Studio IDE
   sesi --repl            Start interactive Sesi REPL
   sesi -v                Show version
-  sesi -enc <file> -p <password>   Encrypt a file
-  sesi -dec <file> -p <password>   Decrypt a file
+  sesi -enc <file>       Encrypt a file
+  sesi -dec <file>       Decrypt a file
   sesi -r <file>         Show the raw parser output
+  sesi -c <file>         Check syntax of a file
+  sesi --ast <file>      Show the AST of a file
+  sesi --tokens <file>   Show the tokens of a file
 
   Options:
+  -v --version           Show version
   --repl                 Start interactive Sesi REPL
   -l, --local            Disable safe mode (careful!)
-  -a, --allowed-paths <p> Comma-separated list of allowed directories
-  -e, --eval "<code_to_run>" Evaluate Sesi code directly
-  -enc, --encrypt <file> Encrypt a file
-  -dec, --decrypt <file> Decrypt a file
-  -p, --password <pass>  Password for encryption/decryption
+  -a, --allowed-paths    Comma-separated list of allowed directories
+  -e, --eval             Evaluate Sesi code directly
+  -enc, --encrypt        Encrypt a file
+  -dec, --decrypt        Decrypt a file
+  -p, --password         Password for encryption/decryption
   -v, --version          Show version
   -h, --help             Show this help
   -r, --raw              Show the raw parser output
   -s, --studio           Launch Sesi Studio IDE
   -c, --check, --dry     Perform a dry-run syntax check without executing
-
-Examples:
-  sesi --repl
-  sesi examples/main/01_hello.sesi
-  sesi main/tests/test_args.sesi arg1 arg2
-  sesi -e "print 'hello'"
-  sesi -h "how do I use memory?"
-  sesi -r examples/main/01_hello.sesi
-  sesi -enc secret.sesi -p mypassword
-  sesi -dec secret.sesi -p mypassword
+  --ast                  Show the AST
+  --tokens               Show the tokens
 `;
 
 function parseArgs(args) {
@@ -70,7 +67,7 @@ function parseArgs(args) {
     const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
 
     if (arg === '-v' || arg === '--version') {
-      console.log('Sesi v1.5.3');
+      console.log('Sesi v1.5.5');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -138,7 +135,7 @@ async function startRepl() {
 
   const interpreter = new Interpreter(process.cwd(), parsed.sesiOptions);
 
-  console.log('Sesi Interactive REPL (v1.5.3)');
+  console.log('Sesi Interactive REPL (v1.5.5)');
   console.log('Type ".exit" or press Ctrl+C to exit.');
 
   const rl = readline.createInterface({
@@ -255,19 +252,12 @@ async function main() {
   }
 
   if (parsed.helpQuery) {
-    if (!fs.existsSync('.ai-ignore')) {
-      fs.mkdirSync('.ai-ignore', { recursive: true });
-    }
-    fs.writeFileSync('.ai-ignore/query.txt', parsed.helpQuery, 'utf-8');
+    parsed.sesiOptions.args = [parsed.helpQuery];
     if (parsed.helpFile) {
-      const resolvedFile = path.resolve(parsed.helpFile);
-      const fileContext = fs.readFileSync(resolvedFile, 'utf-8');
-      fs.writeFileSync('.ai-ignore/help_context.txt', `File: ${resolvedFile}\n\n${fileContext}`, 'utf-8');
-    } else if (fs.existsSync('.ai-ignore/help_context.txt')) {
-      fs.unlinkSync('.ai-ignore/help_context.txt');
+      parsed.sesiOptions.args.push(path.resolve(parsed.helpFile));
     }
     const copilotPath = path.join(__dirname, '../chatbot/sesi_db_chatbot.sesi');
-    await runSesiFile(copilotPath).catch((error) => {
+    await runSesiFile(copilotPath, parsed.sesiOptions).catch((error) => {
       console.error('Fatal error in Sesi Co-Pilot:', error.message);
       process.exit(1);
     });

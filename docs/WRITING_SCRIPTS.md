@@ -273,6 +273,24 @@ greet()
 greet("Sesi")
 ```
 
+### Piping and Function Composition
+
+Sesi supports the piping operator (`|`) to compose function calls and tool executions cleanly, flowing the output of the left expression into the first argument of the right function call.
+
+```sesi
+fn add(a, b) {
+  return a + b
+}
+
+fn mul(a, b) {
+  return a * b
+}
+
+// Flow 10 as first parameter into add(5), and then flow the result into mul(2)
+let result = 10 | add(5) | mul(2)
+print result // Prints 30
+```
+
 ---
 
 ## 8. Working with Arrays and Objects
@@ -289,12 +307,45 @@ print join(tasks, ", ")
 print pop(tasks)
 ```
 
+### Array Processing Functions
+
+Sesi provides standard functional primitives to transform, filter, and aggregate arrays:
+
+- **`map(array, callback)`**: Transforms each element of an array using a callback function.
+- **`filter(array, callback)`**: Selects elements that satisfy a condition.
+- **`reduce(array, callback, initialValue = null)`**: Accumulates array values into a single result.
+- **`find(array, callback)`**: Finds the first element matching a condition.
+- **`slice(array, start, end = null)`**: Extracts a portion of an array.
+
+```sesi
+let numbers = [1, 2, 3, 4, 5, 6]
+
+// 1. map
+fn square(x) { return x * x }
+let squares = map(numbers, square) // [1, 4, 9, 16, 25, 36]
+
+// 2. filter
+fn isEven(x) { return x % 2 == 0 }
+let evens = filter(numbers, isEven) // [2, 4, 6]
+
+// 3. reduce
+fn sum(acc, x) { return acc + x }
+let total = reduce(numbers, sum) // 21
+
+// 4. find
+fn greaterThanFour(x) { return x > 4 }
+let match = find(numbers, greaterThanFour) // 5
+
+// 5. slice
+let subArray = slice(numbers, 1, 4) // [2, 3, 4]
+```
+
 Objects are useful for configuration and structured records.
 
 ```sesi
 let app = {
   "name": "Sesi",
-  "version": "1.5"
+  "version": "1.5.5"
 }
 
 for key in keys(app) {
@@ -314,7 +365,32 @@ print decoded["theme"]
 
 ---
 
-## 9. Reading, Writing, and Listing Files
+## 9. Working with Strings
+
+Sesi provides native string utilities to format, transform, and slice text:
+
+- **`to_upper(string)`**: Converts a string to uppercase.
+- **`to_lower(string)`**: Converts a string to lowercase.
+- **`trim(string)`**: Removes leading and trailing whitespace.
+- **`swap(string, target, replacement)`**: Replaces all occurrences of a target substring with a replacement substring.
+- **`slice(string, start, end = null)`**: Extracts a section of a string.
+- **`contains(string, sub)`**: Returns `true` if the string contains the given substring.
+- **`locate(string, sub)`**: Returns the zero-based index of the first occurrence of a substring, or `-1` if not found.
+
+```sesi
+let original = "  Hello, Sesi V2.0!  "
+
+let cleaned = trim(original)                   // "Hello, Sesi V2.0!"
+let shouted = to_upper(cleaned)                // "HELLO, SESI V2.0!"
+let part = slice(cleaned, 7, 11)               // "Sesi"
+let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V2.0!"
+let found = contains(cleaned, "Sesi")          // true
+let idx = locate(cleaned, "Sesi")             // 7
+```
+
+---
+
+## 10. Reading, Writing, and Listing Files
 
 Sesi file paths are resolved relative to the current working directory unless you provide another allowed path.
 
@@ -354,7 +430,7 @@ try {
 
 ---
 
-## 10. Converting Files and Content
+## 11. Converting Files and Content
 
 Use `convert` for supported document, media, or audio conversions.
 
@@ -372,7 +448,33 @@ print "Wrote:" outPath
 
 ---
 
-## 11. Calling APIs
+## 12. Error Recovery and retrying
+
+Sesi provides the `retry(action, options)` built-in function to handle temporary execution failures (e.g. flaky network requests, filesystem contention) automatically with configurable exponential backoff.
+
+```sesi
+let attempts = 0
+fn flaky_task() {
+  attempts = attempts + 1
+  if attempts < 3 {
+    raise_error("FlakyError", "Network timeout")
+  }
+  return "success"
+}
+
+// Retries the flaky task with options
+let result = retry(flaky_task, {
+  "max_retries": 3,
+  "initial_delay": 500,
+  "backoff_factor": 2.0
+})
+
+print "Result:" result // Prints "success" after 2 retries
+```
+
+---
+
+## 13. Calling APIs
 
 Use `web_get` for HTTP GET requests.
 
@@ -409,7 +511,7 @@ try {
 
 ---
 
-## 12. Running Shell Commands and Processes
+## 14. Running Shell Commands and Processes
 
 Use `exec` when you need to call an existing command and capture its output.
 
@@ -447,7 +549,7 @@ Treat `-l` as an explicit trust boundary. Use it for your own scripts, not for c
 
 ---
 
-## 13. Parallel Work
+## 15. Parallel Work
 
 Use `multi_req` to run multiple Sesi functions at the same time and collect their results.
 
@@ -469,7 +571,7 @@ This pattern is useful for independent API calls, independent checks, or work th
 
 ---
 
-## 14. Optional Reasoning in Scripts
+## 16. Optional Reasoning in Scripts
 
 Reasoning is optional. Use it when a task benefits from classification, summarization, extraction, or generation.
 
@@ -480,6 +582,24 @@ let text = read_file("notes.txt")
 let summary = model("gemini-3.1-flash-lite") {"Summarize this in 3 bullets:" text}
 
 print summary
+```
+
+### Streaming Responses
+
+You can stream model responses chunk-by-chunk in real-time by adding a `stream` option to the model configuration block.
+
+- Set `stream: true` to output directly to the terminal stdout in real-time.
+- Set `stream: callback` to pass each chunk as it arrives to a custom function.
+
+```sesi
+// Option 1: Stream directly to stdout
+let resp1 = model("gemini-3.1-flash-lite") {stream: true} {"Write a short poem about antigravity."}
+
+// Option 2: Handle chunks using a callback function
+fn onChunk(chunk) {
+  print "Chunk received:" chunk
+}
+let resp2 = model("gemini-3.1-flash-lite") {stream: onChunk} {"Explain quantum mechanics."}
 ```
 
 Use `prompt` blocks to compose readable prompts from strings and variables.
@@ -534,7 +654,7 @@ Reasoning calls require a configured provider key, such as `GEMINI_API_KEY`, whe
 
 ---
 
-## 15. Modules and Reuse
+## 17. Modules and Reuse
 
 Split larger scripts into modules with `export` and `import`.
 
@@ -565,16 +685,32 @@ Sesi also includes standard library modules:
 import {PI, sqrt} from "std/math"
 import {now, sleep} from "std/time"
 import {parse, stringify} from "std/json"
+import {db_open} from "std/db"
 
 print "sqrt(9):" sqrt(9)
 print "Current time:" now()
+```
+
+### Scoped Namespace Imports (`allow`)
+
+You can import standard modules or custom library namespaces into scoped objects using the `allow` keyword:
+
+```sesi
+// Import entire math module under a single Namespace
+allow "std/math" in with Math
+print "PI constant:" Math.PI
+
+// Import specific exports into a scoped block
+allow "std/json" in with {stringify, parse}
+let original = {"project": "Sesi", "version": "1.5.5"}
+print stringify(original)
 ```
 
 Module resolution also supports configured library paths through `SESI_PATH` and the global `~/.sesi/lib` library directory.
 
 ---
 
-## 16. Debugging Scripts
+## 18. Debugging Scripts
 
 Start with a dry run when you only want to check syntax.
 
@@ -616,7 +752,7 @@ print "value length:" len(value)
 
 ---
 
-## 17. Encrypting Scripts
+## 19. Encrypting Scripts
 
 For encrypted private scripts, use the CLI encryption commands documented in the CLI reference.
 
@@ -629,42 +765,66 @@ You can set `SESI_PASSWORD` in your environment to avoid passing a password dire
 
 ---
 
-## 18. Complete Example: Daily Folder Report
+## 20. Interactive Input
 
-This script accepts a folder path, lists files, writes a JSON report, and optionally summarizes it with a model.
+Sesi provides the `input(prompt)` built-in function to query the user for data sequentially from standard input. This is useful for interactive command-line utilities.
+
+```sesi
+let name = input("What is your name? ")
+let age = input("What is your age? ")
+
+print "Hello," name "! You are" age "years old."
+```
+
+If you are running the script in a non-interactive environment or need to fall back when arguments are not provided:
+
+```sesi
+let queryText = ""
+if len(args) > 0 {
+  queryText = join(args, " ")
+} else {
+  queryText = input("Enter your question: ")
+}
+print "Processing query:" queryText
+```
+
+---
+
+## 21. Complete Example: Daily Folder Report
+
+This script accepts a folder path (falling back to interactive input if omitted), lists the files robustly using retries, writes a JSON report, and streams a summary using the AI model.
 
 `daily_report.sesi`:
 
 ```sesi
-if len(args) == 0 {
-  print "Usage: sesi daily_report.sesi <folder>"
+let folder = ""
+if len(args) > 0 {
+  folder = args[0]
 } else {
-  let folder = args[0]
-  let started = time()
-
-  try {
-    let files = list_dir(folder)
-    let report = {
-      "folder": folder,
-      "generated_at": started,
-      "file_count": len(files),
-      "files": files
-    }
-
-    make_dir("reports")
-    let output_path = "reports/daily_report.json"
-    write_file(output_path, to_json(report))
-
-    print "Wrote:" output_path
-    print "Files found:" len(files)
-
-    if len(files) > 0 {
-      print "First file:" files[0]
-    }
-  } catch (err) {
-    print "Could not create report:" err
-  }
+  folder = input("Enter folder path to analyze: ")
 }
+
+let started = time()
+
+// Define a robust folder analysis action
+fn run_analysis() {
+  let files = list_dir(folder)
+  let report = {
+    "folder": folder,
+    "generated_at": started,
+    "file_count": len(files),
+    "files": files
+  }
+
+  make_dir("reports")
+  let output_path = "reports/daily_report.json"
+  write_file(output_path, to_json(report))
+  return output_path
+}
+
+// Use retry for robust filesystem operations
+let report_path = retry(run_analysis, {"max_retries": 3, "initial_delay": 500})
+print "Wrote report to:" report_path
 ```
 
 Run it:
@@ -676,18 +836,25 @@ sesi daily_report.sesi ./docs
 Add reasoning only when needed:
 
 ```sesi
-let report_text = read_file("reports/daily_report.json")
-let summary = model("gemini-3.1-flash-lite") {"Summarize this folder report:" report_text}
-write_file("reports/daily_report_summary.txt", summary)
+// Read report path and stream the summary directly to terminal stdout
+let report_text = read_file(report_path)
+let summary = model("gemini-3.1-flash-lite") {stream: true} {"Summarize this folder report:
+  " report_text}
+try {
+  write_file("reports/daily_report_summary.txt", summary)
+  print "Summary saved to reports/daily_report_summary.txt"
+} catch (err) {
+  print "Analysis failed:" err
+}
 ```
 
 ---
 
-## 19. Practical Checklist
+## 22. Practical Checklist
 
 When writing a Sesi script, check these points before you call it done:
 
-- Does it validate `args` and print a clear usage message?
+- Does it validate `args` or use `input()` for interactive prompting?
 - Does it use `try/catch` around file, network, process, and model calls?
 - Does it write structured data with `to_json` instead of hand-built strings?
 - Does it use `-l` only when shell commands or broader paths are truly needed?

@@ -22,7 +22,7 @@ let siteData = {
   "stats": [
     {
       "label": "Language Version",
-      "value": "v1.5.3"
+      "value": "v1.5.5"
     },
     {
       "label": "Test Coverage",

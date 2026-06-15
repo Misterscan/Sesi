@@ -8,13 +8,13 @@ print exec("sesi examples/main/05_loops.sesi")
 print exec("sesi examples/main/06_arrays_objects.sesi")
 print exec("sesi examples/main/07_prompts.sesi")
 print exec("sesi examples/optional/08_model_call.sesi")
-print "Halfway there..."
 print exec("sesi examples/main/09_structured_output.sesi")
 print exec("sesi examples/optional/10_code_generation.sesi")
 print exec("sesi examples/main/11_memory_storage.sesi")
 print exec("sesi examples/main/12_classification.sesi")
 print exec("sesi examples/main/13_data_pipeline.sesi")
 print exec("sesi examples/optional/14_folder_explainer.sesi")
+print "Halfway there..."
 print "Image generation example may take a while..."
 print exec("sesi examples/optional/15_image_generation.sesi")
 print "Done! Moving on..."
@@ -22,13 +22,18 @@ print exec("sesi examples/main/16_modules.sesi")
 print exec("sesi examples/main/17_http_client.sesi")
 print exec("sesi examples/main/18_parallel_requests.sesi")
 print exec("sesi examples/main/19_search_web.sesi")
-print "Now for the final examples!"
 print exec("sesi examples/optional/20_model_aliases.sesi")
 print exec("sesi examples/main/21_custom_tools.sesi")
 print exec("sesi examples/optional/22_reasoning_plus_custom_tools.sesi")
 print exec("sesi examples/main/23_file_conversion.sesi")
 print exec("sesi examples/main/24_http_server.sesi -l")
+print exec("sesi examples/main/25_webpage_server.sesi -l")
+print "Now for the final examples!"
 print exec("sesi examples/main/26_database.sesi -l")
+print exec("sesi examples/main/27_robust_web_db.sesi -l")
+print exec("sesi examples/optional/28_streaming.sesi")
+print exec("sesi examples/main/29_tool_piping.sesi")
+print exec("sesi examples/main/30_error_recovery.sesi")
 print "All done! No errors means Sesi is ready!"}
 catch (error) {
 print "An error occurred:" error}

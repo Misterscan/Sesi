@@ -25,10 +25,121 @@ calculate("multiply", 5, 3)
 
 // Define your functions and call it using a custom tool
 fn getSesi() {
-    return "1.5.3"
+    return "1.5.5"
 }
 
 define_tool("get-sesi", getSesi, "Get the current Sesi version")
 let v = tool_call(getSesi)() // or simply getSesi() since tool_call is optional for direct calls
 
 print "Current version:" v
+
+/* 
+    This section demonstrates the use of Sesi's built-in array functions:
+    1. map: Transform elements of an array.
+    2. filter: Select elements of an array based on a condition.
+    3. reduce: Accumulate elements of an array.
+    4. find: Find the first element matching a condition.
+    
+    And string functions:
+    1. to_upper: Convert string to uppercase.
+    2. to_lower: Convert string to lowercase.
+    3. trim: Trim leading and trailing whitespace.
+    4. slice: Extract a substring or sub-array.
+    5. swap: Global string replacement.
+    6. contains: Check if a string contains a substring.
+    7. locate: Find the first index of a substring (-1 if not found).
+*/
+let numbers = [1, 2, 3, 4, 5, 6]
+print "Initial numbers:" numbers
+
+/* 
+  1. map(array, callback)
+  Transform each number to its square
+*/
+fn square(x) {
+  return x * x
+}
+let squares = map(numbers, square)
+print "Squares (map):" squares
+
+/*
+  2. filter(array, callback)
+  Filter for even numbers
+*/
+fn isEven(x) {
+  return x % 2 == 0
+}
+let evens = filter(numbers, isEven)
+print "Evens (filter):" evens
+
+/*
+  3. reduce(array, callback, initialValue)
+  Sum all numbers with no initial value
+*/
+fn sum(accumulator, x) {
+  return accumulator + x
+}
+let totalSum = reduce(numbers, sum)
+print "Total Sum (reduce):" totalSum
+
+// Product of all numbers starting with initial value of 10
+fn multiply(accumulator, x) {
+  return accumulator * x
+}
+let product = reduce(numbers, multiply, 10)
+print "Product starting with 10 (reduce):" product
+
+/*
+  4. find(array, callback)
+  Find the first number greater than 4
+*/
+fn greaterThanFour(x) {
+  return x > 4
+}
+let match = find(numbers, greaterThanFour)
+print "First match > 4 (find):" match
+
+// String functions
+
+let original = "  Hello, Sesi V2.0!  "
+print "Original string:" original
+
+// 1. to_upper(string)
+let shouted = to_upper(original)
+print "Uppercase:" shouted
+
+// 2. to_lower(string)
+let whispered = to_lower(original)
+print "Lowercase:" whispered
+
+// 3. trim(string)
+let cleaned = trim(original)
+print "Trimmed:" cleaned
+
+/* 
+    4. slice(collection, start, end = null)
+    Slicing a string
+*/
+let part = slice(cleaned, 7, 11) // "Sesi"
+print "Sliced string (index 7 to 11):" part
+
+// Slicing an array
+let arr = [10, 20, 30, 40, 50]
+let subArr = slice(arr, 1, 4) // [20, 30, 40]
+print "Original array:" arr
+print "Sliced array (index 1 to 4):" subArr
+
+/* 
+    5. swap(string, target, replacement)
+    Global replacement of characters
+*/
+let replaced = swap(cleaned, " ", "_")
+print "Replaced spaces with underscores:" replaced
+
+// 6. contains(string, sub)
+let hasVersion = contains(cleaned, "V2.0")
+print "Contains 'V2.0':" hasVersion
+
+// 7. locate(string, sub)
+let idx = locate(cleaned, "Sesi")
+print "Index of 'Sesi':" idx

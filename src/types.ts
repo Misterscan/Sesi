@@ -37,6 +37,8 @@ export type TokenType =
   | 'CONVERT'
   | 'ASYNC'
   | 'AWAIT'
+  | 'ALLOW'
+  | 'WITH'
   // Operators
   | 'PLUS'
   | 'MINUS'
@@ -105,6 +107,7 @@ export type Statement =
   | ContinueStatement
   | TryStatement
   | ImportStatement
+  | AllowStatement
   | ExportStatement
   | MemoryStatement;
 
@@ -206,6 +209,13 @@ export interface ImportStatement {
   type: 'ImportStatement';
   names: string[];
   source: string;
+  line: number;
+}
+
+export interface AllowStatement {
+  type: 'AllowStatement';
+  source: string;
+  binding: string | string[]; // string for namespace, string[] for list of functions
   line: number;
 }
 
@@ -516,6 +526,7 @@ export interface AIRequest {
   thinkingLevel?: { thinking?: string; level?: string };
   cache?: boolean;
   search?: boolean;
+  stream?: boolean | ((chunk: string) => void | Promise<void>);
 }
 
 export interface AIResponse {

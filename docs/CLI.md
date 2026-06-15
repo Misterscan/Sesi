@@ -193,7 +193,7 @@ sesi
 Inside the REPL, any **Expression Statement** (like mathematical equations, string variables, or expressions) will auto-print its evaluated result to the terminal.
 
 ```sesi
-Sesi Interactive REPL (v1.5.3)
+Sesi Interactive REPL (v1.5.5)
 Type ".exit" or press Ctrl+C to exit.
 sesi> let x = 10
 sesi> let y = 20
@@ -204,7 +204,24 @@ sesi> .exit
 
 ---
 
-## 🛠️ 7. Package.json Script Shortcuts
+## 📥 7. Interactive Console Input (`input`)
+
+Sesi scripts can pause execution and prompt the user for interactive console inputs step-by-step using the built-in `input()` function.
+
+### Example
+
+```sesi
+let name = input("What is your name? ")
+let age = input("What is your age? ")
+
+print "User info:" name "is" age "years old"
+```
+
+When executing this script in the terminal, Sesi will print the prompts sequentially, waiting for you to type your response and press **Enter** before proceeding to the next statement.
+
+---
+
+## 🛠️ 8. Package.json Script Shortcuts
 
 If you are working inside the Sesi repository, you can leverage native package manager shortcuts defined in `package.json` to execute, parse, or encrypt scripts:
 

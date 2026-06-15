@@ -124,6 +124,31 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     }
   });
 
+  builtins.set('input', {
+    type: 'function',
+    name: 'input',
+    params: [],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const promptText = args[0] !== undefined ? stringify(args[0]) : '';
+      const readline = require('readline');
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+
+      return new Promise<RuntimeValue>((resolve, reject) => {
+        rl.question(promptText, (answer: string) => {
+          rl.close();
+          resolve(answer);
+        });
+      });
+    }
+  });
+
+
   builtins.set('len', {
     type: 'function',
     name: 'len',
@@ -339,6 +364,105 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (str: RuntimeValue, sep: RuntimeValue): RuntimeValue => {
       if (typeof str !== 'string' || typeof sep !== 'string') return null;
       return str.split(sep);
+    },
+  });
+
+  builtins.set('to_upper', {
+    type: 'function',
+    name: 'to_upper',
+    params: [{ name: 'string' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (str: RuntimeValue): RuntimeValue => {
+      if (typeof str !== 'string') return null;
+      return str.toUpperCase();
+    },
+  });
+
+  builtins.set('to_lower', {
+    type: 'function',
+    name: 'to_lower',
+    params: [{ name: 'string' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (str: RuntimeValue): RuntimeValue => {
+      if (typeof str !== 'string') return null;
+      return str.toLowerCase();
+    },
+  });
+
+  builtins.set('trim', {
+    type: 'function',
+    name: 'trim',
+    params: [{ name: 'string' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (str: RuntimeValue): RuntimeValue => {
+      if (typeof str !== 'string') return null;
+      return str.trim();
+    },
+  });
+
+  builtins.set('slice', {
+    type: 'function',
+    name: 'slice',
+    params: [
+      { name: 'collection' },
+      { name: 'start' },
+      { name: 'end', defaultValue: null as any }
+    ],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (...args: RuntimeValue[]): RuntimeValue => {
+      const [collection, start, end] = args;
+      if (typeof collection !== 'string' && !Array.isArray(collection)) return null;
+      if (typeof start !== 'number') return null;
+      const s = start;
+      const e = (typeof end === 'number') ? end : undefined;
+      return collection.slice(s, e);
+    },
+  });
+
+  builtins.set('swap', {
+    type: 'function',
+    name: 'swap',
+    params: [{ name: 'string' }, { name: 'target' }, { name: 'replacement' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (str: RuntimeValue, target: RuntimeValue, replacement: RuntimeValue): RuntimeValue => {
+      if (typeof str !== 'string' || typeof target !== 'string' || typeof replacement !== 'string') return null;
+      return str.split(target).join(replacement);
+    },
+  });
+
+  builtins.set('contains', {
+    type: 'function',
+    name: 'contains',
+    params: [{ name: 'string' }, { name: 'sub' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (str: RuntimeValue, sub: RuntimeValue): RuntimeValue => {
+      if (typeof str !== 'string' || typeof sub !== 'string') return null;
+      return str.includes(sub);
+    },
+  });
+
+  builtins.set('locate', {
+    type: 'function',
+    name: 'locate',
+    params: [{ name: 'string' }, { name: 'sub' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (str: RuntimeValue, sub: RuntimeValue): RuntimeValue => {
+      if (typeof str !== 'string' || typeof sub !== 'string') return null;
+      return str.indexOf(sub);
     },
   });
 
@@ -1013,6 +1137,201 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       };
 
       return serverObj;
+    }
+  });
+
+  builtins.set('retry', {
+    type: 'function',
+    name: 'retry',
+    params: [
+      { name: 'action' },
+      { name: 'options', defaultValue: null as any }
+    ],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const [actionVal, optionsVal] = args;
+      if (typeof actionVal !== 'object' || actionVal === null || (actionVal as any).type !== 'function') {
+        throw new Error('retry expects first argument to be a function');
+      }
+      if (!interpreter) {
+        throw new Error('retry interpreter reference is missing');
+      }
+
+      let maxRetries = 3;
+      let initialDelay = 1000;
+      let backoffFactor = 2.0;
+
+      if (optionsVal && typeof optionsVal === 'object' && !Array.isArray(optionsVal)) {
+        const opts = optionsVal as Record<string, RuntimeValue>;
+        if (typeof opts.max_retries === 'number') maxRetries = opts.max_retries;
+        if (typeof opts.initial_delay === 'number') initialDelay = opts.initial_delay;
+        if (typeof opts.backoff_factor === 'number') backoffFactor = opts.backoff_factor;
+      } else if (typeof optionsVal === 'number') {
+        maxRetries = optionsVal;
+      }
+
+      let lastError: any = null;
+      let delay = initialDelay;
+
+      for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+        try {
+          let res = await interpreter.callSesiFunction(actionVal as RuntimeFunction, []);
+          if (typeof res === 'object' && res !== null && (res as any).type === 'promise') {
+            res = await (res as any).promise;
+          }
+          return res;
+        } catch (e: any) {
+          lastError = e;
+          if (attempt > maxRetries) {
+            break;
+          }
+          console.warn(`Attempt ${attempt} failed: ${e.message || e}. Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay = Math.round(delay * backoffFactor);
+        }
+      }
+
+      throw lastError || new Error('retry failed');
+    }
+  });
+
+  builtins.set('map', {
+    type: 'function',
+    name: 'map',
+    params: [{ name: 'array' }, { name: 'callback' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (array: RuntimeValue, callback: RuntimeValue): Promise<RuntimeValue> => {
+      if (!Array.isArray(array)) {
+        throw new Error('map expects first argument to be an array');
+      }
+      if (typeof callback !== 'object' || callback === null || (callback as any).type !== 'function') {
+        throw new Error('map expects second argument to be a function');
+      }
+      if (!interpreter) {
+        throw new Error('map interpreter reference is missing');
+      }
+
+      const result: RuntimeValue[] = [];
+      for (let i = 0; i < array.length; i++) {
+        let val = await interpreter.callSesiFunction(callback as RuntimeFunction, [array[i], i, array]);
+        if (typeof val === 'object' && val !== null && (val as any).type === 'promise') {
+          val = await (val as any).promise;
+        }
+        result.push(val);
+      }
+      return result;
+    }
+  });
+
+  builtins.set('filter', {
+    type: 'function',
+    name: 'filter',
+    params: [{ name: 'array' }, { name: 'callback' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (array: RuntimeValue, callback: RuntimeValue): Promise<RuntimeValue> => {
+      if (!Array.isArray(array)) {
+        throw new Error('filter expects first argument to be an array');
+      }
+      if (typeof callback !== 'object' || callback === null || (callback as any).type !== 'function') {
+        throw new Error('filter expects second argument to be a function');
+      }
+      if (!interpreter) {
+        throw new Error('filter interpreter reference is missing');
+      }
+
+      const result: RuntimeValue[] = [];
+      for (let i = 0; i < array.length; i++) {
+        let val = await interpreter.callSesiFunction(callback as RuntimeFunction, [array[i], i, array]);
+        if (typeof val === 'object' && val !== null && (val as any).type === 'promise') {
+          val = await (val as any).promise;
+        }
+        if (isTruthy(val)) {
+          result.push(array[i]);
+        }
+      }
+      return result;
+    }
+  });
+
+  builtins.set('reduce', {
+    type: 'function',
+    name: 'reduce',
+    params: [
+      { name: 'array' },
+      { name: 'callback' },
+      { name: 'initialValue', defaultValue: undefined as any }
+    ],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const [array, callback, initialValue] = args;
+      if (!Array.isArray(array)) {
+        throw new Error('reduce expects first argument to be an array');
+      }
+      if (typeof callback !== 'object' || callback === null || (callback as any).type !== 'function') {
+        throw new Error('reduce expects second argument to be a function');
+      }
+      if (!interpreter) {
+        throw new Error('reduce interpreter reference is missing');
+      }
+
+      let accumulator = initialValue;
+      let startIndex = 0;
+
+      if (args.length < 3) {
+        if (array.length === 0) {
+          throw new Error('reduce of empty array with no initial value');
+        }
+        accumulator = array[0];
+        startIndex = 1;
+      }
+
+      for (let i = startIndex; i < array.length; i++) {
+        let val = await interpreter.callSesiFunction(callback as RuntimeFunction, [accumulator, array[i], i, array]);
+        if (typeof val === 'object' && val !== null && (val as any).type === 'promise') {
+          val = await (val as any).promise;
+        }
+        accumulator = val;
+      }
+      return accumulator;
+    }
+  });
+
+  builtins.set('find', {
+    type: 'function',
+    name: 'find',
+    params: [{ name: 'array' }, { name: 'callback' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (array: RuntimeValue, callback: RuntimeValue): Promise<RuntimeValue> => {
+      if (!Array.isArray(array)) {
+        throw new Error('find expects first argument to be an array');
+      }
+      if (typeof callback !== 'object' || callback === null || (callback as any).type !== 'function') {
+        throw new Error('find expects second argument to be a function');
+      }
+      if (!interpreter) {
+        throw new Error('find interpreter reference is missing');
+      }
+
+      for (let i = 0; i < array.length; i++) {
+        let val = await interpreter.callSesiFunction(callback as RuntimeFunction, [array[i], i, array]);
+        if (typeof val === 'object' && val !== null && (val as any).type === 'promise') {
+          val = await (val as any).promise;
+        }
+        if (isTruthy(val)) {
+          return array[i];
+        }
+      }
+      return null;
     }
   });
 

@@ -176,6 +176,56 @@ async function main() {
     }
   }
 
+  // Test 7: Multiline imports
+  const int7 = new Interpreter();
+  await runTest('Import statement with newlines', `
+    import {
+      PI,
+      sqrt
+    }
+    from
+    "std/math"
+    let pVal = PI
+    let sVal = sqrt(9)
+  `, int7);
+  const pVal = (int7 as any).currentEnv.get('pVal');
+  const sVal = (int7 as any).currentEnv.get('sVal');
+  if (pVal === Math.PI && sVal === 3) {
+    console.log('  ✓ Multiline import syntax parsed and executed successfully');
+  } else {
+    console.error(`  ✗ Multiline import validation failed: pVal=${pVal}, sVal=${sVal}`);
+  }
+
+  // Test 8: Allow statement with namespace scoping
+  const int8 = new Interpreter();
+  await runTest('Allow statement with library namespace scoping', `
+    allow "std/math" in with Math
+    let piVal = Math.PI
+    let sVal = Math.sqrt(25)
+  `, int8);
+  const piVal8 = (int8 as any).currentEnv.get('piVal');
+  const sVal8 = (int8 as any).currentEnv.get('sVal');
+  if (piVal8 === Math.PI && sVal8 === 5) {
+    console.log('  ✓ allow "module" in with LibName scoping validated successfully');
+  } else {
+    console.error(`  ✗ allow namespace scoping validation failed: piVal8=${piVal8}, sVal8=${sVal8}`);
+  }
+
+  // Test 9: Allow statement with specific function imports
+  const int9 = new Interpreter();
+  await runTest('Allow statement with specific function imports', `
+    allow "std/math" in with { PI, sqrt }
+    let piVal = PI
+    let sVal = sqrt(36)
+  `, int9);
+  const piVal9 = (int9 as any).currentEnv.get('piVal');
+  const sVal9 = (int9 as any).currentEnv.get('sVal');
+  if (piVal9 === Math.PI && sVal9 === 6) {
+    console.log('  ✓ allow "module" in with { names } imports validated successfully');
+  } else {
+    console.error(`  ✗ allow named function imports validation failed: piVal9=${piVal9}, sVal9=${sVal9}`);
+  }
+
   console.log('\nAll module tests passed!');
 }
 

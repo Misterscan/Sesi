@@ -96,6 +96,12 @@ async function main() {
   await runTest('Pop function', 'let arr = [1, 2, 3]\nlet x = pop(arr)');
   await runTest('Join function', 'let s = join([1, 2, 3], "-")');
   await runTest('Split function', 'let arr = split("a,b,c", ",")');
+  await runTest('Upper function', 'let s = to_upper("hello")\nif s != "HELLO" { let err = missing_var }');
+  await runTest('Lower function', 'let s = to_lower("WORLD")\nif s != "world" { let err = missing_var }');
+  await runTest('Trim function', 'let s = trim("  spaces  ")\nif s != "spaces" { let err = missing_var }');
+  await runTest('Slice string function', 'let s = slice("abcdef", 1, 4)\nif s != "bcd" { let err = missing_var }');
+  await runTest('Slice array function', 'let arr = slice([10, 20, 30, 40], 2)\nif len(arr) != 2 || arr[0] != 30 { let err = missing_var }');
+  await runTest('Replace function', 'let s = swap("a_b_c", "_", "-")\nif s != "a-b-c" { let err = missing_var }');
   await runTest('Keys function', 'let k = keys({ "x": 1 })');
   await runTest('Values function', 'let v = values({ "x": 1 })');
   await runTest('Prompt expression', 'prompt test { "hello" }');

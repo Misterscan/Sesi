@@ -66,7 +66,7 @@ Sesi is built on these core principles:
 ### Module System
 
 - ✅ `import` / `export`
-- ✅ Namespace support
+- ✅ Lib support
 - ✅ Built-in modules
 - ✅ Multi-path module resolution (`SESI_PATH`, `~/.sesi/lib` global library)
 
@@ -201,7 +201,8 @@ object := '{' (string ':' expression (',' string ':' expression)*)? '}'
 ```
 expr := assignment
 assignment := logical_or ('=' assignment)?
-logical_or := logical_and ('||' logical_and)*
+logical_or := pipe ('||' pipe)*
+pipe := logical_and ('|' logical_and)*
 logical_and := equality ('&&' equality)*
 equality := comparison (('==' | '!=') comparison)*
 comparison := addition (('<' | '>' | '<=' | '>=' | '<>') addition)*
@@ -253,6 +254,7 @@ config_entry := (STRING | identifier) ':' expression
 | `ratio`         | `image`          | `string`                  | Aspect ratio e.g. `"16:9"`                                                 |
 | `size`          | `image`          | `string`                  | `"512"`, `"1K"`, `"2K"`, `"4K"`                                            |
 | `images`        | `model`, `image` | `string \| array<string>` | Local file path(s) passed as visual input                                  |
+| `stream`        | `model`          | `bool \| fn`              | Enable real-time streaming to stdout (`true`) or a callback function       |
 
 Example:
 
@@ -311,7 +313,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.5.3\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.5.5\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -326,6 +328,23 @@ Example (Native Sandboxed Dispatch):
 ```sesi
 fn add(a: number, b: number) -> number { return a + b }
 let sum = tool_call(add)(10, 20)
+```
+
+#### Pipe Operator
+
+The pipe operator `|` passes the result of the left expression as the first argument to the function call on the right.
+
+```
+pipe_expr := expression '|' function_call_or_identifier
+```
+
+Example:
+
+```sesi
+fn increment(x) { return x + 1 }
+fn double(x) { return x * 2 }
+
+let result = 5 | increment | double // evaluates to 12
 ```
 
 #### Memory (State Management)
@@ -406,6 +425,18 @@ push(array, any)              // Add element
 pop(array) -> any             // Remove last
 join(array, string) -> string // Join with separator
 split(string, string) -> array // Split by separator
+to_upper(string) -> string       // Convert to uppercase
+to_lower(string) -> string       // Convert to lowercase
+trim(string) -> string        // Trim whitespace
+slice(collection, number, number?) -> collection // Slice string or array
+swap(string, string, string) -> string // Replace all target substrings
+contains(string, string) -> bool       // Check if string contains substring
+locate(string, string) -> number       // First index of substring, or -1
+map(array, fn) -> array       // Transform array elements
+filter(array, fn) -> array    // Filter array elements
+reduce(array, fn, any?) -> any // Accumulate array elements
+find(array, fn) -> any        // Find matching element
+retry(fn, number | object) -> any // Execute function with retry and backoff
 read_file(string) -> string    // Read file contents
 write_file(string, string) -> bool // Write file contents
 write_image(string, string) -> bool // Write base64 image data to file
@@ -425,7 +456,7 @@ convert() -> bool                 // Convert between formats
 
 ## 9. Module System
 
-Runtime module execution and standard namespace modules are fully implemented and natively supported in v1.x.
+Runtime module execution and standard library modules are fully implemented and natively supported in v1.x.
 
 ### Defining Modules
 
@@ -438,8 +469,19 @@ export let PI = 3.14159
 
 ### Importing Modules
 
+You can import variables and functions from other modules using traditional `import` or the scoped library `allow` syntax:
+
 ```sesi
+// Option 1: import named bindings directly
 import {add, multiply, PI} from "math"
+let result = add(10, 20)
+
+// Option 2: allow module to bind under a scoped library namespace
+allow "math" in with Math
+let result = Math.add(10, 20)
+
+// Option 3: allow module to bind specific names directly
+allow "math" in with { add, multiply }
 let result = add(10, 20)
 ```
 
@@ -536,6 +578,7 @@ print "Image written to logo.png"
 - **`max_tokens`**: `number` (maximum response tokens)
 - **`images`**: `string` or `array<string>` (paths to multimodal vision input files)
 - **`cache`**: `bool` (set to `false` to explicitly bypass Sesi Logic Caching)
+- **`stream`**: `bool | fn` (set to `true` to stream tokens to standard output, or pass a Sesi function reference to handle incoming chunks)
 - **`temperature`**: _ Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
 - **`top_k` / `top_p`**: _ Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
 

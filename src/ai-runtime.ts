@@ -112,7 +112,15 @@ export class AIRuntime {
       const cache = this.readCache();
       if (cache[cacheHash]) {
         console.log('⚡ [Sesi Logic Cache] Served from local cache');
-        return cache[cacheHash];
+        const cachedRes = cache[cacheHash];
+        if (request.stream) {
+          if (typeof request.stream === 'function') {
+            await request.stream(cachedRes.text);
+          } else if (request.stream === true) {
+            process.stdout.write(cachedRes.text);
+          }
+        }
+        return cachedRes;
       }
     }
 
@@ -216,6 +224,7 @@ export class AIRuntime {
       }
 
       let accumulatedText = '';
+      let streamText = '';
       let currentFinishReason = '';
       let isComplete = false;
       let totalInputTokens = 0;
@@ -256,11 +265,70 @@ export class AIRuntime {
           genConfig.thinkingConfig = thinkingConfig;
         }
 
-        const response = await client.models.generateContent({
-          model: request.model,
-          contents: contents,
-          config: genConfig,
-        });
+        let response: any;
+        if (request.stream) {
+          const responseStream = await client.models.generateContentStream({
+            model: request.model,
+            contents: contents,
+            config: genConfig,
+          });
+
+          streamText = '';
+          let lastCandidate: any = null;
+          let usageMetadata: any = null;
+          let toolCalls: any[] = [];
+
+          for await (const chunk of responseStream) {
+            const chunkText = chunk.text || '';
+            if (chunkText) {
+              streamText += chunkText;
+              if (typeof request.stream === 'function') {
+                await request.stream(chunkText);
+              } else if (request.stream === true) {
+                process.stdout.write(chunkText);
+              }
+            }
+            const cand = chunk.candidates?.[0];
+            if (cand) {
+              lastCandidate = cand;
+              if (cand.content?.parts) {
+                for (const part of cand.content.parts) {
+                  if (part.call) {
+                    toolCalls.push(part.call);
+                  }
+                }
+              }
+            }
+            if (chunk.usageMetadata) {
+              usageMetadata = chunk.usageMetadata;
+            }
+          }
+
+          if (toolCalls.length > 0 && lastCandidate) {
+            lastCandidate.content = lastCandidate.content || {};
+            lastCandidate.content.parts = lastCandidate.content.parts || [];
+            for (const call of toolCalls) {
+              if (!lastCandidate.content.parts.some((p: any) => p.call === call)) {
+                lastCandidate.content.parts.push({ call });
+              }
+            }
+          }
+
+          const rawFinishReason = lastCandidate?.finishReason ?? 'STOP';
+          const finishReason = String(rawFinishReason).toUpperCase();
+
+          response = {
+            candidates: lastCandidate ? [lastCandidate] : [],
+            finishReason,
+            usageMetadata,
+          };
+        } else {
+          response = await client.models.generateContent({
+            model: request.model,
+            contents: contents,
+            config: genConfig,
+          });
+        }
 
         const candidate = response.candidates?.[0];
         const rawFinishReason = candidate?.finishReason ?? response.finishReason ?? 'UNKNOWN';
@@ -284,14 +352,19 @@ export class AIRuntime {
         }
 
         let text = '';
-        if (candidate?.content?.parts) {
-            for (const part of candidate.content.parts) {
-                if (part.text) {
-                    text += part.text;
-                }
-            }
+        if (request.stream) {
+          text = streamText;
+          accumulatedText += streamText;
+        } else {
+          if (candidate?.content?.parts) {
+              for (const part of candidate.content.parts) {
+                  if (part.text) {
+                      text += part.text;
+                  }
+              }
+          }
+          accumulatedText += text;
         }
-        accumulatedText += text;
 
         totalInputTokens += response.usageMetadata?.promptTokenCount ?? 0;
         totalOutputTokens += response.usageMetadata?.candidatesTokenCount ?? 0;

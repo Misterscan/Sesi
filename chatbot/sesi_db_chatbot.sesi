@@ -1,17 +1,26 @@
-/* sesi_db_chatbot.sesi
-Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries! */
+/* 
+  Sesi Co-Pilot
+  Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries! 
+*/
 
-/* ==================================================
-💬 1. CHOOSE YOUR ADVANCED TECHNICAL QUERY HERE!
-(Test it with custom phrases containing our keywords!) */
-let queryText = "how do I convert an image and display it through my web server?"
-if len(args) > 0 {
-  queryText = join(args, " ")
-}
+/* 
+  ==================================================
+  💬 1. CHOOSE YOUR ADVANCED TECHNICAL QUERY HERE!
+  (Test it with custom phrases containing our keywords!) 
+*/
+let queryText = ""
 let fileContext = ""
-try {
-  fileContext = read_file(".ai-ignore/help_context.txt")
-} catch (e) {}
+
+if len(args) > 0 {
+  queryText = args[0]
+  if len(args) > 1 {
+    try {
+      fileContext = "File: " + args[1] + "\n\n" + read_file(args[1])
+    } catch (e) {}
+  }
+} else {
+  queryText = input("Enter your question: ")
+}
 // ==================================================
 
 print "Loading Sesi Co-Pilot..."
@@ -26,12 +35,14 @@ fn derivative(y) {
   return y * (1.0 - y)
 }
 
-/* 74-Dimensional Bag-of-Words Vocabulary Vectorizer
-Tracks only official Sesi language keywords, compiler builtins, and native standard library exports. */
+/* 
+  89-Dimensional Bag-of-Words Vocabulary Vectorizer
+  Tracks only official Sesi language keywords, compiler builtins, and native standard library exports. 
+*/
 fn vectorize(text) {
   let vec = []
   let k = 0
-  while k < 74 {
+  while k < 89 {
     push(vec, 0.0)
     k = k + 1
   }
@@ -166,8 +177,23 @@ fn vectorize(text) {
     if tok == "web_send" { vec[69] = 1.0 }
     if tok == "listen" { vec[70] = 1.0 }
     if tok == "convert" { vec[71] = 1.0 }
-    if tok == "prompt" { vec[72] = 1.0 }
-    if tok == "api" { vec[73] = 1.0 }
+    if tok == "api" { vec[72] = 1.0 }
+    if tok == "prompt" { vec[73] = 1.0 }
+    if tok == "debug" { vec[74] = 1.0 }
+    if tok == "to_upper" { vec[75] = 1.0 }
+    if tok == "to_lower" { vec[76] = 1.0 }
+    if tok == "trim" { vec[77] = 1.0 }
+    if tok == "slice" { vec[78] = 1.0 }
+    if tok == "swap" { vec[79] = 1.0 }
+    if tok == "retry" { vec[80] = 1.0 }
+    if tok == "map" { vec[81] = 1.0 }
+    if tok == "filter" { vec[82] = 1.0 }
+    if tok == "reduce" { vec[83] = 1.0 }
+    if tok == "find" { vec[84] = 1.0 }
+    if tok == "format" { vec[85] = 1.0 }
+    if tok == "db_open" { vec[86] = 1.0 }
+    if tok == "args" { vec[87] = 1.0 }
+    if tok == "input" { vec[88] = 1.0 }
     i = i + 1
   }
   return vec
@@ -199,7 +225,7 @@ try {
     let sum = 0.0
     let w_row = weights[j]
     let k = 0
-    while k < 74 {
+    while k < 89 {
       sum = sum + (query_vec[k] * w_row[k])
       k = k + 1
     }
@@ -239,12 +265,53 @@ try {
     }
     
     let skills = read_file("SKILLS.md")
-    let instructions = "Instructions: " + skills + " If Active File Context is present, use it directly and talk about that file concretely. Be helpful and robust. Do NOT invent syntax. Use the correct `/*\nMulti-line\nComment\n*/` style for multi-line comments. Do not mention that you got this from a database. Do not ask follow up questions. You are not in an interactive chat session with the user. CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins)."
-    let ragPrompt = "Sesi Official Reference Documentation:\n" + sesiDocs + "\n\nUser Query: " + queryText + "\n\nActive File Context:\n" + fileContext + "\n\nMatched Context from Sesi DB:\nSummary: " + rec["summary"] + "\nKey Rules: " + rec["key_rules"]
-    let persona = "Your name is Sesi Co-Pilot. You are an expert in Sesi and very efficient at coding. You prefer an original way of doing things. "
+    prompt instructions {"Instructions: 
+    "  skills " 
+    
+    If Active File Context is present, use it directly and talk about that file concretely. 
+    - Be helpful and robust. 
+    - Do NOT invent syntax. 
+    - Use the correct style for multi-line comments:
+    ```
+    /*
+      Multi-line
+      Comment
+
+        Use indentation to show structure.
+
+      List:
+        - item 1
+        - item 2
+        - item 3
+    */
+    ``` 
+    - Do not mention that you got this from a database. 
+    - Do not ask follow up questions. 
+    - You are not in an interactive chat session with the user. 
+    
+    # CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning in your code examples or explanation.
+    - model()
+    - image()
+    - workflow()
+    
+    Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON/math builtins).
+    "}
+    prompt ragPrompt {"Sesi Official Reference Documentation:
+    " sesiDocs "
+    
+    User Query: " queryText "
+    
+    Active File Context:
+    " fileContext "
+    
+    Matched Context from Sesi DB:
+    Summary: " rec["summary"] "
+    Key Rules: " rec["key_rules"]}
+    prompt persona {"Your name is Sesi Co-Pilot. 
+    - You are an expert in Sesi and very efficient at coding. 
+    - You prefer an original way of doing things. "}
     let generated_response = model("gemini-3.1-flash-lite") {thinkingLevel: "low", max_tokens: 4096} {instructions ragPrompt persona}
     
     let helpResponse = write_file("help_response.md", "# Help Response:\n\n" + generated_response)
     print "The Sesi Co-Pilot has provided a response to your question. Check help_response.md"
   }
-
