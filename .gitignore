@@ -91,7 +91,7 @@ random_images
 Sesi Studio.app
 *.sesiext
 *.sesitheme
-.ai-ignore/
+ai-exclude/
 sesi-studio/app.swift
 sesi-studio/build-app.sh
 sesi-db/predictive_model.json

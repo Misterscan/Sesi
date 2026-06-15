@@ -343,12 +343,14 @@ export class Parser {
     this.skipNewlines();
     if (this.match('LEFT_BRACE')) {
       this.skipNewlines();
-      do {
+      while (!this.check('RIGHT_BRACE') && !this.isAtEnd()) {
         this.skipNewlines();
+        if (this.check('RIGHT_BRACE')) break;
         names.push(this.consume('IDENTIFIER', 'Expected import name').lexeme);
         this.skipNewlines();
-      } while (this.match('COMMA'));
-      this.skipNewlines();
+        this.match('COMMA');
+        this.skipNewlines();
+      }
       this.consume('RIGHT_BRACE', 'Expected } after imports');
     } else {
       names.push(this.consume('IDENTIFIER', 'Expected import name').lexeme);
@@ -385,12 +387,14 @@ export class Parser {
     if (this.match('LEFT_BRACE')) {
       const names: string[] = [];
       this.skipNewlines();
-      do {
+      while (!this.check('RIGHT_BRACE') && !this.isAtEnd()) {
         this.skipNewlines();
+        if (this.check('RIGHT_BRACE')) break;
         names.push(this.consume('IDENTIFIER', 'Expected import name').lexeme);
         this.skipNewlines();
-      } while (this.match('COMMA'));
-      this.skipNewlines();
+        this.match('COMMA');
+        this.skipNewlines();
+      }
       this.consume('RIGHT_BRACE', 'Expected } after imports');
       binding = names;
     } else {

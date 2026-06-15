@@ -302,17 +302,21 @@ function findDeclarationsAndReferences(tokens) {
             while (temp < tokens.length && tokens[temp].type !== 'WITH') {
                 temp++;
             }
-            if (temp + 1 < tokens.length) {
-                const next = tokens[temp + 1];
+            let nextIdx = temp + 1;
+            while (nextIdx < tokens.length && tokens[nextIdx].type === 'NEWLINE') {
+                nextIdx++;
+            }
+            if (nextIdx < tokens.length) {
+                const next = tokens[nextIdx];
                 if (next.type === 'IDENTIFIER') {
-                    decls.push({ name: next.lexeme, token: next, type: 'import' });
+                    decls.push({ name: next.lexeme, token: next, type: 'import', keywordToken: tok });
                     declaredTokenSet.add(next);
                 } else if (next.lexeme === '{') {
-                    let idx = temp + 2;
+                    let idx = nextIdx + 1;
                     while (idx < tokens.length && tokens[idx].lexeme !== '}') {
                         const subTok = tokens[idx];
                         if (subTok.type === 'IDENTIFIER') {
-                            decls.push({ name: subTok.lexeme, token: subTok, type: 'import' });
+                            decls.push({ name: subTok.lexeme, token: subTok, type: 'import', keywordToken: tok });
                             declaredTokenSet.add(subTok);
                         }
                         idx++;
@@ -322,18 +326,21 @@ function findDeclarationsAndReferences(tokens) {
         }
         else if (tok.type === 'IMPORT') {
             let temp = i + 1;
+            while (temp < tokens.length && tokens[temp].type === 'NEWLINE') {
+                temp++;
+            }
             if (temp < tokens.length && tokens[temp].lexeme === '{') {
                 temp++;
                 while (temp < tokens.length && tokens[temp].lexeme !== '}') {
                     const subTok = tokens[temp];
                     if (subTok.type === 'IDENTIFIER') {
-                        decls.push({ name: subTok.lexeme, token: subTok, type: 'import' });
+                        decls.push({ name: subTok.lexeme, token: subTok, type: 'import', keywordToken: tok });
                         declaredTokenSet.add(subTok);
                     }
                     temp++;
                 }
             } else if (temp < tokens.length && tokens[temp].type === 'IDENTIFIER') {
-                decls.push({ name: tokens[temp].lexeme, token: tokens[temp], type: 'import' });
+                decls.push({ name: tokens[temp].lexeme, token: tokens[temp], type: 'import', keywordToken: tok });
                 declaredTokenSet.add(tokens[temp]);
             }
         }
@@ -482,12 +489,116 @@ function isConfigBlockKey(j, tokens) {
     return false;
 }
 
+function shouldPushScope(idx, tokens) {
+    // Walk backward to find the first non-newline/non-comment token
+    let prevIdx = idx - 1;
+    while (prevIdx >= 0 && (tokens[prevIdx].type === 'NEWLINE' || tokens[prevIdx].type === 'COMMENT')) {
+        prevIdx--;
+    }
+    if (prevIdx < 0) return true; // Top-level block at start of file
+
+    const prev = tokens[prevIdx];
+
+    // 1. If preceded by WITH or IMPORT, it's allow/import list -> no scope
+    if (prev.type === 'WITH' || prev.type === 'IMPORT') {
+        return false;
+    }
+
+    // 2. If preceded by '=', ':', ',', '(', or other assignment/separator operators -> it's an object literal/config -> no scope
+    if (prev.lexeme === '=' || prev.lexeme === ':' || prev.lexeme === ',' || prev.lexeme === '(' || prev.lexeme === '[' || prev.lexeme === '|') {
+        return false;
+    }
+
+    // 3. If preceded by ')', check if it's a model call or structured_output call
+    if (prev.lexeme === ')') {
+        // Find matching '('
+        let parenLevel = 0;
+        let openParenIdx = -1;
+        for (let k = prevIdx; k >= 0; k--) {
+            if (tokens[k].lexeme === ')') parenLevel++;
+            else if (tokens[k].lexeme === '(') {
+                parenLevel--;
+                if (parenLevel === 0) {
+                    openParenIdx = k;
+                    break;
+                }
+            }
+        }
+        if (openParenIdx > 0) {
+            let funcTokIdx = openParenIdx - 1;
+            while (funcTokIdx >= 0 && (tokens[funcTokIdx].type === 'NEWLINE' || tokens[funcTokIdx].type === 'COMMENT')) {
+                funcTokIdx--;
+            }
+            if (funcTokIdx >= 0) {
+                const funcTok = tokens[funcTokIdx];
+                if (funcTok.type === 'IDENTIFIER' && (funcTok.lexeme === 'model' || funcTok.lexeme === 'structured_output' || funcTok.lexeme === 'image_model')) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    // 4. If preceded by '}', check if it's the prompt block of a model call
+    if (prev.lexeme === '}') {
+        // Find matching '{'
+        let braceLevel = 0;
+        let openBraceIdx = -1;
+        for (let k = prevIdx; k >= 0; k--) {
+            if (tokens[k].lexeme === '}') braceLevel++;
+            else if (tokens[k].lexeme === '{') {
+                braceLevel--;
+                if (braceLevel === 0) {
+                    openBraceIdx = k;
+                    break;
+                }
+            }
+        }
+        if (openBraceIdx > 0) {
+            // Check if the block that just closed was a model config block
+            // Walk backward from openBraceIdx to see if it's preceded by model(...)
+            let beforeIdx = openBraceIdx - 1;
+            while (beforeIdx >= 0 && (tokens[beforeIdx].type === 'NEWLINE' || tokens[beforeIdx].type === 'COMMENT')) {
+                beforeIdx--;
+            }
+            if (beforeIdx >= 0 && tokens[beforeIdx].lexeme === ')') {
+                let parenLevel = 0;
+                let openParenIdx = -1;
+                for (let k = beforeIdx; k >= 0; k--) {
+                    if (tokens[k].lexeme === ')') parenLevel++;
+                    else if (tokens[k].lexeme === '(') {
+                        parenLevel--;
+                        if (parenLevel === 0) {
+                            openParenIdx = k;
+                            break;
+                        }
+                    }
+                }
+                if (openParenIdx > 0) {
+                    let funcTokIdx = openParenIdx - 1;
+                    while (funcTokIdx >= 0 && (tokens[funcTokIdx].type === 'NEWLINE' || tokens[funcTokIdx].type === 'COMMENT')) {
+                        funcTokIdx--;
+                    }
+                    if (funcTokIdx >= 0) {
+                        const funcTok = tokens[funcTokIdx];
+                        if (funcTok.type === 'IDENTIFIER' && (funcTok.lexeme === 'model' || funcTok.lexeme === 'image_model')) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 function analyzeScope(tokens, decls, refs) {
     const declMap = new Map(decls.map(d => [d.token, d]));
     
     const rootScope = new Scope();
     let currentScope = rootScope;
     let skipNextBraceScope = false;
+    const pushedScopeStack = [];
     
     const tokenScopes = new Map();
     
@@ -495,7 +606,8 @@ function analyzeScope(tokens, decls, refs) {
         const tok = tokens[i];
         
         if (tok.lexeme === '}') {
-            if (currentScope.parent) {
+            const popped = pushedScopeStack.pop();
+            if (popped && currentScope.parent) {
                 currentScope = currentScope.parent;
             }
         }
@@ -563,8 +675,12 @@ function analyzeScope(tokens, decls, refs) {
         else if (tok.lexeme === '{') {
             if (skipNextBraceScope) {
                 skipNextBraceScope = false;
-            } else {
+                pushedScopeStack.push(true);
+            } else if (shouldPushScope(i, tokens)) {
                 currentScope = new Scope(currentScope);
+                pushedScopeStack.push(true);
+            } else {
+                pushedScopeStack.push(false);
             }
         }
         else if (tok.type === 'LET') {
@@ -578,7 +694,7 @@ function analyzeScope(tokens, decls, refs) {
             }
         }
         else if (tok.type === 'ALLOW' || tok.type === 'IMPORT') {
-            const tokDecls = decls.filter(d => d.token.line === tok.line);
+            const tokDecls = decls.filter(d => d.keywordToken === tok);
             for (const d of tokDecls) {
                 currentScope.declare(d.name, {
                     token: d.token,
@@ -711,6 +827,12 @@ function validateImports(document, workspaceRoot) {
 const documentScopesCache = new Map();
 
 function activate(context) {
+    let workspaceRoot = '';
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders && workspaceFolders.length > 0) {
+        workspaceRoot = workspaceFolders[0].uri.fsPath;
+    }
+
     const docs = {
         'let': {
             signature: 'let identifier = value',
@@ -1217,12 +1339,6 @@ function activate(context) {
             example: 'fn dangerousAction() { ... }\nlet res = retry(dangerousAction, { "max_retries": 3 })'
         }
     };
-
-    let workspaceRoot = '';
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (workspaceFolders && workspaceFolders.length > 0) {
-        workspaceRoot = workspaceFolders[0].uri.fsPath;
-    }
 
     const hoverProvider = vscode.languages.registerHoverProvider('sesi', {
         provideHover(document, position, token) {
