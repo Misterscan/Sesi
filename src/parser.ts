@@ -50,6 +50,7 @@ export class Parser {
   private tokens: Token[];
   private current: number = 0;
   public errors: string[] = [];
+  private pendingComments: string[] = [];
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -73,12 +74,16 @@ export class Parser {
     this.skipNewlines();
     if (this.isAtEnd()) return null;
     try {
-      if (this.match('LET')) return this.letStatement();
-      if (this.match('CONST')) return this.constStatement();
-      if (this.match('FN')) return this.functionStatement(false);
+      // Collect any leading comments buffered before this statement
+      const comments = this.pendingComments.length > 0 ? [...this.pendingComments] : undefined;
+      this.pendingComments = [];
+
+      if (this.match('LET')) return this.letStatement(comments);
+      if (this.match('CONST')) return this.constStatement(comments);
+      if (this.match('FN')) return this.functionStatement(false, comments);
       if (this.match('ASYNC')) {
         this.consume('FN', 'Expected fn after async');
-        return this.functionStatement(true);
+        return this.functionStatement(true, comments);
       }
       if (this.match('IF')) return this.ifStatement();
       if (this.match('WHILE')) return this.whileStatement();
@@ -89,7 +94,7 @@ export class Parser {
       if (this.match('TRY')) return this.tryStatement();
       if (this.match('IMPORT')) return this.importStatement();
       if (this.match('ALLOW')) return this.allowStatement();
-      if (this.match('EXPORT')) return this.exportStatement();
+      if (this.match('EXPORT')) return this.exportStatement(comments);
       if (this.match('MEMORY')) return this.memoryStatement();
       if (this.check('LEFT_BRACE')) return this.blockStatement();
       return this.expressionStatement();
@@ -101,7 +106,7 @@ export class Parser {
     }
   }
 
-  private letStatement(): LetStatement {
+  private letStatement(leadingComments?: string[]): LetStatement {
     const line = this.previous().line;
     const name = this.consume('IDENTIFIER', 'Expected variable name').lexeme;
     let typeAnnotation: TypeAnnotation | undefined;
@@ -122,10 +127,11 @@ export class Parser {
       typeAnnotation,
       value,
       line,
+      ...(leadingComments && leadingComments.length > 0 ? { leadingComments } : {}),
     };
   }
 
-  private constStatement(): ConstStatement {
+  private constStatement(leadingComments?: string[]): ConstStatement {
     const line = this.previous().line;
     const name = this.consume('IDENTIFIER', 'Expected variable name').lexeme;
     let typeAnnotation: TypeAnnotation | undefined;
@@ -144,10 +150,11 @@ export class Parser {
       typeAnnotation,
       value,
       line,
+      ...(leadingComments && leadingComments.length > 0 ? { leadingComments } : {}),
     };
   }
 
-  private functionStatement(isAsync: boolean = false): FunctionStatement {
+  private functionStatement(isAsync: boolean = false, leadingComments?: string[]): FunctionStatement {
     const line = this.previous().line;
     const name = this.consume('IDENTIFIER', 'Expected function name').lexeme;
     this.consume('LEFT_PAREN', 'Expected ( after function name');
@@ -189,6 +196,7 @@ export class Parser {
       body,
       line,
       isAsync,
+      ...(leadingComments && leadingComments.length > 0 ? { leadingComments } : {}),
     };
   }
 
@@ -398,7 +406,7 @@ export class Parser {
     };
   }
 
-  private exportStatement(): ExportStatement {
+  private exportStatement(leadingComments?: string[]): ExportStatement {
     const line = this.previous().line;
     let statement: FunctionStatement | LetStatement | ConstStatement;
 
@@ -419,6 +427,7 @@ export class Parser {
       type: 'ExportStatement',
       statement,
       line,
+      ...(leadingComments && leadingComments.length > 0 ? { leadingComments } : {}),
     };
   }
 
@@ -1212,21 +1221,59 @@ export class Parser {
       const name = this.advance().lexeme;
       switch (name) {
         case 'number':
+        case 'num': {
+          let type: TypeAnnotation = {
+            type: 'PrimitiveType',
+            name: 'number',
+          };
+          if (this.match('QUESTION')) {
+            type = { type: 'OptionalType', baseType: type };
+          }
+          return type;
+        }
+
         case 'string':
-        case 'bool':
+        case 'str': {
+          let type: TypeAnnotation = {
+            type: 'PrimitiveType',
+            name: 'string',
+          };
+          if (this.match('QUESTION')) {
+            type = { type: 'OptionalType', baseType: type };
+          }
+          return type;
+        }
+
+        case 'bool': {
+          let type: TypeAnnotation = {
+            type: 'PrimitiveType',
+            name: 'bool',
+          };
+          if (this.match('QUESTION')) {
+            type = { type: 'OptionalType', baseType: type };
+          }
+          return type;
+        }
+
         case 'null': {
           let type: TypeAnnotation = {
             type: 'PrimitiveType',
-            name: name,
+            name: 'null',
           };
-
           if (this.match('QUESTION')) {
-            type = {
-              type: 'OptionalType',
-              baseType: type,
-            };
+            type = { type: 'OptionalType', baseType: type };
           }
+          return type;
+        }
 
+        case 'any': {
+          let type: TypeAnnotation = {
+            type: 'PrimitiveType',
+            name: 'any',
+          };
+          if (this.match('QUESTION')) {
+            type = { type: 'OptionalType', baseType: type };
+          }
           return type;
         }
 
@@ -1261,7 +1308,14 @@ export class Parser {
   }
 
   private skipNewlines(): void {
-    while (this.match('NEWLINE'));
+    while (this.check('NEWLINE') || this.check('COMMENT')) {
+      if (this.check('COMMENT')) {
+        // Buffer comment text so the next declaration can claim it
+        const commentText = this.peek().literal as string;
+        if (commentText) this.pendingComments.push(commentText);
+      }
+      this.advance();
+    }
   }
 
   private match(...types: TokenType[]): boolean {
@@ -1302,6 +1356,13 @@ export class Parser {
   }
 
   private consumeStatementEnd(): void {
+    while (this.check('COMMENT')) {
+      if (this.check('COMMENT')) {
+        const commentText = this.peek().literal as string;
+        if (commentText) this.pendingComments.push(commentText);
+      }
+      this.advance();
+    }
     if (this.match('SEMICOLON') || this.match('NEWLINE')) return;
     if (this.check('RIGHT_BRACE') || this.isAtEnd()) return;
     

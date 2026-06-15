@@ -1098,7 +1098,7 @@ allow "std/time" in with Time
 
 let t = Time.now()
 // Format time with a specific timezone
-let formatted = format(t, {"timeZone": "America/New_York", "timeStyle": "medium"})
+let formatted = Time.format(t, {"timeZone": "America/New_York", "timeStyle": "medium"})
 print formatted // e.g. "2:27:02 AM"
 ```
 

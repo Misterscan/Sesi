@@ -21,6 +21,7 @@ fn save_progress(state) {
 
 let state = load_progress()
 let cmd = ""
+let early_exit = false
 
 // Sesi accepts args natively through the global `args` array!
 if len(args) > 0 {
@@ -32,7 +33,7 @@ if cmd == "reset" {
   save_progress(state)
   print "Tutorial reset! Run 'npm run tutorial:cli' to start over."
   // Stop early
-  let early_exit = true
+  early_exit = true
 } else if cmd == "next" {
   state["step"] = state["step"] + 1
   save_progress(state)
@@ -44,7 +45,7 @@ if cmd == "reset" {
     print "Nice to meet you," state["name"] "!\n"
   } else {
     print "Please provide a name: npm run tutorial:cli name <your_name>"
-    let early_exit = true
+    early_exit = true
   }
 }
 

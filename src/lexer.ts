@@ -192,20 +192,42 @@ export class Lexer {
       if (c === ' ' || c === '\r' || c === '\t') {
         this.advance();
       } else if (c === '/' && this.peekNext() === '/') {
+        // Single-line comment — emit as COMMENT token
+        this.advance(); // /
+        this.advance(); // /
+        let text = '';
         while (this.peek() !== '\n' && !this.isAtEnd()) {
-          this.advance();
+          text += this.advance();
         }
+        this.tokens.push({
+          type: 'COMMENT',
+          lexeme: '//' + text,
+          literal: text.trim(),
+          line: this.line,
+          column: this.column,
+        });
       } else if (c === '/' && this.peekNext() === '*') {
+        // Block comment — emit as COMMENT token
+        const startLine = this.line;
+        const startCol = this.column;
         this.advance(); // /
         this.advance(); // *
+        let text = '';
         while (!(this.peek() === '*' && this.peekNext() === '/') && !this.isAtEnd()) {
           if (this.peek() === '\n') this.line++;
-          this.advance();
+          text += this.advance();
         }
         if (!this.isAtEnd()) {
           this.advance(); // *
           this.advance(); // /
         }
+        this.tokens.push({
+          type: 'COMMENT',
+          lexeme: '/*' + text + '*/',
+          literal: text.trim(),
+          line: startLine,
+          column: startCol,
+        });
       } else {
         break;
       }

@@ -72,7 +72,8 @@ export type TokenType =
   | 'LESS_GREATER'
   // Special
   | 'EOF'
-  | 'NEWLINE';
+  | 'NEWLINE'
+  | 'COMMENT';
 
 export interface Token {
   type: TokenType;
@@ -117,6 +118,7 @@ export interface LetStatement {
   typeAnnotation?: TypeAnnotation;
   value?: Expression;
   line: number;
+  leadingComments?: string[];
 }
 
 export interface ConstStatement {
@@ -125,6 +127,7 @@ export interface ConstStatement {
   typeAnnotation?: TypeAnnotation;
   value: Expression;
   line: number;
+  leadingComments?: string[];
 }
 
 export interface FunctionStatement {
@@ -135,6 +138,7 @@ export interface FunctionStatement {
   body: BlockStatement;
   line: number;
   isAsync?: boolean;
+  leadingComments?: string[];
 }
 
 export interface Parameter {
@@ -223,6 +227,7 @@ export interface ExportStatement {
   type: 'ExportStatement';
   statement: FunctionStatement | LetStatement | ConstStatement;
   line: number;
+  leadingComments?: string[];
 }
 
 export interface MemoryStatement {

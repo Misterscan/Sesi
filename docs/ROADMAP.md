@@ -56,14 +56,14 @@
 
 ---
 
-## Version 1.5 - Improvements (In Progress)
+## Version 1.5 - Improvements (Complete)
 
-**Status**: In Progress V1.5 implementation  
+**Status**: Complete V1.5 implementation  
 **Ready for**: File manipulation and process orchestration  
 **Not ready for**: Massive-scale production (until v2.0 bytecode)  
 **Next milestone**: V2.0
 
-### Improvements & Features ⌛
+### Improvements & Features ✅
 
 - [x] Systems Builtins: `spawn`, `exec`, `time`, `random`
 - [x] Concurrency: Async polling via file locks for completion and MAX_TOKENS
@@ -84,8 +84,8 @@
 - [x] Better error messages with line numbers and stack traces
 - [x] REPL (Read-Eval-Print Loop)
 - [x] String escape sequences & Multiline strings
-- [ ] Comments preservation (for docs)
-- [ ] Type hints in function signatures
+- [x] Comments preservation (for docs)
+- [x] Type hints in function signatures
 - [x] Performance optimizations
 - [x] Tutorial: Writing scripts
 
@@ -130,7 +130,7 @@
 
 ### Performance
 
-- [ ] Bytecode compilation
+- [~] Bytecode compilation (VM + compiler foundation: expressions, loops, functions ✅ — closures, try/catch, imports pending)
 - [x] Logic caching
 - [ ] Token counting and cost estimation
 - [ ] Lazy evaluation

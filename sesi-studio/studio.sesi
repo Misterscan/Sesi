@@ -164,7 +164,7 @@ try {
   favicon = read_file("sesi-studio/img/favicon.png.base64")
 } catch (e) {
   try {
-    let tmp = exec_node("-e \"require('fs').writeFileSync('sesi-studio/img/favicon.png.base64', require('fs').readFileSync('sesi-studio/img/favicon.png').toString('base64'))\"")
+    exec_node("-e \"require('fs').writeFileSync('sesi-studio/img/favicon.png.base64', require('fs').readFileSync('sesi-studio/img/favicon.png').toString('base64'))\"")
     favicon = read_file("sesi-studio/img/favicon.png.base64")
   } catch (err) {}
 }
@@ -751,7 +751,6 @@ fn handle_http(req) {
   if path == "/api/marketplace/install" && method == "POST" {
     try {
       let body_obj = from_json(req.body)
-      let item_id = body_obj["id"]
       let download_url = body_obj["downloadUrl"]
       let item_type = body_obj["type"]
       
@@ -853,7 +852,7 @@ fn handle_http(req) {
           and for binary we'll rely on the static server in server.js if it exists. 
         */
         let script = "console.log(require('fs').readFileSync('sesi-studio/extensions/" + subpath + "').toString('base64'))"
-        let b64 = exec_node("-e \"" + script + "\"")
+        exec_node("-e \"" + script + "\"")
       }
       return {"status": 200, "headers": {"Content-Type": content_type}, "body": content}
     } catch (e) {
@@ -1261,7 +1260,7 @@ fn handle_ws(client, msg) {
         if data_str == "backspace" {
           if len(term_buffer) > 0 {
             let term_chars = split(term_buffer, "")
-            let garbage = pop(term_chars)
+            pop(term_chars)
             term_buffer = join(term_chars, "")
             client.send(to_json({"type": "output", "data": "backspace"}))
           }

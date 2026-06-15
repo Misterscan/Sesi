@@ -1,6 +1,714 @@
 const vscode = require('vscode');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
+function getModuleSpecifierAtPosition(document, position) {
+    const lineText = document.lineAt(position.line).text;
+    const stringRegex = /(["'])(.*?)\1/g;
+    let match;
+    while ((match = stringRegex.exec(lineText)) !== null) {
+        const start = match.index;
+        const end = match.index + match[0].length;
+        if (position.character >= start && position.character <= end) {
+            const specifier = match[2];
+            const beforeString = lineText.substring(0, start).trim();
+            const afterString = lineText.substring(end).trim();
+            
+            const isAllow = /\ballow\s*$/i.test(beforeString) || (beforeString.includes('allow') && afterString.startsWith('in'));
+            const isImport = /\bfrom\s*$/i.test(beforeString);
+            
+            if (isAllow || isImport) {
+                const range = new vscode.Range(
+                    new vscode.Position(position.line, start + 1),
+                    new vscode.Position(position.line, end - 1)
+                );
+                return { specifier, range, isAllow, isImport };
+            }
+        }
+    }
+    return null;
+}
+
+function resolveSesiModule(specifier, documentPath, workspaceRoot) {
+    if (specifier.startsWith('std/')) {
+        return {
+            type: 'builtin',
+            path: specifier,
+            description: `Built-in Sesi Standard Library Module (${specifier})`
+        };
+    }
+
+    let filePath = specifier;
+    if (!filePath.endsWith('.sesi')) filePath += '.sesi';
+
+    const searchDirs = [];
+
+    // 1. Script's own directory
+    if (documentPath) {
+        searchDirs.push(path.dirname(documentPath));
+    }
+
+    // 2. Current working directory / workspace root
+    if (workspaceRoot) {
+        searchDirs.push(workspaceRoot);
+    }
+    searchDirs.push(process.cwd());
+
+    // 3. SESI_PATH
+    const sesiPath = process.env.SESI_PATH || '';
+    if (sesiPath) {
+        const sep = process.platform === 'win32' ? ';' : ':';
+        sesiPath.split(sep).filter(Boolean).forEach(p => searchDirs.push(p));
+    }
+
+    // 4. Global library
+    searchDirs.push(path.join(os.homedir(), '.sesi', 'lib'));
+
+    for (const dir of searchDirs) {
+        try {
+            const resolved = path.resolve(dir, filePath);
+            if (fs.existsSync(resolved)) {
+                return {
+                    type: 'local',
+                    path: resolved,
+                    searchDir: dir
+                };
+            }
+        } catch (e) {
+            // Ignore
+        }
+    }
+
+    return null;
+}
+
+function getExportsFromSesiFile(filePath) {
+    const exports = [];
+    try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const exportFnRegex = /\bexport\s+(async\s+)?fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/g;
+        const exportLetRegex = /\bexport\s+let\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
+
+        let match;
+        while ((match = exportFnRegex.exec(content)) !== null) {
+            exports.push({ type: 'function', name: match[2], params: match[3].trim(), isAsync: !!match[1] });
+        }
+        while ((match = exportLetRegex.exec(content)) !== null) {
+            exports.push({ type: 'variable', name: match[1] });
+        }
+    } catch (e) {
+        // Ignore
+    }
+    return exports;
+}
+
+function stripComments(text) {
+    let result = '';
+    let i = 0;
+    let inString = false;
+    let stringQuote = '';
+    
+    while (i < text.length) {
+        const char = text[i];
+        
+        if (inString) {
+            result += char;
+            if (char === '\\') {
+                if (i + 1 < text.length) {
+                    result += text[i + 1];
+                    i += 2;
+                } else {
+                    i++;
+                }
+            } else if (char === stringQuote) {
+                inString = false;
+                i++;
+            } else {
+                i++;
+            }
+        } else {
+            if (char === '"' || char === "'") {
+                inString = true;
+                stringQuote = char;
+                result += char;
+                i++;
+            } else if (char === '/' && text[i + 1] === '/') {
+                result += '  ';
+                i += 2;
+                while (i < text.length && text[i] !== '\n' && text[i] !== '\r') {
+                    result += ' ';
+                    i++;
+                }
+            } else if (char === '/' && text[i + 1] === '*') {
+                result += '  ';
+                i += 2;
+                while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) {
+                    if (text[i] === '\n' || text[i] === '\r') {
+                        result += text[i];
+                    } else {
+                        result += ' ';
+                    }
+                    i++;
+                }
+                if (i < text.length) {
+                    result += '  ';
+                    i += 2;
+                }
+            } else {
+                result += char;
+                i++;
+            }
+        }
+    }
+    return result;
+}
+
+class Scope {
+    constructor(parent = null) {
+        this.parent = parent;
+        this.variables = new Map();
+        this.children = [];
+        if (parent) parent.children.push(this);
+    }
+    
+    declare(name, info) {
+        this.variables.set(name, info);
+    }
+    
+    resolve(name) {
+        if (this.variables.has(name)) {
+            return this.variables.get(name);
+        }
+        if (this.parent) {
+            return this.parent.resolve(name);
+        }
+        return null;
+    }
+}
+
+function tokenize(text) {
+    const tokens = [];
+    const keywords = new Set([
+        'let', 'fn', 'if', 'else', 'while', 'for', 'in', 'return',
+        'break', 'continue', 'try', 'catch', 'finally', 'true', 'false', 'null',
+        'print', 'prompt', 'model', 'image', 'async', 'await', 'import', 'from',
+        'export', 'to', 'allow', 'with', 'convert', 'memory', 'structured_output',
+        'tool_call'
+    ]);
+
+    const stripped = stripComments(text);
+    const tokenRegex = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b[a-zA-Z_][a-zA-Z0-9_]*\b|[{}[\](),;.:=+\-*/%&|!<>]/g;
+    let match;
+    const lineOffsets = [];
+    
+    const lines = text.split('\n');
+    let currentOffset = 0;
+    for (const line of lines) {
+        lineOffsets.push(currentOffset);
+        currentOffset += line.length + 1;
+    }
+
+    function getPosition(offset) {
+        let low = 0;
+        let high = lineOffsets.length - 1;
+        let line = 0;
+        while (low <= high) {
+            let mid = Math.floor((low + high) / 2);
+            if (lineOffsets[mid] <= offset) {
+                line = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+        const col = offset - lineOffsets[line];
+        return { line, col };
+    }
+
+    while ((match = tokenRegex.exec(stripped)) !== null) {
+        const lexeme = match[0];
+        const offset = match.index;
+        const pos = getPosition(offset);
+
+        let type = 'PUNCTUATION';
+        if (lexeme.startsWith('"') || lexeme.startsWith("'")) {
+            type = 'STRING';
+        } else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(lexeme)) {
+            if (keywords.has(lexeme)) {
+                type = lexeme.toUpperCase();
+            } else {
+                type = 'IDENTIFIER';
+            }
+        } else if (/^[0-9]+(\.[0-9]+)?$/.test(lexeme)) {
+            type = 'NUMBER';
+        }
+
+        tokens.push({
+            type,
+            lexeme,
+            line: pos.line,
+            col: pos.col,
+            length: lexeme.length
+        });
+    }
+    return tokens;
+}
+
+function findDeclarationsAndReferences(tokens) {
+    const decls = [];
+    const refs = [];
+    const declaredTokenSet = new Set();
+    
+    let i = 0;
+    while (i < tokens.length) {
+        const tok = tokens[i];
+        
+        if (tok.type === 'LET') {
+            const next = tokens[i + 1];
+            if (next && next.type === 'IDENTIFIER') {
+                decls.push({ name: next.lexeme, token: next, type: 'variable' });
+                declaredTokenSet.add(next);
+            }
+        }
+        else if (tok.type === 'FN') {
+            const next = tokens[i + 1];
+            if (next && next.type === 'IDENTIFIER') {
+                decls.push({ name: next.lexeme, token: next, type: 'function' });
+                declaredTokenSet.add(next);
+            }
+            
+            let temp = i + 2;
+            while (temp < tokens.length && tokens[temp].lexeme !== '(' && tokens[temp].lexeme !== '{') {
+                temp++;
+            }
+            if (temp < tokens.length && tokens[temp].lexeme === '(') {
+                temp++;
+                while (temp < tokens.length && tokens[temp].lexeme !== ')') {
+                    const paramTok = tokens[temp];
+                    if (paramTok.type === 'IDENTIFIER') {
+                        const prev = tokens[temp - 1];
+                        if (prev && (prev.lexeme === '(' || prev.lexeme === ',')) {
+                            decls.push({ name: paramTok.lexeme, token: paramTok, type: 'parameter' });
+                            declaredTokenSet.add(paramTok);
+                        }
+                    }
+                    temp++;
+                }
+            }
+        }
+        else if (tok.type === 'ALLOW') {
+            let temp = i + 1;
+            while (temp < tokens.length && tokens[temp].type !== 'WITH') {
+                temp++;
+            }
+            if (temp + 1 < tokens.length) {
+                const next = tokens[temp + 1];
+                if (next.type === 'IDENTIFIER') {
+                    decls.push({ name: next.lexeme, token: next, type: 'import' });
+                    declaredTokenSet.add(next);
+                } else if (next.lexeme === '{') {
+                    let idx = temp + 2;
+                    while (idx < tokens.length && tokens[idx].lexeme !== '}') {
+                        const subTok = tokens[idx];
+                        if (subTok.type === 'IDENTIFIER') {
+                            decls.push({ name: subTok.lexeme, token: subTok, type: 'import' });
+                            declaredTokenSet.add(subTok);
+                        }
+                        idx++;
+                    }
+                }
+            }
+        }
+        else if (tok.type === 'IMPORT') {
+            let temp = i + 1;
+            if (temp < tokens.length && tokens[temp].lexeme === '{') {
+                temp++;
+                while (temp < tokens.length && tokens[temp].lexeme !== '}') {
+                    const subTok = tokens[temp];
+                    if (subTok.type === 'IDENTIFIER') {
+                        decls.push({ name: subTok.lexeme, token: subTok, type: 'import' });
+                        declaredTokenSet.add(subTok);
+                    }
+                    temp++;
+                }
+            } else if (temp < tokens.length && tokens[temp].type === 'IDENTIFIER') {
+                decls.push({ name: tokens[temp].lexeme, token: tokens[temp], type: 'import' });
+                declaredTokenSet.add(tokens[temp]);
+            }
+        }
+        else if (tok.type === 'FOR') {
+            const next = tokens[i + 1];
+            if (next && next.type === 'IDENTIFIER') {
+                decls.push({ name: next.lexeme, token: next, type: 'loop_variable' });
+                declaredTokenSet.add(next);
+            }
+        }
+        else if (tok.type === 'TRY') {
+            let temp = i + 1;
+            while (temp < tokens.length && tokens[temp].type !== 'CATCH') {
+                temp++;
+            }
+            if (temp < tokens.length && temp + 2 < tokens.length) {
+                if (tokens[temp + 1].lexeme === '(' && tokens[temp + 2].type === 'IDENTIFIER') {
+                    const catchVar = tokens[temp + 2];
+                    decls.push({ name: catchVar.lexeme, token: catchVar, type: 'catch_variable' });
+                    declaredTokenSet.add(catchVar);
+                }
+            }
+        }
+        else if (tok.type === 'PROMPT' || tok.type === 'MEMORY' || tok.type === 'STRUCTURED_OUTPUT') {
+            const next = tokens[i + 1];
+            if (next && next.type === 'IDENTIFIER') {
+                decls.push({ name: next.lexeme, token: next, type: 'variable' });
+                declaredTokenSet.add(next);
+            }
+        }
+        else if (tok.type === 'IDENTIFIER' && tok.lexeme === 'define_tool') {
+            if (tokens[i + 1] && tokens[i + 1].lexeme === '(' && tokens[i + 2]) {
+                const nameTok = tokens[i + 2];
+                let name = '';
+                if (nameTok.type === 'STRING') {
+                    name = nameTok.lexeme.replace(/['"]/g, '');
+                } else if (nameTok.type === 'IDENTIFIER') {
+                    name = nameTok.lexeme;
+                }
+                if (name) {
+                    decls.push({ name, token: nameTok, type: 'tool' });
+                    declaredTokenSet.add(nameTok);
+                }
+            }
+        }
+        
+        i++;
+    }
+    
+    for (let j = 0; j < tokens.length; j++) {
+        const tok = tokens[j];
+        if (tok.type === 'IDENTIFIER' && !declaredTokenSet.has(tok)) {
+            const prev = tokens[j - 1];
+            if (prev && prev.lexeme === '.') {
+                continue;
+            }
+            const next = tokens[j + 1];
+            if (next && next.lexeme === ':') {
+                if (prev && (prev.lexeme === '{' || prev.lexeme === ',')) {
+                    continue;
+                }
+            }
+            if (isConfigBlockKey(j, tokens)) {
+                continue;
+            }
+            refs.push({ name: tok.lexeme, token: tok });
+        }
+    }
+    
+    return { decls, refs };
+}
+
+function isConfigBlockKey(j, tokens) {
+    // 1. Find the opening '{' of the block containing tokens[j]
+    let braceLevel = 0;
+    let openBraceIdx = -1;
+    for (let k = j - 1; k >= 0; k--) {
+        const t = tokens[k];
+        if (t.lexeme === '}') {
+            braceLevel++;
+        } else if (t.lexeme === '{') {
+            if (braceLevel === 0) {
+                openBraceIdx = k;
+                break;
+            }
+            braceLevel--;
+        }
+    }
+    if (openBraceIdx === -1) return false;
+
+    // 2. Scan forward from openBraceIdx to find the matching '}' and check for top-level comma or colon
+    let isConfig = false;
+    let scanLevel = 0;
+    for (let k = openBraceIdx; k < tokens.length; k++) {
+        const t = tokens[k];
+        if (t.lexeme === '{' || t.lexeme === '[' || t.lexeme === '(') {
+            scanLevel++;
+        } else if (t.lexeme === '}' || t.lexeme === ']' || t.lexeme === ')') {
+            scanLevel--;
+            if (scanLevel === 0) break; // Reached matching '}'
+        } else if (scanLevel === 1) {
+            if (t.lexeme === ',' || t.lexeme === ':') {
+                isConfig = true;
+            }
+        }
+    }
+
+    // Check if it's a model config block by checking for a second block
+    let closeBraceIdx = -1;
+    let braceLevel2 = 0;
+    for (let k = openBraceIdx; k < tokens.length; k++) {
+        const t = tokens[k];
+        if (t.lexeme === '{') braceLevel2++;
+        else if (t.lexeme === '}') {
+            braceLevel2--;
+            if (braceLevel2 === 0) {
+                closeBraceIdx = k;
+                break;
+            }
+        }
+    }
+    if (closeBraceIdx !== -1) {
+        let nextIdx = closeBraceIdx + 1;
+        while (nextIdx < tokens.length && (tokens[nextIdx].type === 'NEWLINE' || tokens[nextIdx].type === 'COMMENT')) {
+            nextIdx++;
+        }
+        if (nextIdx < tokens.length && tokens[nextIdx].lexeme === '{') {
+            isConfig = true;
+        }
+    }
+
+    if (!isConfig) return false;
+
+    // 3. Check if tokens[j] is immediately preceded by '{' or ',' (skipping newlines/comments)
+    for (let k = j - 1; k >= openBraceIdx; k--) {
+        const t = tokens[k];
+        if (t.type === 'NEWLINE' || t.type === 'COMMENT') {
+            continue;
+        }
+        if (t.lexeme === '{' || t.lexeme === ',') {
+            return true;
+        }
+        break;
+    }
+
+    return false;
+}
+
+function analyzeScope(tokens, decls, refs) {
+    const declMap = new Map(decls.map(d => [d.token, d]));
+    
+    const rootScope = new Scope();
+    let currentScope = rootScope;
+    let skipNextBraceScope = false;
+    
+    const tokenScopes = new Map();
+    
+    for (let i = 0; i < tokens.length; i++) {
+        const tok = tokens[i];
+        
+        if (tok.lexeme === '}') {
+            if (currentScope.parent) {
+                currentScope = currentScope.parent;
+            }
+        }
+        
+        tokenScopes.set(tok, currentScope);
+        
+        if (tok.type === 'FN') {
+            const nameTok = tokens[i + 1];
+            if (nameTok && nameTok.type === 'IDENTIFIER') {
+                currentScope.declare(nameTok.lexeme, {
+                    token: nameTok,
+                    type: 'function',
+                    readCount: 0
+                });
+            }
+            currentScope = new Scope(currentScope);
+            skipNextBraceScope = true;
+            
+            let temp = i + 2;
+            while (temp < tokens.length && tokens[temp].lexeme !== '(' && tokens[temp].lexeme !== '{') {
+                temp++;
+            }
+            if (temp < tokens.length && tokens[temp].lexeme === '(') {
+                temp++;
+                while (temp < tokens.length && tokens[temp].lexeme !== ')') {
+                    const paramTok = tokens[temp];
+                    if (paramTok.type === 'IDENTIFIER') {
+                        const prev = tokens[temp - 1];
+                        if (prev && (prev.lexeme === '(' || prev.lexeme === ',')) {
+                            currentScope.declare(paramTok.lexeme, {
+                                token: paramTok,
+                                type: 'parameter',
+                                readCount: 0
+                            });
+                        }
+                    }
+                    temp++;
+                }
+            }
+        }
+        else if (tok.type === 'FOR') {
+            currentScope = new Scope(currentScope);
+            skipNextBraceScope = true;
+            const varTok = tokens[i + 1];
+            if (varTok && varTok.type === 'IDENTIFIER') {
+                currentScope.declare(varTok.lexeme, {
+                    token: varTok,
+                    type: 'loop_variable',
+                    readCount: 0
+                });
+            }
+        }
+        else if (tok.type === 'CATCH') {
+            currentScope = new Scope(currentScope);
+            skipNextBraceScope = true;
+            if (tokens[i + 1] && tokens[i + 1].lexeme === '(' && tokens[i + 2] && tokens[i + 2].type === 'IDENTIFIER') {
+                const catchVar = tokens[i + 2];
+                currentScope.declare(catchVar.lexeme, {
+                    token: catchVar,
+                    type: 'catch_variable',
+                    readCount: 0
+                });
+            }
+        }
+        else if (tok.lexeme === '{') {
+            if (skipNextBraceScope) {
+                skipNextBraceScope = false;
+            } else {
+                currentScope = new Scope(currentScope);
+            }
+        }
+        else if (tok.type === 'LET') {
+            const nameTok = tokens[i + 1];
+            if (nameTok && nameTok.type === 'IDENTIFIER') {
+                currentScope.declare(nameTok.lexeme, {
+                    token: nameTok,
+                    type: 'variable',
+                    readCount: 0
+                });
+            }
+        }
+        else if (tok.type === 'ALLOW' || tok.type === 'IMPORT') {
+            const tokDecls = decls.filter(d => d.token.line === tok.line);
+            for (const d of tokDecls) {
+                currentScope.declare(d.name, {
+                    token: d.token,
+                    type: 'import',
+                    readCount: 0
+                });
+            }
+        }
+        else if (tok.type === 'PROMPT' || tok.type === 'MEMORY') {
+            const next = tokens[i + 1];
+            if (next && next.type === 'IDENTIFIER') {
+                currentScope.declare(next.lexeme, {
+                    token: next,
+                    type: 'variable',
+                    readCount: 0
+                });
+            }
+        }
+        else if (tok.type === 'IDENTIFIER' && tok.lexeme === 'define_tool') {
+            if (tokens[i + 1] && tokens[i + 1].lexeme === '(' && tokens[i + 2]) {
+                const nameTok = tokens[i + 2];
+                let name = '';
+                if (nameTok.type === 'STRING') {
+                    name = nameTok.lexeme.replace(/['"]/g, '');
+                } else if (nameTok.type === 'IDENTIFIER') {
+                    name = nameTok.lexeme;
+                }
+                if (name) {
+                    currentScope.declare(name, {
+                        token: nameTok,
+                        type: 'tool',
+                        readCount: 0
+                    });
+                }
+            }
+        }
+    }
+    
+    const diagnostics = [];
+    const builtinsSet = new Set([
+        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio',
+        'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float'
+    ]);
+    
+    for (const ref of refs) {
+        const tok = ref.token;
+        const name = ref.name;
+        
+        const scope = tokenScopes.get(tok);
+        if (scope) {
+            const decl = scope.resolve(name);
+            if (decl) {
+                decl.readCount++;
+            } else if (builtinsSet.has(name)) {
+                continue;
+            } else {
+                diagnostics.push({
+                    type: 'error',
+                    token: tok,
+                    message: `Undefined symbol: "${name}". Referenced but not declared in this scope.`
+                });
+            }
+        }
+    }
+    
+    function checkUnused(scope) {
+        if (scope !== rootScope) {
+            for (const [name, decl] of scope.variables.entries()) {
+                if (decl.readCount === 0 && decl.type !== 'catch_variable') {
+                    diagnostics.push({
+                        type: 'warning',
+                        token: decl.token,
+                        message: `Unused symbol: "${name}". Declared but never read.`
+                    });
+                }
+            }
+        }
+        for (const child of scope.children) {
+            checkUnused(child);
+        }
+    }
+    checkUnused(rootScope);
+    
+    diagnostics.tokenScopes = tokenScopes;
+    return diagnostics;
+}
+
+function validateImports(document, workspaceRoot) {
+    const diagnostics = [];
+    const text = document.getText();
+    const lines = text.split('\n');
+
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const lineText = lines[lineIdx];
+        const stringRegex = /(["'])(.*?)\1/g;
+        let match;
+        while ((match = stringRegex.exec(lineText)) !== null) {
+            const specifier = match[2];
+            const start = match.index;
+            const end = match.index + match[0].length;
+            
+            const beforeString = lineText.substring(0, start).trim();
+            const afterString = lineText.substring(end).trim();
+            
+            const isAllow = /\ballow\s*$/i.test(beforeString) || (beforeString.includes('allow') && afterString.startsWith('in'));
+            const isImport = /\bfrom\s*$/i.test(beforeString);
+            
+            if (isAllow || isImport) {
+                const resolved = resolveSesiModule(specifier, document.uri.fsPath, workspaceRoot);
+                if (!resolved) {
+                    const range = new vscode.Range(
+                        new vscode.Position(lineIdx, start),
+                        new vscode.Position(lineIdx, end)
+                    );
+                    const message = `Module not found: "${specifier}". Checked relative paths, SESI_PATH, and ~/.sesi/lib.`;
+                    const diagnostic = new vscode.Diagnostic(
+                        range,
+                        message,
+                        vscode.DiagnosticSeverity.Error
+                    );
+                    diagnostic.code = 'module-not-found';
+                    diagnostics.push(diagnostic);
+                }
+            }
+        }
+    }
+    return diagnostics;
+}
+
+const documentScopesCache = new Map();
 
 function activate(context) {
     const docs = {
@@ -510,8 +1218,80 @@ function activate(context) {
         }
     };
 
+    let workspaceRoot = '';
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders && workspaceFolders.length > 0) {
+        workspaceRoot = workspaceFolders[0].uri.fsPath;
+    }
+
     const hoverProvider = vscode.languages.registerHoverProvider('sesi', {
         provideHover(document, position, token) {
+            const moduleInfo = getModuleSpecifierAtPosition(document, position);
+            if (moduleInfo) {
+                const resolved = resolveSesiModule(moduleInfo.specifier, document.uri.fsPath, workspaceRoot);
+                const markdown = new vscode.MarkdownString();
+                markdown.isTrusted = true;
+                markdown.supportHtml = true;
+
+                if (resolved) {
+                    if (resolved.type === 'builtin') {
+                        markdown.appendMarkdown(`### Module: \`${moduleInfo.specifier}\` *(Built-in)*\n\n`);
+                        markdown.appendMarkdown(`Sesi Standard Library built-in module.\n\n`);
+
+                        const builtinExports = {
+                            'std/math': [
+                                'PI (number)', 'E (number)',
+                                'sin(x)', 'cos(x)', 'tan(x)', 'sqrt(x)',
+                                'floor(x)', 'ceil(x)', 'abs(x)', 'pow(x, y)',
+                                'log(x)', 'exp(x)'
+                            ],
+                            'std/time': [
+                                'now()', 'sleep(ms)', 'format(timestamp, options)'
+                            ],
+                            'std/json': [
+                                'stringify(val)', 'parse(str)'
+                            ],
+                            'std/db': [
+                                'db_open(filename, password)'
+                            ]
+                        };
+
+                        const exportsList = builtinExports[moduleInfo.specifier];
+                        if (exportsList) {
+                            markdown.appendMarkdown(`**Exports:**\n`);
+                            for (const item of exportsList) {
+                                markdown.appendMarkdown(`* \`${item}\`\n`);
+                            }
+                        }
+                    } else {
+                        markdown.appendMarkdown(`### Module: \`${moduleInfo.specifier}\`\n\n`);
+                        markdown.appendMarkdown(`*Type:* Local Sesi Module  \n`);
+                        markdown.appendMarkdown(`*Path:* \`${resolved.path}\`  \n`);
+                        markdown.appendMarkdown(`*Resolved in:* \`${resolved.searchDir}\`\n\n`);
+
+                        const exportsList = getExportsFromSesiFile(resolved.path);
+                        if (exportsList && exportsList.length > 0) {
+                            markdown.appendMarkdown(`**Exports:**\n`);
+                            for (const exp of exportsList) {
+                                if (exp.type === 'function') {
+                                    markdown.appendMarkdown(`* \`${exp.isAsync ? 'async fn' : 'fn'} ${exp.name}(${exp.params})\`\n`);
+                                } else {
+                                    markdown.appendMarkdown(`* \`let ${exp.name}\`\n`);
+                                }
+                            }
+                        } else {
+                            markdown.appendMarkdown(`*No exports found in file.*`);
+                        }
+                    }
+                } else {
+                    markdown.appendMarkdown(`### Module: \`${moduleInfo.specifier}\`\n\n`);
+                    markdown.appendMarkdown(`⚠️ **Module not found**  \n`);
+                    markdown.appendMarkdown(`Could not resolve this module in relative paths, \`SESI_PATH\`, or \`~/.sesi/lib\`.\n`);
+                }
+
+                return new vscode.Hover(markdown, moduleInfo.range);
+            }
+
             const range = document.getWordRangeAtPosition(position);
             if (!range) return null;
 
@@ -534,6 +1314,87 @@ function activate(context) {
 
                 return new vscode.Hover(markdown);
             }
+
+            // Check local declarations
+            const cache = documentScopesCache.get(document.uri.toString());
+            if (cache) {
+                const { tokens, tokenScopes } = cache;
+                const line = position.line;
+                const char = position.character;
+                const tok = tokens.find(t => t.line === line && char >= t.col && char <= t.col + t.length);
+                if (tok && tok.type === 'IDENTIFIER') {
+                    const scope = tokenScopes.get(tok);
+                    if (scope) {
+                        const decl = scope.resolve(tok.lexeme);
+                        if (decl) {
+                            const markdown = new vscode.MarkdownString();
+                            markdown.isTrusted = true;
+                            
+                            let detail = '';
+                            if (decl.type === 'function') {
+                                detail = `fn ${tok.lexeme}`;
+                            } else if (decl.type === 'parameter') {
+                                detail = `(parameter) ${tok.lexeme}`;
+                            } else if (decl.type === 'variable') {
+                                detail = `let ${tok.lexeme}`;
+                            } else if (decl.type === 'loop_variable') {
+                                detail = `(loop variable) ${tok.lexeme}`;
+                            } else if (decl.type === 'catch_variable') {
+                                detail = `(catch variable) ${tok.lexeme}`;
+                            } else if (decl.type === 'import') {
+                                detail = `(import) ${tok.lexeme}`;
+                            } else if (decl.type === 'tool') {
+                                detail = `(tool) ${tok.lexeme}`;
+                            } else {
+                                detail = `${decl.type} ${tok.lexeme}`;
+                            }
+                            
+                            markdown.appendCodeblock(detail, 'sesi');
+                            return new vscode.Hover(markdown, range);
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+    });
+
+    const definitionProvider = vscode.languages.registerDefinitionProvider('sesi', {
+        provideDefinition(document, position, token) {
+            const moduleInfo = getModuleSpecifierAtPosition(document, position);
+            if (moduleInfo) {
+                const resolved = resolveSesiModule(moduleInfo.specifier, document.uri.fsPath, workspaceRoot);
+                if (resolved && resolved.type === 'local') {
+                    return new vscode.Location(
+                        vscode.Uri.file(resolved.path),
+                        new vscode.Position(0, 0)
+                    );
+                }
+            }
+
+            // Check local declarations for Go to Definition
+            const cache = documentScopesCache.get(document.uri.toString());
+            if (cache) {
+                const { tokens, tokenScopes } = cache;
+                const line = position.line;
+                const char = position.character;
+                const tok = tokens.find(t => t.line === line && char >= t.col && char <= t.col + t.length);
+                if (tok && tok.type === 'IDENTIFIER') {
+                    const scope = tokenScopes.get(tok);
+                    if (scope) {
+                        const decl = scope.resolve(tok.lexeme);
+                        if (decl && decl.token) {
+                            return new vscode.Location(
+                                document.uri,
+                                new vscode.Range(
+                                    new vscode.Position(decl.token.line, decl.token.col),
+                                    new vscode.Position(decl.token.line, decl.token.col + decl.token.length)
+                                )
+                            );
+                        }
+                    }
+                }
+            }
             return null;
         }
     });
@@ -553,13 +1414,40 @@ function activate(context) {
 
     function runValidation(document) {
         const text = document.getText();
-        
-        let workspaceRoot = '';
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (workspaceFolders && workspaceFolders.length > 0) {
-            workspaceRoot = workspaceFolders[0].uri.fsPath;
+        const diagnostics = validateImports(document, workspaceRoot);
+
+        try {
+            const tokens = tokenize(text);
+            const { decls, refs } = findDeclarationsAndReferences(tokens);
+            const scopeDiagnostics = analyzeScope(tokens, decls, refs);
+            
+            documentScopesCache.set(document.uri.toString(), {
+                tokens,
+                tokenScopes: scopeDiagnostics.tokenScopes
+            });
+            
+            for (const d of scopeDiagnostics) {
+                const range = new vscode.Range(
+                    new vscode.Position(d.token.line, d.token.col),
+                    new vscode.Position(d.token.line, d.token.col + d.token.length)
+                );
+                
+                const severity = d.type === 'error' 
+                    ? vscode.DiagnosticSeverity.Error 
+                    : vscode.DiagnosticSeverity.Warning;
+                    
+                const diag = new vscode.Diagnostic(
+                    range,
+                    d.message,
+                    severity
+                );
+                diag.code = d.type === 'error' ? 'undefined-symbol' : 'unused-symbol';
+                diagnostics.push(diag);
+            }
+        } catch (err) {
+            // Ignore static scope analysis failures
         }
-        
+
         const fs = require('fs');
         const localSesiPath = path.join(workspaceRoot, 'bin', 'sesi.js');
         let command;
@@ -581,7 +1469,6 @@ function activate(context) {
         child.stderr.on('data', data => { stderr += data; });
 
         child.on('close', (code) => {
-            const diagnostics = [];
             const output = stderr || stdout;
             
             // Clean up output (remove dotenvx log prefix)
@@ -627,6 +1514,7 @@ function activate(context) {
     }
 
     context.subscriptions.push(hoverProvider);
+    context.subscriptions.push(definitionProvider);
 
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument(document => {

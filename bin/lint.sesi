@@ -217,7 +217,7 @@ fn lex(content) {
       }
       
       let type = "IDENTIFIER"
-      let keywords = ["let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "import", "export", "memory", "true", "false", "null", "print", "prompt", "model", "image", "structured_output", "tool_call", "async", "await"]
+      let keywords = ["let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "import", "export", "memory", "true", "false", "null", "print", "prompt", "model", "image", "structured_output", "tool_call", "async", "await", "convert", "from", "to", "allow", "with"]
       
       for kw in keywords {
         if lexeme == kw {
@@ -254,6 +254,11 @@ fn lex(content) {
       if type == "tool_call" { upperType = "TOOL_CALL" }
       if type == "async" { upperType = "ASYNC" }
       if type == "await" { upperType = "AWAIT" }
+      if type == "convert" { upperType = "CONVERT" }
+      if type == "from" { upperType = "FROM" }
+      if type == "to" { upperType = "TO" }
+      if type == "allow" { upperType = "ALLOW" }
+      if type == "with" { upperType = "WITH" }
       
       push(tokens, {"type": upperType, "lexeme": lexeme, "line": line})
       continue

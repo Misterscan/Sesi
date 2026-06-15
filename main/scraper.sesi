@@ -79,7 +79,11 @@ let outputData = {
   "highlights": highlights
 }
 
-write_file(outputDir + "/scraped_results.json", to_json(outputData))
+try {
+  write_file(outputDir + "/scraped_results.json", to_json(outputData))
+} catch (e) {
+  print "Error writing results JSON:" e
+}
 print "💾 Saved database entry to " outputDir "/scraped_results.json"
 
 // Compile Markdown report
@@ -88,7 +92,7 @@ for h in headlines {
   mdHeadlines = mdHeadlines + "- " + h + "\n"
 }
 
-let timestamp = format(Time.now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "medium"})
+let timestamp = Time.format(Time.now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "medium"})
 prompt reportBody {"# Web Scraper Report
 
 - **Source URL**: " target_url "
@@ -108,5 +112,9 @@ prompt reportBody {"# Web Scraper Report
 
 " highlights}
 
-write_file(outputDir + "/" + pageTitle + "-report-" + timestamp + ".md", reportBody)
+try {
+  write_file(outputDir + "/" + pageTitle + "-report-" + timestamp + ".md", reportBody)
+} catch (e) {
+  print "Error writing report Markdown:" e
+}
 print "📄 Compiled and saved report to" outputDir "/" pageTitle "-report-" timestamp ".md"

@@ -38,7 +38,7 @@ Sesi is built on these core principles:
 - ✅ Error Handling (`try/catch` blocks)
 - ✅ Data types (number, string, bool, array, object)
 - ✅ Process Execution (`spawn`, `exec`, `time`, `random`, `convert`, `format`)
-- ✅ Comments (`//`, `/* */`)
+- ✅ Comments (`//`, `/* */`) — text is preserved in AST as `leadingComments` on declarations for doc tooling
 - ✅ Operators (arithmetic, logical, comparison)
 - ✅ Standard library (print, len, range, etc.)
 - ✅ Interactive REPL shell environment (`sesi`)
@@ -368,11 +368,13 @@ conversation = conversation "Assistant:" response
 
 ```
 type := primitive_type | collection_type | union_type | optional_type
-primitive_type := 'number' | 'string' | 'bool' | 'null'
+primitive_type := 'number' | 'num' | 'string' | 'str' | 'bool' | 'null' | 'any'
 collection_type := 'array' '<' type '>' | 'object' '<' type '>'
 union_type := type ('|' type)
 optional_type := type '?'
 ```
+
+**Type aliases:** `num` is an alias for `number`, `str` is an alias for `string`, and `any` accepts any value. These can be used interchangeably in function signatures, variable annotations, and return types.
 
 ## 5. Expression Evaluation Rules
 
@@ -449,7 +451,6 @@ spawn(string) -> number           // Concurrent process creation
 exec(string) -> string            // Synchronous shell execution
 time() -> number                  // Current Unix timestamp
 random() -> number                // Random float (0.0 to 1.0)
-format() -> string                // Convert time from Unix
 convert() -> bool                 // Convert between formats
 ```
 

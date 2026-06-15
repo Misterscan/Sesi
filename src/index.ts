@@ -5,9 +5,15 @@ export { Lexer } from './lexer';
 export { Parser } from './parser';
 export { Interpreter } from './interpreter';
 export { Environment } from './types';
+export { Compiler } from './compiler';
+export { VM } from './vm';
+export { disassemble } from './chunk';
 import { Lexer } from './lexer';
 import { Parser } from './parser';
 import { Interpreter } from './interpreter';
+import { Compiler } from './compiler';
+import { VM } from './vm';
+import { disassemble } from './chunk';
 import { SesiRuntimeError } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -47,6 +53,8 @@ export interface SesiOptions {
   tokens?: boolean;
   args?: string[];
   dry?: boolean;
+  bytecode?: boolean;      // run via bytecode VM instead of tree-walker
+  bytecodeDump?: boolean;  // print disassembled bytecode then exit
 }
 
 function printTokensTable(tokens: any[]): void {
@@ -157,7 +165,27 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
       return;
     }
 
-    // Interpret
+    // Bytecode path
+    if (options?.bytecode || options?.bytecodeDump) {
+      const compiler = new Compiler();
+      const chunk = compiler.compileProgram(program);
+
+      if (compiler.errors.length > 0) {
+        for (const e of compiler.errors) console.error('Compile error:', e);
+        process.exit(1);
+      }
+
+      if (options.bytecodeDump) {
+        console.log(disassemble(chunk, scriptDir ? path.basename(scriptDir) : '<script>'));
+        return;
+      }
+
+      const vm = new VM(scriptDir, options);
+      await vm.run(chunk);
+      return;
+    }
+
+    // Tree-walking interpreter (default)
     const interpreter = new Interpreter(scriptDir, options);
     await interpreter.interpret(program);
   } catch (error: any) {

@@ -259,12 +259,22 @@ try {
     let d = 0
     while d < len(docs_list) {
       let f_name = docs_list[d]
-      let doc_content = read_file("docs/" + f_name)
+      let doc_content = ""
+      try {
+        doc_content = read_file("docs/" + f_name)
+      } catch (e) {
+        print "Error reading docs/" f_name ":" e
+      }
       sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
       d = d + 1
     }
     
-    let skills = read_file("SKILLS.md")
+    let skills = ""
+    try {
+      skills = read_file("SKILLS.md")
+    } catch (e) {
+      print "Error reading SKILLS.md:" e
+    }
     prompt instructions {"Instructions: 
     "  skills " 
     
@@ -312,6 +322,11 @@ try {
     - You prefer an original way of doing things. "}
     let generated_response = model("gemini-3.1-flash-lite") {thinkingLevel: "low", max_tokens: 4096} {instructions ragPrompt persona}
     
-    let helpResponse = write_file("help_response.md", "# Help Response:\n\n" + generated_response)
+    let helpResponse = false
+    try {
+      helpResponse = write_file("help_response.md", "# Help Response:\n\n" + generated_response)
+    } catch (e) {
+      print "Error writing help_response.md:" e
+    }
     print "The Sesi Co-Pilot has provided a response to your question. Check help_response.md"
   }

@@ -24,6 +24,8 @@ Usage:
   sesi -c <file>         Check syntax of a file
   sesi --ast <file>      Show the AST of a file
   sesi --tokens <file>   Show the tokens of a file
+  sesi -b <file>         Run via bytecode VM
+  sesi -bd <file>        Print disassembled bytecode
 
   Options:
   -v --version           Show version
@@ -41,6 +43,8 @@ Usage:
   -c, --check, --dry     Perform a dry-run syntax check without executing
   --ast                  Show the AST
   --tokens               Show the tokens
+  -b, --byte             Run via bytecode VM (experimental)
+  -bd, --byte-dump       Print disassembled bytecode and exit
 `;
 
 function parseArgs(args) {
@@ -107,6 +111,10 @@ function parseArgs(args) {
       options.sesiOptions.tokens = true;
     } else if (arg === '-c' || arg === '--check' || arg === '--dry') {
       options.sesiOptions.dry = true;
+    } else if (arg === '-b' || arg === '--byte') {
+      options.sesiOptions.bytecode = true;
+    } else if (arg === '-bd' || arg === '--byte-dump') {
+      options.sesiOptions.bytecodeDump = true;
     } else if (arg === '--repl') {
       options.repl = true;
     } else if (arg === '--studio' || arg === '-s') {
