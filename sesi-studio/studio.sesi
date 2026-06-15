@@ -29,11 +29,28 @@ if SESI_ROOT == "" {
 
 let PROJECT_ROOT = SESI_ROOT
 
+let IS_WINDOWS = false
+if len(split(SESI_ROOT, "\\")) > 1 || len(split(SESI_ROOT, ":")) > 1 {
+  IS_WINDOWS = true
+}
+
 fn exec_node(args) {
-  try {
-    return exec("node " + args)
-  } catch (e) {
-    return exec("node.exe " + args)
+  if IS_WINDOWS {
+    try {
+      return exec("cmd.exe /c node " + args)
+    } catch (e) {
+      try {
+        return exec("node " + args)
+      } catch (e2) {
+        return exec("node.exe " + args)
+      }
+    }
+  } else {
+    try {
+      return exec("node " + args)
+    } catch (e) {
+      return exec("node.exe " + args)
+    }
   }
 }
 
@@ -116,6 +133,19 @@ prompt mandatory {"## Mandatory Syntax Rules & Quirks
 "}
 
 memory copilotMemory { "Your name is Sesi Co-Pilot, an expert programmer for the Sesi language. You are very efficient at coding. You prefer an original, creative way of doing things. \n" mandatory "Here is the Sesi documentation to use for reference:\n" sesiDocs }
+
+/*
+  Setup secure database for Co-pilot conversations using Sesi's AES-256-CBC encryption
+*/
+let copilot_db = null
+let conversations_col = null
+
+try {
+  copilot_db = db_open("sesi-studio/copilot_conversations.db", "sesi_copilot_secure_pass_2026")
+  conversations_col = copilot_db.collection("conversations")
+} catch (e2) {
+  print "Error opening copilot database:" str(e2)
+}
 
 print "Starting Sesi Studio Sesi..."
 try {
@@ -238,21 +268,144 @@ fn handle_http(req) {
     try {
       let body_obj = from_json(req.body)
       let q = body_obj["query"]
+      let sessionId = body_obj["sessionId"]
+      let history_str = ""
+      let chat_doc = null
+      let existing = []
+      
+      if sessionId != null && conversations_col != null {
+        try {
+          existing = conversations_col.find({"session_id": sessionId})
+        } catch (db_err) {}
+      }
+      
+      if len(existing) > 0 {
+        chat_doc = existing[0]
+        let messages = chat_doc["messages"]
+        if messages != null {
+          for msg in messages {
+            let role = "User"
+            if msg["isUser"] == false {
+              role = "Co-Pilot"
+            }
+            history_str = history_str + role + ": " + msg["text"] + "\n"
+          }
+        }
+      } else {
+        chat_doc = {
+          "session_id": sessionId,
+          "messages": [],
+          "metadata": {"title": "New Chat"}
+        }
+      }
+      
+      let user_msg = {"text": q, "isUser": true}
+      push(chat_doc["messages"], user_msg)
       
       let res = ""
       if body_obj["filePath"] != null {
         let active_file = body_obj["filePath"]
         let active_content = body_obj["fileContent"]
-        prompt chat_msg { "[Active File:" active_file "]\n```\n" active_content "\n```\n\nUser Question:" q "\n\n====IGNORE ME====\n\n" timestamp }
+        prompt chat_msg {"History of our conversation:
+        " history_str "
+        [Active File: " active_file "
+        ```
+        " active_content "
+        ```
+
+        User Question: " q "
+
+        ====IGNORE ME====
+
+        " timestamp}
         res = model("chat") {thinkingLevel: "low", max_tokens: 4096, cache: false} {copilotMemory chat_msg}
       } else {
-        prompt chat_msg { q "\n\n====IGNORE ME====\n\n" timestamp }
+        prompt chat_msg {"History of our conversation:
+        " history_str "
+        User Question: " q "
+
+        ====IGNORE ME====
+
+        " timestamp}
         res = model("chat") {thinkingLevel: "low", max_tokens: 4096, cache: false} {copilotMemory chat_msg}
+      }
+      
+      let assistant_msg = {"text": res, "isUser": false}
+      push(chat_doc["messages"], assistant_msg)
+      
+      if conversations_col != null && sessionId != null {
+        try {
+          if len(existing) > 0 {
+            conversations_col.update({"session_id": sessionId}, chat_doc)
+          } else {
+            conversations_col.insert(chat_doc)
+          }
+        } catch (db_save_err) {}
       }
       
       return {"status": 200, "body": {"response": res}}
     } catch (e) {
       return {"status": 200, "body": {"response": "⚠️ Co-pilot error: " + str(e)}}
+    }
+  }
+
+  if path == "/api/chats" && method == "GET" {
+    try {
+      let chats = []
+      if conversations_col != null {
+        let docs = conversations_col.find(null)
+        for doc in docs {
+          let chat_obj = {
+            "id": doc["session_id"],
+            "title": doc["metadata"]["title"],
+            "messages": doc["messages"]
+          }
+          push(chats, chat_obj)
+        }
+      }
+      return {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": {"chats": chats}
+      }
+    } catch (e) {
+      return {
+        "status": 500,
+        "headers": {"Content-Type": "application/json"},
+        "body": {"error": str(e)}
+      }
+    }
+  }
+
+  if path == "/api/chats/save" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let new_chats = body_obj["chats"]
+      
+      if conversations_col != null && new_chats != null {
+        conversations_col.delete({})
+        for chat in new_chats {
+          let chat_doc = {
+            "session_id": chat["id"],
+            "messages": chat["messages"],
+            "metadata": {
+              "title": chat["title"]
+            }
+          }
+          conversations_col.insert(chat_doc)
+        }
+      }
+      return {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": {"success": true}
+      }
+    } catch (e) {
+      return {
+        "status": 500,
+        "headers": {"Content-Type": "application/json"},
+        "body": {"error": str(e)}
+      }
     }
   }
 
@@ -368,16 +521,18 @@ fn handle_http(req) {
       let content = body_obj["content"]
       let temp_name = ".sesi_profile_temp_" + str(time()) + ".sesi"
       write_file(temp_name, content)
-      
       let output_str = ""
       let success = true
       try {
-        output_str = exec_in_project("SESI_DEBUG=1 node \"" + SESI_ROOT + "/bin/sesi.js\" -l \"" + temp_name + "\"")
+        let cmd = "SESI_DEBUG=1 node \"" + SESI_ROOT + "/bin/sesi.js\" -l \"" + temp_name + "\""
+        if IS_WINDOWS {
+          cmd = "set SESI_DEBUG=1 && cmd.exe /c node \"" + SESI_ROOT + "/bin/sesi.js\" -l \"" + temp_name + "\""
+        }
+        output_str = exec_in_project(cmd)
       } catch (e) {
         output_str = str(e)
         success = false
       }
-      
       try {
         exec("rm " + temp_name)
       } catch (e_rm) {
@@ -1116,6 +1271,20 @@ fn handle_ws(client, msg) {
               try {
                 let clean_cmd = join(split(term_buffer, "\r"), "")
                 clean_cmd = join(split(clean_cmd, "\n"), "")
+                let cmd_parts = split(clean_cmd, " ")
+                if len(cmd_parts) > 0 {
+                  if cmd_parts[0] == "sesi" {
+                    if IS_WINDOWS {
+                      cmd_parts[0] = "cmd.exe /c node bin/sesi.js"
+                    } else {
+                      cmd_parts[0] = "node bin/sesi.js"
+                    }
+                    clean_cmd = join(cmd_parts, " ")
+                  } else if cmd_parts[0] == "node" && IS_WINDOWS {
+                    cmd_parts[0] = "cmd.exe /c node"
+                    clean_cmd = join(cmd_parts, " ")
+                  }
+                }
                 let result = exec(clean_cmd)
                 let formatted = join(split(result, "\r"), "")
                 formatted = join(split(formatted, "\n"), "\r\n")
