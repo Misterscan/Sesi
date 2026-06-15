@@ -12,6 +12,9 @@
 */
 
 (function() {
+  let headers = [
+      { key: 'Accept', value: 'application/json' }
+    ];
   function initAPIExtension() {
     const sidebarHistory = document.getElementById('sidebarHistory');
     if (!sidebarHistory) {
@@ -42,14 +45,19 @@
     }
 
     // 2. Add API tab
-    if (tabContainer && !document.getElementById('api-tab-workbench')) {
-      const apiTab = document.createElement('span');
+    let apiTab = document.getElementById('api-tab-workbench');
+    if (tabContainer && !apiTab) {
+      apiTab = document.createElement('span');
       apiTab.id = 'api-tab-workbench';
       apiTab.className = 'panel-title';
       apiTab.style.cssText = 'color: var(--silver-dark); cursor: pointer; padding-bottom: 4px; font-weight: bold; transition: color 0.15s ease;';
       apiTab.innerText = 'API';
-      apiTab.onclick = () => selectTab('api');
       tabContainer.appendChild(apiTab);
+    }
+    
+    // ALWAYS re-bind the click handler so it doesn't go stale
+    if (apiTab) {
+      apiTab.onclick = () => selectTab('api');
     }
 
     // 3. Create the API Workbench Panel inside sidebar
@@ -197,11 +205,11 @@
       };
     }
 
-    // 6. Headers & Body Logic
-    let headers = [
-      { key: 'Accept', value: 'application/json' }
-    ];
+    // Only initialize headers and events if we just created the sidebar
+    if (!sidebarAPI.dataset.initialized) {
+      sidebarAPI.dataset.initialized = 'true';
 
+    // 6. Headers & Body Logic
     function renderHeaders() {
       const list = document.getElementById('api-headers-list');
       if (!list) return;
@@ -425,6 +433,7 @@
 
     // Initial code generation
     generateSesiCode();
+    } // <-- CLOSE THE IF STATEMENT HERE, right before "// 7. Tab Selection Logic"
 
     // 7. Tab Selection Logic
     function selectTab(tabName) {
@@ -462,7 +471,8 @@
       const activePanelId = panelIdMap[tabName];
       const activePanel = document.getElementById(activePanelId);
       if (activePanel) {
-        activePanel.style.display = (tabName === 'database' || tabName === 'profiler' || tabName === 'api') ? 'flex' : 'block';
+        // Force the display property with !important to override any IDE native hiding
+        activePanel.style.setProperty('display', (tabName === 'database' || tabName === 'profiler' || tabName === 'api') ? 'flex' : 'block', 'important');
       }
       
       const activeTab = {
