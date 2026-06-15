@@ -4,7 +4,7 @@
   sesi scaffold.sesi [target_folder_name] [-rm] [-no-install] [optional_file_to_copy]
 */
 
-import {sleep} from "std/time"
+allow "std/time" in with Time
 
 // Resilience Helper: Safe file write with retry logic
 fn safe_write(path: string, content: string) -> bool {
@@ -16,7 +16,7 @@ fn safe_write(path: string, content: string) -> bool {
       success = true
     } catch (err) {
       attempts = attempts + 1
-      sleep(100)
+      Time.sleep(100)
     }
   }
   return success
@@ -33,7 +33,7 @@ fn safe_read(path: string) -> string {
       success = true
     } catch (err) {
       attempts = attempts + 1
-      sleep(100)
+      Time.sleep(100)
     }
   }
   return result

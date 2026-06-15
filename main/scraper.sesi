@@ -5,7 +5,7 @@ Usage:
   sesi scraper.sesi [url]
 */
 
-import {now, format} from "std/time"
+allow "std/time" in with Time
 
 // Ensure reports directory exists
 let outputDir = "reports"
@@ -69,7 +69,15 @@ print "Primary Topic:" siteTopic
 print "Number of headlines found:" len(headlines)
 
 // Construct structured JSON database entry
-let outputData = {"url": target_url, "pageTitle": pageTitle, "siteTopic": siteTopic, "scrapedAt": format(now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "short"}), "headlines": headlines, "keyContent": keyContent, "highlights": highlights}
+let outputData = {
+  "url": target_url,
+  "pageTitle": pageTitle,
+  "siteTopic": siteTopic,
+  "scrapedAt": format(Time.now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "short"}),
+  "headlines": headlines,
+  "keyContent": keyContent,
+  "highlights": highlights
+}
 
 write_file(outputDir + "/scraped_results.json", to_json(outputData))
 print "💾 Saved database entry to " outputDir "/scraped_results.json"
@@ -80,7 +88,7 @@ for h in headlines {
   mdHeadlines = mdHeadlines + "- " + h + "\n"
 }
 
-let timestamp = format(now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "medium"})
+let timestamp = format(Time.now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "medium"})
 prompt reportBody {"# Web Scraper Report
 
 - **Source URL**: " target_url "

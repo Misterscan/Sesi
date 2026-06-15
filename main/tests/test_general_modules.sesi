@@ -1,11 +1,34 @@
 // main/test_general_modules.sesi
 // Consolidates test cases for shell-automation, markdown-compiler, data-analyzer, and db-helper.
 
-import {parse_csv, export_to_csv, compute_average, compute_max, compute_min, sort_records, filter_records} from "data-analyzer"
-import {parse_markdown, compile_markdown_file} from "markdown-compiler"
-import {run_command_log, zip_directory} from "shell-automation"
-import {insert_record, find_records_paginated, count_records, delete_record} from "db-helper"
-import {assert_equals, assert_not_null, run_test_suite} from "test-runner"
+allow "data-analyzer" in with {
+    parse_csv,
+    export_to_csv,
+    compute_average,
+    compute_max,
+    compute_min,
+    sort_records,
+    filter_records
+}
+allow "markdown-compiler" in with {
+    parse_markdown,
+    compile_markdown_file
+}
+allow "shell-automation" in with {
+    run_command_log,
+    zip_directory
+}
+allow "db-helper" in with {
+    insert_record,
+    find_records_paginated,
+    count_records,
+    delete_record
+}
+allow "test-runner" in with {
+    assert_equals,
+    assert_not_null,
+    run_test_suite
+}
 
 print "Starting Module Import Test Suite..."
 let results = []

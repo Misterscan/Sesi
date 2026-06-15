@@ -27,6 +27,7 @@ print "Hello," name
 ```
 
 **Parameters**:
+
 - `prompt` (`string`): The text to display as a prompt before reading input. Optional.
 
 **Returns**: `string`
@@ -268,9 +269,10 @@ slice([10, 20, 30, 40], 2)    // [30, 40]
 ```
 
 **Parameters**:
+
 - `collection` (`string` or `array`): The collection to slice.
 - `start` (`number`): The zero-based index at which to begin extraction.
-- `end` (`number`, optional): The zero-based index *before* which to end extraction. If omitted, slices to the end of the collection.
+- `end` (`number`, optional): The zero-based index _before_ which to end extraction. If omitted, slices to the end of the collection.
 
 **Returns**: `string` or `array` based on the input collection type, or `null` if arguments are invalid
 
@@ -285,6 +287,7 @@ swap("a_b_c", "_", "-")    // "a-b-c"
 ```
 
 **Parameters**:
+
 - `string` (`string`): The source string.
 - `target` (`string`): The substring to be replaced.
 - `replacement` (`string`): The substring that replaces the target.
@@ -303,6 +306,7 @@ contains("hello.sesi", ".ts")    // false
 ```
 
 **Parameters**:
+
 - `string` (`string`): The string to search within.
 - `sub` (`string`): The substring to search for.
 
@@ -320,6 +324,7 @@ locate("hello.sesi", "ts")   // -1
 ```
 
 **Parameters**:
+
 - `string` (`string`): The string to search within.
 - `sub` (`string`): The substring to find.
 
@@ -364,6 +369,7 @@ let squares = map(numbers, square) // [1, 4, 9]
 ```
 
 **Parameters**:
+
 - `array` (`array`): The source array.
 - `callback` (`fn`): Function to execute on each element. Receives arguments: `(item, index, array)`.
 
@@ -382,6 +388,7 @@ let evens = filter(numbers, isEven) // [2, 4]
 ```
 
 **Parameters**:
+
 - `array` (`array`): The source array.
 - `callback` (`fn`): Function is a predicate, to test each element of the array. Return a truthy value to keep the element. Receives arguments: `(item, index, array)`.
 
@@ -401,6 +408,7 @@ let totalWithInitial = reduce(numbers, sum, 10) // 20
 ```
 
 **Parameters**:
+
 - `array` (`array`): The source array.
 - `callback` (`fn`): A function to execute on each element in the array (except the first, if no `initialValue` is provided). Receives arguments: `(accumulator, currentValue, index, array)`.
 - `initialValue` (`any`, optional): A value to which `accumulator` is initialized on the first call. If no initial value is supplied, the first element in the array is used as the initial accumulator value, and `reduce()` starts executing the callback from the second element (index 1).
@@ -420,6 +428,7 @@ let match = find(numbers, isEven) // 4
 ```
 
 **Parameters**:
+
 - `array` (`array`): The source array.
 - `callback` (`fn`): Function to execute on each value in the array. Receives arguments: `(item, index, array)`.
 
@@ -824,6 +833,7 @@ let result2 = retry(volatileTask, {
 ```
 
 **Parameters**:
+
 - `action` (`fn`): The function to execute.
 - `options` (`number` or `object`): Either a number representing `max_retries`, or a configuration object with fields:
   - `max_retries` (`number`): The maximum number of retry attempts (default: `3`).
@@ -907,10 +917,10 @@ print sigmoid      // 0.6224593312018546
 Additional math functions are available natively by importing the `"std/math"` module:
 
 ```sesi
-import {sqrt, abs, floor, ceil, sin, cos, tan, pow} from "std/math"
+allow "std/math" in with Math
 
-print sqrt(16) // 4
-print floor(3.7) // 3
+print Math.sqrt(16) // 4
+print Math.floor(3.7) // 3
 ```
 
 ## Function Introspection (v2 planned)
@@ -1067,7 +1077,16 @@ keys(obj) contains "a"    // Future: not yet supported
 Includes math constants and functions: `PI`, `E`, `sin`, `cos`, `tan`, `sqrt`, `floor`, `ceil`, `abs`, `pow`, `log`, `exp`.
 
 ```sesi
-import {PI, E, sqrt, sin, cos} from "std/math"
+allow "std/math" in with {
+  sqrt,
+  abs,
+  floor,
+  ceil,
+  sin,
+  cos,
+  tan,
+  pow
+}
 ```
 
 ### std/time
@@ -1075,9 +1094,9 @@ import {PI, E, sqrt, sin, cos} from "std/math"
 Includes time, sleep, and timezone formatting functions: `now()`, `sleep(ms)`, `format(timestamp, options)`.
 
 ```sesi
-import {now, sleep, format} from "std/time"
+allow "std/time" in with Time
 
-let t = now()
+let t = Time.now()
 // Format time with a specific timezone
 let formatted = format(t, {"timeZone": "America/New_York", "timeStyle": "medium"})
 print formatted // e.g. "2:27:02 AM"
@@ -1088,7 +1107,13 @@ print formatted // e.g. "2:27:02 AM"
 Includes JSON serialization: `parse(str)`, `stringify(val)`.
 
 ```sesi
-import {parse, stringify} from "std/json"
+allow "std/json" in with Json
+
+let original = {
+  "project": "Sesi",
+  "version": "1.5.5"
+}
+print Json.stringify(original)
 ```
 
 ### std/db
@@ -1101,9 +1126,8 @@ A database instance supports opening collections, inserting documents, querying/
 If an optional second parameter `password` is provided, Sesi automatically encrypts database contents stored on disk using **AES-256-CBC** with a dynamic, randomized initialization vector (IV) on every write, and decrypts it during reads.
 
 ```sesi
-import {db_open} from "std/db"
+allow "std/db" in with {db_open}
 
-// Open database with a passphrase
 let db = db_open("data.db", "secure-passphrase-here")
 let users = db.collection("users")
 
@@ -1143,9 +1167,12 @@ cp mymodule.sesi ~/.sesi/lib/
 
 ```sesi
 // Now importable from any folder
-import {callAPI, saveImage} from "retrorender"
-import {GetProfile} from "profiles"
-import {GetGuide} from "guides"
+allow "mymodule1" in with {
+  function1,
+  function2
+}
+allow "mymodule2" in with Name
+allow "mymodule3" in with {function4}
 ```
 
 ### `SESI_PATH` Environment Variable

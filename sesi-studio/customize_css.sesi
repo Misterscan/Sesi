@@ -6,7 +6,7 @@
     visual themes for the Sesi Studio IDE.
 
   Usage:
-    npm run css                                                           # uses default theme description
+    npm run css                                                           
     npm run css "Beautiful, premium modern UX design. Dynamic sky blues"  # custom style description
 */
 
@@ -20,11 +20,13 @@ let studioHtml = read_file("index.html")
 let style = ""
 if len(args) > 0 {
   style = args[0]
+} else {
+  style = input("Enter a style description for the theme: ")
 }
 
 if len(style) > 0 {
-  print "Theme style description:" 
-  print style
+  print ""
+  print "Generating a custom theme for Sesi Studio based on (" style ")"
 } else {
 
   // If no argument is provided the model uses its own defaults.
@@ -35,15 +37,24 @@ if len(style) > 0 {
 }
 
 // Providing the README and index.html as context helps the model understand the IDE's density, feature set, and intended feel.
-let context = "Sesi Studio Overview (README): \n" + studioReadme + "\n\nSesi Studio UI Structure (index.html): \n" + studioHtml
-prompt need {"IDE Theme Style: " style " Target elements: Sesi Studio UI components including panels, tabs, buttons, and specifically the CSS variables in :root (--bg-base, --bg-panel, --accent-cyan, etc.). Focus on the legiblity of text and surrounding elements."}
+prompt context {"Sesi Studio Overview (README): 
+" studioReadme "
 
-print ""
-print "Theme Prompt:" 
-print to_json(need)
-print ""
+Sesi Studio UI Structure (index.html): 
+" studioHtml}
 
-let instruction = "You are a UI Theme Designer for Sesi Studio. Produce a complete, valid CSS stylesheet that overrides the default studio theme. You MUST target the CSS variables defined in :root (like --bg-base, --bg-panel, --accent-cyan, --accent-blue, --accent-green, --silver-light, --silver-mid, --silver-dark, --glass-bg, --glass-border, --glass-highlight) to change the overall look. You can also add specific styles for .panel, .btn, .tab, .file-item, etc. to match the requested style: " + style + ". Use the provided index.html structure for reference. Output ONLY the raw CSS content with no explanations, no ```css backticks, or extra text."
+prompt need {"IDE Theme Style: " style " 
+Target elements: Sesi Studio UI components including panels, tabs, buttons, and specifically the CSS variables in :root (--bg-base, --bg-panel, --accent-cyan, etc.). Focus on the legiblity of text and surrounding elements."}
+
+print "Constructing prompt..."
+
+prompt instruction {"You are a UI Theme Designer for Sesi Studio. 
+Produce a complete, valid CSS stylesheet that overrides the default studio theme. 
+You MUST target the CSS variables defined in :root (like --bg-base, --bg-panel, --accent-cyan, --accent-blue, --accent-green, --silver-light, --silver-mid, --silver-dark, --glass-bg, --glass-border, --glass-highlight) to change the overall look. 
+You can also add specific styles for .panel, .btn, .tab, .file-item, etc. to match the requested style: " style " 
+Use the provided index.html structure for reference. 
+Output ONLY the raw CSS content with no explanations, no ```css backticks, or extra text."}
+
 prompt required {"At the very top, you **MUST** include this schema:
 
 /*
@@ -63,7 +74,8 @@ prompt required {"At the very top, you **MUST** include this schema:
 
 "}
 
-print "Requesting theme CSS from model..."
+print "Retrieving CSS..."
+print ""
 
 /* Change the model and parameters as needed. 
   - gemini-3-flash-preview is a good choice for code generation tasks, but feel free to experiment with other models or settings.
@@ -72,7 +84,7 @@ print "Requesting theme CSS from model..."
   - Both may take slightly longer than gemini-3-flash-preview, but can produce higher quality CSS with better adherence to best practices and design principles.
   Note: We set cache: false to ensure we get a fresh response each time, which is important during development when you may be iterating on the style description. 
 */
-let css = model("gemini-3.5-flash") {thinkingLevel: "medium", temperature: 0.5, max_tokens: 8192, cache: false} {instruction required "User theme need: " need context ". Only output CSS."}
+let css = model("gemini-3-flash-preview") {thinkingLevel: "medium", temperature: 0.5, max_tokens: 8192, cache: false} {instruction required "User theme need: " need context ". Only output CSS."}
 
 print "Received CSS preview (first 6 lines):"
 try {
@@ -84,7 +96,9 @@ try {
   print "  (preview failed):" err
 }
 
-let filename = model("gemini-3.1-flash-lite") {temperature: 0} {"Return a filename for the theme from the name in the following CSS stylesheet: " css "\n\nIf the name is two words use a hyphen to separate the two words. Only return the filename in the response without .css extension."}
+let filename = model("gemini-3.1-flash-lite") {temperature: 0} {"Return a filename for the theme from the name in the following CSS stylesheet: " css "
+
+If the name is two words use a hyphen to separate the two words. Only return the filename in the response without .css extension."}
 print ""
 print "Writing sesi-studio/extensions/themes/" filename ".css..."
 try {

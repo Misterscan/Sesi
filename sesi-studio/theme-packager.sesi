@@ -3,9 +3,6 @@
   A native tool to pack, unpack, and validate Sesi Studio CSS themes.
 */
 
-// Import standard math to fulfill rule requirements
-import { floor } from "std/math"
-
 // --- Helper: Clean Comment Asterisks ---
 fn clean_manifest_json(raw) {
   let lines = split(raw, "\n")
@@ -34,7 +31,7 @@ fn validate_metadata(meta) {
   let required = ["name", "version", "description", "icon", "commands", "license"]
   for field in required {
     if meta[field] == null {
-      print "  ✗ Missing required manifest field: \"" + field + "\""
+      print "  ✗ Missing required manifest field: \"" field "\""
       return false
     }
   }
@@ -117,7 +114,7 @@ fn process_icon_svg(meta, file_path) {
       let svg_path = svg_info["path"]
       let size = len(svg_content)
       
-      print "  → Detected local SVG icon: " + svg_path + " (size: " + str(size) + " bytes)"
+      print "  → Detected local SVG icon:" svg_path "(size:" str(size) "bytes)"
       
       let encoded_uri = ""
       if size <= 2048 {
@@ -126,7 +123,7 @@ fn process_icon_svg(meta, file_path) {
           encoded_uri = exec_node("-e \"" + node_script + "\"")
           print "  → Inline encoded as URL-encoded SVG."
         } catch (e) {
-          print "  ✗ Failed to URL encode SVG: " + str(e)
+          print "  ✗ Failed to URL encode SVG:" e
         }
       } else {
         let node_script = "const fs=require('fs');const buf=fs.readFileSync('" + svg_path + "');process.stdout.write('data:image/svg+xml;base64,'+buf.toString('base64'))"
@@ -134,7 +131,7 @@ fn process_icon_svg(meta, file_path) {
           encoded_uri = exec_node("-e \"" + node_script + "\"")
           print "  → Inline encoded as Base64 SVG."
         } catch (e) {
-          print "  ✗ Failed to Base64 encode SVG: " + str(e)
+          print "  ✗ Failed to Base64 encode SVG:" e
         }
       }
       
@@ -142,7 +139,7 @@ fn process_icon_svg(meta, file_path) {
         meta["icon"] = encoded_uri
       }
     } else {
-      print "  ⚠ Warning: Could not locate SVG icon file: " + icon
+      print "  ⚠ Warning: Could not locate SVG icon file:" icon
     }
   }
 }
@@ -162,12 +159,12 @@ fn pack_theme(args_list) {
     out_dir = args_list[1]
   }
 
-  print "Packing theme: " + file_path
+  print "Packing theme:" file_path
   let content = ""
   try {
     content = read_file(file_path)
   } catch (e) {
-    print "Error: Failed to read theme CSS file: " + file_path
+    print "Error: Failed to read theme CSS file:" file_path
     return false
   }
 
@@ -239,10 +236,10 @@ fn pack_theme(args_list) {
   try {
     write_file(out_path, to_json(bundle))
     print "✓ Packed theme successfully!"
-    print "  Bundle saved to: " + out_path
+    print "  Bundle saved to:" out_path
     return true
   } catch (e) {
-    print "Error: Failed to write bundle file: " + out_path
+    print "Error: Failed to write bundle file:" out_path
     return false
   }
 }
@@ -259,12 +256,12 @@ fn unpack_theme(args_list) {
     out_dir = args_list[1]
   }
 
-  print "Unpacking theme: " + theme_path
+  print "Unpacking theme:" theme_path
   let content = ""
   try {
     content = read_file(theme_path)
   } catch (e) {
-    print "Error: Failed to read theme bundle file: " + theme_path
+    print "Error: Failed to read theme bundle file:" theme_path
     return false
   }
 
@@ -302,10 +299,10 @@ fn unpack_theme(args_list) {
   try {
     write_file(out_path, css_file_content)
     print "✓ Unpacked theme successfully!"
-    print "  Installed theme CSS to: " + out_path
+    print "  Installed theme CSS to:" out_path
     return true
   } catch (e) {
-    print "Error: Failed to write CSS file: " + out_path
+    print "Error: Failed to write CSS file:" out_path
     return false
   }
 }
@@ -317,12 +314,12 @@ fn validate_theme(args_list) {
   }
   let file_path = args_list[0]
 
-  print "Validating theme: " + file_path
+  print "Validating theme:" file_path
   let content = ""
   try {
     content = read_file(file_path)
   } catch (e) {
-    print "Error: Failed to read theme CSS file: " + file_path
+    print "Error: Failed to read theme CSS file:" file_path
     return false
   }
 
@@ -361,12 +358,12 @@ fn validate_theme(args_list) {
 
   if validate_metadata(meta) {
     print "✓ Theme metadata manifest is valid!"
-    print "  Name: " + meta["name"]
-    print "  Version: " + meta["version"]
-    print "  Description: " + meta["description"]
-    print "  Author: " + meta["author"]
-    print "  Icon: " + meta["icon"]
-    print "  License: " + meta["license"]
+    print "  Name:" meta["name"]
+    print "  Version:" meta["version"]
+    print "  Description:" meta["description"]
+    print "  Author:" meta["author"]
+    print "  Icon:" meta["icon"]
+    print "  License:" meta["license"]
     return true
   } else {
     print "✗ Theme validation failed."
@@ -408,7 +405,7 @@ fn run_cli() {
   } else if command == "validate" {
     tool_call(validate)(cmd_args)
   } else {
-    print "Error: Unknown command: " + command
+    print "Error: Unknown command:" command
   }
 }
 

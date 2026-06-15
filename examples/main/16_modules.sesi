@@ -2,20 +2,20 @@
     Example 16: Modules and Scoped Lib Support
 
 Demonstrates:
-    1. Importing named variables/functions from standard library modules using import.
-    2. Importing modules into scoped library namespaces using allow.
-    3. Importing custom Sesi modules using relative paths. 
+    1. Allowing access to variables/functions from standard library modules using allow.
+    2. Allowing access to modules into scoped library namespaces using allow.
+    3. Allowing access to custom Sesi modules using relative paths. 
 */
 
 print "=== 1. Standard Math Module ==="
 
-import {PI, E, sqrt, pow, sin} from "std/math"
+allow "std/math" in with Math
 
-print "PI constant:" str(PI)
-print "Euler's number:" str(E)
-print "Square root of 144:" str(sqrt(144))
-print "2 raised to power of 10:" str(pow(2, 10))
-print "Sine of PI/2:" str(sin(PI / 2.0))
+print "PI constant:" str(Math.PI)
+print "Euler's number:" str(Math.E)
+print "Square root of 144:" str(Math.sqrt(144))
+print "2 raised to power of 10:" str(Math.pow(2, 10))
+print "Sine of PI/2:" str(Math.sin(Math.PI / 2.0))
 
 print "=== 2. Scoped Lib Scoping ==="
 allow "std/math" in with Math
@@ -23,13 +23,13 @@ allow "std/math" in with Math
 print "Area of circle with radius 5 (using Math lib namespace):" str(Math.PI * Math.pow(5, 2))
 
 print "=== 3. Standard JSON Module ==="
-allow "std/json" in with {stringify, parse}
+allow "std/json" in with Json
 
 let original = {"project": "Sesi Language", "version": "1.5.5", "features": ["modules", "http", "parallel"]}
-let json_str = stringify(original)
+let json_str = Json.stringify(original)
 print "Serialized JSON string:"
 print json_str
-let restored = parse(json_str)
+let restored = Json.parse(json_str)
 print "Deserialized Project Name:" restored["project"]
 print "Deserialized Version:" restored["version"]
 
@@ -37,7 +37,7 @@ print "=== 4. Custom Sesi Module ==="
 
 /* Relative imports let you reuse Sesi code across files cleanly.
 We will import custom exported variables and functions from a local module. */
-import {magic_number, multiply} from "main/tests/temp_math_mod"
+allow "main/tests/temp_math_mod" in with LocalMath
 
-print "Imported magic number from local module:" str(magic_number)
-print "Running imported multiply(5, 5):" str(multiply(5, 5))
+print "Imported magic number from local module:" str(LocalMath.magic_number)
+print "Running imported multiply(5, 5):" str(LocalMath.multiply(5, 5))

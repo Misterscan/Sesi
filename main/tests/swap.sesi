@@ -1,0 +1,12 @@
+let sentence = "i am a language that teaches other languages how to be the best language there ever was!"
+print "Original sentence:" sentence
+let swaps = swap(sentence, "language", "gummy bear")
+swaps = swap(swaps, "languages", "gummy bears")
+swaps = swap(swaps, "!", ".")
+print "Modified sentence:" swaps
+
+let new = split(swaps, " ")
+print "Array version of swap:" to_json(new)
+
+let newJoined = join(new, ".")
+print "Joined version of array:" newJoined

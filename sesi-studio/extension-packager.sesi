@@ -3,8 +3,6 @@
   A native tool to pack, unpack, and validate Sesi Studio JS extensions.
 */
 
-import { floor } from "std/math"
-
 // --- Helper: Clean Comment Asterisks ---
 fn clean_manifest_json(raw) {
   let lines = split(raw, "\n")
@@ -32,7 +30,7 @@ fn validate_metadata(meta) {
   let required = ["name", "version", "description", "icon", "commands", "license"]
   for field in required {
     if meta[field] == null {
-      print "  ✗ Missing required manifest field: \"" + field + "\""
+      print "  ✗ Missing required manifest field: \"" field "\""
       return false
     }
   }
@@ -115,7 +113,7 @@ fn process_icon_svg(meta, file_path) {
       let svg_path = svg_info["path"]
       let size = len(svg_content)
       
-      print "  → Detected local SVG icon: " + svg_path + " (size: " + str(size) + " bytes)"
+      print "  → Detected local SVG icon:" svg_path "(size:" str(size) "bytes)"
       
       let encoded_uri = ""
       if size <= 2048 {
@@ -124,7 +122,7 @@ fn process_icon_svg(meta, file_path) {
           encoded_uri = exec_node("-e \"" + node_script + "\"")
           print "  → Inline encoded as URL-encoded SVG."
         } catch (e) {
-          print "  ✗ Failed to URL encode SVG: " + str(e)
+          print "  ✗ Failed to URL encode SVG:" e
         }
       } else {
         let node_script = "const fs=require('fs');const buf=fs.readFileSync('" + svg_path + "');process.stdout.write('data:image/svg+xml;base64,'+buf.toString('base64'))"
@@ -132,7 +130,7 @@ fn process_icon_svg(meta, file_path) {
           encoded_uri = exec_node("-e \"" + node_script + "\"")
           print "  → Inline encoded as Base64 SVG."
         } catch (e) {
-          print "  ✗ Failed to Base64 encode SVG: " + str(e)
+          print "  ✗ Failed to Base64 encode SVG:" e
         }
       }
       
@@ -140,7 +138,7 @@ fn process_icon_svg(meta, file_path) {
         meta["icon"] = encoded_uri
       }
     } else {
-      print "  ⚠ Warning: Could not locate SVG icon file: " + icon
+      print "  ⚠ Warning: Could not locate SVG icon file:" icon
     }
   }
 }
@@ -160,12 +158,12 @@ fn pack_extension(args_list) {
     out_dir = args_list[1]
   }
 
-  print "Packing extension: " + file_path
+  print "Packing extension:" file_path
   let content = ""
   try {
     content = read_file(file_path)
   } catch (e) {
-    print "Error: Failed to read extension JS file: " + file_path
+    print "Error: Failed to read extension JS file:" file_path
     return false
   }
 
@@ -235,10 +233,10 @@ fn pack_extension(args_list) {
   try {
     write_file(out_path, to_json(bundle))
     print "✓ Packed extension successfully!"
-    print "  Bundle saved to: " + out_path
+    print "  Bundle saved to:" out_path
     return true
   } catch (e) {
-    print "Error: Failed to write bundle file: " + out_path
+    print "Error: Failed to write bundle file:" out_path
     return false
   }
 }
@@ -255,12 +253,12 @@ fn unpack_extension(args_list) {
     out_dir = args_list[1]
   }
 
-  print "Unpacking extension: " + ext_path
+  print "Unpacking extension:" ext_path
   let content = ""
   try {
     content = read_file(ext_path)
   } catch (e) {
-    print "Error: Failed to read extension bundle file: " + ext_path
+    print "Error: Failed to read extension bundle file:" ext_path
     return false
   }
 
@@ -298,10 +296,10 @@ fn unpack_extension(args_list) {
   try {
     write_file(out_path, js_file_content)
     print "✓ Unpacked extension successfully!"
-    print "  Installed JS extension to: " + out_path
+    print "  Installed JS extension to:" out_path
     return true
   } catch (e) {
-    print "Error: Failed to write JS file: " + out_path
+    print "Error: Failed to write JS file:" out_path
     return false
   }
 }
@@ -316,7 +314,7 @@ fn validate_extension(args_list) {
   try {
     content = read_file(file_path)
   } catch (e) {
-    print "Error: Failed to read JS file: " + file_path
+    print "Error: Failed to read JS file:" file_path
     return false
   }
 
@@ -352,13 +350,13 @@ fn validate_extension(args_list) {
     return false
   }
 
-  print "Validating extension manifest for: " + file_path
+  print "Validating extension manifest for:" file_path
   if validate_metadata(meta) {
     print "✓ Extension manifest is valid!"
-    print "  Name: " + meta["name"]
-    print "  Version: " + meta["version"]
-    print "  Description: " + meta["description"]
-    print "  License: " + meta["license"]
+    print "  Name:" meta["name"]
+    print "  Version:" meta["version"]
+    print "  Description:" meta["description"]
+    print "  License:" meta["license"]
     return true
   } else {
     print "✗ Extension validation failed."
@@ -399,7 +397,7 @@ fn run_cli() {
   } else if command == "validate" {
     tool_call(validate)(cmd_args)
   } else {
-    print "Unknown command: " + command
+    print "Unknown command:" command
   }
 }
 

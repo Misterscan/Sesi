@@ -1,7 +1,7 @@
 /* Example 24: Native HTTP Server with Async Handlers
 Run with: npm run sesi examples/main/24_http_server.sesi */
 
-import {sleep} from "std/time"
+allow "std/time" in with {sleep}
 
 async fn handleRequest(req) {
   print "Received request on path:" req.path "with method:" req.method

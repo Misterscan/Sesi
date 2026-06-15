@@ -1,7 +1,7 @@
 /* Example 28: Streaming AI Responses
 Demonstrates:
 1. Configuring model calls for streaming output.
-2. Handling real-time token stream chunks with callback functions. */
+2. Handling real-time token stream chunks with callback functions.
 
 fn handleChunk(chunk) {
   // This callback is executed in real-time as chunks arrive from the model
@@ -20,3 +20,4 @@ print "=== Streaming with callback function (stream: callback) ==="
 let res2 = model("gemini-3.1-flash-lite") {stream: handleChunk} {"Give a one-sentence tip on writing clean code."}
 print ""
 print "Final accumulated response:" res2
+*/

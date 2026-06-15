@@ -10,8 +10,8 @@
     - https://github.com/misterscan/sesi/tree/main/sesi-studio/extensions
     - https://github.com/misterscan/sesi/tree/main/sesi-studio/themes
 */
-import {now} from "std/time"
-import {db_open} from "std/db"
+allow "std/time" in with Time
+allow "std/db" in with {db_open}
 
 let SESI_ROOT = ""
 try {
@@ -91,7 +91,7 @@ for f_name in docs_list {
 
 set_alias("copilot", "gemini-3.1-flash-lite")
 set_alias("chat", "gemini-3.1-pro-preview")
-let timestamp = now()
+let timestamp = Time.now()
 
 prompt mandatory {"## Mandatory Syntax Rules & Quirks
 
@@ -115,11 +115,18 @@ prompt mandatory {"## Mandatory Syntax Rules & Quirks
 - CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins).
 "}
 
-memory copilotMemory { "Your name is Sesi Co-Pilot, an expert programmer for the Sesi language. You are very efficient at coding. You prefer an original, creative way of doing things. \n" mandatory "Here is the Sesi documentation to use for reference:\n" sesiDocs }
+memory copilotMemory { "Your name is Sesi Co-Pilot, an expert programmer for the Sesi language. 
+- You are very efficient at coding. 
+- You prefer an original, creative way of doing things. 
+
+" mandatory "
+Here is the Sesi documentation to use for reference:
+" sesiDocs }
 
 print "Starting Sesi Studio Sesi..."
 try {
-  write_file("studio_startup.log", "docs len: " + str(len(sesiDocs)) + " copilotMemory len: " + str(len(copilotMemory)) + " pwd: " + PROJECT_ROOT)
+  let logsDir = make_dir("sesi-studio/logs")
+  write_file(logsDir + "/studio_startup.log", "docs len: " + str(len(sesiDocs)) + " copilotMemory len: " + str(len(copilotMemory)) + " pwd: " + PROJECT_ROOT)
 } catch (e) {}
 
 let favicon = ""

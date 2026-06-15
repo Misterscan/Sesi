@@ -4,7 +4,7 @@ Demonstrates:
 2. web_send for posting raw JSON strings to APIs.
 3. std/json parsing to query structural details. */
 
-import {parse} from "std/json"
+allow "std/json" in with {parse}
 
 print "=== 1. Executing HTTP GET ==="
 let get_url = "https://jsonplaceholder.typicode.com/posts/1"

@@ -1,7 +1,7 @@
 /*Example 26: Embedded Document Database
 Run with: sesi examples/main/26_database.sesi -l */
 
-import {db_open} from "std/db"
+allow "std/db" in with {db_open}
 
 print "Initializing Sesi Database (local.db)..."
 let db = db_open("local.db")

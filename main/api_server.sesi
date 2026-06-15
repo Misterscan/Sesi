@@ -5,7 +5,7 @@ Usage:
  node bin/sesi.js main/api_server.sesi -l
 */
 
-import {db_open} from "std/db"
+allow "std/db" in with {db_open}
 
 let db = db_open("tasks.db")
 let tasks = db.collection("tasks")

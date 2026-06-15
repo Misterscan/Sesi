@@ -138,13 +138,16 @@ fn greet(name: string = "World") {print "Hello," name}
 
 ```
 import_stmt := 'import' (identifier | '{' identifiers '}') 'from' string
+allow_stmt := 'allow' string 'in' with (identifier | '{' identifiers '}' | string)
 export_stmt := 'export' (fn_stmt | let_stmt)
 ```
 
 Example:
 
 ```sesi
-import {add, subtract} from "math"
+allow "math" in with {
+  add, subtract
+}
 export fn multiply(a, b) {print a * b}
 ```
 
@@ -473,7 +476,11 @@ You can import variables and functions from other modules using traditional `imp
 
 ```sesi
 // Option 1: import named bindings directly
-import {add, multiply, PI} from "math"
+import {
+  add,
+  multiply,
+  PI
+} from "math"
 let result = add(10, 20)
 
 // Option 2: allow module to bind under a scoped library namespace
@@ -481,21 +488,23 @@ allow "math" in with Math
 let result = Math.add(10, 20)
 
 // Option 3: allow module to bind specific names directly
-allow "math" in with { add, multiply }
+allow "math" in with {
+  add, multiply
+}
 let result = add(10, 20)
 ```
 
 ### Built-in Standard Library Modules
 
 ```sesi
-import {time} from "std/time"    // Time/date functions
-import {math} from "std/math"    // Math operations
-import {json} from "std/json"    // JSON parsing
+allow "std/time" in with Time    // Time/date functions
+allow "std/math" in with Math    // Math operations
+allow "std/json" in with JSON    // JSON parsing
 ```
 
 ### Module Resolution Order (v1.x)
 
-When you write `import {x} from "mymodule"`, Sesi searches for `mymodule.sesi` in the following order, stopping at the first match:
+When you write `allow "mymodule" in with {x}` , Sesi searches for `mymodule.sesi` in the following order, stopping at the first match:
 
 | Priority | Location                      | Description                                                                            |
 | -------- | ----------------------------- | -------------------------------------------------------------------------------------- |
@@ -524,8 +533,12 @@ Then import it from any project without copying the file:
 
 ```sesi
 // Works from any folder anywhere on your system
-import {callAPI, saveImage} from "retrorender"
-import {GetProfile} from "profiles"
+allow "mymodule" in with {
+  function1,
+  function2,
+  function3
+}
+allow "another-module" in with Name
 ```
 
 ### Custom Library Paths: `SESI_PATH`

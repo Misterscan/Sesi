@@ -656,7 +656,7 @@ Reasoning calls require a configured provider key, such as `GEMINI_API_KEY`, whe
 
 ## 17. Modules and Reuse
 
-Split larger scripts into modules with `export` and `import`.
+Split larger scripts into modules with `export` and `allow ... in with ...`.
 
 `logger.sesi`:
 
@@ -673,7 +673,7 @@ export fn warn(message: string) {
 `main.sesi`:
 
 ```sesi
-import {info, warn} from "logger"
+allow "logger" in with {info, warn}
 
 info("Script started")
 warn("Using default configuration")
@@ -682,10 +682,16 @@ warn("Using default configuration")
 Sesi also includes standard library modules:
 
 ```sesi
-import {PI, sqrt} from "std/math"
-import {now, sleep} from "std/time"
-import {parse, stringify} from "std/json"
-import {db_open} from "std/db"
+allow "std/math" in with {
+  PI, sqrt
+}
+allow "std/time" in with {
+  now, sleep
+}
+allow "std/json" in with {
+  parse, stringify
+}
+allow "std/db" in with {db_open}
 
 print "sqrt(9):" sqrt(9)
 print "Current time:" now()
@@ -701,8 +707,13 @@ allow "std/math" in with Math
 print "PI constant:" Math.PI
 
 // Import specific exports into a scoped block
-allow "std/json" in with {stringify, parse}
-let original = {"project": "Sesi", "version": "1.5.5"}
+allow "std/json" in with {
+  stringify, parse
+}
+let original = {
+  "project": "Sesi",
+  "version": "1.5.5"
+}
 print stringify(original)
 ```
 

@@ -2,8 +2,12 @@
 // Verification script running Sesi DB tests using the test-runner.sesi framework.
 // Run with: sesi main/tests/verify_db.sesi -l
 
-import { assert_equals, assert_not_null, run_test_suite } from "test-runner"
-import { db_open } from "std/db"
+allow "test-runner" in with {
+  assert_equals,
+  assert_not_null,
+  run_test_suite
+}
+allow "std/db" in with {db_open}
 
 print "Starting verification tests for Sesi Database..."
 

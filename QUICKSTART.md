@@ -333,12 +333,15 @@ exp(x)             // Exponential function
 
 ### Standard Library Modules
 
-Standard library features are available natively in **v1.2+** using imports:
+Standard library features are available using `allow ... in with ...` statements:
 
 ```sesi
-import {PI, sqrt} from "std/math"
-import {sleep, now} from "std/time"
-import {stringify, parse} from "std/json"
+allow "std/math" in with {PI, sqrt}
+allow "std/json" in with {
+  stringify, parse
+}
+allow "std/time" in with Time
+// Time.sleep(), Time.now()
 ```
 
 ## Running Examples
