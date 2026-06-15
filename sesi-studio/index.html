@@ -683,6 +683,7 @@
 
   <!-- Monaco and xterm scripts -->
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js"></script>
+  <script src="/api/analyzer"></script>
 
   <script>
     // State management
@@ -960,6 +961,42 @@
           const word = model.getWordAtPosition(position);
           if (!word) return null;
 
+          // 1. Try to fetch from scope analysis cache
+          const cache = window.activeFileScopeCache;
+          if (cache) {
+            const { tokens, tokenScopes } = cache;
+            const line = position.lineNumber - 1;
+            const char = position.column - 1;
+            const tok = tokens.find(t => t.line === line && char >= t.col && char <= t.col + t.length);
+            if (tok && tok.type === 'IDENTIFIER') {
+              const scope = tokenScopes.get(tok);
+              if (scope) {
+                const decl = scope.resolve(tok.lexeme);
+                if (decl) {
+                  let typeStr = decl.type || 'variable';
+                  let desc = `Local ${typeStr} defined on Line ${decl.token.line + 1}.`;
+                  if (typeStr === 'parameter') {
+                    desc = `Parameter of enclosing function.`;
+                  } else if (typeStr === 'import') {
+                    desc = `Module imported identifier.`;
+                  } else if (typeStr === 'loop_variable') {
+                    desc = `For-loop iterator variable.`;
+                  } else if (typeStr === 'catch_variable') {
+                    desc = `Catch-block exception variable.`;
+                  }
+                  
+                  return {
+                    contents: [
+                      { value: '```sesi\n(' + typeStr + ') ' + tok.lexeme + '\n```' },
+                      { value: desc }
+                    ]
+                  };
+                }
+              }
+            }
+          }
+
+          // 2. Fall back to standard docs
           const docs = syntax.docs;
           const item = docs[word.word];
           if (item) {
@@ -1037,6 +1074,34 @@
         provideDefinition: (model, position) => {
           const word = model.getWordAtPosition(position);
           if (!word) return null;
+
+          // 1. Try to fetch from scope analysis cache
+          const cache = window.activeFileScopeCache;
+          if (cache) {
+            const { tokens, tokenScopes } = cache;
+            const line = position.lineNumber - 1;
+            const char = position.column - 1;
+            const tok = tokens.find(t => t.line === line && char >= t.col && char <= t.col + t.length);
+            if (tok && tok.type === 'IDENTIFIER') {
+              const scope = tokenScopes.get(tok);
+              if (scope) {
+                const decl = scope.resolve(tok.lexeme);
+                if (decl && decl.token) {
+                  return {
+                    uri: model.uri,
+                    range: new monaco.Range(
+                      decl.token.line + 1,
+                      decl.token.col + 1,
+                      decl.token.line + 1,
+                      decl.token.col + 1 + decl.token.length
+                    )
+                  };
+                }
+              }
+            }
+          }
+
+          // 2. Fall back to regex search
           const lines = model.getLinesContent();
           const declarationRegex = new RegExp(`\\b(fn|let|const)\\s+${word.word}\\b`);
           for (let i = 0; i < lines.length; i++) {
@@ -2641,6 +2706,42 @@
               endLineNumber: 1,
               endColumn: (model.getLineContent(1) || "").length + 1
             });
+          }
+        }
+
+        // Run Local Static Scope Analysis validation if window.sesiTokenizer is available
+        if (window.sesiTokenizer && window.sesiFindDecls && window.sesiAnalyzeScope) {
+          try {
+            const tokens = window.sesiTokenizer(content);
+            const { decls, refs } = window.sesiFindDecls(tokens);
+            const scopeDiagnostics = window.sesiAnalyzeScope(tokens, decls, refs);
+
+            // Cache the scope analysis results for hover and definition providers
+            window.activeFileScopeCache = {
+              tokens,
+              decls,
+              refs,
+              tokenScopes: scopeDiagnostics.tokenScopes || new Map(),
+              diagnostics: scopeDiagnostics
+            };
+
+            // Map scopeDiagnostics (which are vscode.Diagnostic objects) to monaco markers
+            scopeDiagnostics.forEach(diag => {
+              const startLine = diag.token.line + 1;
+              const startCol = diag.token.col + 1;
+              const endCol = startCol + diag.token.length;
+
+              markers.push({
+                severity: monaco.MarkerSeverity.Warning,
+                message: diag.message,
+                startLineNumber: startLine,
+                startColumn: startCol,
+                endLineNumber: startLine,
+                endColumn: endCol
+              });
+            });
+          } catch (scopeErr) {
+            console.error('Static scope analysis failed:', scopeErr);
           }
         }
 

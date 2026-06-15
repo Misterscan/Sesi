@@ -445,6 +445,19 @@ fn handle_http(req) {
     }
   }
 
+  if path == "/api/analyzer" {
+    try {
+      let ext_content = read_file("editors/vscode/extension.js")
+      let prefix = "(function(require, module, process){\n"
+      let exports = "\nwindow.sesiTokenizer = tokenize;\nwindow.sesiFindDecls = findDeclarationsAndReferences;\nwindow.sesiAnalyzeScope = analyzeScope;\nwindow.sesiScope = Scope;\nwindow.sesiIsConfigBlockKey = isConfigBlockKey;"
+      let suffix = "\n})(function(name) { if (name === 'vscode') { return { Range: class { constructor(s, e) { this.start = s; this.end = e; } }, Position: class { constructor(l, c) { this.line = l; this.character = c; } }, Diagnostic: class { constructor(r, m, s) { this.range = r; this.message = m; this.severity = s; } }, DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 } }; } if (name === 'path') { return { dirname: (p) => p.split('/').slice(0, -1).join('/') || '.', join: (...args) => args.filter(Boolean).join('/').replace(/\\/+/g, '/'), resolve: (...args) => args.filter(Boolean).join('/').replace(/\\/+/g, '/') }; } if (name === 'fs') { return { existsSync: () => false, readFileSync: () => '' }; } if (name === 'os') { return { homedir: () => '' }; } return {}; }, { exports: {} }, { cwd: () => '', env: {}, platform: 'darwin' });"
+      ext_content = prefix + ext_content + exports + suffix
+      return {"status": 200, "headers": {"Content-Type": "application/javascript"}, "body": ext_content}
+    } catch (e) {
+      return {"status": 500, "body": {"error": "Failed to load analyzer: " + str(e)}}
+    }
+  }
+
   if path == "/api/validate" && method == "POST" {
     try {
       let body_obj = from_json(req.body)
