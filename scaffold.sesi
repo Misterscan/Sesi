@@ -43,6 +43,8 @@ fn safe_read(path: string) -> string {
 let target = "my-sesi-app"
 if len(args) > 0 {
   target = args[0]
+} else {
+  target = input("Target Directory (default: my-sesi-app): ")
 }
 
 print "⚡ Scaffolding new Sesi project in:" target
@@ -519,6 +521,8 @@ if len(args) > 1 {
   if args[1] != "-l" {
     specifiedFile = args[1]
   }
+} else {
+  specifiedFile = input("Copy a file into the folder? (optional, click enter to skip): ")
 }
 
 if len(specifiedFile) > 0 {
@@ -538,8 +542,12 @@ if len(specifiedFile) > 0 {
 }
 
 // Remove the file that we just copied from the source directory if requested
-let wantRemove = false
-let skipInstall = false
+let options = input("Do you want to remove the copied file? (y/n): ")
+let options2 = input("Do you want to install node_modules? (y/n): ")
+
+let wantRemove = (options == "y")
+let skipInstall = (options2 == "n")
+
 for arg in args {
   if arg == "-rm" {
     wantRemove = true
