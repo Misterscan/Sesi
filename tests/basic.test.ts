@@ -222,7 +222,7 @@ async function main() {
   // 5. image() with a literal images key
   console.log('\n5. image() — literal reference path');
   try {
-    const expr = parseFirstExpr(`image("gemini-3.1-flash-image-preview") {images: "ref.jpg", ratio: "16:9"} {"render in same style"}`) as ImageCallExpression;
+    const expr = parseFirstExpr(`image("gemini-3.1-flash-image") {images: "ref.jpg", ratio: "16:9"} {"render in same style"}`) as ImageCallExpression;
     assert('type is ImageCallExpression', expr.type === 'ImageCallExpression');
     assert('images field is present', expr.images !== undefined);
     assert('config.ratio is present', expr.config?.ratio !== undefined);

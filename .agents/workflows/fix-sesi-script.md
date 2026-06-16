@@ -20,6 +20,6 @@ description: Debugging and validation of error prone sesi scripts.
   **Why:** Sesi syntax is sensitive to whitespace, newlines, and brace positioning. Terminal-based string replacement will invariably break code.
 
 8. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run sesi:eval "sesi code"` or `node bin/sesi.js -e "..."`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.
-9. **Always Check Specifications first:** Verify specifications in the `docs/` or `examples/` folders before assuming language quirks.
+9. **Always Check Specifications first:** Verify specifications in the `getting-started/` or `examples/` folders before assuming language quirks.
 
 _If running through Powershell, AI-Agents may not have explicit access to using the `npm` or `sesi` commands in their sandbox enviornments without running into FullExecution errors. In this case, use `node bin/sesi.js <file> <option>` in replacement of `npm run sesi`._

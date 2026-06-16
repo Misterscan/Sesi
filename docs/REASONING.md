@@ -125,8 +125,8 @@ print cheap
 - `gemini-3.1-flash-lite` - Fastest, most cost-efficient.
 - `gemini-3.5-flash` - Newest GA model. Balanced, but token hungry (USE WISELY). Supports all native thinking effort levels (`minimal`, `low`, `medium`, `high`).
 - `gemini-3.1-pro-preview` - Most powerful reasoning model, doesn't support `minimal` thinking (falls back to `low`).
-- `gemini-3.1-flash-image-preview` - Cost efficient image generation model.
-- `gemini-3-pro-image-preview` - High quality image generation model. (No `512` image size support for this model.)
+- `gemini-3.1-flash-image` - Cost efficient image generation model.
+- `gemini-3-pro-image` - High quality image generation model. (No `512` image size support for this model.)
 
 #### Planned for (v2+)
 
@@ -338,7 +338,7 @@ print response
 Like `model`, the `image` command evaluates prompts and accepts configuration variables mapping accurately to backend SDKs requirements.
 
 ```sesi
-let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512"} {"A high quality vector logo representing a new programming language named Sesi"}
+let logo = image("gemini-3.1-flash-image") {ratio: "1:1", size: "512"} {"A high quality vector logo representing a new programming language named Sesi"}
 write_image("logo.png", logo)
 print "Image generated!"
 ```

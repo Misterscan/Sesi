@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -21,7 +21,8 @@
     "example.js",
     "example-ai.js",
     "examples.sesi",
-    "scaffold.sesi"
+    "scaffold.sesi",
+    "getting-started"
   ],
   "scripts": {
     "lint": "sesi -l bin/lint.sesi",
@@ -74,7 +75,7 @@
   "author": "Misterscan",
   "license": "MIT",
   "dependencies": {
-    "@dotenvx/dotenvx": "1.71.3",
+    "@dotenvx/dotenvx": "1.73.1",
     "@dotenvx/dotenvx-armor": "0.55.1",
     "@dotenvx/dotenvx-ops": "0.55.1",
     "@google/genai": "2.8.0",
@@ -85,5 +86,10 @@
     "globals": "^17.6.0",
     "rcedit": "^5.0.2",
     "typescript": "6.0.3"
+  },
+  "allowScripts": {
+    "@google/genai@2.8.0": true,
+    "fsevents@2.3.2": true,
+    "protobufjs@7.6.1": true
   }
 }

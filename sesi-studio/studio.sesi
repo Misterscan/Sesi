@@ -97,11 +97,16 @@ fn get_db_collections(db_path, password) {
 }
 
 
-let docs_list = ["BUILTINS.md", "CLI.md", "IMAGE_GENERATION.md", "SPECIFICATION.md", "WRITING_SCRIPTS.md"]
+let docs_list = list_dir("getting-started")
+let more_files = read_file("docs/WRITING_SCRIPTS.md")
+more_files = "\n\n=== DOCUMENT: " + "WRITING_SCRIPTS.md" + " ===\n" + more_files
+more_files = more_files + "\n\n=== DOCUMENT: " + "BUILTINS.md" + " ===\n" + read_file("docs/BUILTINS.md")
+more_files = more_files + "\n\n=== DOCUMENT: " + "README.md" + " ===\n" + read_file("./README.md")
+docs_list = docs_list
 let sesiDocs = ""
 for f_name in docs_list {
   try {
-    let doc_content = read_file("docs/" + f_name)
+    let doc_content = read_file("getting-started/" + f_name)
     sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
   } catch (e) {}
 }
@@ -138,7 +143,7 @@ memory copilotMemory { "Your name is Sesi Co-Pilot, an expert programmer for the
 
 " mandatory "
 Here is the Sesi documentation to use for reference:
-" sesiDocs }
+" more_files sesiDocs }
 
 /*
   Setup secure database for Co-pilot conversations using Sesi's AES-256-CBC encryption
@@ -1345,8 +1350,12 @@ print "  ║   → http://localhost:" str(http_port) "              ║"
 print "  ║                                          ║"
 print "  ╚══════════════════════════════════════════╝"
 print ""
-print "  Press Ctrl+C to stop the server..."
-print ""
 
-let http_server = listen(http_port, handle_http)
-let ws_server = api(ws_port, handle_ws)
+let http = listen(http_port, handle_http)
+let ws = api(ws_port, handle_ws)
+
+let exit = input("Enter x to close: ")
+if exit == "x" {
+  http.close()
+  ws.close()
+}

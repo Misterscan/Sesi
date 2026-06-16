@@ -103,7 +103,7 @@ async function main() {
     await run(
       `
       set_alias("fast", "gemini-3.1-flash-lite")
-      set_alias("fast-img", "gemini-3.1-flash-image-preview")
+      set_alias("fast-img", "gemini-3.1-flash-image")
 
       let a = model("fast") {"hello"}
       let b = image("fast-img") {"render this"}
@@ -124,7 +124,7 @@ async function main() {
       throw new Error(`model() did not resolve alias; models=${captured.map((c) => c.model).join(',')}`);
     }
 
-    if (captured[1].model !== 'gemini-3.1-flash-image-preview') {
+    if (captured[1].model !== 'gemini-3.1-flash-image') {
       throw new Error(`image() did not resolve alias; models=${captured.map((c) => c.model).join(',')}`);
     }
 

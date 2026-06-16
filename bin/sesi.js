@@ -8,7 +8,7 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.5.5
+Sesi Programming Language v1.5.6
 
 Usage:
   sesi <file> [options] <args>  Run a Sesi program
@@ -71,7 +71,7 @@ function parseArgs(args) {
     const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
 
     if (arg === '-v' || arg === '--version') {
-      console.log('Sesi v1.5.5');
+      console.log('Sesi v1.5.6');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -143,7 +143,7 @@ async function startRepl() {
 
   const interpreter = new Interpreter(process.cwd(), parsed.sesiOptions);
 
-  console.log('Sesi Interactive REPL (v1.5.5)');
+  console.log('Sesi Interactive REPL (v1.5.6)');
   console.log('Type ".exit" or press Ctrl+C to exit.');
 
   const rl = readline.createInterface({
@@ -196,7 +196,15 @@ async function main() {
     const studioServerPath = path.join(__dirname, '..', 'sesi-studio', 'studio.sesi');
     if (fs.existsSync(studioServerPath)) {
       console.log('Launching Sesi Studio...');
-      require(studioServerPath);
+      const studioOptions = {
+        ...parsed.sesiOptions,
+        safeMode: false,
+        allowLocalFs: true
+      };
+      await runSesiFile(studioServerPath, studioOptions).catch((error) => {
+        console.error('Fatal error in Sesi Studio:', error.message);
+        process.exit(1);
+      });
     } else {
       console.error('Error: Sesi Studio backend not found at ' + studioServerPath);
       process.exit(1);

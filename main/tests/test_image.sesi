@@ -1,3 +1,3 @@
-let logo = image("gemini-3.1-flash-image-preview") { "ratio": '1:1', "size": '512', "temperature": 0.3, "max_tokens": 512 } {"make a beautiful logo for the word Sesi"}
+let logo = image("gemini-3.1-flash-image") { "ratio": '1:1', "size": '512', "temperature": 0.3, "max_tokens": 512 } {"make a beautiful logo for the word Sesi"}
 print("Generated image successfully! Open it here! main/logo.png")
 write_image("main/logo.png", logo)

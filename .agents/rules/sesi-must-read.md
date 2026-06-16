@@ -87,7 +87,7 @@ Sesi is **NOT** the following coding languages, therefore **NEVER UTILIZE THE SA
 - **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
 
-For all quirks and specific syntaxing, visit WRITING_SCRIPTS.md, IMPLEMENTATION_SUMMARY.md, /docs/SPECIFICATION.md, /docs/BUILTINS.md, and /docs/CLI.
+For all quirks and specific syntaxing, visit WRITING_SCRIPTS.md, /docs/BUILTINS.md, /docs/CLI, and getting-started/.
 
 ## IGNORE THESE FILES/DIRECTORIES
 

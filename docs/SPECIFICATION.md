@@ -581,7 +581,7 @@ Model calls can take optional configuration parameters (written on a single line
 let response = model("gemini-3.5-flash") {thinkingLevel: "low"} {"Say hello"}
 print response  // Returns string
 
-let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512"} {"A vector logo"}
+let logo = image("gemini-3.1-flash-image") {ratio: "1:1", size: "512"} {"A vector logo"}
 write_image("logo.png", logo)
 print "Image written to logo.png"
 ```

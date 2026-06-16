@@ -126,7 +126,7 @@ let response = model("gemini-3.1-flash-lite") {search, max_tokens: 1000} {"What 
 **Image Generation**
 
 ```sesi
-let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512"} {"Your prompt here"}
+let logo = image("gemini-3.1-flash-image") {ratio: "1:1", size: "512"} {"Your prompt here"}
 write_image("logo.png", logo)
 ```
 

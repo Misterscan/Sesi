@@ -23,15 +23,16 @@ Here is a simple example demonstrating how to generate a single image and save i
 prompt request {"A simple minimalist company logo for a bakery"}
 
 // 2. Call the image generation primitive
-let imageData = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "1K"} {request}
+let imageData = image("gemini-3.1-flash-image") {ratio: "1:1", size: "1K"} {request}
 
 // 3. Write the payload to disk
-try 
+try
 {let success = write_image("bakery_logo.png", imageData)
-if success {print "Saved bakery_logo.png successfully."}} 
+if success {print "Saved bakery_logo.png successfully."}}
 catch (e) {print "Failed to generate image:"
 print e}
 ```
+
 <img src="bakery_logo.png" alt="Bakery Logo" style="width:480px;">
 
 ### Advanced Example: Batch Asset Generation Workflow
@@ -45,39 +46,40 @@ make_dir(outputDir)
 let products = ["coffee_mug", "desk_lamp", "notebook"]
 
 // Iterate through the list and generate a file for each
-for product in products 
+for product in products
 {print "Generating asset for:" product
 
 // Construct the instruction for the model
 prompt request {"A clean studio presentation photograph of a " product " on a solid white background."}
 prompt filename { outputDir product ".png" }
-try 
-{let imageData = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "1K"} {request}
+try
+{let imageData = image("gemini-3.1-flash-image") {ratio: "1:1", size: "1K"} {request}
 
 // Attempt local file write
 let success = write_image(filename, imageData)
-if success {print "Saved:" filename}} 
+if success {print "Saved:" filename}}
 catch (e) {print "Failed processing" product ":"
 print e}}
 print "Asset generation complete."
 ```
+
 <img src="coffee_mug.png" alt="Coffee Mug" style="width:340px;">
 <img src="desk_lamp.png" alt="Desk Lamp" style="width:340px;">
 <img src="notebook.png" alt="Notebook" style="width:340px;">
 
 ## Configuration Options
 
-When configuring the `image` call (specifically for models like `gemini-3.1-flash-image-preview`), the configuration block maps directly to backend SDK capabilities:
+When configuring the `image` call (specifically for models like `gemini-3.1-flash-image`), the configuration block maps directly to backend SDK capabilities:
 
 - `ratio`: The aspect ratio of the image (e.g., `"1:1"`, `"16:9"`, `"9:16"`).
 - `size`: Dimensional sizing constraints (Must be `"512"`, `"1K"`, `"2K"`, or `"4K"`).
-- `temperature`: *Will be deprecated in Gemini 3.x+, use thinkingLevel instead.* — controls variance.
+- `temperature`: _Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — controls variance.
 
 ## File I/O Integration: `write_image`
 
-The `image()` call evaluates to a `string` (specifically, base64-encoded image data). To convert this into a standard image file on disk, you must use the `write_image(path, base64_content)` builtin. 
+The `image()` call evaluates to a `string` (specifically, base64-encoded image data). To convert this into a standard image file on disk, you must use the `write_image(path, base64_content)` builtin.
 
-**Important:** Do *not* use `write_file` for image payloads—`write_image` is explicitly implemented in the Sesi engine (`src/builtins.ts`) to handle `Buffer.from(content, 'base64')` decoding for writing safe binary formats.
+**Important:** Do _not_ use `write_file` for image payloads—`write_image` is explicitly implemented in the Sesi engine (`src/builtins.ts`) to handle `Buffer.from(content, 'base64')` decoding for writing safe binary formats.
 
 ---
 
@@ -128,7 +130,7 @@ Pass a reference image to an image-generation model to ground its output.
 
 ```sesi
 let ref = "references/grille_detail.jpg"
-let render = image("gemini-3.1-flash-image-preview") {images: ref, ratio: "16:9"} {"Render a full front elevation in the same visual style as the reference."}
+let render = image("gemini-3.1-flash-image") {images: ref, ratio: "16:9"} {"Render a full front elevation in the same visual style as the reference."}
 write_image("output/elevation.png", render)
 print "Render saved."
 ```
@@ -139,7 +141,7 @@ print "Render saved."
 let dir = "frames/"
 let files = list_dir(dir)
 
-for f in files 
+for f in files
 {prompt p {dir f}
 let desc = model("gemini-3.1-flash-lite") {images: p} {"Describe this frame in one sentence."}
 print f desc}
@@ -149,8 +151,8 @@ print f desc}
 
 When used inside `model()` or `image()` config blocks, `images` is resolved at runtime — it is **not** a static string key passed to the Gemini SDK. All other config keys (`thinkingLevel`, `max_tokens`, `ratio`, `size`, etc.) work alongside it normally.
 
-| Key | Accepted Value | Notes |
-|-----|---------------|-------|
+| Key      | Accepted Value              | Notes                                                               |
+| -------- | --------------------------- | ------------------------------------------------------------------- |
 | `images` | `string` or `array<string>` | One or more local file paths. Resolved relative to `process.cwd()`. |
 
 > **Note:** Multimodal input requires a vision-capable model (e.g. `gemini-3-flash-preview`, `gemini-3.1-flash-lite`, `gemini-3.1-pro-preview`, `gemini-3.5-flash`). Image-generation models that accept reference images are listed in their respective model documentation.

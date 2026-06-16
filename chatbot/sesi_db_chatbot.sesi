@@ -254,19 +254,13 @@ try {
     print "   Please ask again."
   } else {
     let rec = database[best_class]
-    let docs_list = ["BUILTINS.md", "CLI.md", "IMAGE_GENERATION.md", "SPECIFICATION.md", "WRITING_SCRIPTS.md"]
+    let docs_list = list_dir("getting-started")
     let sesiDocs = ""
-    let d = 0
-    while d < len(docs_list) {
-      let f_name = docs_list[d]
-      let doc_content = ""
+    for f_name in docs_list {
       try {
-        doc_content = read_file("docs/" + f_name)
-      } catch (e) {
-        print "Error reading docs/" f_name ":" e
-      }
-      sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
-      d = d + 1
+        let doc_content = read_file("getting-started/" + f_name)
+        sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
+      } catch (e) {}
     }
     
     let skills = ""
@@ -303,8 +297,17 @@ try {
     - model()
     - image()
     - workflow()
-    
+
     Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON/math builtins).
+
+    # CRITICAL: Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error, they are treated as statement separators. 
+    Newlines that live inside a string literal are fine.
+
+    ```
+    prompt example {""Multi line strings are fine
+    but they MUST begin on the same line as the opening '{' 
+    and end on the same line as the closing '}' ""}
+    ```
     "}
     prompt ragPrompt {"Sesi Official Reference Documentation:
     " sesiDocs "
