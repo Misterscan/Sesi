@@ -241,6 +241,8 @@ Sesi supports importing standard utility library modules natively at runtime:
 - **`std/math`**: Constants `PI`, `E`, and functions `sin`, `cos`, `tan`, `sqrt`, `floor`, `ceil`, `abs`, `pow`, `log`, `exp`
 - **`std/time`**: `now()`, `sleep(ms)`, and `format(timestamp, options)` for timezone/locale formatting
 - **`std/json`**: `stringify(val)` and `parse(str)`
+- **`std/audio`**: `play(note, ms)`, `beep(freq, ms)`, `synth(freq, ms, type)`, `save(path, freq, ms, type)`, `sequence(path, notes, type)`, `mix(path, tracks_array, type)` for sound synthesis and playback
+- **`std/draw`**: `circle`, `rect`, `line`, `text`, `render`, `save_svg`, `clear` for SVG graphics generation
 - **`std/db`**: `db_open(filename, password?)` returning a Document Database instance (with automatic AES-256-CBC disk encryption if a passphrase is provided) supporting collections and CRUD operations:
   - `db.collection(name)` -> Collection object
   - `collection.insert(document)`

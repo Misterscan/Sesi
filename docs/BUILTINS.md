@@ -634,6 +634,103 @@ server.close()
 
 ---
 
+## Audio Functions (std/audio)
+
+The `std/audio` module provides functions for sound synthesis and playback.
+
+```sesi
+allow "std/audio" in with Audio
+
+// Play a simple beep (frequency in Hz, duration in ms)
+Audio.beep(440, 200)
+
+// Play a musical note
+Audio.play("C4", 500)
+Audio.play("E4", 500)
+Audio.play("G4", 500)
+
+// Synthesize a waveform and get base64 WAV data
+let b64 = Audio.synth(440, 1000, "square")
+
+// Save a synthesized tone to a file
+Audio.save("tone.wav", "A4", 2000, "sine")
+
+// Save a sequence (song) of notes
+let song = [
+  {"note": "C4", ms: 500},
+  {"note": "E4", ms: 500},
+  {"note": "G4", ms: 1000}
+]
+Audio.sequence("song.wav", song, "triangle")
+
+// Mix multiple tracks into a single polyphonic WAV
+let lead = [{"note": "C4", ms: 500}, {"note": "E4", ms: 500}]
+let bass = [{"note": "C2", ms: 1000}]
+Audio.mix("mix.wav", [lead, bass], "sine")
+```
+
+### beep(frequency, duration)
+Plays a simple sine wave beep.
+
+### play(note, duration)
+Plays a musical note (e.g., `"C4"`, `"A#3"`, `"Bb5"`).
+
+### synth(frequency_or_note, duration, type)
+Returns a base64 encoded WAV string. `type` can be `"sine"`, `"square"`, `"saw"`, or `"triangle"`.
+
+### save(path, frequency_or_note, duration, type)
+Saves a synthesized WAV file to the specified path.
+
+### sequence(path, notes_array, type)
+Saves a multi-note sequence to a single WAV file. `notes_array` can be an array of note strings (e.g., `["C4", "D4"]`) or objects (e.g., `[{note: "C4", ms: 250}]`).
+
+### mix(path, tracks_array, type)
+Saves a WAV file by mixing multiple tracks together. `tracks_array` is an array of note arrays (sequences). Each track is layered and mixed simultaneously.
+
+---
+
+## Drawing Functions (std/draw)
+
+The `std/draw` module provides a simple API for creating SVG graphics.
+
+```sesi
+allow "std/draw" in with Draw
+
+Draw.rect(0, 0, 100, 100, "blue")
+Draw.circle(50, 50, 40, "red")
+Draw.line(0, 0, 100, 100, "white")
+Draw.text(10, 90, "Hello Sesi", 20, "yellow")
+
+// Get the SVG string
+let svg = Draw.render(100, 100)
+
+// Save to a file
+Draw.save_svg("drawing.svg", 100, 100)
+```
+
+### clear()
+Clears the current drawing buffer.
+
+### circle(x, y, radius, fill)
+Adds a circle to the drawing.
+
+### rect(x, y, width, height, fill)
+Adds a rectangle to the drawing.
+
+### line(x1, y1, x2, y2, stroke)
+Adds a line to the drawing.
+
+### text(x, y, content, size, fill)
+Adds text to the drawing.
+
+### render(width, height)
+Returns the complete SVG string.
+
+### save_svg(path, width, height)
+Saves the drawing as an SVG file.
+
+---
+
 ## System Functions
 
 ### spawn(path) -> number

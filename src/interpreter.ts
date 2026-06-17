@@ -41,6 +41,8 @@ import {
 import { getBuiltins, isTruthy, isEqual, stringify, compareValues, stripPrototypes, ensureSafePath } from './builtins';
 import { aiRuntime } from './ai-runtime';
 import * as fs from 'fs';
+import * as path from 'path';
+import { execSync } from 'child_process';
 
 export class Interpreter {
   private globalEnv: Environment;
@@ -1586,9 +1588,353 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         }
       });
       return exports;
+    } else if (source === 'std/audio') {
+      exports.set('beep', {
+        type: 'function',
+        name: 'beep',
+        params: [{ name: 'freq' }, { name: 'ms' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+          const freq = typeof args[0] === 'number' ? args[0] : 440;
+          const ms = typeof args[1] === 'number' ? args[1] : 200;
+          const wav = generateWav(freq, ms);
+          const tmp = path.join(process.cwd(), `.tmp_beep_${Date.now()}.wav`);
+          fs.writeFileSync(tmp, wav);
+          try {
+            if (process.platform === 'darwin') execSync(`afplay "${tmp}"`);
+            else if (process.platform === 'win32') execSync(`powershell -c "(New-Object Media.SoundPlayer '${tmp}').PlaySync()"`);
+          } catch {} finally { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); }
+          return null;
+        }
+      });
+      exports.set('play', {
+        type: 'function',
+        name: 'play',
+        params: [{ name: 'note' }, { name: 'ms' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+          const note = typeof args[0] === 'string' ? args[0] : 'C4';
+          const ms = typeof args[1] === 'number' ? args[1] : 500;
+          const freq = getFrequency(note);
+          const wav = generateWav(freq, ms);
+          const tmp = path.join(process.cwd(), `.tmp_play_${Date.now()}.wav`);
+          fs.writeFileSync(tmp, wav);
+          try {
+            if (process.platform === 'darwin') execSync(`afplay "${tmp}"`);
+            else if (process.platform === 'win32') execSync(`powershell -c "(New-Object Media.SoundPlayer '${tmp}').PlaySync()"`);
+          } catch {} finally { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); }
+          return null;
+        }
+      });
+      exports.set('synth', {
+        type: 'function',
+        name: 'synth',
+        params: [{ name: 'freq' }, { name: 'ms' }, { name: 'type' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (freq, ms, type): RuntimeValue => {
+          const f = typeof freq === 'number' ? freq : (typeof freq === 'string' ? getFrequency(freq) : 440);
+          const m = typeof ms === 'number' ? ms : 500;
+          const t = typeof type === 'string' ? type : 'sine';
+          return generateWav(f, m, t).toString('base64');
+        }
+      });
+      exports.set('save', {
+        type: 'function',
+        name: 'save',
+        params: [{ name: 'path' }, { name: 'freq' }, { name: 'ms' }, { name: 'type' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (filePath, freq, ms, type): RuntimeValue => {
+          const f = typeof freq === 'number' ? freq : (typeof freq === 'string' ? getFrequency(freq) : 440);
+          const m = typeof ms === 'number' ? ms : 500;
+          const t = typeof type === 'string' ? type : 'sine';
+          const wav = generateWav(f, m, t);
+          const absPath = ensureSafePath(stringify(filePath), this);
+          fs.writeFileSync(absPath, wav);
+          return true;
+        }
+      });
+      exports.set('sequence', {
+        type: 'function',
+        name: 'sequence',
+        params: [{ name: 'path' }, { name: 'notes' }, { name: 'type' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (filePath, notesVal, type): RuntimeValue => {
+          if (!Array.isArray(notesVal)) throw new Error('sequence expects an array of notes');
+          const t = typeof type === 'string' ? type : 'sine';
+          const sampleRate = 44100;
+          
+          let totalSamples = 0;
+          const noteData = notesVal.map(val => {
+            const n = val as any;
+            const freq = (typeof n === 'object' && n !== null) ? (typeof n.freq === 'number' ? n.freq : getFrequency(n.note || 'C4')) : getFrequency(stringify(n));
+            const ms = (typeof n === 'object' && n !== null && typeof n.ms === 'number') ? n.ms : 500;
+            const samples = Math.floor(sampleRate * (ms / 1000));
+            totalSamples += samples;
+            return { freq, samples };
+          });
+
+          const buffer = Buffer.alloc(44 + totalSamples * 2);
+          buffer.write('RIFF', 0);
+          buffer.writeUInt32LE(36 + totalSamples * 2, 4);
+          buffer.write('WAVE', 8);
+          buffer.write('fmt ', 12);
+          buffer.writeUInt32LE(16, 16);
+          buffer.writeUInt16LE(1, 20);
+          buffer.writeUInt16LE(1, 22);
+          buffer.writeUInt32LE(sampleRate, 24);
+          buffer.writeUInt32LE(sampleRate * 2, 28);
+          buffer.writeUInt16LE(2, 32);
+          buffer.writeUInt16LE(16, 34);
+          buffer.write('data', 36);
+          buffer.writeUInt32LE(totalSamples * 2, 40);
+
+          let offset = 44;
+          for (const nd of noteData) {
+            for (let i = 0; i < nd.samples; i++) {
+              let sample = 0;
+              const time = i / sampleRate;
+              if (t === 'sine') sample = Math.sin(2 * Math.PI * nd.freq * time);
+              else if (t === 'square') sample = Math.sin(2 * Math.PI * nd.freq * time) >= 0 ? 0.3 : -0.3;
+              else if (t === 'saw') sample = 0.6 * (2 * (time * nd.freq - Math.floor(time * nd.freq + 0.5)));
+              else if (t === 'triangle') sample = 0.6 * (2 * Math.abs(2 * (time * nd.freq - Math.floor(time * nd.freq + 0.5))) - 1);
+              buffer.writeInt16LE(Math.floor(sample * 32767), offset);
+              offset += 2;
+            }
+          }
+
+          const absPath = ensureSafePath(stringify(filePath), this);
+          fs.writeFileSync(absPath, buffer);
+          return true;
+        }
+      });
+      exports.set('mix', {
+        type: 'function',
+        name: 'mix',
+        params: [{ name: 'path' }, { name: 'tracks' }, { name: 'type' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (filePath, tracksVal, type): RuntimeValue => {
+          if (!Array.isArray(tracksVal)) throw new Error('mix expects an array of tracks');
+          const t = typeof type === 'string' ? type : 'sine';
+          const sampleRate = 44100;
+
+          // Process all tracks to find the longest one
+          const allTracksData = tracksVal.map(track => {
+            if (!Array.isArray(track)) throw new Error('Each track in mix must be an array of notes');
+            let trackSamples = 0;
+            const notes = (track as any[]).map(val => {
+              const n = val as any;
+              const freq = (typeof n === 'object' && n !== null) ? (typeof n.freq === 'number' ? n.freq : getFrequency(n.note || 'C4')) : getFrequency(stringify(n));
+              const ms = (typeof n === 'object' && n !== null && typeof n.ms === 'number') ? n.ms : 500;
+              const samples = Math.floor(sampleRate * (ms / 1000));
+              trackSamples += samples;
+              return { freq, samples };
+            });
+            return { notes, totalSamples: trackSamples };
+          });
+
+          const maxSamples = Math.max(...allTracksData.map(d => d.totalSamples));
+          const mixBuffer = new Float32Array(maxSamples);
+
+          for (const track of allTracksData) {
+            let sampleOffset = 0;
+            for (const nd of track.notes) {
+              for (let i = 0; i < nd.samples; i++) {
+                if (sampleOffset + i >= maxSamples) break;
+                let sample = 0;
+                const time = i / sampleRate;
+                if (t === 'sine') sample = Math.sin(2 * Math.PI * nd.freq * time);
+                else if (t === 'square') sample = Math.sin(2 * Math.PI * nd.freq * time) >= 0 ? 0.3 : -0.3;
+                else if (t === 'saw') sample = 0.6 * (2 * (time * nd.freq - Math.floor(time * nd.freq + 0.5)));
+                else if (t === 'triangle') sample = 0.6 * (2 * Math.abs(2 * (time * nd.freq - Math.floor(time * nd.freq + 0.5))) - 1);
+                
+                mixBuffer[sampleOffset + i] += sample;
+              }
+              sampleOffset += nd.samples;
+            }
+          }
+
+          // Normalize and write to WAV
+          const buffer = Buffer.alloc(44 + maxSamples * 2);
+          buffer.write('RIFF', 0);
+          buffer.writeUInt32LE(36 + maxSamples * 2, 4);
+          buffer.write('WAVE', 8);
+          buffer.write('fmt ', 12);
+          buffer.writeUInt32LE(16, 16);
+          buffer.writeUInt16LE(1, 20);
+          buffer.writeUInt16LE(1, 22);
+          buffer.writeUInt32LE(sampleRate, 24);
+          buffer.writeUInt32LE(sampleRate * 2, 28);
+          buffer.writeUInt16LE(2, 32);
+          buffer.writeUInt16LE(16, 34);
+          buffer.write('data', 36);
+          buffer.writeUInt32LE(maxSamples * 2, 40);
+
+          // Find peak for normalization
+          let peak = 0;
+          for (let i = 0; i < maxSamples; i++) {
+            const abs = Math.abs(mixBuffer[i]);
+            if (abs > peak) peak = abs;
+          }
+          const scale = peak > 1.0 ? (0.9 / peak) : 0.9;
+
+          for (let i = 0; i < maxSamples; i++) {
+            buffer.writeInt16LE(Math.floor(mixBuffer[i] * scale * 32767), 44 + i * 2);
+          }
+
+          const absPath = ensureSafePath(stringify(filePath), this);
+          fs.writeFileSync(absPath, buffer);
+          return true;
+        }
+      });
+      return exports;
+    } else if (source === 'std/draw') {
+      let elements: string[] = [];
+      exports.set('clear', {
+        type: 'function',
+        name: 'clear',
+        params: [],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (): RuntimeValue => {
+          elements = [];
+          return null;
+        }
+      });
+      exports.set('circle', {
+        type: 'function',
+        name: 'circle',
+        params: [{ name: 'x' }, { name: 'y' }, { name: 'r' }, { name: 'fill' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (x, y, r, fill): RuntimeValue => {
+          elements.push(`<circle cx="${x}" cy="${y}" r="${r}" fill="${stringify(fill) || 'black'}" />`);
+          return null;
+        }
+      });
+      exports.set('rect', {
+        type: 'function',
+        name: 'rect',
+        params: [{ name: 'x' }, { name: 'y' }, { name: 'w' }, { name: 'h' }, { name: 'fill' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (x, y, w, h, fill): RuntimeValue => {
+          elements.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${stringify(fill) || 'black'}" />`);
+          return null;
+        }
+      });
+      exports.set('line', {
+        type: 'function',
+        name: 'line',
+        params: [{ name: 'x1' }, { name: 'y1' }, { name: 'x2' }, { name: 'y2' }, { name: 'color' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (x1, y1, x2, y2, color): RuntimeValue => {
+          elements.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stringify(color) || 'black'}" />`);
+          return null;
+        }
+      });
+      exports.set('text', {
+        type: 'function',
+        name: 'text',
+        params: [{ name: 'x' }, { name: 'y' }, { name: 'text' }, { name: 'size' }, { name: 'color' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (x, y, txt, size, color): RuntimeValue => {
+          elements.push(`<text x="${x}" y="${y}" font-size="${size || 16}" fill="${stringify(color) || 'black'}">${stringify(txt)}</text>`);
+          return null;
+        }
+      });
+      exports.set('render', {
+        type: 'function',
+        name: 'render',
+        params: [{ name: 'width' }, { name: 'height' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (w, h): RuntimeValue => {
+          return `<svg width="${w || 500}" height="${h || 500}" xmlns="http://www.w3.org/2000/svg">${elements.join('')}</svg>`;
+        }
+      });
+      exports.set('save_svg', {
+        type: 'function',
+        name: 'save_svg',
+        params: [{ name: 'path' }, { name: 'width' }, { name: 'height' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (filePath, w, h): RuntimeValue => {
+          const svg = `<svg width="${w || 500}" height="${h || 500}" xmlns="http://www.w3.org/2000/svg">${elements.join('')}</svg>`;
+          const absPath = ensureSafePath(stringify(filePath), this);
+          fs.writeFileSync(absPath, svg);
+          return true;
+        }
+      });
+      return exports;
     }
     return null;
   }
+}
+
+const NOTES: Record<string, number> = {
+  'C': 261.63, 'C#': 277.18, 'D': 293.66, 'D#': 311.13, 'E': 329.63, 'F': 349.23,
+  'F#': 369.99, 'G': 392.00, 'G#': 415.30, 'A': 440.00, 'A#': 466.16, 'B': 493.88
+};
+
+function getFrequency(note: string): number {
+  const match = note.match(/^([A-G]#?)(\d)$/);
+  if (!match) return 440;
+  const name = match[1];
+  const octave = parseInt(match[2]);
+  const base = NOTES[name];
+  return base * Math.pow(2, octave - 4);
+}
+
+function generateWav(frequency: number, durationMs: number, type: string = 'sine'): Buffer {
+  const sampleRate = 44100;
+  const numSamples = Math.floor(sampleRate * (durationMs / 1000));
+  const buffer = Buffer.alloc(44 + numSamples * 2);
+
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + numSamples * 2, 4);
+  buffer.write('WAVE', 8);
+  buffer.write('fmt ', 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate * 2, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(numSamples * 2, 40);
+
+  for (let i = 0; i < numSamples; i++) {
+    let sample = 0;
+    const t = i / sampleRate;
+    if (type === 'sine') sample = Math.sin(2 * Math.PI * frequency * t);
+    else if (type === 'square') sample = Math.sin(2 * Math.PI * frequency * t) >= 0 ? 0.5 : -0.5;
+    else if (type === 'saw') sample = 2 * (t * frequency - Math.floor(t * frequency + 0.5));
+    else if (type === 'triangle') sample = 2 * Math.abs(2 * (t * frequency - Math.floor(t * frequency + 0.5))) - 1;
+    buffer.writeInt16LE(Math.floor(sample * 32767), 44 + i * 2);
+  }
+  return buffer;
 }
 
 function simpleMdToHtml(md: string): string {
