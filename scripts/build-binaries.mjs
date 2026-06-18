@@ -13,6 +13,32 @@ try {
     'npx esbuild bin/sesi.js --bundle --platform=node --alias:node:sqlite=./mock-sqlite.js --outfile=dist/sesi.bundled.js',
     { stdio: 'inherit', cwd: repoRoot }
   );
+  
+  // Prepend File polyfill to ensure it is defined at the very top of the bundled file, 
+  // before any bundled module executes (like undici).
+  const bundlePath = path.join(repoRoot, 'dist/sesi.bundled.js');
+  if (fs.existsSync(bundlePath)) {
+    const originalContent = fs.readFileSync(bundlePath, 'utf8');
+    const polyfill = `if (typeof globalThis.File === 'undefined') {
+  const Blob = globalThis.Blob || require('buffer').Blob;
+  globalThis.File = class File extends Blob {
+    constructor(parts, name, options = {}) {
+      super(parts, options);
+      this.name = name;
+      this.lastModified = options.lastModified || (options.lastModifiedDate ? options.lastModifiedDate.getTime() : Date.now());
+    }
+  };
+}\n`;
+    if (originalContent.startsWith('#!')) {
+      const shebangEnd = originalContent.indexOf('\n') + 1;
+      const shebang = originalContent.slice(0, shebangEnd);
+      const rest = originalContent.slice(shebangEnd);
+      fs.writeFileSync(bundlePath, shebang + polyfill + rest, 'utf8');
+    } else {
+      fs.writeFileSync(bundlePath, polyfill + originalContent, 'utf8');
+    }
+    console.log('Prepended File polyfill to dist/sesi.bundled.js successfully.');
+  }
 } catch (e) {
   console.error('esbuild bundling failed:', e.message);
   process.exit(1);

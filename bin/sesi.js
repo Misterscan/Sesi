@@ -1,6 +1,18 @@
 #!/usr/bin/env node
 require('@dotenvx/dotenvx').config();
 delete process.env.PKG_EXECPATH;
+
+if (typeof globalThis.File === 'undefined') {
+  const Blob = globalThis.Blob || require('buffer').Blob;
+  globalThis.File = class File extends Blob {
+    constructor(parts, name, options = {}) {
+      super(parts, options);
+      this.name = name;
+      this.lastModified = options.lastModified || (options.lastModifiedDate ? options.lastModifiedDate.getTime() : Date.now());
+    }
+  };
+}
+
 const { runSesiFile, runSesi } = require('../dist/index.js');
 const fs = require('fs');
 const path = require('path');

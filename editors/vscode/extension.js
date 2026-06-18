@@ -194,7 +194,9 @@ function tokenize(text) {
         'break', 'continue', 'try', 'catch', 'finally', 'true', 'false', 'null',
         'print', 'prompt', 'model', 'image', 'async', 'await', 'import', 'from',
         'export', 'to', 'allow', 'with', 'convert', 'memory', 'structured_output',
-        'tool_call'
+        'tool_call', 'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 
+        'render', 'sf2', 'chord', 'scale', 'transpose', 'clear', 'circle', 'rect', 
+        'line', 'text', 'save_svg'
     ]);
 
     const stripped = stripComments(text);
@@ -736,7 +738,11 @@ function analyzeScope(tokens, decls, refs) {
     const diagnostics = [];
     const builtinsSet = new Set([
         'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio',
-        'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float'
+        'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float',
+        // Audio & Theory
+        'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose',
+        // Draw
+        'clear', 'circle', 'rect', 'line', 'text', 'save_svg'
     ]);
     
     for (const ref of refs) {
@@ -1224,6 +1230,114 @@ function activate(context) {
             description: 'Opens or creates a persistent, JSON-backed document database file. Returns a database instance with collection-based CRUD capabilities.',
             example: 'import { db_open } from "std/db"\nlet db = db_open("data.db")\nlet users = db.collection("users")'
         },
+        'sf2': {
+            signature: 'sf2(path, options)',
+            source: 'Audio Standard Library (std/audio)',
+            description: 'High-level instrument constructor function bound to a specific SoundFont (.sf2) file. Returns a function that generates sample-accurate note objects for Audio.mix().',
+            example: 'let piano = sf2("GeneralUser-GS.sf2", {"instrument": 0, "gain": 1.5})\nlet note = piano("C4", 500)'
+        },
+        'mix': {
+            signature: 'mix(path, tracks_array, type, options)',
+            source: 'Audio Standard Library (std/audio)',
+            description: 'Saves a Stereo WAV file by mixing multiple tracks together. Features high-speed SoundFont batch rendering, ADSR, low-pass filters, soft clipping, and panning.',
+            example: 'mix("song.wav", [bass_track, piano_track], "sine", {"saturate": 1.5})'
+        },
+        'synth': {
+            signature: 'synth(freq_or_note, duration_ms, type, options)',
+            source: 'Audio Standard Library (std/audio)',
+            description: 'Returns a base64 encoded WAV string of a generated tone. Types: "sine", "square", "saw", "triangle", "noise", "kick", "snare", "hat", "clap".',
+            example: 'let kick_b64 = synth(60, 500, "kick")'
+        },
+        'chord': {
+            signature: 'chord(root_note, type)',
+            source: 'Theory Standard Library (std/theory)',
+            description: 'Generates an array of notes for a given chord type (e.g. "M", "m", "M7", "m7", "dim", "sus4").',
+            example: 'let c_maj7 = chord("C4", "M7") // ["C4", "E4", "G4", "B4"]'
+        },
+        'scale': {
+            signature: 'scale(root_note, type)',
+            source: 'Theory Standard Library (std/theory)',
+            description: 'Generates an array of notes for a given scale or mode (e.g. "major", "minor", "dorian", "mixolydian").',
+            example: 'let a_minor = scale("A3", "minor")'
+        },
+        'transpose': {
+            signature: 'transpose(note_or_array, semitones)',
+            source: 'Theory Standard Library (std/theory)',
+            description: 'Shifts a note or an array of notes up or down by the specified number of semitones.',
+            example: 'let shifted = transpose(["C4", "E4"], 7) // ["G4", "B4"]'
+        },
+        'sequence': {
+            signature: 'sequence(path, notes_array, type, options)',
+            source: 'Audio Standard Library (std/audio)',
+            description: 'Saves a multi-note sequence (single track) to a single WAV file.',
+            example: 'sequence("melody.wav", [{"note": "C4", "ms": 500}], "saw")'
+        },
+        'play': {
+            signature: 'play(note, duration_ms, options)',
+            source: 'Audio Standard Library (std/audio)',
+            description: 'Plays a musical note instantly through the system audio device.',
+            example: 'play("E4", 500, {"attack": 50, "release": 200})'
+        },
+        'beep': {
+            signature: 'beep(freq, duration_ms)',
+            source: 'Audio Standard Library (std/audio)',
+            description: 'Plays a basic sine wave beep at the specified frequency (Hz).',
+            example: 'beep(440, 200)'
+        },
+        'save': {
+            signature: 'save(path, freq_or_note, duration_ms, type, options)',
+            source: 'Audio Standard Library (std/audio)',
+            description: 'Generates a single tone and saves it directly to a WAV file.',
+            example: 'save("kick.wav", 60, 500, "kick")'
+        },
+        'comp': {
+            signature: 'comp(sf2_path, notes_array, options)',
+            source: 'Audio Standard Library (std/audio)',
+            description: 'Batch-renders a sequence of notes using a SoundFont and returns an in-memory audio sample object for mixing.',
+            example: 'let rendered_track = comp("font.sf2", melody_track)'
+        },
+        'render': {
+            signature: 'render(sf2_path, tracks_array, output_path, options)',
+            source: 'Audio Standard Library (std/audio)',
+            description: 'Batch-renders a complete multi-track arrangement through a SoundFont directly to a WAV file.',
+            example: 'render("font.sf2", [track1, track2], "master.wav")'
+        },
+        'clear': {
+            signature: 'clear()',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Clears the current SVG drawing buffer.',
+            example: 'clear()'
+        },
+        'circle': {
+            signature: 'circle(x, y, radius, color)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a circle on the SVG canvas.',
+            example: 'circle(250, 250, 100, "red")'
+        },
+        'rect': {
+            signature: 'rect(x, y, width, height, color)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a rectangle on the SVG canvas.',
+            example: 'rect(0, 0, 500, 500, "#1a1a1a")'
+        },
+        'line': {
+            signature: 'line(x1, y1, x2, y2, color)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a line on the SVG canvas.',
+            example: 'line(0, 400, 500, 400, "white")'
+        },
+        'text': {
+            signature: 'text(x, y, text_string, font_size, color)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws text on the SVG canvas.',
+            example: 'text(20, 480, "Generated by Sesi", 14, "gray")'
+        },
+        'save_svg': {
+            signature: 'save_svg(path, width, height)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Saves the current drawing buffer to an SVG file on disk.',
+            example: 'save_svg("art.svg", 500, 500)'
+        },
         'async': {
             signature: 'async fn name() { ... }',
             source: 'Sesi Control Flow',
@@ -1369,6 +1483,20 @@ function activate(context) {
                             ],
                             'std/db': [
                                 'db_open(filename, password)'
+                            ],
+                            'std/audio': [
+                                'sf2(path, options)', 'mix(path, tracks, type, options)', 
+                                'sequence(path, notes, type, options)', 'play(note, ms, options)', 
+                                'synth(freq, ms, type, options)', 'save(path, freq, ms, type, options)',
+                                'beep(freq, ms)'
+                            ],
+                            'std/theory': [
+                                'chord(root, type)', 'scale(root, type)', 'transpose(notes, steps)'
+                            ],
+                            'std/draw': [
+                                'clear()', 'circle(x, y, r, fill)', 'rect(x, y, w, h, fill)',
+                                'line(x1, y1, x2, y2, color)', 'text(x, y, text, size, color)',
+                                'render(w, h)', 'save_svg(path, w, h)'
                             ]
                         };
 

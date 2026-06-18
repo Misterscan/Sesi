@@ -1588,6 +1588,109 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         }
       });
       return exports;
+    } else if (source === 'std/theory') {
+      const CHORD_MAP: Record<string, number[]> = {
+        'M': [0, 4, 7], 'maj': [0, 4, 7],
+        'm': [0, 3, 7], 'min': [0, 3, 7],
+        'dim': [0, 3, 6], 'aug': [0, 4, 8],
+        '7': [0, 4, 7, 10], 'M7': [0, 4, 7, 11], 'maj7': [0, 4, 7, 11],
+        'm7': [0, 3, 7, 10], 'sus2': [0, 2, 7], 'sus4': [0, 5, 7]
+      };
+      const SCALE_MAP: Record<string, number[]> = {
+        'major': [0, 2, 4, 5, 7, 9, 11],
+        'minor': [0, 2, 3, 5, 7, 8, 10],
+        'dorian': [0, 2, 3, 5, 7, 9, 10],
+        'phrygian': [0, 1, 3, 5, 7, 8, 10],
+        'lydian': [0, 2, 4, 6, 7, 9, 11],
+        'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+        'locrian': [0, 1, 3, 5, 6, 8, 10]
+      };
+      const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+      exports.set('chord', {
+        type: 'function',
+        name: 'chord',
+        params: [{ name: 'root' }, { name: 'type', defaultValue: 'M' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const root = args[0];
+          const type = args[1];
+          const rootNote = stringify(root);
+          const chordType = stringify(type);
+          const intervals = CHORD_MAP[chordType] || [0];
+          
+          const match = rootNote.match(/^([A-G]#?)(\d)$/);
+          if (!match) return [rootNote];
+          const name = match[1];
+          const octave = parseInt(match[2]);
+          const baseIdx = NOTE_NAMES.indexOf(name);
+
+          return intervals.map(interval => {
+            let idx = baseIdx + interval;
+            let oct = octave + Math.floor(idx / 12);
+            return NOTE_NAMES[idx % 12] + oct;
+          });
+        }
+      } as any);
+
+      exports.set('scale', {
+        type: 'function',
+        name: 'scale',
+        params: [{ name: 'root' }, { name: 'type', defaultValue: 'major' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const root = args[0];
+          const type = args[1];
+          const rootNote = stringify(root);
+          const scaleType = stringify(type);
+          const intervals = SCALE_MAP[scaleType] || [0];
+          
+          const match = rootNote.match(/^([A-G]#?)(\d)$/);
+          if (!match) return [rootNote];
+          const name = match[1];
+          const octave = parseInt(match[2]);
+          const baseIdx = NOTE_NAMES.indexOf(name);
+
+          return intervals.map(interval => {
+            let idx = baseIdx + interval;
+            let oct = octave + Math.floor(idx / 12);
+            return NOTE_NAMES[idx % 12] + oct;
+          });
+        }
+      } as any);
+
+      exports.set('transpose', {
+        type: 'function',
+        name: 'transpose',
+        params: [{ name: 'notes' }, { name: 'steps' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const notes = args[0];
+          const steps = args[1];
+          const s = typeof steps === 'number' ? steps : 0;
+          const noteList = Array.isArray(notes) ? notes : [notes];
+
+          return noteList.map(n => {
+            const noteStr = stringify(n);
+            const match = noteStr.match(/^([A-G]#?)(\d)$/);
+            if (!match) return noteStr;
+            const name = match[1];
+            const octave = parseInt(match[2]);
+            const idx = NOTE_NAMES.indexOf(name) + s;
+            const newName = NOTE_NAMES[((idx % 12) + 12) % 12];
+            const newOctave = octave + Math.floor(idx / 12);
+            return newName + newOctave;
+          });
+        }
+      } as any);
+
+      return exports;
     } else if (source === 'std/audio') {
       exports.set('beep', {
         type: 'function',
@@ -1599,7 +1702,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
           const freq = typeof args[0] === 'number' ? args[0] : 440;
           const ms = typeof args[1] === 'number' ? args[1] : 200;
-          const wav = generateWav(freq, ms);
+          const wav = generateWav(freq, ms, 'sine', { attack: 10, release: 10 });
           const tmp = path.join(process.cwd(), `.tmp_beep_${Date.now()}.wav`);
           fs.writeFileSync(tmp, wav);
           try {
@@ -1612,15 +1715,16 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       exports.set('play', {
         type: 'function',
         name: 'play',
-        params: [{ name: 'note' }, { name: 'ms' }],
+        params: [{ name: 'note' }, { name: 'ms' }, { name: 'options', defaultValue: {} as any }],
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
         builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
           const note = typeof args[0] === 'string' ? args[0] : 'C4';
           const ms = typeof args[1] === 'number' ? args[1] : 500;
+          const opts = (args[2] && typeof args[2] === 'object' ? args[2] : {}) as any;
           const freq = getFrequency(note);
-          const wav = generateWav(freq, ms);
+          const wav = generateWav(freq, ms, opts.type || 'sine', opts);
           const tmp = path.join(process.cwd(), `.tmp_play_${Date.now()}.wav`);
           fs.writeFileSync(tmp, wav);
           try {
@@ -1633,164 +1737,596 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       exports.set('synth', {
         type: 'function',
         name: 'synth',
-        params: [{ name: 'freq' }, { name: 'ms' }, { name: 'type' }],
+        params: [{ name: 'freq' }, { name: 'ms' }, { name: 'type' }, { name: 'options', defaultValue: {} as any }],
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
-        builtin: (freq, ms, type): RuntimeValue => {
+        builtin: (freq, ms, type, options): RuntimeValue => {
           const f = typeof freq === 'number' ? freq : (typeof freq === 'string' ? getFrequency(freq) : 440);
           const m = typeof ms === 'number' ? ms : 500;
           const t = typeof type === 'string' ? type : 'sine';
-          return generateWav(f, m, t).toString('base64');
+          const opts = (options && typeof options === 'object' ? options : {}) as any;
+          return generateWav(f, m, t, opts).toString('base64');
         }
       });
       exports.set('save', {
         type: 'function',
         name: 'save',
-        params: [{ name: 'path' }, { name: 'freq' }, { name: 'ms' }, { name: 'type' }],
+        params: [{ name: 'path' }, { name: 'freq' }, { name: 'ms' }, { name: 'type' }, { name: 'options', defaultValue: {} as any }],
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
-        builtin: (filePath, freq, ms, type): RuntimeValue => {
+        builtin: (filePath, freq, ms, type, options): RuntimeValue => {
           const f = typeof freq === 'number' ? freq : (typeof freq === 'string' ? getFrequency(freq) : 440);
           const m = typeof ms === 'number' ? ms : 500;
           const t = typeof type === 'string' ? type : 'sine';
-          const wav = generateWav(f, m, t);
+          const opts = (options && typeof options === 'object' ? options : {}) as any;
+          const wav = generateWav(f, m, t, opts);
           const absPath = ensureSafePath(stringify(filePath), this);
           fs.writeFileSync(absPath, wav);
           return true;
         }
       });
-      exports.set('sequence', {
+      exports.set('load', {
         type: 'function',
-        name: 'sequence',
-        params: [{ name: 'path' }, { name: 'notes' }, { name: 'type' }],
+        name: 'load',
+        params: [{ name: 'path' }],
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
-        builtin: (filePath, notesVal, type): RuntimeValue => {
+        builtin: (filePath): RuntimeValue => {
+          const absPath = ensureSafePath(stringify(filePath), this);
+          if (!fs.existsSync(absPath)) throw new Error(`Audio file not found: ${filePath}`);
+          const buffer = fs.readFileSync(absPath);
+          // Very simple WAV parser (skips header to find data)
+          const dataOffset = buffer.indexOf('data') + 4;
+          if (dataOffset < 4) throw new Error('Invalid WAV file: data chunk not found');
+          const dataSize = buffer.readUInt32LE(dataOffset);
+          const samples = new Int16Array(buffer.buffer, buffer.byteOffset + dataOffset + 4, dataSize / 2);
+          
+          return {
+            type: 'audio_sample',
+            samples: Array.from(samples).map(s => s / 32767),
+            sampleRate: 44100 // Assume 44.1k for now
+          } as any;
+        }
+      });
+      exports.set('kick', {
+        type: 'function',
+        name: 'kick',
+        params: [{ name: 'ms', defaultValue: 300 }, { name: 'vol', defaultValue: 1.0 }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+            const ms = typeof args[0] === 'number' ? args[0] : 300;
+            const vol = typeof args[1] === 'number' ? args[1] : 1.0;
+            return generateWav(60, ms, 'kick', { vol }).toString('base64');
+        }
+      } as any);
+
+      exports.set('snare', {
+        type: 'function',
+        name: 'snare',
+        params: [{ name: 'ms', defaultValue: 200 }, { name: 'vol', defaultValue: 1.0 }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+            const ms = typeof args[0] === 'number' ? args[0] : 200;
+            const vol = typeof args[1] === 'number' ? args[1] : 1.0;
+            return generateWav(440, ms, 'snare', { vol }).toString('base64');
+        }
+      } as any);
+
+      exports.set('hat', {
+        type: 'function',
+        name: 'hat',
+        params: [{ name: 'ms', defaultValue: 50 }, { name: 'vol', defaultValue: 1.0 }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+            const ms = typeof args[0] === 'number' ? args[0] : 50;
+            const vol = typeof args[1] === 'number' ? args[1] : 1.0;
+            return generateWav(10000, ms, 'hat', { vol }).toString('base64');
+        }
+      } as any);
+
+      exports.set('sf2', {
+        type: 'function',
+        name: 'sf2',
+        params: [{ name: 'path' }, { name: 'options', defaultValue: {} as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+            const sf2Path = ensureSafePath(stringify(args[0]), this);
+            const opts = (args[1] && typeof args[1] === 'object' ? args[1] : {}) as any;
+            
+            const inst = typeof opts.instrument === 'number' ? opts.instrument : 0;
+            const chan = typeof opts.channel === 'number' ? opts.channel : 0;
+            const gain = typeof opts.gain === 'number' ? opts.gain : 1.5;
+
+            return {
+                type: 'function',
+                name: 'sf2_instrument',
+                params: [{ name: 'note' }, { name: 'ms' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: (...innerArgs: RuntimeValue[]): RuntimeValue => {
+                    return {
+                        note: innerArgs[0],
+                        ms: typeof innerArgs[1] === 'number' ? innerArgs[1] : 500,
+                        is_sf2: true,
+                        sf2_path: sf2Path,
+                        instrument: inst,
+                        channel: chan,
+                        gain: gain
+                    } as any;
+                }
+            } as any;
+        }
+      } as any);
+
+      exports.set('sequence', {
+        type: 'function',
+        name: 'sequence',
+        params: [{ name: 'path' }, { name: 'notes' }, { name: 'type' }, { name: 'options', defaultValue: {} as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const filePath = args[0];
+          const notesVal = args[1];
+          const type = args[2];
+          const options = args[3];
           if (!Array.isArray(notesVal)) throw new Error('sequence expects an array of notes');
           const t = typeof type === 'string' ? type : 'sine';
+          const globalOpts = (options && typeof options === 'object' ? options : {}) as any;
           const sampleRate = 44100;
           
           let totalSamples = 0;
           const noteData = notesVal.map(val => {
             const n = val as any;
-            const freq = (typeof n === 'object' && n !== null) ? (typeof n.freq === 'number' ? n.freq : getFrequency(n.note || 'C4')) : getFrequency(stringify(n));
-            const ms = (typeof n === 'object' && n !== null && typeof n.ms === 'number') ? n.ms : 500;
+
+            if (n && typeof n === 'object' && n.type === 'audio_sample') {
+                const samples = n.samples;
+                const len = samples.length;
+                totalSamples += len;
+                return { isSample: true, samples: samples, opts: {} };
+            }
+
+            const rawNote = (typeof n === 'object' && n !== null && !Array.isArray(n)) ? (n.note || 'C4') : n;
+
+            if (rawNote && typeof rawNote === 'object' && rawNote.type === 'audio_sample') {
+                const samples = rawNote.samples;
+                const len = samples.length;
+                totalSamples += len;
+                return { isSample: true, samples: samples, opts: n };
+            }
+
+            const ms = (typeof n === 'object' && n !== null && !Array.isArray(n) && typeof n.ms === 'number') ? n.ms : 500;
+            const opts = (typeof n === 'object' && n !== null && !Array.isArray(n)) ? n : {};
+            
+            const notes = Array.isArray(rawNote) ? rawNote : [rawNote];
+            const freqs = notes.map(note => (typeof note === 'number' ? note : getFrequency(stringify(note))));
+            
             const samples = Math.floor(sampleRate * (ms / 1000));
             totalSamples += samples;
-            return { freq, samples };
+            return { freqs, samples, opts: { ...globalOpts, ...opts } };
           });
 
-          const buffer = Buffer.alloc(44 + totalSamples * 2);
+          const masterBufferL = new Float32Array(totalSamples);
+          const masterBufferR = new Float32Array(totalSamples);
+          let masterOffset = 0;
+
+          for (const nd of noteData) {
+            if (nd.isSample) {
+                const vol = nd.opts.vol !== undefined ? nd.opts.vol : 1.0;
+                const pan = nd.opts.pan !== undefined ? nd.opts.pan : 0.0;
+                for (let i = 0; i < nd.samples.length; i++) {
+                    const s = nd.samples[i] * vol;
+                    masterBufferL[masterOffset + i] = s * (1.0 - Math.max(0, pan));
+                    masterBufferR[masterOffset + i] = s * (1.0 - Math.max(0, -pan));
+                }
+                masterOffset += nd.samples.length;
+                continue;
+            }
+
+            const attack = nd.opts.attack || 10;
+            const release = nd.opts.release || 50;
+            const attackSamples = Math.floor(sampleRate * (attack / 1000));
+            const releaseSamples = Math.floor(sampleRate * (release / 1000));
+            const vol = nd.opts.vol !== undefined ? nd.opts.vol : 1.0;
+            const pan = nd.opts.pan !== undefined ? nd.opts.pan : 0.0;
+            const cutoff = nd.opts.cutoff !== undefined ? nd.opts.cutoff : 20000;
+
+            let lp_last = 0;
+            const alpha = Math.min(1.0, (2 * Math.PI * cutoff) / sampleRate);
+
+            for (let i = 0; i < nd.samples; i++) {
+              let combinedSample = 0;
+              const time = i / sampleRate;
+              
+              const freqs = nd.freqs || [];
+              for (const freq of freqs) {
+                let s = 0;
+                const waveType = nd.opts.type || t;
+                if (waveType === 'kick') {
+                  const pitchEnv = Math.exp(-15.0 * time);
+                  const f = 40 + 150 * pitchEnv;
+                  s = Math.sin(2 * Math.PI * f * time);
+                  if (i < 500) s += (Math.random() * 2 - 1) * Math.exp(-i / 100) * 0.5;
+                } else if (waveType === 'snare') {
+                  const body = Math.sin(2 * Math.PI * 180 * time) * Math.exp(-10.0 * time);
+                  const noise = (Math.random() * 2 - 1) * Math.exp(-15.0 * time) * 0.6;
+                  s = body + noise;
+                } else if (waveType === 'hat') {
+                  s = (Math.random() * 2 - 1) * Math.exp(-40.0 * time) * 0.5;
+                } else if (waveType === 'clap') {
+                  if (i < 4000) {
+                    const offsets = [0, 441, 882, 1323];
+                    for (const off of offsets) {
+                      if (i >= off) {
+                        const local_t = (i - off) / sampleRate;
+                        s += (Math.random() * 2 - 1) * Math.exp(-50.0 * local_t) * 0.4;
+                      }
+                    }
+                  }
+                } else if (waveType === 'sine') s = Math.sin(2 * Math.PI * freq * time);
+                else if (waveType === 'square') s = Math.sin(2 * Math.PI * freq * time) >= 0 ? 0.3 : -0.3;
+                else if (waveType === 'saw') s = 0.6 * (2 * (time * freq - Math.floor(time * freq + 0.5)));
+                else if (waveType === 'triangle') s = 0.6 * (2 * Math.abs(2 * (time * freq - Math.floor(time * freq + 0.5))) - 1);
+                else if (waveType === 'noise') s = (Math.random() * 2 - 1) * 0.4;
+                combinedSample += s;
+              }
+              
+              if (freqs.length > 1) combinedSample = combinedSample / Math.sqrt(freqs.length);
+
+              lp_last = lp_last + alpha * (combinedSample - lp_last);
+              combinedSample = (cutoff < 19000) ? lp_last : combinedSample;
+
+              let envelope = 1.0;
+              if (i < attackSamples) envelope = i / attackSamples;
+              else if (i > nd.samples - releaseSamples) envelope = (nd.samples - i) / releaseSamples;
+              
+              combinedSample = combinedSample * envelope * vol;
+
+              masterBufferL[masterOffset + i] = combinedSample * (1.0 - Math.max(0, pan));
+              masterBufferR[masterOffset + i] = combinedSample * (1.0 - Math.max(0, -pan));
+            }
+            masterOffset += nd.samples;
+          }
+
+          let peak = 0;
+          for (let i = 0; i < totalSamples; i++) {
+              peak = Math.max(peak, Math.abs(masterBufferL[i]), Math.abs(masterBufferR[i]));
+          }
+          const scale = peak > 0 ? (0.95 / peak) : 1.0;
+
+          const buffer = Buffer.alloc(44 + totalSamples * 4);
           buffer.write('RIFF', 0);
-          buffer.writeUInt32LE(36 + totalSamples * 2, 4);
+          buffer.writeUInt32LE(36 + totalSamples * 4, 4);
           buffer.write('WAVE', 8);
           buffer.write('fmt ', 12);
           buffer.writeUInt32LE(16, 16);
           buffer.writeUInt16LE(1, 20);
-          buffer.writeUInt16LE(1, 22);
+          buffer.writeUInt16LE(2, 22);
           buffer.writeUInt32LE(sampleRate, 24);
-          buffer.writeUInt32LE(sampleRate * 2, 28);
-          buffer.writeUInt16LE(2, 32);
+          buffer.writeUInt32LE(sampleRate * 4, 28);
+          buffer.writeUInt16LE(4, 32);
           buffer.writeUInt16LE(16, 34);
           buffer.write('data', 36);
-          buffer.writeUInt32LE(totalSamples * 2, 40);
+          buffer.writeUInt32LE(totalSamples * 4, 40);
 
-          let offset = 44;
-          for (const nd of noteData) {
-            for (let i = 0; i < nd.samples; i++) {
-              let sample = 0;
-              const time = i / sampleRate;
-              if (t === 'sine') sample = Math.sin(2 * Math.PI * nd.freq * time);
-              else if (t === 'square') sample = Math.sin(2 * Math.PI * nd.freq * time) >= 0 ? 0.3 : -0.3;
-              else if (t === 'saw') sample = 0.6 * (2 * (time * nd.freq - Math.floor(time * nd.freq + 0.5)));
-              else if (t === 'triangle') sample = 0.6 * (2 * Math.abs(2 * (time * nd.freq - Math.floor(time * nd.freq + 0.5))) - 1);
-              buffer.writeInt16LE(Math.floor(sample * 32767), offset);
-              offset += 2;
-            }
+          for (let i = 0; i < totalSamples; i++) {
+            const L = Math.max(-1, Math.min(1, masterBufferL[i] * scale));
+            const R = Math.max(-1, Math.min(1, masterBufferR[i] * scale));
+            buffer.writeInt16LE(Math.floor(L * 32767), 44 + i * 4);
+            buffer.writeInt16LE(Math.floor(R * 32767), 44 + i * 4 + 2);
           }
 
           const absPath = ensureSafePath(stringify(filePath), this);
           fs.writeFileSync(absPath, buffer);
           return true;
         }
-      });
-      exports.set('mix', {
+      } as any);
+      exports.set('render', {
         type: 'function',
-        name: 'mix',
-        params: [{ name: 'path' }, { name: 'tracks' }, { name: 'type' }],
+        name: 'render',
+        params: [{ name: 'sf2_path' }, { name: 'tracks' }, { name: 'output_path' }, { name: 'options', defaultValue: {} as any }],
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
-        builtin: (filePath, tracksVal, type): RuntimeValue => {
+        builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+            const sf2Path = ensureSafePath(stringify(args[0]), this);
+            const tracksVal = args[1];
+            const outPath = stringify(args[2]);
+            const opts = (args[3] && typeof args[3] === 'object' ? args[3] : {}) as any;
+
+            if (!Array.isArray(tracksVal)) throw new Error('render expects an array of tracks');
+            
+            // 1. Build a full MIDI file from tracks
+            const midiBuffer = buildFullMidi(tracksVal as any[]);
+            const tmpMidi = path.join(process.cwd(), `.tmp_full_${Date.now()}.mid`);
+            fs.writeFileSync(tmpMidi, midiBuffer);
+
+            // 2. Render once
+            let fluidsynthPath = 'fluidsynth';
+            // ... (path detection logic from before, using a helper function for reuse would be better but keeping it here for simplicity)
+            const commonPaths = process.platform === 'win32' ? [
+                'C:\\Program Files\\fluidsynth\\bin\\fluidsynth.exe',
+                'C:\\Program Files (x86)\\fluidsynth\\bin\\fluidsynth.exe'
+            ] : ['/usr/local/bin/fluidsynth', '/usr/bin/fluidsynth', '/opt/homebrew/bin/fluidsynth'];
+            const found = commonPaths.find(p => fs.existsSync(p));
+            if (found) fluidsynthPath = `"${found}"`;
+            
+            const gain = typeof opts.gain === 'number' ? opts.gain : 1.2;
+            const absOutPath = ensureSafePath(outPath, this);
+
+            try {
+                execSync(`${fluidsynthPath} -ni -g ${gain} -F "${absOutPath}" -q "${sf2Path}" "${tmpMidi}"`, { stdio: 'inherit' });
+                
+                // If path is "memory", return the sample instead of writing a file
+                if (outPath === 'memory') {
+                    const wavBuffer = fs.readFileSync(absOutPath);
+                    const dataOffset = wavBuffer.indexOf('data') + 4;
+                    const dataSize = wavBuffer.readUInt32LE(dataOffset);
+                    const samples = new Int16Array(wavBuffer.buffer, wavBuffer.byteOffset + dataOffset + 4, dataSize / 2);
+                    if (fs.existsSync(absOutPath)) fs.unlinkSync(absOutPath);
+                    return {
+                        type: 'audio_sample',
+                        samples: Array.from(samples).map(s => s / 32767),
+                        sampleRate: 44100
+                    } as any;
+                }
+                return true;
+            } finally {
+                if (fs.existsSync(tmpMidi)) fs.unlinkSync(tmpMidi);
+            }
+        }
+      } as any);
+
+      exports.set('comp', {
+        type: 'function',
+        name: 'comp',
+        params: [{ name: 'sf2_path' }, { name: 'track' }, { name: 'options', defaultValue: {} as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+            const sf2Path = ensureSafePath(stringify(args[0]), this);
+            const track = args[1];
+            const opts = (args[2] && typeof args[2] === 'object' ? args[2] : {}) as any;
+
+            if (!Array.isArray(track)) throw new Error('comp expects an array of notes');
+            
+            const midiBuffer = buildFullMidi([track]);
+            const tmpMidi = path.join(process.cwd(), `.tmp_comp_${Date.now()}.mid`);
+            const tmpWav = path.join(process.cwd(), `.tmp_comp_${Date.now()}.wav`);
+            fs.writeFileSync(tmpMidi, midiBuffer);
+
+            let fluidsynthPath = 'fluidsynth';
+            const commonPaths = process.platform === 'win32' ? [
+                'C:\\Program Files\\fluidsynth\\bin\\fluidsynth.exe',
+                'C:\\Program Files (x86)\\fluidsynth\\bin\\fluidsynth.exe'
+            ] : ['/usr/local/bin/fluidsynth', '/usr/bin/fluidsynth', '/opt/homebrew/bin/fluidsynth'];
+            const found = commonPaths.find(p => fs.existsSync(p));
+            if (found) fluidsynthPath = `"${found}"`;
+            
+            const gain = typeof opts.gain === 'number' ? opts.gain : 2.0;
+
+            try {
+                execSync(`${fluidsynthPath} -ni -g ${gain} -F "${tmpWav}" -q "${sf2Path}" "${tmpMidi}"`, { stdio: 'ignore' });
+                const wavBuffer = fs.readFileSync(tmpWav);
+                const dataOffset = wavBuffer.indexOf('data') + 4;
+                const dataSize = wavBuffer.readUInt32LE(dataOffset);
+                const samples = new Int16Array(wavBuffer.buffer, wavBuffer.byteOffset + dataOffset + 4, dataSize / 2);
+                
+                return {
+                    type: 'audio_sample',
+                    samples: Array.from(samples).map(s => s / 32767),
+                    sampleRate: 44100
+                } as any;
+            } finally {
+                if (fs.existsSync(tmpMidi)) fs.unlinkSync(tmpMidi);
+                if (fs.existsSync(tmpWav)) fs.unlinkSync(tmpWav);
+            }
+        }
+      } as any);
+
+      exports.set('mix', {
+        type: 'function',
+        name: 'mix',
+        params: [{ name: 'path' }, { name: 'tracks' }, { name: 'type' }, { name: 'options', defaultValue: {} as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (filePath, tracksVal, type, options): RuntimeValue => {
           if (!Array.isArray(tracksVal)) throw new Error('mix expects an array of tracks');
           const t = typeof type === 'string' ? type : 'sine';
+          const globalOpts = (options && typeof options === 'object' ? options : {}) as any;
           const sampleRate = 44100;
 
-          // Process all tracks to find the longest one
+          // Process all tracks
           const allTracksData = tracksVal.map(track => {
-            if (!Array.isArray(track)) throw new Error('Each track in mix must be an array of notes');
+            // Track can be a single pre-rendered sample or an array of notes
+            const isSingleSample = (track && typeof track === 'object' && !Array.isArray(track) && track.type === 'audio_sample');
+            const trackNotes = isSingleSample ? [track] : track;
+            
+            if (!Array.isArray(trackNotes)) throw new Error('Each track in mix must be an array of notes or a sample object');
+            
             let trackSamples = 0;
-            const notes = (track as any[]).map(val => {
+            const notes = (trackNotes as any[]).map(val => {
               const n = val as any;
-              const freq = (typeof n === 'object' && n !== null) ? (typeof n.freq === 'number' ? n.freq : getFrequency(n.note || 'C4')) : getFrequency(stringify(n));
-              const ms = (typeof n === 'object' && n !== null && typeof n.ms === 'number') ? n.ms : 500;
+              
+              // Support for pre-rendered audio samples
+              if (n && typeof n === 'object' && n.type === 'audio_sample') {
+                const samples = n.samples;
+                const len = samples.length;
+                const musicalLen = n.musicalDurationSamples || len;
+                trackSamples += musicalLen;
+                return { isSample: true, samples: samples, totalSamples: len, musicalDuration: musicalLen, opts: {} };
+              }
+
+              const rawNote = (typeof n === 'object' && n !== null && !Array.isArray(n)) ? (n.note || 'C4') : n;
+              
+              // Nested support for audio samples inside note objects
+              if (rawNote && typeof rawNote === 'object' && rawNote.type === 'audio_sample') {
+                  const samples = rawNote.samples;
+                  const len = samples.length;
+                  const musicalLen = rawNote.musicalDurationSamples || len;
+                  trackSamples += musicalLen;
+                  return { isSample: true, samples: samples, totalSamples: len, musicalDuration: musicalLen, opts: n };
+              }
+
+              const ms = (typeof n === 'object' && n !== null && !Array.isArray(n) && typeof n.ms === 'number') ? n.ms : 500;
+              const opts = (typeof n === 'object' && n !== null && !Array.isArray(n)) ? n : {};
+
+              const noteList = Array.isArray(rawNote) ? rawNote : [rawNote];
+              const freqs = noteList.map(note => (typeof note === 'number' ? note : getFrequency(stringify(note))));
+
               const samples = Math.floor(sampleRate * (ms / 1000));
               trackSamples += samples;
-              return { freq, samples };
+              return { freqs, samples, opts: { ...globalOpts, ...opts } };
             });
             return { notes, totalSamples: trackSamples };
           });
 
           const maxSamples = Math.max(...allTracksData.map(d => d.totalSamples));
-          const mixBuffer = new Float32Array(maxSamples);
+          const mixBufferL = new Float32Array(maxSamples);
+          const mixBufferR = new Float32Array(maxSamples);
 
           for (const track of allTracksData) {
             let sampleOffset = 0;
             for (const nd of track.notes) {
+              if (nd.isSample) {
+                  const vol = nd.opts.vol !== undefined ? nd.opts.vol : 1.0;
+                  const pan = nd.opts.pan !== undefined ? nd.opts.pan : 0.0;
+                  for (let i = 0; i < nd.samples.length; i++) {
+                      if (sampleOffset + i >= maxSamples) break;
+                      const s = nd.samples[i] * vol;
+                      mixBufferL[sampleOffset + i] += s * (1.0 - Math.max(0, pan));
+                      mixBufferR[sampleOffset + i] += s * (1.0 - Math.max(0, -pan));
+                  }
+                  // Advance by musical duration, NOT audio data length (allows overlap)
+                  sampleOffset += nd.musicalDuration;
+                  continue;
+              }
+
+              const attack = nd.opts.attack !== undefined ? Math.max(1, nd.opts.attack) : 10;
+              const release = nd.opts.release !== undefined ? Math.max(1, nd.opts.release) : 50;
+              const attackSamples = Math.floor(sampleRate * (attack / 1000));
+              const releaseSamples = Math.floor(sampleRate * (release / 1000));
+              const vol = nd.opts.vol !== undefined ? nd.opts.vol : 1.0;
+              const pan = nd.opts.pan !== undefined ? nd.opts.pan : 0.0;
+              const cutoff = nd.opts.cutoff !== undefined ? nd.opts.cutoff : 20000;
+
+              let lp_last = 0;
+              const alpha = Math.min(1.0, (2 * Math.PI * cutoff) / sampleRate);
+
               for (let i = 0; i < nd.samples; i++) {
                 if (sampleOffset + i >= maxSamples) break;
-                let sample = 0;
+                if (nd.isSample) break;
+                let combinedSample = 0;
                 const time = i / sampleRate;
-                if (t === 'sine') sample = Math.sin(2 * Math.PI * nd.freq * time);
-                else if (t === 'square') sample = Math.sin(2 * Math.PI * nd.freq * time) >= 0 ? 0.3 : -0.3;
-                else if (t === 'saw') sample = 0.6 * (2 * (time * nd.freq - Math.floor(time * nd.freq + 0.5)));
-                else if (t === 'triangle') sample = 0.6 * (2 * Math.abs(2 * (time * nd.freq - Math.floor(time * nd.freq + 0.5))) - 1);
+
+                const freqs = nd.freqs || [];
+                for (const freq of freqs) {
+                  let s = 0;
+                  const waveType = nd.opts.type || t;
+                  if (waveType === 'kick') {
+                    const pitchEnv = Math.exp(-15.0 * time);
+                    const f = 40 + 150 * pitchEnv;
+                    s = Math.sin(2 * Math.PI * f * time);
+                    if (i < 500) s += (Math.random() * 2 - 1) * Math.exp(-i / 100) * 0.5;
+                  } else if (waveType === 'snare') {
+                    const body = Math.sin(2 * Math.PI * 180 * time) * Math.exp(-10.0 * time);
+                    const noise = (Math.random() * 2 - 1) * Math.exp(-15.0 * time) * 0.6;
+                    s = body + noise;
+                  } else if (waveType === 'hat') {
+                    s = (Math.random() * 2 - 1) * Math.exp(-40.0 * time) * 0.5;
+                  } else if (waveType === 'clap') {
+                    if (i < 4000) {
+                      const offsets = [0, 441, 882, 1323];
+                      for (const off of offsets) {
+                        if (i >= off) {
+                          const local_t = (i - off) / sampleRate;
+                          s += (Math.random() * 2 - 1) * Math.exp(-50.0 * local_t) * 0.4;
+                        }
+                      }
+                    }
+                  } else if (waveType === 'sine') s = Math.sin(2 * Math.PI * freq * time);
+                  else if (waveType === 'square') s = Math.sin(2 * Math.PI * freq * time) >= 0 ? 0.3 : -0.3;
+                  else if (waveType === 'saw') s = 0.6 * (2 * (time * freq - Math.floor(time * freq + 0.5)));
+                  else if (waveType === 'triangle') s = 0.6 * (2 * Math.abs(2 * (time * freq - Math.floor(time * freq + 0.5))) - 1);
+                  else if (waveType === 'noise') s = (Math.random() * 2 - 1) * 0.4;
+                  combinedSample += s;
+                }
+
+                if (freqs.length > 1) combinedSample = combinedSample / Math.sqrt(freqs.length);
+
+                // Filter
+                lp_last = lp_last + alpha * (combinedSample - lp_last);
+                combinedSample = (cutoff < 19000) ? lp_last : combinedSample;
+
+                // Linear Envelope (Stable)
+                let envelope = 1.0;
+                if (i < attackSamples) {
+                  envelope = i / attackSamples;
+                } else if (i > nd.samples - releaseSamples) {
+                  envelope = (nd.samples - i) / releaseSamples;
+                }
+
+                combinedSample = combinedSample * envelope * vol;
                 
-                mixBuffer[sampleOffset + i] += sample;
+                mixBufferL[sampleOffset + i] += combinedSample * (1.0 - Math.max(0, pan));
+                mixBufferR[sampleOffset + i] += combinedSample * (1.0 - Math.max(0, -pan));
               }
               sampleOffset += nd.samples;
             }
           }
 
-          // Normalize and write to WAV
-          const buffer = Buffer.alloc(44 + maxSamples * 2);
+          // Normalize and write to Stereo WAV with Hard Clamping
+          const buffer = Buffer.alloc(44 + maxSamples * 4);
           buffer.write('RIFF', 0);
-          buffer.writeUInt32LE(36 + maxSamples * 2, 4);
+          buffer.writeUInt32LE(36 + maxSamples * 4, 4);
           buffer.write('WAVE', 8);
           buffer.write('fmt ', 12);
           buffer.writeUInt32LE(16, 16);
           buffer.writeUInt16LE(1, 20);
-          buffer.writeUInt16LE(1, 22);
+          buffer.writeUInt16LE(2, 22);
           buffer.writeUInt32LE(sampleRate, 24);
-          buffer.writeUInt32LE(sampleRate * 2, 28);
-          buffer.writeUInt16LE(2, 32);
+          buffer.writeUInt32LE(sampleRate * 4, 28);
+          buffer.writeUInt16LE(4, 32);
           buffer.writeUInt16LE(16, 34);
           buffer.write('data', 36);
-          buffer.writeUInt32LE(maxSamples * 2, 40);
+          buffer.writeUInt32LE(maxSamples * 4, 40);
 
-          // Find peak for normalization
           let peak = 0;
           for (let i = 0; i < maxSamples; i++) {
-            const abs = Math.abs(mixBuffer[i]);
-            if (abs > peak) peak = abs;
+            peak = Math.max(peak, Math.abs(mixBufferL[i]), Math.abs(mixBufferR[i]));
           }
-          const scale = peak > 1.0 ? (0.9 / peak) : 0.9;
+          const scale = peak > 0 ? (0.95 / peak) : 1.0;
 
           for (let i = 0; i < maxSamples; i++) {
-            buffer.writeInt16LE(Math.floor(mixBuffer[i] * scale * 32767), 44 + i * 2);
+            let L = mixBufferL[i] * scale;
+            let R = mixBufferR[i] * scale;
+            
+            // Soft-Saturator (tanh approximation for "Hot" sound)
+            if (globalOpts.saturate) {
+                const s = typeof globalOpts.saturate === 'number' ? globalOpts.saturate : 1.5;
+                L = Math.tanh(L * s);
+                R = Math.tanh(R * s);
+            }
+
+            L = Math.max(-1, Math.min(1, L));
+            R = Math.max(-1, Math.min(1, R));
+            
+            buffer.writeInt16LE(Math.floor(L * 32767), 44 + i * 4);
+            buffer.writeInt16LE(Math.floor(R * 32767), 44 + i * 4 + 2);
           }
 
           const absPath = ensureSafePath(stringify(filePath), this);
@@ -1898,6 +2434,7 @@ const NOTES: Record<string, number> = {
 };
 
 function getFrequency(note: string): number {
+  if (note === 'null' || note === 'rest') return 0;
   const match = note.match(/^([A-G]#?)(\d)$/);
   if (!match) return 440;
   const name = match[1];
@@ -1906,33 +2443,197 @@ function getFrequency(note: string): number {
   return base * Math.pow(2, octave - 4);
 }
 
-function generateWav(frequency: number, durationMs: number, type: string = 'sine'): Buffer {
+function noteToMidi(note: any): number {
+    if (typeof note === 'number') return note;
+    const noteStr = stringify(note);
+    const match = noteStr.match(/^([A-G]#?)(\d)$/);
+    if (!match) return 60;
+    const name = match[1];
+    const octave = parseInt(match[2]);
+    const map: Record<string, number> = { 'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5, 'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11 };
+    return (octave + 1) * 12 + map[name];
+}
+
+function buildFullMidi(tracks: any[]): Buffer {
+    const header = Buffer.from([
+        0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,
+        0x00, 0x01, // Type 1 (Multiple tracks)
+        0x00, Math.max(1, tracks.length), // Number of tracks
+        0x01, 0xE0  // 480 PPQ
+    ]);
+
+    const trackBuffers: Buffer[] = [];
+
+    for (let trackIdx = 0; trackIdx < tracks.length; trackIdx++) {
+        const events: number[] = [];
+        const trackNotes = tracks[trackIdx];
+        if (!Array.isArray(trackNotes)) continue;
+
+        let pendingTicks = 0;
+        let firstEvent = true;
+
+        for (const n of trackNotes) {
+            const rawNote = (typeof n === 'object' && n !== null) ? (n.note || 'C4') : n;
+            const ms = (typeof n === 'object' && n !== null && typeof n.ms === 'number') ? n.ms : 500;
+            const inst = (typeof n === 'object' && n !== null && typeof n.instrument === 'number') ? n.instrument : 0;
+            const chan = (typeof n === 'object' && n !== null && typeof n.channel === 'number') ? n.channel : 0;
+            
+            const ticks = Math.floor((ms / 1000) * 480);
+
+            if (rawNote === 'null' || rawNote === 'rest') {
+                pendingTicks += ticks;
+                continue;
+            }
+
+            const notes = Array.isArray(rawNote) ? rawNote : [rawNote];
+            const midiNotes = notes.map(noteToMidi);
+            
+            // Program Change (if needed, but usually once per track)
+            if (firstEvent) {
+                events.push(0x00, 0xC0 | (chan & 0x0F), inst);
+                firstEvent = false;
+            }
+
+            // Note On
+            for (let i = 0; i < midiNotes.length; i++) {
+                // First note in a chord takes the accumulated rest time
+                const dt = (i === 0) ? pendingTicks : 0;
+                writeVarLen(events, dt);
+                events.push(0x90 | (chan & 0x0F), midiNotes[i], 0x64);
+                pendingTicks = 0; // Reset after use
+            }
+
+            // Delta time wait for the duration of the note(s)
+            pendingTicks = ticks;
+
+            // Note Off
+            for (let i = 0; i < midiNotes.length; i++) {
+                const dt = (i === 0) ? pendingTicks : 0;
+                writeVarLen(events, dt);
+                events.push(0x80 | (chan & 0x0F), midiNotes[i], 0x00);
+                pendingTicks = 0; // Reset after use
+            }
+        }
+
+        events.push(0x00, 0xFF, 0x2F, 0x00); // End
+        
+        const trackData = Buffer.from(events);
+        const trackHead = Buffer.from([0x4D, 0x54, 0x72, 0x6B]);
+        const trackSize = Buffer.alloc(4);
+        trackSize.writeUInt32BE(trackData.length, 0);
+        trackBuffers.push(Buffer.concat([trackHead, trackSize, trackData]));
+    }
+
+    return Buffer.concat([header, ...trackBuffers]);
+}
+
+function writeVarLen(arr: number[], value: number) {
+    let buffer = value & 0x7F;
+    while ((value >>= 7) > 0) {
+        buffer <<= 8;
+        buffer |= 0x80;
+        buffer |= (value & 0x7F);
+    }
+    while (true) {
+        arr.push(buffer & 0xFF);
+        if (buffer & 0x80) buffer >>= 8;
+        else break;
+    }
+}
+
+function generateWav(frequency: number, durationMs: number, type: string = 'sine', options: any = {}): Buffer {
   const sampleRate = 44100;
   const numSamples = Math.floor(sampleRate * (durationMs / 1000));
-  const buffer = Buffer.alloc(44 + numSamples * 2);
+  
+  const attack = options.attack !== undefined ? Math.max(1, options.attack) : 10;
+  const release = options.release !== undefined ? Math.max(1, options.release) : 50;
+  const attackSamples = Math.floor(sampleRate * (attack / 1000));
+  const releaseSamples = Math.floor(sampleRate * (release / 1000));
+  
+  const vol = options.vol !== undefined ? options.vol : 1.0;
+  const pan = options.pan !== undefined ? options.pan : 0.0;
+  const cutoff = options.cutoff !== undefined ? options.cutoff : 20000;
+  
+  let lp_last = 0;
+  const alpha = Math.min(1.0, (2 * Math.PI * cutoff) / sampleRate);
 
+  const buffer = Buffer.alloc(44 + numSamples * 4);
   buffer.write('RIFF', 0);
-  buffer.writeUInt32LE(36 + numSamples * 2, 4);
+  buffer.writeUInt32LE(36 + numSamples * 4, 4);
   buffer.write('WAVE', 8);
   buffer.write('fmt ', 12);
   buffer.writeUInt32LE(16, 16);
   buffer.writeUInt16LE(1, 20);
-  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt16LE(2, 22);
   buffer.writeUInt32LE(sampleRate, 24);
-  buffer.writeUInt32LE(sampleRate * 2, 28);
-  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt32LE(sampleRate * 4, 28);
+  buffer.writeUInt16LE(4, 32);
   buffer.writeUInt16LE(16, 34);
   buffer.write('data', 36);
-  buffer.writeUInt32LE(numSamples * 2, 40);
+  buffer.writeUInt32LE(numSamples * 4, 40);
 
   for (let i = 0; i < numSamples; i++) {
     let sample = 0;
     const t = i / sampleRate;
-    if (type === 'sine') sample = Math.sin(2 * Math.PI * frequency * t);
-    else if (type === 'square') sample = Math.sin(2 * Math.PI * frequency * t) >= 0 ? 0.5 : -0.5;
-    else if (type === 'saw') sample = 2 * (t * frequency - Math.floor(t * frequency + 0.5));
-    else if (type === 'triangle') sample = 2 * Math.abs(2 * (t * frequency - Math.floor(t * frequency + 0.5))) - 1;
-    buffer.writeInt16LE(Math.floor(sample * 32767), 44 + i * 2);
+
+    if (type === 'kick') {
+      // 808-style Kick: Pitch envelope + Sine
+      const pitchEnv = Math.exp(-15.0 * t);
+      const freq = 40 + 150 * pitchEnv;
+      sample = Math.sin(2 * Math.PI * freq * t);
+      // Add transient click
+      if (i < 500) sample += (Math.random() * 2 - 1) * Math.exp(-i / 100) * 0.5;
+    } else if (type === 'snare') {
+      // Snare: 180Hz body + High-passed noise
+      const body = Math.sin(2 * Math.PI * 180 * t) * Math.exp(-10.0 * t);
+      const noise = (Math.random() * 2 - 1) * Math.exp(-15.0 * t) * 0.6;
+      sample = body + noise;
+    } else if (type === 'hat') {
+      // Hi-Hat: Short burst of high-frequency noise
+      sample = (Math.random() * 2 - 1) * Math.exp(-40.0 * t) * 0.5;
+      // Simple high-pass (static for hats)
+      lp_last = lp_last + 0.8 * (sample - lp_last);
+      sample = sample - lp_last;
+    } else if (type === 'clap') {
+      // Clap: Multiple offset noise bursts
+      let clap_noise = 0;
+      if (i < 4000) {
+          const offsets = [0, 441, 882, 1323]; // 10ms offsets
+          for (const off of offsets) {
+              if (i >= off) {
+                  const local_t = (i - off) / sampleRate;
+                  clap_noise += (Math.random() * 2 - 1) * Math.exp(-50.0 * local_t) * 0.4;
+              }
+          }
+      }
+      sample = clap_noise;
+    } else if (type === 'sine') sample = Math.sin(2 * Math.PI * frequency * t);
+    else if (type === 'square') sample = Math.sin(2 * Math.PI * frequency * t) >= 0 ? 0.3 : -0.3;
+    else if (type === 'saw') sample = 0.6 * (2 * (t * frequency - Math.floor(t * frequency + 0.5)));
+    else if (type === 'triangle') sample = 0.6 * (2 * Math.abs(2 * (t * frequency - Math.floor(t * frequency + 0.5))) - 1);
+    else if (type === 'noise') sample = (Math.random() * 2 - 1) * 0.4;
+    
+    // Filter (standard)
+    if (type !== 'hat' && type !== 'kick') {
+        lp_last = lp_last + alpha * (sample - lp_last);
+        sample = (cutoff < 19000) ? lp_last : sample;
+    }
+
+    // Envelope
+    let envelope = 1.0;
+    if (i < attackSamples) {
+      envelope = i / attackSamples;
+    } else if (i > numSamples - releaseSamples) {
+      envelope = (numSamples - i) / releaseSamples;
+    }
+    
+    sample = Math.max(-1, Math.min(1, sample * envelope * vol));
+
+    const left = sample * (1.0 - Math.max(0, pan));
+    const right = sample * (1.0 - Math.max(0, -pan));
+
+    buffer.writeInt16LE(Math.floor(left * 32767), 44 + i * 4);
+    buffer.writeInt16LE(Math.floor(right * 32767), 44 + i * 4 + 2);
   }
   return buffer;
 }

@@ -1,0 +1,49 @@
+// Sesi Theory-Driven Composition
+// Inspired by musicpy syntax.
+
+allow "std/audio" in with Audio
+allow "std/theory" in with Music
+
+print "--- 🎹 Sesi Algorithmic Composition (musicpy style) ---"
+
+// 1. Define a chord progression
+let root = "C4"
+let progression = [
+    Music.chord(root, "M7"),
+    Music.chord(Music.transpose(root, 5), "M7"), // F4
+    Music.chord(Music.transpose(root, 7), "7"),  // G4
+    Music.chord(root, "M7")
+]
+
+// 2. Create a "broken chord" (arpeggio) function
+fn arpeggiate(chord_notes, duration) {
+    let pattern = []
+    for n in chord_notes {
+        push(pattern, {"note": n, "ms": duration / len(chord_notes)})
+    }
+    return pattern
+}
+
+// 3. Build the Tracks
+print "Generating tracks using music theory logic..."
+
+let melody = []
+let harmony = []
+
+for c in progression {
+    // Harmony plays the full chord as a "pad"
+    push(harmony, {"note": c, "ms": 1000, "vol": 0.3, "attack": 200, "release": 500})
+    
+    // Melody plays the arpeggiated version
+    let arp = arpeggiate(c, 1000)
+    for note in arp {
+        push(melody, {"note": note["note"], "ms": note["ms"], "vol": 0.6, "pan": -0.4})
+    }
+}
+
+// 4. Mix and Render
+print "Mixing theory-based tracks into stereo WAV..."
+Audio.mix("theory_symphony.wav", [melody, harmony], "sine")
+
+print "Successfully rendered: theory_symphony.wav"
+print "--- Composition Complete ---"

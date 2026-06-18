@@ -1,21 +1,40 @@
-// Sesi Synthesizer and Drawing Demo
-// This example demonstrates the std/audio and std/draw modules.
-
+/* 
+    Audio & Drawing Demo
+    This example demonstrates the std/audio, std/theory and std/draw modules.
+*/
 allow "std/audio" in with Audio
+allow "std/theory" in with Music
 allow "std/draw" in with Draw
 
-print "--- 🎵 Sesi Audio Synthesizer ---"
+print "--- 🎵 Sesi Advanced Synthesizer & Theory ---"
 
-print "Playing a scale..."
-let notes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"]
-for n in notes {
-    print "Playing:" n
-    Audio.play(n, 300)
+// 1. Using Music Theory to generate a scale
+print "Generating a C Major scale using std/theory..."
+let scaler = Music.scale("C4", "major")
+for n in scaler {
+    print "Playing Note:" n
+    Audio.play(n, 200, {"attack": 20, "release": 50, "pan": (random() * 2) - 1})
 }
 
-print "Generating a custom tone (sawtooth wave)..."
-Audio.save("sawtooth_tone.wav", "A3", 2000, "saw")
-print "Saved to sawtooth_tone.wav"
+// 2. Demonstrating Physical Modeling Drums
+print "\nRendering a high-quality drum loop..."
+let drum_loop = [
+    {"note": "C1", "ms": 500, "type": "kick", "vol": 1.0},
+    {"note": "G8", "ms": 500, "type": "hat", "vol": 0.2, "pan": 0.5},
+    {"note": "C4", "ms": 500, "type": "snare", "vol": 0.7},
+    {"note": "G8", "ms": 500, "type": "hat", "vol": 0.2, "pan": -0.5}
+]
+Audio.sequence("drum_demo.wav", drum_loop)
+print "Saved drum loop to drum_demo.wav"
+
+// 3. Mixing polyphonic chords and filtered synths
+print "\nRendering a stereo orchestral pad..."
+let chord = Music.chord("F4", "M7")
+let pad_track = [
+    {"note": chord, "ms": 2000, "vol": 0.4, "attack": 500, "release": 1000, "cutoff": 1500}
+]
+Audio.mix("orchestral_demo.wav", [pad_track], "sine")
+print "Saved polyphonic pad to orchestral_demo.wav"
 
 print "\n--- 🎨 Sesi Drawing System ---"
 

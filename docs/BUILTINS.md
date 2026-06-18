@@ -653,39 +653,83 @@ Audio.play("G4", 500)
 let b64 = Audio.synth(440, 1000, "square")
 
 // Save a synthesized tone to a file
-Audio.save("tone.wav", "A4", 2000, "sine")
+Audio.save("tone.wav", "A4", 2000, "sine", {"attack": 50, "release": 500})
+
+// Professional Sample-Based Synthesis (SoundFonts)
+let piano = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 0, "gain": 1.5})
+let string_pad = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 49})
+
+// Native Physical Modeling (Drums)
+let kick = {"note": "C1", "ms": 500, "type": "kick"}
+let snare = {"note": "C4", "ms": 500, "type": "snare"}
+let hat = {"note": "G8", "ms": 250, "type": "hat", "pan": 0.3}
 
 // Save a sequence (song) of notes
 let song = [
-  {"note": "C4", ms: 500},
-  {"note": "E4", ms: 500},
-  {"note": "G4", ms: 1000}
+  {"note": "C4", ms: 500, "vol": 0.8},
+  {"note": "E4", ms: 500, "pan": -0.5},
+  {"note": "G4", ms: 1000, "cutoff": 5000} // LPF Filter
 ]
 Audio.sequence("song.wav", song, "triangle")
 
-// Mix multiple tracks into a single polyphonic WAV
-let lead = [{"note": "C4", ms: 500}, {"note": "E4", ms: 500}]
-let bass = [{"note": "C2", ms: 1000}]
-Audio.mix("mix.wav", [lead, bass], "sine")
+// Mix multiple tracks (Native Synthesis and SoundFonts) into a single stereo WAV
+let lead = [piano("C4", 500), piano("E4", 500)]
+let bass = [kick, snare]
+Audio.mix("mix.wav", [lead, bass], "sine", {"saturate": 1.5})
 ```
 
 ### beep(frequency, duration)
 Plays a simple sine wave beep.
 
-### play(note, duration)
-Plays a musical note (e.g., `"C4"`, `"A#3"`, `"Bb5"`).
+### play(note, duration, options)
+Plays a musical note (e.g., `"C4"`, `"A#3"`, `"Bb5"`). Accepts `options` for ADSR, volume, and panning.
 
-### synth(frequency_or_note, duration, type)
-Returns a base64 encoded WAV string. `type` can be `"sine"`, `"square"`, `"saw"`, or `"triangle"`.
+### synth(frequency_or_note, duration, type, options)
+Returns a base64 encoded WAV string. `type` can be `"sine"`, `"square"`, `"saw"`, `"triangle"`, `"noise"`, `"kick"`, `"snare"`, `"hat"`, or `"clap"`.
 
-### save(path, frequency_or_note, duration, type)
+### save(path, frequency_or_note, duration, type, options)
 Saves a synthesized WAV file to the specified path.
 
-### sequence(path, notes_array, type)
-Saves a multi-note sequence to a single WAV file. `notes_array` can be an array of note strings (e.g., `["C4", "D4"]`) or objects (e.g., `[{note: "C4", ms: 250}]`).
+### sequence(path, notes_array, type, options)
+Saves a multi-note sequence to a single WAV file. `notes_array` can be an array of note strings (e.g., `["C4", "D4"]`), objects (e.g., `[{note: "C4", ms: 250, pan: 0.5}]`), or pre-rendered SF2 notes.
 
-### mix(path, tracks_array, type)
-Saves a WAV file by mixing multiple tracks together. `tracks_array` is an array of note arrays (sequences). Each track is layered and mixed simultaneously.
+### mix(path, tracks_array, type, options)
+Saves a Stereo WAV file by mixing multiple tracks together. `tracks_array` is an array of note arrays. The mixer supports real-time ADSR envelopes, low-pass filtering (`cutoff`), stereo `pan`, soft-clipping saturation (`saturate`), and automatic high-speed batch rendering of SoundFont instruments.
+
+### sf2(path, options) -> fn(note, duration)
+Returns a high-level instrument constructor function bound to a specific SoundFont file. 
+- `options`: `{"instrument": 0, "channel": 0, "gain": 1.5}`
+- The returned function takes `(note, ms)` and generates a Sesi-native note object that the mixer will automatically batch-render using FluidSynth.
+
+---
+
+## Music Theory Functions (std/theory)
+
+The `std/theory` module abstracts the mathematics of music into simple, reusable logic, perfect for algorithmic composition.
+
+```sesi
+allow "std/theory" in with Music
+
+// Generate a C Major 7 chord array
+let c_maj7 = Music.chord("C4", "M7") // ["C4", "E4", "G4", "B4"]
+
+// Generate an A minor scale array
+let a_minor = Music.scale("A3", "minor")
+
+// Transpose notes up by 5 semitones (Perfect 4th)
+let shifted = Music.transpose(c_maj7, 5) // ["F4", "A4", "C5", "E5"]
+```
+
+### chord(root, type) -> array
+Generates an array of notes for a given chord type. 
+- Supported types: `"M"`, `"m"`, `"dim"`, `"aug"`, `"7"`, `"M7"`, `"m7"`, `"sus2"`, `"sus4"`.
+
+### scale(root, type) -> array
+Generates an array of notes for a given scale/mode.
+- Supported types: `"major"`, `"minor"`, `"dorian"`, `"phrygian"`, `"lydian"`, `"mixolydian"`, `"locrian"`.
+
+### transpose(notes, semitones) -> array
+Shifts a note or an array of notes up or down by the specified number of semitones.
 
 ---
 

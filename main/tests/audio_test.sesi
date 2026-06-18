@@ -1,0 +1,47 @@
+// Advanced Sesi Audio Test
+// Demonstrates Stereo Panning, ADSR Envelopes, and Volume control.
+
+allow "std/audio" in with Audio
+
+print "--- 🔊 Sesi Advanced Audio Engine Test ---"
+
+// 1. Test ADSR and Volume
+print "Rendering ADSR and Volume test (strings)..."
+let string_track = [
+    {"note": "A4", "ms": 1000, "vol": 0.5, "attack": 200, "release": 500},
+    {"note": "C5", "ms": 1000, "vol": 0.8, "attack": 100, "release": 300},
+    {"note": "E5", "ms": 2000, "vol": 0.3, "attack": 500, "release": 1000}
+]
+Audio.sequence("adsr_test.wav", string_track, "sine")
+
+// 2. Test Stereo Panning
+print "Rendering Stereo Panning test (ping-pong)..."
+let pan_track = [
+    {"note": "C4", "ms": 500, "pan": -0.8}, // Left
+    {"note": "C4", "ms": 500, "pan": 0.8},  // Right
+    {"note": "C4", "ms": 500, "pan": -0.5},
+    {"note": "C4", "ms": 500, "pan": 0.5},
+    {"note": "C4", "ms": 1000, "pan": 0.0} // Center
+]
+Audio.sequence("pan_test.wav", pan_track, "square")
+
+// 3. Test Multi-track Mixing with per-track options
+print "Mixing multi-track stereo symphony..."
+let lead = [
+    {"note": "G4", "ms": 500, "pan": -0.3, "vol": 0.6},
+    {"note": "A4", "ms": 500, "pan": -0.3, "vol": 0.6},
+    {"note": "B4", "ms": 1000, "pan": -0.3, "vol": 0.6}
+]
+
+let pad = [
+    {"note": "C3", "ms": 2000, "pan": 0.5, "vol": 0.3, "attack": 500, "release": 500},
+    {"note": "F3", "ms": 2000, "pan": 0.5, "vol": 0.3, "attack": 500, "release": 500}
+]
+
+Audio.mix("advanced_mix.wav", [lead, pad], "sine")
+
+print "--- Test Complete ---"
+print "Files generated:"
+print " - adsr_test.wav (Mono strings with soft fades)"
+print " - pan_test.wav (Ping-pong stereo square waves)"
+print " - advanced_mix.wav (Stereo polyphonic mix)"

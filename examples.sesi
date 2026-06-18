@@ -34,6 +34,7 @@ print exec("sesi examples/main/27_robust_web_db.sesi -l")
 print exec("sesi examples/optional/28_streaming.sesi")
 print exec("sesi examples/main/29_tool_piping.sesi")
 print exec("sesi examples/main/30_error_recovery.sesi")
+print exec("sesi examples/main/31_synthesizer.sesi")
 print "All done! No errors means Sesi is ready!"}
 catch (error) {
 print "An error occurred:" error}

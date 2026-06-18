@@ -2,7 +2,7 @@
 name: MakeInSesi
 description: Intent-based development workflow for generating concise, syntax-accurate Sesi scripts using integrated web research and verified implementation patterns.
 agent: Plan
-model: GPT-4.1 (copilot)
+model: Gemini 3 Flash Preview (gemini)
 tools:
   [
     execute/getTerminalOutput,
@@ -26,11 +26,6 @@ tools:
     edit/rename,
     search,
     web,
-    browser/openBrowserPage,
-    browser/readPage,
-    browser/screenshotPage,
-    browser/navigatePage,
-    browser/clickElement,
     azure-mcp/search,
     todo,
   ]
