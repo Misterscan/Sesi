@@ -90,5 +90,5 @@ For all quirks and specific syntaxing, visit WRITING_SCRIPTS.md, /docs/BUILTINS.
 - `query.txt`
 - `.sesi_cache.json`
 - `.sesi_chat_history.json`
-- `.ai-ignore/`
+- `ai-exclude/`
 - `AI-IGNORE/`

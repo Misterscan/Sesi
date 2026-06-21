@@ -136,7 +136,7 @@ Every reasoning call automatically includes the current UTC date and time in its
 
 **Implicit Statement Termination** ✅
 
-Expressions ending in `}` (such as prompt blocks or reasoning calls) no longer strictly require a newline or semicolon to terminate, allowing for cleaner one-liner syntax.
+Expressions ending in `}` (such as prompt blocks) no longer strictly require an escape character or semicolon to terminate, allowing for cleaner one-line or multi-line syntax.
 
 **Async Polling for MAX_TOKENS** ✅
 
@@ -256,11 +256,11 @@ Sesi supports importing standard utility library modules natively at runtime:
 
 | Metric              | Value  |
 | ------------------- | ------ |
-| Total lines of code | ~3,000 |
-| Source files        | 7      |
-| Documentation pages | 12     |
-| Example programs    | 22     |
-| Built-in functions  | 34     |
+| Total lines of code | ~4,000 |
+| Source files        | 9      |
+| Documentation pages | 23     |
+| Example programs    | 31     |
+| Built-in functions  | 50+    |
 | Supported operators | 20+    |
 | AST node types      | 30+    |
 | Token types         | 50+    |
@@ -372,7 +372,7 @@ npm test
 ✅ **ROADMAP.md** (400+ lines)
 
 - V1.0 features (Complete)
-- V1.1 improvements (Complete)
+- V1.5 improvements (Complete)
 - V2.0 async & advanced reasoning (Q3-Q4 2026)
 - V3.0 systems framework
 - V4.0+ vision
@@ -406,10 +406,15 @@ npm test
 | main/21_custom_tools.sesi                    | Custom runtime tool definitions                       |
 | optional/22_reasoning_plus_custom_tools.sesi | Compose reasoning & tools                             |
 | main/23_file_conversion.sesi                 | Document and media conversion via `convert()`         |
-| main/24_http_server.sesi                     | Native async HTTP server (`listen`)                   |
+| main/24_http_server.sesi                     | Native async HTTP server (`listen`, `live`)           |
+| main/24_http_handler.sesi                    | Dynamic routing HTTP handler                          |
 | main/25_webpage_server.sesi                  | High-performance dynamic HTML site rendering          |
 | main/26_database.sesi                        | Embedded Document Database (`std/db`) crud operations |
 | main/27_robust_web_db.sesi                   | Secured combined API server backed by persistent DB   |
+| optional/28_streaming.sesi                   | Streaming API responses                           |
+| main/29_tool_piping.sesi                     | Tool-chaining and data pipelining                 |
+| main/30_error_recovery.sesi                  | Robust error handling and retry policies            |
+| main/31_synthesizer.sesi                     | Music and SVG native capabilities                 |
 
 ## 🔮 Future Directions
 
@@ -444,7 +449,7 @@ npm test
 
 **Example Coverage**
 
-- 27 complete example programs
+- 31 complete example programs
 - Covers all major language features
 - Demonstrates reasoning integration
 - Real-world use cases
@@ -486,7 +491,7 @@ npm test
 - ✅ API reference (450+ lines)
 - ✅ Systems reasoning guide (500+ lines)
 - ✅ Development roadmap (400+ lines)
-- ✅ 20+ example programs
+- ✅ 30+ example programs
 - ✅ CLI executable
 - ✅ Test suite
 - ✅ Quick start guide
@@ -509,7 +514,7 @@ The language is designed to evolve. V1+ provides a solid foundation. V2+ adds po
 
 ---
 
-**Status**: ⏳ Ongoing V1.5 implementation  
+**Status**: ✅ Complete V1.5 implementation  
 **Ready for**: File manipulation and process orchestration  
 **Not ready for**: Massive-scale production (until v2.0 bytecode)  
 **Next milestone**: V2.0 (Async & advanced reasoning)

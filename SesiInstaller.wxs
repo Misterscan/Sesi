@@ -2,7 +2,7 @@
   <Package
     Name="Sesi"
     Language="1033"
-    Version="1.5.6"
+    Version="1.5.7"
     Manufacturer="Misterscan"
     UpgradeCode="{E4A9B31A-BDA8-4C86-9BA6-6D3D5E8F8D31}"
     Scope="perMachine"
@@ -14,7 +14,7 @@
         <Component Id="SesiExeComponent" Guid="*">
           <File
             Id="SesiExeFile"
-            Source="releases\sesi-1.5.6.bundled-win.exe"
+            Source="releases\sesi-1.5.7.bundled-win.exe"
             Name="sesi.exe"
             KeyPath="yes"
           />

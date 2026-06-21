@@ -267,7 +267,11 @@ try {
     try {
       skills = read_file("SKILLS.md")
     } catch (e) {
-      print "Error reading SKILLS.md:" e
+      try {
+        skills = read_file("docs/SKILLS.md")
+      } catch (e) {
+        print "Error reading SKILLS.md:" e
+      }
     }
     prompt instructions {"Instructions: 
     "  skills " 

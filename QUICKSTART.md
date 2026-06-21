@@ -265,16 +265,17 @@ print "Both workers are now running concurrently."
 
 ```sesi
 print value        // Print to stdout
+input(prompt)      // Prompt user for terminal input
 read_file(path)    // Read a file as text
-from_json(path)    // Read a JSON file
+from_json(string)  // Parse JSON string back to value
 write_file(path, content) // Write text to a file
 write_image(path, content) // Write base64 encoded image to a file
+convert(type) { config } { file } // Convert documents/media/audio between formats
 list_dir(path)     // List directory contents
 make_dir(path)     // Create a new directory
 spawn(path)        // Launch concurrent background process
 exec(command)      // Synchronous shell execution
 time()             // Unix timestamp (ms)
-format()           // Normalize timestamp
 random()           // Random number (0-1)
 ```
 
@@ -291,7 +292,7 @@ bool(value)        // Convert to boolean
 ### Collections
 
 ```sesi
-len(array)         // Array/string length
+len(collection)    // Collection length
 push(array, item)  // Add to array
 pop(array)         // Remove from array
 join(array, sep)   // Join array into string
@@ -299,6 +300,17 @@ split(string, sep) // Split string to array
 keys(object)       // Get object keys
 values(object)     // Get object values
 range(n)           // Create [0, 1, ..., n-1]
+to_upper(string)   // Convert string to uppercase
+to_lower(string)   // Convert string to lowercase
+trim(string)       // Remove whitespace from both ends
+slice(coll, s, e)  // Slice a string or array
+swap(str, tgt, rep) // Replace all occurrences of substring
+contains(str, sub) // Check if string contains substring
+locate(str, sub)   // Find index of substring (-1 if not found)
+map(array, callback) // Map array elements
+filter(array, callback) // Filter array elements
+reduce(array, callback, initial) // Reduce array elements
+find(array, callback) // Find first matching element
 ```
 
 ### Network & Concurrency
@@ -307,6 +319,8 @@ range(n)           // Create [0, 1, ..., n-1]
 web_get(url, headers = {})        // Natively fetch from URL via HTTP GET
 web_send(url, body, headers = {}) // Natively post body to URL via HTTP POST
 multi_req(array<function>)        // Run multiple tasks/requests physically in parallel
+listen(port, handler)              // Starts HTTP server
+api(port, handler)                 // Starts WebSocket server
 ```
 
 ### Reasoning
@@ -331,6 +345,14 @@ raise_error(error)              // Throw an error
 exp(x)             // Exponential function
 ```
 
+### System & Control
+
+```sesi
+live(filePath, exportName)         // Hot-reloading function wrapper
+retry(action, options)             // Execute with backoff/retry
+debug()                            // Pause execution and launch interactive REPL
+```
+
 ### Standard Library Modules
 
 Standard library features are available using `allow ... in with ...` statements:
@@ -342,6 +364,18 @@ allow "std/json" in with {
 }
 allow "std/time" in with Time
 // Time.sleep(), Time.now()
+
+allow "std/db" in with {db_open}
+// db_open("data.db", "password") -> Encrypted document DB
+
+allow "std/audio" in with Audio
+// Audio.play("C4", 500), Audio.synth(), Audio.save(), Audio.mix()
+
+allow "std/theory" in with Music
+// Music.chord("C4", "M7"), Music.scale("A3", "minor")
+
+allow "std/draw" in with Draw
+// Draw.rect(), Draw.circle(), Draw.save_svg("drawing.svg", 100, 100)
 ```
 
 ## Running Examples
@@ -381,9 +415,14 @@ sesi examples/optional/22_reasoning_plus_custom_tools.sesi
 # Advanced Version 1.5 features
 sesi examples/main/23_file_conversion.sesi
 sesi examples/main/24_http_server.sesi
+sesi examples/main/24_http_handler.sesi
 sesi examples/main/25_webpage_server.sesi
 sesi examples/main/26_database.sesi
 sesi examples/main/27_robust_web_db.sesi
+sesi examples/optional/28_streaming.sesi
+sesi examples/main/29_tool_piping.sesi
+sesi examples/main/30_error_recovery.sesi
+sesi examples/main/31_synthesizer.sesi
 ```
 
 ## Common Patterns
