@@ -1,8 +1,11 @@
-/* Example 17: HTTP Network Client
-Demonstrates:
-1. web_get for fetching external JSON resources.
-2. web_send for posting raw JSON strings to APIs.
-3. std/json parsing to query structural details. */
+/*
+    Example 17: HTTP Network Client
+
+    Demonstrates:
+    - web_get for fetching external JSON resources.
+    - web_send for posting raw JSON strings to APIs.
+    - std/json parsing to query structural details.
+*/
 
 allow "std/json" in with {parse}
 

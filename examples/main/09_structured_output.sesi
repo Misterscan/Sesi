@@ -1,5 +1,7 @@
-/* Structured output 
-For example, if you have an API endpoint that returns JSON data, you can use structured_output to parse it. */
+/* 
+    Structured output 
+    For example, if you have an API endpoint that returns JSON data, you can use structured_output to parse it. 
+*/
 
 let json_data = web_get("https://jsonplaceholder.typicode.com/todos/1")
 let structured_data = structured_output({title: string, completed: bool})(json_data)

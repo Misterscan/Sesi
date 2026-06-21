@@ -146,6 +146,8 @@ async function main() {
   );
   await runTest('Return with value', 'fn test() { return 42 }');
   await runTest('Return without value', 'fn test() { return }');
+  await runTest('Audio std library keys check', 'allow "std/audio" in with Audio\nlet found = false\nfor k in keys(Audio) {\n  if k == "midi" { found = true }\n}\nif !found { raise_error("AssertionError", "midi missing") }');
+  await runTest('Draw std library keys check', 'allow "std/draw" in with Draw\nlet found = false\nfor k in keys(Draw) {\n  if k == "save_svg" { found = true }\n}\nif !found { raise_error("AssertionError", "save_svg missing") }');
 
   console.log('\n=== Summary ===');
   console.log('All basic tests completed!');

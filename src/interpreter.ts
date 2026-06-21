@@ -1690,6 +1690,35 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         }
       } as any);
 
+      exports.set('duration', {
+        type: 'function',
+        name: 'duration',
+        params: [{ name: 'minutes' }, { name: 'seconds' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const min = typeof args[0] === 'number' ? args[0] : 0;
+          const sec = typeof args[1] === 'number' ? args[1] : 0;
+          return (min * 60 + sec) * 1000;
+        }
+      } as any);
+
+      exports.set('bar', {
+        type: 'function',
+        name: 'bar',
+        params: [{ name: 'bars' }, { name: 'bpm' }, { name: 'beatsPerBar', defaultValue: 4 }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const bars = typeof args[0] === 'number' ? args[0] : 0;
+          const bpm = (args.length > 1 && typeof args[1] === 'number') ? args[1] : 120;
+          const beatsPerBar = (args.length > 2 && typeof args[2] === 'number') ? args[2] : 4;
+          return bars * beatsPerBar * (60000 / bpm);
+        }
+      } as any);
+
       return exports;
     } else if (source === 'std/audio') {
       exports.set('beep', {
@@ -2033,6 +2062,30 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           return true;
         }
       } as any);
+      exports.set('midi', {
+        type: 'function',
+        name: 'midi',
+        params: [{ name: 'path' }, { name: 'tracks' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (filePath: any, tracksVal: any): RuntimeValue => {
+          const outPath = stringify(filePath);
+          const absPath = ensureSafePath(outPath, this);
+          if (!Array.isArray(tracksVal)) {
+            throw new Error('midi expects an array of notes (track) or an array of tracks');
+          }
+          let tracksArray: any[];
+          if (tracksVal.length > 0 && Array.isArray(tracksVal[0])) {
+            tracksArray = tracksVal;
+          } else {
+            tracksArray = [tracksVal];
+          }
+          const midiBuffer = buildFullMidi(tracksArray);
+          fs.writeFileSync(absPath, midiBuffer);
+          return true;
+        }
+      } as any);
       exports.set('render', {
         type: 'function',
         name: 'render',
@@ -2337,6 +2390,15 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       return exports;
     } else if (source === 'std/draw') {
       let elements: string[] = [];
+      let defs: string[] = [];
+
+      const formatOptions = (opts: any): string => {
+        if (!opts || typeof opts !== 'object') return '';
+        return Object.entries(opts)
+          .map(([k, v]) => ` ${k}="${stringify(v as any)}"`)
+          .join('');
+      };
+
       exports.set('clear', {
         type: 'function',
         name: 'clear',
@@ -2346,54 +2408,137 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         isBuiltin: true,
         builtin: (): RuntimeValue => {
           elements = [];
+          defs = [];
           return null;
         }
       });
       exports.set('circle', {
         type: 'function',
         name: 'circle',
-        params: [{ name: 'x' }, { name: 'y' }, { name: 'r' }, { name: 'fill' }],
+        params: [{ name: 'x' }, { name: 'y' }, { name: 'r' }, { name: 'fill' }, { name: 'options', defaultValue: {} as any }],
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
-        builtin: (x, y, r, fill): RuntimeValue => {
-          elements.push(`<circle cx="${x}" cy="${y}" r="${r}" fill="${stringify(fill) || 'black'}" />`);
+        builtin: (x, y, r, fill, opts): RuntimeValue => {
+          elements.push(`<circle cx="${x}" cy="${y}" r="${r}" fill="${stringify(fill) || 'black'}"${formatOptions(opts)} />`);
           return null;
         }
       });
       exports.set('rect', {
         type: 'function',
         name: 'rect',
-        params: [{ name: 'x' }, { name: 'y' }, { name: 'w' }, { name: 'h' }, { name: 'fill' }],
+        params: [{ name: 'x' }, { name: 'y' }, { name: 'w' }, { name: 'h' }, { name: 'fill' }, { name: 'options', defaultValue: {} as any }],
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
-        builtin: (x, y, w, h, fill): RuntimeValue => {
-          elements.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${stringify(fill) || 'black'}" />`);
+        builtin: (x, y, w, h, fill, opts): RuntimeValue => {
+          elements.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${stringify(fill) || 'black'}"${formatOptions(opts)} />`);
           return null;
         }
       });
       exports.set('line', {
         type: 'function',
         name: 'line',
-        params: [{ name: 'x1' }, { name: 'y1' }, { name: 'x2' }, { name: 'y2' }, { name: 'color' }],
+        params: [{ name: 'x1' }, { name: 'y1' }, { name: 'x2' }, { name: 'y2' }, { name: 'color' }, { name: 'options', defaultValue: {} as any }],
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
-        builtin: (x1, y1, x2, y2, color): RuntimeValue => {
-          elements.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stringify(color) || 'black'}" />`);
+        builtin: (x1, y1, x2, y2, color, opts): RuntimeValue => {
+          elements.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stringify(color) || 'black'}"${formatOptions(opts)} />`);
           return null;
         }
       });
       exports.set('text', {
         type: 'function',
         name: 'text',
-        params: [{ name: 'x' }, { name: 'y' }, { name: 'text' }, { name: 'size' }, { name: 'color' }],
+        params: [{ name: 'x' }, { name: 'y' }, { name: 'text' }, { name: 'size' }, { name: 'color' }, { name: 'options', defaultValue: {} as any }],
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
-        builtin: (x, y, txt, size, color): RuntimeValue => {
-          elements.push(`<text x="${x}" y="${y}" font-size="${size || 16}" fill="${stringify(color) || 'black'}">${stringify(txt)}</text>`);
+        builtin: (x, y, txt, size, color, opts): RuntimeValue => {
+          elements.push(`<text x="${x}" y="${y}" font-size="${size || 16}" fill="${stringify(color) || 'black'}"${formatOptions(opts)}>${stringify(txt)}</text>`);
+          return null;
+        }
+      });
+      exports.set('ellipse', {
+        type: 'function',
+        name: 'ellipse',
+        params: [{ name: 'cx' }, { name: 'cy' }, { name: 'rx' }, { name: 'ry' }, { name: 'fill' }, { name: 'options', defaultValue: {} as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (cx, cy, rx, ry, fill, opts): RuntimeValue => {
+          elements.push(`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${stringify(fill) || 'black'}"${formatOptions(opts)} />`);
+          return null;
+        }
+      });
+      exports.set('polygon', {
+        type: 'function',
+        name: 'polygon',
+        params: [{ name: 'points' }, { name: 'fill' }, { name: 'options', defaultValue: {} as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (points, fill, opts): RuntimeValue => {
+          elements.push(`<polygon points="${stringify(points)}" fill="${stringify(fill) || 'black'}"${formatOptions(opts)} />`);
+          return null;
+        }
+      });
+      exports.set('path', {
+        type: 'function',
+        name: 'path',
+        params: [{ name: 'd' }, { name: 'fill' }, { name: 'options', defaultValue: {} as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (d, fill, opts): RuntimeValue => {
+          elements.push(`<path d="${stringify(d)}" fill="${stringify(fill) || 'none'}"${formatOptions(opts)} />`);
+          return null;
+        }
+      });
+      exports.set('gradient', {
+        type: 'function',
+        name: 'gradient',
+        params: [{ name: 'type' }, { name: 'id' }, { name: 'stops' }, { name: 'options', defaultValue: {} as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (type, id, stops, opts): RuntimeValue => {
+          const t = stringify(type) === 'radial' ? 'radialGradient' : 'linearGradient';
+          const stopsArr = Array.isArray(stops) ? stops : [];
+          const stopsSvg = stopsArr.map((stop: any) => {
+            const offset = stop && typeof stop === 'object' && stop.offset !== undefined ? stringify(stop.offset) : '0%';
+            const color = stop && typeof stop === 'object' && stop.color !== undefined ? stringify(stop.color) : 'black';
+            const opacity = stop && typeof stop === 'object' && stop.opacity !== undefined ? ` stop-opacity="${stringify(stop.opacity)}"` : '';
+            return `    <stop offset="${offset}" stop-color="${color}"${opacity} />`;
+          }).join('\n');
+
+          const gradSvg = `  <${t} id="${stringify(id)}"${formatOptions(opts)}>\n${stopsSvg}\n  </${t}>`;
+          defs.push(gradSvg);
+          return null;
+        }
+      });
+      exports.set('style', {
+        type: 'function',
+        name: 'style',
+        params: [{ name: 'cssText' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (cssText): RuntimeValue => {
+          defs.push(`  <style>\n    ${stringify(cssText)}\n  </style>`);
+          return null;
+        }
+      });
+      exports.set('raw', {
+        type: 'function',
+        name: 'raw',
+        params: [{ name: 'svgCode' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (svgCode): RuntimeValue => {
+          elements.push(stringify(svgCode));
           return null;
         }
       });
@@ -2405,7 +2550,8 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         closure: {} as any,
         isBuiltin: true,
         builtin: (w, h): RuntimeValue => {
-          return `<svg width="${w || 500}" height="${h || 500}" xmlns="http://www.w3.org/2000/svg">${elements.join('')}</svg>`;
+          const defsStr = defs.length > 0 ? `  <defs>\n  ${defs.join('\n  ')}\n  </defs>\n` : '';
+          return `<svg width="${w || 500}" height="${h || 500}" xmlns="http://www.w3.org/2000/svg">\n${defsStr}${elements.map(e => '  ' + e).join('\n')}\n</svg>`;
         }
       });
       exports.set('save_svg', {
@@ -2416,7 +2562,8 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         closure: {} as any,
         isBuiltin: true,
         builtin: (filePath, w, h): RuntimeValue => {
-          const svg = `<svg width="${w || 500}" height="${h || 500}" xmlns="http://www.w3.org/2000/svg">${elements.join('')}</svg>`;
+          const defsStr = defs.length > 0 ? `  <defs>\n  ${defs.join('\n  ')}\n  </defs>\n` : '';
+          const svg = `<svg width="${w || 500}" height="${h || 500}" xmlns="http://www.w3.org/2000/svg">\n${defsStr}${elements.map(e => '  ' + e).join('\n')}\n</svg>`;
           const absPath = ensureSafePath(stringify(filePath), this);
           fs.writeFileSync(absPath, svg);
           return true;

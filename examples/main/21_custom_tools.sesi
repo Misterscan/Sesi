@@ -1,8 +1,10 @@
-/* Example 21: Custom Tool Definitions
-Demonstrates:
-1. define_tool(name, fn, description)
-2. list_tools()
-3. tool_call(customTool)(...) */
+/* 
+  Example 21: Custom Tool Definitions
+  Demonstrates:
+    1. define_tool(name, fn, description)
+    2. list_tools()
+    3. tool_call(customTool)(...) 
+*/
 
 fn normalizeText(text) {
   return "normalized: " + text

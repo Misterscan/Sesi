@@ -1,5 +1,9 @@
-/* Example 25: Webpage Server
-Run with: sesi examples/main/25_webpage_server.sesi -l */
+/* 
+  Example 25: Webpage Server
+
+  Usage:
+    - sesi examples/main/25_webpage_server.sesi -l 
+*/
 
 let siteData = {
   "title": "Sesi Language",

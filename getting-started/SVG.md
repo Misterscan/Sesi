@@ -218,6 +218,49 @@ Draw.save_svg("landscape.svg", 300, 200)
 
 ---
 
+## Advanced Features (Gradients, Animations, Options)
+
+Sesi's drawing module has built-in support for:
+1. **Attributes / Options**: You can pass a dictionary of attributes as the final argument to shape rendering functions to add CSS classes, IDs, strokes, and more.
+2. **Gradients**: Define linear/radial gradients inside the `<defs>` element using `Draw.gradient`.
+3. **CSS Keyframe Animations**: Inject custom `@keyframes` styling into the generated SVG header using `Draw.style`.
+4. **Complex Shapes**: Draw curves and lines via `ellipse`, `polygon`, and `path`.
+5. **Raw Elements**: Inject arbitrary SVG markup tags directly using `Draw.raw`.
+
+### Example: Animated Vector Art with Gradients
+
+```sesi
+allow "std/draw" in with Draw
+
+// 1. Define a radial gradient for a neon glow
+Draw.gradient("radial", "glow_grad", [
+  {"offset": "0%", "color": "#ff00ff"},
+  {"offset": "100%", "color": "transparent"}
+])
+
+// 2. Define standard CSS animations for pulsating and spinning
+Draw.style("
+  @keyframes heartbeat {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+  .pulse {
+    animation: heartbeat 2s infinite ease-in-out;
+    transform-origin: 200px 200px;
+  }
+")
+
+// 3. Draw using options to bind classes and gradients
+Draw.rect(0, 0, 400, 400, "#0a0018")
+Draw.circle(200, 200, 100, "url(#glow_grad)", {"class": "pulse"})
+Draw.ellipse(200, 200, 50, 25, "#00ffff")
+
+Draw.save_svg("neon.svg", 400, 400)
+```
+
+---
+
 ## Error Handling
 
 Wrap file-saving calls in `try/catch` to handle path or permission errors:
@@ -242,23 +285,24 @@ try {
 ```sesi
 allow "std/draw" in with Draw
 
-// Shapes
-Draw.rect(x, y, width, height, fill)
-Draw.circle(x, y, radius, fill)
-Draw.line(x1, y1, x2, y2, stroke)
-Draw.text(x, y, content, size, fill)
+// Setup & Formatting
+Draw.gradient(type, id, stops, options = {})
+Draw.style(cssText)
+Draw.raw(svgCode)
 
-// Reset buffer
+// Shapes (all accept optional custom attributes dictionary)
+Draw.rect(x, y, width, height, fill, options = {})
+Draw.circle(x, y, radius, fill, options = {})
+Draw.line(x1, y1, x2, y2, stroke, options = {})
+Draw.text(x, y, content, size, fill, options = {})
+Draw.ellipse(cx, cy, rx, ry, fill, options = {})
+Draw.polygon(points, fill, options = {})
+Draw.path(d, fill, options = {})
+
+// Buffer actions
 Draw.clear()
-
-// Get SVG string
 let svg = Draw.render(width, height)
-
-// Save to file
 Draw.save_svg("output.svg", width, height)
-
-// Use the SVG string elsewhere
-write_file("embed.html", "<body>" + svg + "</body>")
 ```
 
 ---

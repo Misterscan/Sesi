@@ -195,8 +195,9 @@ function tokenize(text) {
         'print', 'prompt', 'model', 'image', 'async', 'await', 'import', 'from',
         'export', 'to', 'allow', 'with', 'convert', 'memory', 'structured_output',
         'tool_call', 'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 
-        'render', 'sf2', 'chord', 'scale', 'transpose', 'clear', 'circle', 'rect', 
-        'line', 'text', 'save_svg'
+        'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi', 'clear',
+        'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path',
+        'gradient', 'style', 'raw', 'live'
     ]);
 
     const stripped = stripComments(text);
@@ -737,12 +738,12 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio',
+        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio',
         'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float',
         // Audio & Theory
-        'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose',
+        'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
         // Draw
-        'clear', 'circle', 'rect', 'line', 'text', 'save_svg'
+        'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw'
     ]);
     
     for (const ref of refs) {
@@ -1224,6 +1225,12 @@ function activate(context) {
             description: 'Starts a non-blocking, multi-threaded native HTTP server on the specified port. Calls the async handler function for each incoming connection.',
             example: 'async fn handle(req) {\n  return {"status": 200, "body": "OK"}\n}\nlet server = listen(8080, handle)'
         },
+        'live': {
+            signature: 'live(filePath, exportName = "handle")',
+            source: 'Network Server Standard Library',
+            description: 'Creates a dynamic hot-reloading wrapper around a Sesi script\'s exported function. When the returned function is called, it re-reads, re-parses, and re-executes the target file, ensuring changes to the code are instantly reflected without restarting the parent process.',
+            example: 'let handler = live("handler.sesi", "handleRequest")\nlet server = listen(8080, handler)'
+        },
         'db_open': {
             signature: 'db_open(filename)',
             source: 'Database Standard Library (std/db)',
@@ -1266,11 +1273,29 @@ function activate(context) {
             description: 'Shifts a note or an array of notes up or down by the specified number of semitones.',
             example: 'let shifted = transpose(["C4", "E4"], 7) // ["G4", "B4"]'
         },
+        'duration': {
+            signature: 'duration(minutes, seconds)',
+            source: 'Theory Standard Library (std/theory)',
+            description: 'Converts absolute minutes and seconds into Sesi-native milliseconds.',
+            example: 'let ms = duration(1, 30) // 90000 ms'
+        },
+        'bar': {
+            signature: 'bar(bars, bpm, beatsPerBar?)',
+            source: 'Theory Standard Library (std/theory)',
+            description: 'Converts a number of musical bars into milliseconds based on BPM and time signature (default: 4/4).',
+            example: 'let ms = bar(8, 120) // 16000 ms'
+        },
         'sequence': {
             signature: 'sequence(path, notes_array, type, options)',
             source: 'Audio Standard Library (std/audio)',
             description: 'Saves a multi-note sequence (single track) to a single WAV file.',
             example: 'sequence("melody.wav", [{"note": "C4", "ms": 500}], "saw")'
+        },
+        'midi': {
+            signature: 'midi(path, tracks)',
+            source: 'Audio Standard Library (std/audio)',
+            description: 'Saves one or more tracks (arrays of note objects/strings) directly to a MIDI (.mid) file on disk.',
+            example: 'midi("song.mid", melody_track)'
         },
         'play': {
             signature: 'play(note, duration_ms, options)',
@@ -1337,6 +1362,42 @@ function activate(context) {
             source: 'Drawing Standard Library (std/draw)',
             description: 'Saves the current drawing buffer to an SVG file on disk.',
             example: 'save_svg("art.svg", 500, 500)'
+        },
+        'ellipse': {
+            signature: 'ellipse(cx, cy, rx, ry, color, options = {})',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws an ellipse on the SVG canvas.',
+            example: 'ellipse(250, 250, 100, 50, "cyan")'
+        },
+        'polygon': {
+            signature: 'polygon(points, color, options = {})',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a polygon on the SVG canvas.',
+            example: 'polygon("100,10 250,190 10,190", "magenta")'
+        },
+        'path': {
+            signature: 'path(d, color, options = {})',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws an SVG path on the SVG canvas.',
+            example: 'path("M 10 10 L 90 90", "white")'
+        },
+        'gradient': {
+            signature: 'gradient(type, id, stops, options = {})',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Defines a linear or radial gradient in the SVG defs.',
+            example: 'gradient("linear", "sky", [{"offset": "0%", "color": "blue"}, {"offset": "100%", "color": "black"}])'
+        },
+        'style': {
+            signature: 'style(cssText)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Defines a stylesheet block in the SVG defs for CSS styling or animations.',
+            example: 'style(".spin { animation: spin 2s infinite; }")'
+        },
+        'raw': {
+            signature: 'raw(svgCode)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Injects raw SVG markup directly into the drawing buffer.',
+            example: 'raw("<g>...</g>")'
         },
         'async': {
             signature: 'async fn name() { ... }',
@@ -1488,14 +1549,17 @@ function activate(context) {
                                 'sf2(path, options)', 'mix(path, tracks, type, options)', 
                                 'sequence(path, notes, type, options)', 'play(note, ms, options)', 
                                 'synth(freq, ms, type, options)', 'save(path, freq, ms, type, options)',
-                                'beep(freq, ms)'
+                                'beep(freq, ms)', 'midi(path, tracks)'
                             ],
                             'std/theory': [
-                                'chord(root, type)', 'scale(root, type)', 'transpose(notes, steps)'
+                                'chord(root, type)', 'scale(root, type)', 'transpose(notes, steps)', 'duration(min, sec)', 'bar(bars, bpm, beatsPerBar?)'
                             ],
                             'std/draw': [
-                                'clear()', 'circle(x, y, r, fill)', 'rect(x, y, w, h, fill)',
-                                'line(x1, y1, x2, y2, color)', 'text(x, y, text, size, color)',
+                                'clear()', 'circle(x, y, r, fill, options?)', 'rect(x, y, w, h, fill, options?)',
+                                'line(x1, y1, x2, y2, color, options?)', 'text(x, y, text, size, color, options?)',
+                                'ellipse(cx, cy, rx, ry, fill, options?)', 'polygon(points, fill, options?)',
+                                'path(d, fill, options?)', 'gradient(type, id, stops, options?)',
+                                'style(cssText)', 'raw(svgCode)',
                                 'render(w, h)', 'save_svg(path, w, h)'
                             ]
                         };

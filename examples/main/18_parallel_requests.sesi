@@ -1,7 +1,10 @@
-/* Example 18: Parallel Requests and Concurrency
-Demonstrates:1. multi_req builtin to trigger multiple functions in parallel.
-2. Concurrency duration benchmarking.
-3. Dynamic array resolution. */
+/*
+  Example 18: Parallel Requests and Concurrency
+    Demonstrates:
+    - multi_req builtin to trigger multiple functions in parallel.
+    - Concurrency duration benchmarking.
+    - Dynamic array resolution.
+*/
 
 allow "std/time" in with Time
 

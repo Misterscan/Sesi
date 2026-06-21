@@ -209,6 +209,7 @@ print("Reasoning Response:", response)
 - `web_send(url, body, headers)` - Perform HTTP POST request
 - `listen(port, handler)` - Start a native HTTP server listening on the specified port
 - `api(port, handler)` - Start a native WebSocket server listening on the specified port
+- `live(filePath, exportName)` - Create a dynamic hot-reloading wrapper function around a Sesi script's exported function for instant request reload
 
 ### Concurrency
 
@@ -242,8 +243,8 @@ Sesi supports importing standard utility library modules natively at runtime:
 - **`std/time`**: `now()`, `sleep(ms)`, and `format(timestamp, options)` for timezone/locale formatting
 - **`std/json`**: `stringify(val)` and `parse(str)`
 - **`std/audio`**: `play`, `beep`, `synth`, `save`, `sequence`, `mix` for sound synthesis. Upgraded to a professional DSP backend with **Stereo Panning**, **ADSR Envelopes**, **Low-Pass Filtering**, **Soft-Clipping**, physical modeling drums (`kick`, `snare`, `hat`, `clap`), and `sf2` (High-speed FluidSynth batch-rendering for SoundFonts).
-- **`std/theory`**: `chord(root, type)`, `scale(root, type)`, `transpose(notes, steps)` for algorithmic composition and harmonic logic.
-- **`std/draw`**: `circle`, `rect`, `line`, `text`, `render`, `save_svg`, `clear` for SVG graphics generation
+- **`std/theory`**: `chord(root, type)`, `scale(root, type)`, `transpose(notes, steps)`, `duration(minutes, seconds)`, and `bar(bars, bpm, beatsPerBar?)` for algorithmic composition, timing conversions, and harmonic logic.
+- **`std/draw`**: Upgraded SVG generation library supporting complex shapes (`ellipse`, `polygon`, `path`), definition management (`gradient`, `style`), inline XML (`raw`), formatting/indentation, and class/attribute mappings via optional trailing `options` dictionaries.
 - **`std/db`**: `db_open(filename, password?)` returning a Document Database instance (with automatic AES-256-CBC disk encryption if a passphrase is provided) supporting collections and CRUD operations:
   - `db.collection(name)` -> Collection object
   - `collection.insert(document)`

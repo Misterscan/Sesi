@@ -6,6 +6,72 @@ import { spawn, execSync } from 'child_process';
 import { aiRuntime } from './ai-runtime';
 import * as http from 'http';
 
+// Browser Hot Reloading State
+let isLiveReloadEnabled = false;
+const liveReloadClients: any[] = [];
+let liveReloadWatcher: any = null;
+
+function shouldTriggerReload(filename: string): boolean {
+  if (!filename) return false;
+  const normalized = filename.replace(/\\/g, '/');
+  
+  if (normalized.includes('node_modules') || 
+      normalized.includes('.git') || 
+      normalized.includes('.gemini') ||
+      normalized.includes('logs/')) {
+    return false;
+  }
+  
+  const basename = path.basename(normalized);
+  if (basename.startsWith('.') || 
+      basename.endsWith('.db') ||
+      basename.endsWith('.log') ||
+      basename.endsWith('.sqlite') ||
+      basename.endsWith('.tmp') ||
+      basename === '.sesi_cache.json' || 
+      basename === '.sesi_chat_history.json') {
+    return false;
+  }
+  
+  const allowedExtensions = ['.sesi', '.html', '.css', '.js', '.json', '.svg', '.md', '.png', '.jpg', '.jpeg', '.gif'];
+  const ext = path.extname(normalized).toLowerCase();
+  return allowedExtensions.includes(ext);
+}
+
+function ensureWatcher(dirToWatch: string) {
+  if (liveReloadWatcher) return;
+  try {
+    const fs = require('fs');
+    liveReloadWatcher = fs.watch(dirToWatch, { recursive: true }, (eventType: string, filename: string) => {
+      if (shouldTriggerReload(filename)) {
+        broadcastReload();
+      }
+    });
+  } catch (e) {
+    try {
+      const fs = require('fs');
+      liveReloadWatcher = fs.watch(dirToWatch, (eventType: string, filename: string) => {
+        if (shouldTriggerReload(filename)) {
+          broadcastReload();
+        }
+      });
+    } catch (err) {}
+  }
+}
+
+let reloadTimeout: any = null;
+function broadcastReload() {
+  clearTimeout(reloadTimeout);
+  reloadTimeout = setTimeout(() => {
+    for (const res of liveReloadClients) {
+      try {
+        res.write('data: reload\n\n');
+      } catch (err) {}
+    }
+  }, 100);
+}
+
+
 export function ensureSafePath(filePath: string, interpreter?: any, baseDir: string = process.cwd()): string {
   const resolved = path.resolve(baseDir, filePath);
   const allowLocalFs = interpreter?.allowLocalFs ?? (process.env.SESI_LOCAL_FS === 'true');
@@ -949,6 +1015,23 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       }
 
       const server = http.createServer(async (req, res) => {
+        if (req.url === '/__sesi_live') {
+          res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
+          });
+          res.write('\n');
+          liveReloadClients.push(res);
+          req.on('close', () => {
+            const index = liveReloadClients.indexOf(res);
+            if (index !== -1) {
+              liveReloadClients.splice(index, 1);
+            }
+          });
+          return;
+        }
+
         let body = '';
         try {
           const buffers = [];
@@ -1019,11 +1102,55 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
               }
             }
 
+            // Inject Sesi Live Reload script if enabled and response is HTML
+            const responseContentType = String(headers['Content-Type'] || '').toLowerCase();
+            if (isLiveReloadEnabled && responseContentType.includes('text/html') && typeof responseBody === 'string') {
+              const liveReloadScript = `
+<!-- Sesi Live Reload -->
+<script>
+  (function() {
+    const source = new EventSource('/__sesi_live');
+    source.onmessage = function(event) {
+      if (event.data === 'reload') {
+        window.location.reload();
+      }
+    };
+  })();
+</script>
+`;
+              if (responseBody.includes('</body>')) {
+                responseBody = responseBody.replace('</body>', liveReloadScript + '</body>');
+              } else {
+                responseBody += liveReloadScript;
+              }
+            }
+
             res.writeHead(status, headers);
             res.end(responseBody);
           } else {
+            let bodyStr = String(result);
+            if (isLiveReloadEnabled) {
+              const liveReloadScript = `
+<!-- Sesi Live Reload -->
+<script>
+  (function() {
+    const source = new EventSource('/__sesi_live');
+    source.onmessage = function(event) {
+      if (event.data === 'reload') {
+        window.location.reload();
+      }
+    };
+  })();
+</script>
+`;
+              if (bodyStr.includes('</body>')) {
+                bodyStr = bodyStr.replace('</body>', liveReloadScript + '</body>');
+              } else {
+                bodyStr += liveReloadScript;
+              }
+            }
             res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(String(result));
+            res.end(bodyStr);
           }
         } catch (err: any) {
           res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -1332,6 +1459,83 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         }
       }
       return null;
+    }
+  });
+
+  builtins.set('live', {
+    type: 'function',
+    name: 'live',
+    params: [{ name: 'filePath' }, { name: 'exportName', defaultValue: 'handle' as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const [filePathVal, rawExportName] = args;
+      if (typeof filePathVal !== 'string') {
+        throw new Error('live expects the file path as the first argument');
+      }
+      const exportNameVal = typeof rawExportName === 'string' ? rawExportName : 'handle';
+
+      if (!interpreter) {
+        throw new Error('live interpreter reference is missing');
+      }
+
+      // Activate live reloading watcher
+      isLiveReloadEnabled = true;
+      ensureWatcher(process.cwd());
+
+      const liveFn: RuntimeFunction = {
+        type: 'function',
+        name: `live_wrapper_${exportNameVal}`,
+        params: [],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: async (...callArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+          const resolvedPath = ensureSafePath(filePathVal, interpreter);
+          if (!fs.existsSync(resolvedPath)) {
+            throw new Error(`live file not found: "${resolvedPath}"`);
+          }
+
+          if (!filePathVal.endsWith('.sesi')) {
+            // Static webpage / file: hot reload content by reading dynamically
+            return fs.readFileSync(resolvedPath, 'utf-8');
+          }
+
+          const content = fs.readFileSync(resolvedPath, 'utf-8');
+          const { Lexer } = require('./lexer');
+          const { Parser } = require('./parser');
+          const { Interpreter } = require('./interpreter');
+
+          const lexer = new Lexer(content);
+          const parser = new Parser(lexer.scanTokens());
+          const program = parser.parse();
+
+          const subInterpreter = new Interpreter(path.dirname(resolvedPath), {
+            safeMode: interpreter.safeMode,
+            allowLocalFs: interpreter.allowLocalFs,
+            allowedPaths: interpreter.allowedPaths,
+            args: interpreter.args
+          });
+          await subInterpreter.interpret(program);
+
+          const handler = subInterpreter.exports.get(exportNameVal);
+          if (!handler) {
+            throw new Error(`Module "${filePathVal}" does not export a function named "${exportNameVal}"`);
+          }
+          if (typeof handler !== 'object' || handler.type !== 'function') {
+            throw new Error(`Export "${exportNameVal}" in module "${filePathVal}" is not a function`);
+          }
+
+          let res = await subInterpreter.callSesiFunction(handler as any, callArgs);
+          if (typeof res === 'object' && res !== null && (res as any).type === 'promise') {
+            res = await (res as any).promise;
+          }
+          return res;
+        }
+      };
+
+      return liveFn;
     }
   });
 

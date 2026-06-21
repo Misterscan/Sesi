@@ -1,5 +1,9 @@
-/*Example 26: Embedded Document Database
-Run with: sesi examples/main/26_database.sesi -l */
+/*
+  Example 26: Embedded Document Database
+
+  Usage:
+    - sesi examples/main/26_database.sesi -l 
+*/
 
 allow "std/db" in with {db_open}
 

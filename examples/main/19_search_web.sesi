@@ -1,5 +1,7 @@
-/* Example 19: Search the Web with Sesi
-Use web_get() */
+/* 
+  Example 19: Search the Web with Sesi
+    Use web_get()
+*/
 
 try {
     let q = "Coding"

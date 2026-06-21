@@ -672,6 +672,9 @@ let song = [
 ]
 Audio.sequence("song.wav", song, "triangle")
 
+// Save tracks to a MIDI file
+Audio.midi("song.mid", song)
+
 // Mix multiple tracks (Native Synthesis and SoundFonts) into a single stereo WAV
 let lead = [piano("C4", 500), piano("E4", 500)]
 let bass = [kick, snare]
@@ -679,25 +682,37 @@ Audio.mix("mix.wav", [lead, bass], "sine", {"saturate": 1.5})
 ```
 
 ### beep(frequency, duration)
+
 Plays a simple sine wave beep.
 
 ### play(note, duration, options)
+
 Plays a musical note (e.g., `"C4"`, `"A#3"`, `"Bb5"`). Accepts `options` for ADSR, volume, and panning.
 
 ### synth(frequency_or_note, duration, type, options)
+
 Returns a base64 encoded WAV string. `type` can be `"sine"`, `"square"`, `"saw"`, `"triangle"`, `"noise"`, `"kick"`, `"snare"`, `"hat"`, or `"clap"`.
 
 ### save(path, frequency_or_note, duration, type, options)
+
 Saves a synthesized WAV file to the specified path.
 
 ### sequence(path, notes_array, type, options)
+
 Saves a multi-note sequence to a single WAV file. `notes_array` can be an array of note strings (e.g., `["C4", "D4"]`), objects (e.g., `[{note: "C4", ms: 250, pan: 0.5}]`), or pre-rendered SF2 notes.
 
 ### mix(path, tracks_array, type, options)
+
 Saves a Stereo WAV file by mixing multiple tracks together. `tracks_array` is an array of note arrays. The mixer supports real-time ADSR envelopes, low-pass filtering (`cutoff`), stereo `pan`, soft-clipping saturation (`saturate`), and automatic high-speed batch rendering of SoundFont instruments.
 
+### midi(path, tracks)
+
+Saves one or more tracks (arrays of note objects/strings) directly as a standard MIDI (.mid) file on disk.
+
 ### sf2(path, options) -> fn(note, duration)
-Returns a high-level instrument constructor function bound to a specific SoundFont file. 
+
+Returns a high-level instrument constructor function bound to a specific SoundFont file.
+
 - `options`: `{"instrument": 0, "channel": 0, "gain": 1.5}`
 - The returned function takes `(note, ms)` and generates a Sesi-native note object that the mixer will automatically batch-render using FluidSynth.
 
@@ -721,29 +736,58 @@ let shifted = Music.transpose(c_maj7, 5) // ["F4", "A4", "C5", "E5"]
 ```
 
 ### chord(root, type) -> array
-Generates an array of notes for a given chord type. 
+
+Generates an array of notes for a given chord type.
+
 - Supported types: `"M"`, `"m"`, `"dim"`, `"aug"`, `"7"`, `"M7"`, `"m7"`, `"sus2"`, `"sus4"`.
 
 ### scale(root, type) -> array
+
 Generates an array of notes for a given scale/mode.
+
 - Supported types: `"major"`, `"minor"`, `"dorian"`, `"phrygian"`, `"lydian"`, `"mixolydian"`, `"locrian"`.
 
 ### transpose(notes, semitones) -> array
+
 Shifts a note or an array of notes up or down by the specified number of semitones.
+
+### duration(minutes, seconds) -> number
+
+Converts minutes and seconds into Sesi-native absolute milliseconds.
+
+### bar(bars, bpm, beatsPerBar = 4) -> number
+
+Converts a number of musical bars into milliseconds based on BPM and time signature (default: 4/4).
 
 ---
 
 ## Drawing Functions (std/draw)
 
-The `std/draw` module provides a simple API for creating SVG graphics.
+The `std/draw` module provides a comprehensive API for creating static or animated SVG graphics.
 
 ```sesi
 allow "std/draw" in with Draw
 
-Draw.rect(0, 0, 100, 100, "blue")
-Draw.circle(50, 50, 40, "red")
-Draw.line(0, 0, 100, 100, "white")
-Draw.text(10, 90, "Hello Sesi", 20, "yellow")
+// Setup gradients
+Draw.gradient("linear", "sky", [
+  {"offset": "0%", "color": "blue"},
+  {"offset": "100%", "color": "black"}
+])
+
+// Setup CSS keyframe animations
+Draw.style("
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .spinner { animation: spin 4s infinite linear; transform-origin: 50px 50px; }
+")
+
+// Render shapes with styling options
+Draw.rect(0, 0, 100, 100, "url(#sky)")
+Draw.circle(50, 50, 40, "red", {"class": "spinner"})
+Draw.ellipse(50, 50, 20, 10, "gold")
+Draw.polygon("30,20 85,20 90,75 25,75", "green")
+Draw.path("M 10 10 C 20 20, 40 20, 50 10", "none", {"stroke": "white", "stroke-width": 2})
 
 // Get the SVG string
 let svg = Draw.render(100, 100)
@@ -753,25 +797,77 @@ Draw.save_svg("drawing.svg", 100, 100)
 ```
 
 ### clear()
-Clears the current drawing buffer.
 
-### circle(x, y, radius, fill)
+Clears the current drawing and definition buffers.
+
+### circle(x, y, radius, fill, options = {})
+
 Adds a circle to the drawing.
 
-### rect(x, y, width, height, fill)
+- `options` (`object`, optional): Custom SVG attributes (e.g. `{"id": "c1", "class": "pulse", "stroke-width": 2}`).
+
+### rect(x, y, width, height, fill, options = {})
+
 Adds a rectangle to the drawing.
 
-### line(x1, y1, x2, y2, stroke)
+- `options` (`object`, optional): Custom SVG attributes.
+
+### line(x1, y1, x2, y2, stroke, options = {})
+
 Adds a line to the drawing.
 
-### text(x, y, content, size, fill)
+- `options` (`object`, optional): Custom SVG attributes.
+
+### text(x, y, content, size, fill, options = {})
+
 Adds text to the drawing.
 
-### render(width, height)
-Returns the complete SVG string.
+- `options` (`object`, optional): Custom SVG attributes.
 
-### save_svg(path, width, height)
-Saves the drawing as an SVG file.
+### ellipse(cx, cy, rx, ry, fill, options = {})
+
+Adds an ellipse to the drawing.
+
+- `options` (`object`, optional): Custom SVG attributes.
+
+### polygon(points, fill, options = {})
+
+Adds a polygon to the drawing.
+
+- `points` (`string`): A space-separated list of coordinate pairs (e.g. `"100,10 250,190 10,190"`).
+- `options` (`object`, optional): Custom SVG attributes.
+
+### path(d, fill, options = {})
+
+Adds an SVG path to the drawing.
+
+- `d` (`string`): Path data command string (e.g. `"M 10 10 L 90 90"`).
+- `options` (`object`, optional): Custom SVG attributes.
+
+### gradient(type, id, stops, options = {})
+
+Defines a linear or radial gradient in the `<defs>` section.
+
+- `type` (`string`): `"linear"` or `"radial"`.
+- `id` (`string`): The identifier to use when referencing the gradient (e.g. `"url(#my-id)"`).
+- `stops` (`array<object>`): An array of stop configurations (e.g. `[{"offset": "0%", "color": "red"}, {"offset": "100%", "color": "blue"}]`).
+- `options` (`object`, optional): Custom gradient attributes.
+
+### style(cssText)
+
+Defines a `<style>` block in the `<defs>` section. Used for embedding CSS classes or `@keyframes` animations.
+
+### raw(svgCode)
+
+Injects raw SVG markup directly into the element buffer.
+
+### render(width, height) -> string
+
+Returns the complete, formatted SVG string.
+
+### save_svg(path, width, height) -> bool
+
+Saves the formatted SVG drawing to the specified path. Return `true` on success.
 
 ---
 
@@ -787,6 +883,27 @@ print "Launched worker with PID:" pid
 ```
 
 **Returns**: `number` (PID)
+
+---
+
+### live(filePath, exportName = "handle") -> fn
+
+Creates a dynamic hot-reloading wrapper function around a Sesi script's exported function. When the returned function is called, it re-reads, re-parses, and re-executes the target file, ensuring changes to the code are instantly reflected without restarting the parent process.
+
+```sesi
+// Wrap handler with hot-reloading
+let handler = live("server_handler.sesi", "handleRequest")
+
+// Pass it to the web server
+listen(8080, handler)
+```
+
+**Parameters**:
+
+- `filePath` (`string`): Path to the target file.
+- `exportName` (`string`, optional): Name of the exported function in the file to run. Defaults to `"handle"`.
+
+**Returns**: `fn` - A wrapper function that passes all arguments to the hot-reloaded function and returns its result.
 
 ---
 

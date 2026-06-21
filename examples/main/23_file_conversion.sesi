@@ -1,5 +1,7 @@
-/* Sesi File Conversion Example
-This example showcases how to use the convert() builtin to convert document and data formats. */
+/* 
+  Example 23: File Conversion
+  This example showcases how to use the convert() builtin to convert document and data formats.
+*/
 
 print "=== 1. Markdown to HTML ==="
 let md = "# Sesi Programming Language\nSesi is a clean, minimal, and highly legible language."

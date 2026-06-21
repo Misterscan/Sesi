@@ -1,5 +1,9 @@
-/* Example 27: Robust Web Application with Database
-Run with: sesi examples/main/27_robust_web_db.sesi -l */
+/* 
+  Example 27: Robust Web Application with Database
+  
+  Usage:
+    - sesi examples/main/27_robust_web_db.sesi -l 
+*/
 
 allow "std/db" in with {db_open}
 allow "std/time" in with {now}

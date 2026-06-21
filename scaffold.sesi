@@ -46,6 +46,27 @@ if len(args) > 0 {
 } else {
   target = input("Target Directory (default: my-sesi-app): ")
 }
+let cleanTarget = target
+cleanTarget = swap(cleanTarget, "/", "")
+cleanTarget = swap(cleanTarget, "./", "")
+cleanTarget = swap(cleanTarget, "//", "")
+cleanTarget = swap(cleanTarget, "\\", "")
+
+// Add any paths you want to remove from the target directory name here (e.g., OS-specific or personal storage paths).
+cleanTarget = swap(cleanTarget, "Volumes", "")
+cleanTarget = swap(cleanTarget, "CrucialX9", "")
+cleanTarget = swap(cleanTarget, "2026_Essentials", "")
+cleanTarget = swap(cleanTarget, "Documents", "")
+cleanTarget = swap(cleanTarget, "Desktop", "")
+cleanTarget = swap(cleanTarget, "Users", "")
+cleanTarget = swap(cleanTarget, "User", "")
+cleanTarget = swap(cleanTarget, "C:\\", "")
+cleanTarget = swap(cleanTarget, "D:\\", "")
+cleanTarget = swap(cleanTarget, "E:\\", "")
+cleanTarget = swap(cleanTarget, "F:\\", "")
+cleanTarget = swap(cleanTarget, "G:\\", "")
+cleanTarget = swap(cleanTarget, " ", "-")
+cleanTarget = to_lower(cleanTarget)
 
 print "⚡ Scaffolding new Sesi project in:" target
 
@@ -54,6 +75,8 @@ let rulesDir = agentsDir + "/rules"
 let workflowsDir = agentsDir + "/workflows"
 let examplesMainDir = target + "/examples/main"
 let examplesOptionalDir = target + "/examples/optional"
+let gettingStartedDir = target + "/getting-started"
+let gettingStartedOptionalDir = gettingStartedDir + "/optional"
 
 // Create base directories
 try {
@@ -67,6 +90,8 @@ try {
   make_dir(workflowsDir)
   make_dir(examplesMainDir)
   make_dir(examplesOptionalDir)
+  make_dir(gettingStartedDir)
+  make_dir(gettingStartedOptionalDir)
   print "✓ Directories created"
 } catch (err) {
   print "⚠️ Failed to create directories:" err
@@ -105,14 +130,21 @@ if type(distFiles) == "array" {
 }
 
 // Generate package.json
+let desc = input("Description: ")
+let author = input("Author: ")
+let license = input("License (default: MIT): ")
+if len(license) == 0 {
+  license = "MIT"
+}
 prompt packageJson {"{
-  \"name\": \"" target "\",
+  \"name\": \"" cleanTarget "\",
   \"version\": \"1.0.0\",
-  \"description\": \"A self-contained Sesi project\",
+  \"description\": \"" desc "\",
   \"main\": \"dist/index.js\",
   \"bin\": {
     \"sesi\": \"bin/sesi.js\"},
-  \"license\": \"MIT\",
+  \"license\": \"" license "\",
+  \"author\": \"" author "\",
   \"private\": true,
   \"scripts\": {
     \"sesi\": \"node bin/sesi.js\",
@@ -124,7 +156,7 @@ prompt packageJson {"{
     \"decrypt\": \"node bin/sesi.js -dec\"
   },
   \"dependencies\": {
-    \"@misterscan/sesi\": \"1.5.5\"
+    \"@misterscan/sesi\": \"1.5.7\"
   }
 }"}
 
@@ -150,41 +182,65 @@ if safe_write(target + "/.gitignore", gitIgnore) {
 }
 
 // Generate main.sesi (Starter Sesi script)
-prompt mainSesi {"// main.sesi - Starter Sesi script
+prompt mainSesi {'/* 
+  Sesi Starter Script
+  A basic playground to experiment with Sesi\'s syntax, variables, loops, and functions.
 
-// In Sesi, we use prompt blocks for string templating
-prompt welcome {\"Welcome to your self-contained Sesi project!\"}
-print welcome
+  Usage: 
+    sesi starter.sesi [your_name]
+*/
 
-let msg = \"Sesi runs entirely locally from your project directory.\"
-print msg
+// 1. Variables and Types
+let language = "Sesi"
+let version = "1.5"
+let features = ["Reasoning", "Embedded DB", "SVG Drawing", "Audio Synthesis"]
 
-// Try generating a webpage with prompt blocks
-print \"Generating complex webpage...\"
-let formattedTime = exec('node -e \"process.stdout.write(new Date().toLocaleString())\"')
-prompt webpage {\"<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset=\"\"utf-8\"\">
-    <meta name=\"\"viewport\"\" content=\"\"width=device-width, initial-scale=1.0\"\">
-    <title>Sesi Demo Page</title>
-  </head>
-  <body>
-    <h1>Sesi is Running!</h1>
-    <p>This page was generated using Sesi.</p>
-    <p>Current Time: \" formattedTime \"</p>
-  </body>
-</html>\"}
-print \"✓ Generated. View your demo html at: index.html\"
+print "Welcome to" language "version" version "!"
+print "----------------------------------------"
 
-  try {
-write_file(\"index.html\", webpage)
-  } catch (err) {
-    print \"⚠️ Failed to write index.html\" err
-  }
+// 2. Command-Line Arguments & Interactive Input
+let userName = ""
+if len(args) > 0 {
+  userName = args[0]
+} else {
+  userName = input("Please enter your name to begin: ")
+}
 
+print "Hello," userName "! Let\'s explore some Sesi syntax."
+print ""
 
-"}
+// 3. Functions
+fn greet_user(name: string, lang: string) -> string {
+  let upperName = to_upper(name)
+  return "GREETINGS, " + upperName + "! YOU ARE NOW CODING IN " + to_upper(lang) + "."
+}
+
+let greeting = greet_user(userName, language)
+print greeting
+print ""
+
+// 4. Loops and Collections
+print "Here are some cool features of Sesi:"
+for feature in features {
+  print " - " feature
+}
+print ""
+
+// 5. Numeric Ranges (starts at 1, goes up to but excluding 4)
+print "Counting up to 3:"
+for i = 1 to 4 {
+  print "Count:" i
+}
+print ""
+
+// 6. Prompt Blocks (Sesi\'s unique string composition)
+let topic = "Sesi Programming"
+prompt welcomeMessage {"Topic: " topic "
+User: " userName "
+Status: Ready for experimentation!"}
+
+print welcomeMessage
+'}
 
 if safe_write(target + "/main.sesi", mainSesi) {
   print "✓ Generated main.sesi"
@@ -193,9 +249,9 @@ if safe_write(target + "/main.sesi", mainSesi) {
 }
 
 // Generate README.md
-prompt readMe {"# " target "
+prompt readMe {"# " cleanTarget "
 
-A self-contained Sesi project scaffolding.
+" desc "
 
 ## Structure
 
@@ -465,13 +521,13 @@ if len(lintContent) > 0 {
 
 // Copy the examples folder and all its files
 try {
-  let examplesMainContent = list_dir("examples/main")
+  let examplesMainContent = list_dir(examplesMainDir)
   for file in examplesMainContent {
-    let fileContent = safe_read("examples/main/" + file)
+    let fileContent = safe_read(examplesMainDir + "/" + file)
     if len(fileContent) > 0 {
-      let fileDest = target + "/examples/main/" + file
+      let fileDest = examplesMainDir + "/" + file
       if safe_write(fileDest, fileContent) {
-        print "✓ Copied" file "to examples/main/" file
+        print "✓ Copied" file "to" examplesMainDir "/" file
       } else {
         print "⚠️ Failed to write" file
       }
@@ -484,13 +540,13 @@ try {
 }
 
 try {
-  let examplesOptionalContent = list_dir("examples/optional")
+  let examplesOptionalContent = list_dir(examplesOptionalDir)
   for file in examplesOptionalContent {
-    let fileContent = safe_read("examples/optional/" + file)
+    let fileContent = safe_read(examplesOptionalDir + "/" + file)
     if len(fileContent) > 0 {
-      let fileDest = target + "/examples/optional/" + file
+      let fileDest = examplesOptionalDir + "/" + file
       if safe_write(fileDest, fileContent) {
-        print "✓ Copied" file "to examples/optional/" file
+        print "✓ Copied" file "to" examplesOptionalDir "/" file
       } else {
         print "⚠️ Failed to write" file
       }
@@ -513,6 +569,46 @@ if len(testRunnerContent) > 0 {
   }
 } else {
   print "⚠️ Could not read source bin/test-runner.sesi"
+}
+
+// Copy the getting-started folder and all its files
+try {
+  let gettingStartedContent = list_dir(gettingStartedDir)
+  for file in gettingStartedContent {
+    let fileContent = safe_read(gettingStartedDir + "/" + file)
+    if len(fileContent) > 0 {
+      let fileDest = gettingStartedDir + "/" + file
+      if safe_write(fileDest, fileContent) {
+        print "✓ Copied" file "to getting-started/" file
+      } else {
+        print "⚠️ Failed to write" file
+      }
+    } else {
+      print "⚠️ Could not read source" file
+    }
+  }
+} catch (e) {
+  print "⚠️ Could not read source getting-started"
+}
+
+// Copy the getting-started folder and all its files
+try {
+  let gettingStartedOptionalContent = list_dir(gettingStartedOptionalDir)
+  for file in gettingStartedOptionalContent {
+    let fileContent = safe_read(gettingStartedOptionalDir + "/" + file)
+    if len(fileContent) > 0 {
+      let fileDest = gettingStartedOptionalDir + "/" + file
+      if safe_write(fileDest, fileContent) {
+        print "✓ Copied" file "to" gettingStartedOptionalDir "/" file
+      } else {
+        print "⚠️ Failed to write" file
+      }
+    } else {
+      print "⚠️ Could not read source" file
+    }
+  }
+} catch (e) {
+  print "⚠️ Could not read source getting-started/optional"
 }
 
 // Copy a specified file into the folder via CLi

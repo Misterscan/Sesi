@@ -1,7 +1,14 @@
-/* This example demonstrates: 
-Functions and control flow, Loops and arrays, Model calls with configuration, Structured output parsing, Memory for multi-step processing
+/* 
+  Example 13: Data Pipeline
+  
+  Demonstrates:
+    - Functions and control flow
+    - Loops and arrays
+    - Model calls with configuration
+    - Structured output parsing
+    - Memory for multi-step processing
+*/
 
-Data to process */
 let numbers = [10, 25, 30, 45, 50]
 let threshold = 30
 fn filterNumbers(list: array, limit: number) -> array {

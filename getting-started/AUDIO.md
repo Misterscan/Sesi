@@ -208,12 +208,69 @@ Audio.sequence("drums.wav", [kick, snare, hat], "kick")
 
 ---
 
+### MIDI Export — `Audio.midi`
+
+```
+Audio.midi(path, tracks) -> bool
+```
+
+Saves one or more tracks (arrays of note objects/strings) directly as a standard MIDI (.mid) file on disk.
+
+```sesi
+allow "std/audio" in with Audio
+
+let track = [
+  {"note": "C4", "ms": 500},
+  {"note": "E4", "ms": 500},
+  {"note": "G4", "ms": 1000}
+]
+
+Audio.midi("song.mid", track)
+print "MIDI file saved to song.mid"
+```
+
+---
+
+---
+
 ## std/theory — Music Theory Helpers
 
-`std/theory` removes the manual math from algorithmic composition. All functions return plain arrays of note-name strings compatible with every `Audio` function above.
+`std/theory` removes the manual math from algorithmic composition. It includes helper functions for converting time divisions and chords/scales into Sesi-native note array inputs.
 
 ```sesi
 allow "std/theory" in with Music
+```
+
+---
+
+### Convert Absolute Time — `Music.duration`
+
+```
+Music.duration(minutes, seconds) -> number
+```
+
+Convert minutes and seconds to absolute milliseconds.
+
+```sesi
+allow "std/theory" in with Music
+
+let ms = Music.duration(1, 30) // 90000 ms
+```
+
+---
+
+### Convert Bars — `Music.bar`
+
+```
+Music.bar(bars, bpm, beatsPerBar?) -> number
+```
+
+Convert a number of musical bars into milliseconds based on BPM and time signature (default: 4/4).
+
+```sesi
+allow "std/theory" in with Music
+
+let ms = Music.bar(8, 120) // 8 bars at 120bpm -> 16000 ms
 ```
 
 ---
@@ -349,6 +406,9 @@ Audio.sequence("seq.wav", [{"note": "C4", "ms": 500}, {"note": "E4", "ms": 500}]
 
 // Mix tracks
 Audio.mix("mix.wav", [[{"note": "C4", "ms": 500}], [{"note": "C2", "ms": 500}]], "sine")
+
+// Export MIDI
+Audio.midi("song.mid", [{"note": "C4", "ms": 500}, {"note": "E4", "ms": 500}])
 
 // SoundFont instrument
 let piano = Audio.sf2("font.sf2", {"instrument": 0})
