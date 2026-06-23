@@ -643,7 +643,7 @@ if len(args) > 0 {
     }
   }
 } else {
-  let targetDirs = [".", "main", "chatbot"]
+  let targetDirs = [".", "main", "chatbot", "helpers", "sesi-studio"]
   for dir in targetDirs {
     try {
       let files = list_dir(dir)

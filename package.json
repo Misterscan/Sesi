@@ -28,6 +28,7 @@
   "scripts": {
     "lint": "sesi -l bin/lint.sesi",
     "build": "tsc",
+    "commit:message": "sesi -l helpers/commit_message.sesi --staged",
     "debug": "SESI_DEBUG=1 sesi",
     "dev": "dotenvx run -- npm run build --watch",
     "test": "npx ts-node tests/basic.test.ts && npx ts-node tests/module.test.ts && npx ts-node tests/cache.test.ts && npx ts-node tests/http.test.ts && npx ts-node tests/workflow.test.ts && npx ts-node tests/security.test.ts",

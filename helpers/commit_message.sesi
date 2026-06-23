@@ -148,7 +148,7 @@ Diff stat:
 Diff:
 " data["diff"]}
 
-  let message = model("gemini-3.1-flash-lite") {thinkingLevel: "low", max_tokens: 300} {request}
+  let message = model("gemini-3.1-flash-lite") {thinkingLevel: "minimal", max_tokens: 300} {request}
   return trim(message)
 }
 
