@@ -1,0 +1,320 @@
+/* 
+    agent_file_ops.sesi
+    Sesi-native file mutation utility for agents.
+    
+Purpose:
+    Replace shell heredocs, cat EOF, sed, awk, and ad hoc replace-in-file commands.
+    
+Usage:
+    npm run sesi helpers/agent_file_ops.sesi help
+    npm run sesi helpers/agent_file_ops.sesi write <path> <text...>
+    npm run sesi helpers/agent_file_ops.sesi append <path> <text...>
+    npm run sesi helpers/agent_file_ops.sesi copy <source> <target>
+    npm run sesi helpers/agent_file_ops.sesi replace <path> <old> <new>
+    npm run sesi helpers/agent_file_ops.sesi replace-from <path> <old_file> <new_file>
+    npm run sesi helpers/agent_file_ops.sesi insert-before <path> <marker> <insert_file>
+    npm run sesi helpers/agent_file_ops.sesi insert-after <path> <marker> <insert_file>
+    npm run sesi helpers/agent_file_ops.sesi replace-block <path> <start_marker> <end_marker> <insert_file>
+    
+Examples:
+    npm run sesi helpers/agent_file_ops.sesi write notes.txt "hello from sesi"
+    npm run sesi helpers/agent_file_ops.sesi append notes.txt "another line"
+    npm run sesi helpers/agent_file_ops.sesi copy draft.sesi final.sesi
+    npm run sesi helpers/agent_file_ops.sesi replace app.sesi "let debug = true" "let debug = false"
+    npm run sesi helpers/agent_file_ops.sesi replace-from app.sesi old_block.txt new_block.txt
+    npm run sesi helpers/agent_file_ops.sesi insert-before app.sesi "// INSERT HERE" snippet.sesi
+    npm run sesi helpers/agent_file_ops.sesi insert-after app.sesi "// IMPORTS" imports.sesi
+    npm run sesi helpers/agent_file_ops.sesi replace-block app.sesi "// START GENERATED" "// END GENERATED" generated.sesi
+*/
+
+fn show_help() {
+  print "agent_file_ops.sesi"
+  print ""
+  print "Commands:"
+  print "  help"
+  print "  write <path> <text...>"
+  print "  append <path> <text...>"
+  print "  copy <source> <target>"
+  print "  replace <path> <old> <new>"
+  print "  replace-from <path> <old_file> <new_file>"
+  print "  insert-before <path> <marker> <insert_file>"
+  print "  insert-after <path> <marker> <insert_file>"
+  print "  replace-block <path> <start_marker> <end_marker> <insert_file>"
+  print ""
+  print "Notes:"
+  print "  Use write/append for short text."
+  print "  Use replace-from, insert-before, insert-after, or replace-block for larger edits."
+  print "  For large generated code, put the generated content in a temporary file first."
+}
+
+fn require_args(count: num, usage: str) -> bool {
+  if len(args) < count {
+    print "Missing arguments."
+    print usage
+    return false
+  }
+
+  return true
+}
+
+fn join_from(start: num) -> str {
+  let parts = slice(args, start, len(args))
+  return join(parts, " ")
+}
+
+fn join_tail(parts, start: num, sep: str) -> str {
+  let tail = slice(parts, start, len(parts))
+  return join(tail, sep)
+}
+
+fn write_text(path: str, text: str) -> bool {
+  try {
+    write_file(path, text)
+    print "Wrote:" path
+    return true
+  } catch (err) {
+    print "Write failed:" err
+    return false
+  }
+}
+
+fn read_text(path: str) {
+  try {
+    return read_file(path)
+  } catch (err) {
+    print "Read failed for" path ":" err
+    return null
+  }
+}
+
+fn command_write() {
+  if !require_args(3, "Usage: sesi agent_file_ops.sesi write <path> <text...>") {
+    return null
+  }
+
+  let path = args[1]
+  let text = join_from(2)
+
+  write_text(path, text)
+}
+
+fn command_append() {
+  if !require_args(3, "Usage: sesi agent_file_ops.sesi append <path> <text...>") {
+    return null
+  }
+
+  let path = args[1]
+  let addition = join_from(2)
+  let existing = read_text(path)
+
+  if existing == null {
+    existing = ""
+  }
+
+  let updated = existing + "
+" + addition
+
+  write_text(path, updated)
+}
+
+fn command_copy() {
+  if !require_args(3, "Usage: sesi agent_file_ops.sesi copy <source> <target>") {
+    return null
+  }
+
+  let source = args[1]
+  let target = args[2]
+
+  let text = read_text(source)
+
+  if text == null {
+    return null
+  }
+
+  write_text(target, text)
+}
+
+fn command_replace() {
+  if !require_args(4, "Usage: sesi agent_file_ops.sesi replace <path> <old> <new>") {
+    return null
+  }
+
+  let path = args[1]
+  let old_text = args[2]
+  let new_text = args[3]
+
+  let text = read_text(path)
+
+  if text == null {
+    return null
+  }
+
+  if !contains(text, old_text) {
+    print "No match found in:" path
+    return null
+  }
+
+  let updated = swap(text, old_text, new_text)
+  write_text(path, updated)
+}
+
+fn command_replace_from() {
+  if !require_args(4, "Usage: sesi agent_file_ops.sesi replace-from <path> <old_file> <new_file>") {
+    return null
+  }
+
+  let path = args[1]
+  let old_file = args[2]
+  let new_file = args[3]
+
+  let text = read_text(path)
+  let old_text = read_text(old_file)
+  let new_text = read_text(new_file)
+
+  if text == null { return null }
+  if old_text == null { return null }
+  if new_text == null { return null }
+
+  if !contains(text, old_text) {
+    print "Old block not found in:" path
+    return null
+  }
+
+  let updated = swap(text, old_text, new_text)
+  write_text(path, updated)
+}
+
+fn command_insert_before() {
+  if !require_args(4, "Usage: sesi agent_file_ops.sesi insert-before <path> <marker> <insert_file>") {
+    return null
+  }
+
+  let path = args[1]
+  let marker = args[2]
+  let insert_file = args[3]
+
+  let text = read_text(path)
+  let insert_text = read_text(insert_file)
+
+  if text == null { return null }
+  if insert_text == null { return null }
+
+  if !contains(text, marker) {
+    print "Marker not found:" marker
+    return null
+  }
+
+  let parts = split(text, marker)
+  let before = parts[0]
+  let after = join_tail(parts, 1, marker)
+
+  let updated = before + insert_text + "
+" + marker + after
+
+  write_text(path, updated)
+}
+
+fn command_insert_after() {
+  if !require_args(4, "Usage: sesi agent_file_ops.sesi insert-after <path> <marker> <insert_file>") {
+    return null
+  }
+
+  let path = args[1]
+  let marker = args[2]
+  let insert_file = args[3]
+
+  let text = read_text(path)
+  let insert_text = read_text(insert_file)
+
+  if text == null { return null }
+  if insert_text == null { return null }
+
+  if !contains(text, marker) {
+    print "Marker not found:" marker
+    return null
+  }
+
+  let parts = split(text, marker)
+  let before = parts[0]
+  let after = join_tail(parts, 1, marker)
+
+  let updated = before + marker + "
+" + insert_text + after
+
+  write_text(path, updated)
+}
+
+fn command_replace_block() {
+  if !require_args(5, "Usage: sesi agent_file_ops.sesi replace-block <path> <start_marker> <end_marker> <insert_file>") {
+    return null
+  }
+
+  let path = args[1]
+  let start_marker = args[2]
+  let end_marker = args[3]
+  let insert_file = args[4]
+
+  let text = read_text(path)
+  let insert_text = read_text(insert_file)
+
+  if text == null { return null }
+  if insert_text == null { return null }
+
+  if !contains(text, start_marker) {
+    print "Start marker not found:" start_marker
+    return null
+  }
+
+  if !contains(text, end_marker) {
+    print "End marker not found:" end_marker
+    return null
+  }
+
+  let start_parts = split(text, start_marker)
+  let before = start_parts[0]
+  let after_start = join_tail(start_parts, 1, start_marker)
+
+  let end_parts = split(after_start, end_marker)
+
+  if len(end_parts) < 2 {
+    print "End marker does not appear after start marker."
+    return null
+  }
+
+  let after = join_tail(end_parts, 1, end_marker)
+
+  let updated = before + start_marker + "
+" + insert_text + "
+" + end_marker + after
+
+  write_text(path, updated)
+}
+
+if len(args) == 0 {
+  show_help()
+} else {
+  let cmd = args[0]
+
+  if cmd == "help" {
+    show_help()
+  } else if cmd == "write" {
+    command_write()
+  } else if cmd == "append" {
+    command_append()
+  } else if cmd == "copy" {
+    command_copy()
+  } else if cmd == "replace" {
+    command_replace()
+  } else if cmd == "replace-from" {
+    command_replace_from()
+  } else if cmd == "insert-before" {
+    command_insert_before()
+  } else if cmd == "insert-after" {
+    command_insert_after()
+  } else if cmd == "replace-block" {
+    command_replace_block()
+  } else {
+    print "Unknown command:" cmd
+    show_help()
+  }
+}

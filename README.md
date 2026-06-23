@@ -11,6 +11,8 @@
 </p>
 
 <p align="center">
+  <img src="./docs/Sesi-Status-Badge.svg" alt="Sesi Status Badge" height="20" />
+  <img src="./docs/Sesi-Version-Badge.svg" alt="Sesi Version Badge" height="20" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-Interpreter-blue?logo=typescript">
   <img alt="Powered by Gemini" src="https://img.shields.io/badge/Powered%20By-Google%20Gemini-orange">

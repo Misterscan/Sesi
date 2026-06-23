@@ -1,0 +1,78 @@
+/* 
+  svg_badge.sesi
+  Generate a simple SVG badge.
+
+Usage:
+    npm run sesi helpers/svg_badge.sesi <label> <value> <color> <output>
+
+Examples:
+    npm run sesi helpers/svg_badge.sesi Sesi passing "#22c55e" badge.svg
+*/
+
+allow "std/draw" in with Draw
+
+fn show_help() {
+  print "Usage:"
+  print "  npm run sesi helpers/svg_badge.sesi <label> <value> <color> <output>"
+  print ""
+  print "Example:"
+  print "  npm run sesi helpers/svg_badge.sesi Sesi passing \"#22c55e\" badge.svg"
+}
+
+fn estimate_width(text: str) -> num {
+  return len(text) * 8 + 24
+}
+
+fn draw_badge(label: str, value: str, color: str, output: str) {
+  let label_width = estimate_width(label)
+  let value_width = estimate_width(value)
+  let height = 32
+  let width = label_width + value_width
+
+  Draw.clear()
+
+  // Background base
+  Draw.rect(0, 0, width, height, "#111827", {"rx": 8, "ry": 8})
+
+  // Left label panel
+  Draw.rect(0, 0, label_width, height, "#374151", {"rx": 8, "ry": 8})
+
+  // Square off the right side of the left panel
+  Draw.rect(label_width - 8, 0, 8, height, "#374151")
+
+  // Right value panel
+  Draw.rect(label_width, 0, value_width, height, color, {"rx": 8, "ry": 8})
+
+  // Square off the left side of the right panel
+  Draw.rect(label_width, 0, 8, height, color)
+
+  // Subtle highlight
+  Draw.rect(0, 0, width, 15, "#ffffff", {"opacity": 0.08, "rx": 8, "ry": 8})
+
+  // Text
+  Draw.text(12, 21, label, 14, "#ffffff", {"font-family": "system-ui, sans-serif", "font-weight": "600"})
+  Draw.text(label_width + 12, 21, value, 14, "#ffffff", {"font-family": "system-ui, sans-serif", "font-weight": "700"})
+
+  Draw.save_svg(output, width, height)
+
+  print "Badge written:" output
+  print "Label:" label
+  print "Value:" value
+  print "Color:" color
+  print "Size:" width "x" height
+}
+
+if len(args) < 4 {
+  show_help()
+} else {
+  let label = args[0]
+  let value = args[1]
+  let color = args[2]
+  let output = args[3]
+
+  try {
+    draw_badge(label, value, color, output)
+  } catch (err) {
+    print "Could not generate badge:" err
+  }
+}

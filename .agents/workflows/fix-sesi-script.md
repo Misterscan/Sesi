@@ -15,11 +15,11 @@ description: Debugging and validation of error prone sesi scripts.
 
 **Automated Refactoring & Codemods (MANDATORY):**
 
-- If you need to automate file edits, mass refactoring, or search-and-replace tasks across the workspace, you MUST write a repeatable `.sesi` script utilizing Sesi's native I/O (`read_file`/`write_file`) and the global `swap()` function.
+- If you need to automate file edits, mass refactoring, or search-and-replace tasks across the workspace, you MUST utilize the helpers/ scripts. These are designed SPECIFICALLY for edits within this workspace.
 - Do NOT write Python scripts, Node.js scripts, or Bash/Shell scripts for workspace file manipulations. Always let Sesi do its job.
   **Why:** Sesi syntax is sensitive to whitespace, newlines, and brace positioning. Terminal-based string replacement will invariably break code.
 
 8. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run sesi:eval "sesi code"` or `node bin/sesi.js -e "..."`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.
-9. **Always Check Specifications first:** Verify specifications in the `getting-started/` or `examples/` folders before assuming language quirks.
+9. **Always Check Specifications first:** Verify specifications in the `getting-started/` folder, `docs/WRITING_SCRIPTS.md`, and `GUIDE.md` before assuming language quirks.
 
 _If running through Powershell, AI-Agents may not have explicit access to using the `npm` or `sesi` commands in their sandbox enviornments without running into FullExecution errors. In this case, use `node bin/sesi.js <file> <option>` in replacement of `npm run sesi`._

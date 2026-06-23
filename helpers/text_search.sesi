@@ -1,0 +1,274 @@
+/* 
+    text_search.sesi
+    Sesi-native grep substitute.
+
+Usage:
+    npm run sesi helpers/text_search.sesi file <path> <query>
+    npm run sesi helpers/text_search.sesi folder <path> <query>
+    npm run sesi helpers/text_search.sesi folder <path> <query> --ext sesi
+    npm run sesi helpers/text_search.sesi folder <path> <query> --skip node_modules --skip reports
+    npm run sesi helpers/text_search.sesi folder <path> <query> --ext sesi --json reports/search.json
+
+Examples:
+    npm run sesi helpers/text_search.sesi file README.md Sesi
+    npm run sesi helpers/text_search.sesi folder . TODO
+    npm run sesi helpers/text_search.sesi folder . TODO --ext sesi
+    npm run sesi helpers/text_search.sesi folder . TODO --ext sesi --skip node_modules --json reports/todos.json
+*/
+
+fn show_help() {
+  print "Usage:"
+  print "  npm run sesi helpers/text_search.sesi file <path> <query>"
+  print "  npm run sesi helpers/text_search.sesi folder <path> <query>"
+  print "  npm run sesi helpers/text_search.sesi folder <path> <query> --ext <extension>"
+  print "  npm run sesi helpers/text_search.sesi folder <path> <query> --skip <name>"
+  print "  npm run sesi helpers/text_search.sesi folder <path> <query> --json <output>"
+  print ""
+  print "Examples:"
+  print "  npm run sesi helpers/text_search.sesi file README.md Sesi"
+  print "  npm run sesi helpers/text_search.sesi folder . TODO"
+  print "  npm run sesi helpers/text_search.sesi folder . TODO --ext sesi"
+  print "  npm run sesi helpers/text_search.sesi folder . TODO --ext sesi --skip node_modules --json reports/todos.json"
+}
+
+fn get_extension(path: str) -> str {
+  let parts = split(path, ".")
+  if len(parts) <= 1 {
+    return "no_extension"
+  }
+
+  return parts[len(parts) - 1]
+}
+
+fn is_default_searchable_file(path: str) -> bool {
+  let ext = get_extension(path)
+
+  if ext == "sesi" { return true }
+  if ext == "md" { return true }
+  if ext == "txt" { return true }
+  if ext == "json" { return true }
+  if ext == "js" { return true }
+  if ext == "ts" { return true }
+  if ext == "html" { return true }
+  if ext == "css" { return true }
+  if ext == "csv" { return true }
+  if ext == "yaml" { return true }
+  if ext == "yml" { return true }
+  if ext == "xml" { return true }
+
+  return false
+}
+
+fn make_path(folder: str, file: str) -> str {
+  if folder == "." {
+    return file
+  }
+
+  return folder + "/" + file
+}
+
+fn parse_options() {
+  let options = {
+    "ext": null,
+    "json": null,
+    "skips": []
+  }
+
+  let i = 3
+  while i < len(args) {
+    let key = args[i]
+
+    if key == "--ext" {
+      if i + 1 < len(args) {
+        options["ext"] = args[i + 1]
+        i = i + 2
+      } else {
+        print "Missing value for --ext"
+        i = i + 1
+      }
+    } else if key == "--json" {
+      if i + 1 < len(args) {
+        options["json"] = args[i + 1]
+        i = i + 2
+      } else {
+        print "Missing value for --json"
+        i = i + 1
+      }
+    } else if key == "--skip" {
+      if i + 1 < len(args) {
+        push(options["skips"], args[i + 1])
+        i = i + 2
+      } else {
+        print "Missing value for --skip"
+        i = i + 1
+      }
+    } else {
+      print "Ignoring unknown option:" key
+      i = i + 1
+    }
+  }
+
+  return options
+}
+
+fn should_skip(path: str, options) -> bool {
+  for skip in options["skips"] {
+    if contains(path, skip) {
+      return true
+    }
+  }
+
+  return false
+}
+
+fn should_search_file(path: str, options) -> bool {
+  if should_skip(path, options) {
+    return false
+  }
+
+  if options["ext"] != null {
+    if get_extension(path) == options["ext"] {
+      return true
+    }
+
+    return false
+  }
+
+  return is_default_searchable_file(path)
+}
+
+fn search_text(path: str, query: str) {
+  let matches = []
+
+  try {
+    let text = read_file(path)
+    let lines = split(text, "
+")
+
+    let line_number = 1
+
+    for line in lines {
+      if contains(line, query) {
+        let match = {
+          "path": path,
+          "line": line_number,
+          "text": line,
+          "error": null
+        }
+
+        push(matches, match)
+      }
+
+      line_number = line_number + 1
+    }
+  } catch (err) {
+    let failure = {
+      "path": path,
+      "line": null,
+      "text": null,
+      "error": str(err)
+    }
+
+    push(matches, failure)
+  }
+
+  return matches
+}
+
+fn print_matches(matches) {
+  for match in matches {
+    if match["error"] != null {
+      print match["path"] ": error:" match["error"]
+    } else {
+      print match["path"] ":" match["line"] ":" match["text"]
+    }
+  }
+}
+
+fn merge_matches(target, source) {
+  for item in source {
+    push(target, item)
+  }
+}
+
+fn search_file(path: str, query: str, options) {
+  if !should_search_file(path, options) {
+    print "Skipped file:" path
+    return []
+  }
+
+  let matches = search_text(path, query)
+  print_matches(matches)
+  return matches
+}
+
+fn search_folder(folder: str, query: str, options) {
+  let all_matches = []
+
+  try {
+    let files = list_dir(folder)
+
+    for file in files {
+      let path = make_path(folder, file)
+
+      if should_search_file(path, options) {
+        let matches = search_text(path, query)
+        merge_matches(all_matches, matches)
+      }
+    }
+  } catch (err) {
+    let failure = {
+      "path": folder,
+      "line": null,
+      "text": null,
+      "error": str(err)
+    }
+
+    push(all_matches, failure)
+  }
+
+  print_matches(all_matches)
+  return all_matches
+}
+
+fn write_report(path: str, mode: str, target: str, query: str, options, matches) {
+  let report = {
+    "mode": mode,
+    "target": target,
+    "query": query,
+    "extension_filter": options["ext"],
+    "skips": options["skips"],
+    "match_count": len(matches),
+    "matches": matches
+  }
+
+  try {
+    write_file(path, to_json(report))
+    print "JSON report written:" path
+  } catch (err) {
+    print "Could not write JSON report:" err
+  }
+}
+
+if len(args) < 3 {
+  show_help()
+} else {
+  let mode = args[0]
+  let target = args[1]
+  let query = args[2]
+  let options = parse_options()
+  let matches = []
+
+  if mode == "file" {
+    matches = search_file(target, query, options)
+  } else if mode == "folder" {
+    matches = search_folder(target, query, options)
+  } else {
+    print "Unknown mode:" mode
+    show_help()
+  }
+
+  if options["json"] != null {
+    write_report(options["json"], mode, target, query, options, matches)
+  }
+}

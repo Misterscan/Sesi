@@ -1,0 +1,183 @@
+/*
+    commit_message.sesi
+    Git commit message generator.
+    
+Usage:
+    npm run sesi -l helpers/commit_message.sesi
+    npm run sesi -l helpers/commit_message.sesi --staged
+    npm run sesi -l helpers/commit_message.sesi --unstaged
+    npm run sesi -l helpers/commit_message.sesi --all
+    npm run sesi -l helpers/commit_message.sesi --staged --write commit_message.txt
+*/
+
+fn show_help() {
+  print "Usage:"
+  print "  npm run sesi -l helpers/commit_message.sesi"
+  print "  npm run sesi -l helpers/commit_message.sesi --staged"
+  print "  npm run sesi -l helpers/commit_message.sesi --unstaged"
+  print "  npm run sesi -l helpers/commit_message.sesi --all"
+  print "  npm run sesi -l helpers/commit_message.sesi --staged --write commit_message.txt"
+  print ""
+  print "Modes:"
+  print "  --staged    Use git diff --cached"
+  print "  --unstaged  Use git diff"
+  print "  --all       Use staged and unstaged diffs"
+  print ""
+  print "Default:"
+  print "  --staged"
+}
+
+fn parse_options() {
+  let options = {
+    "mode": "staged",
+    "write": null,
+    "help": false
+  }
+
+  let i = 0
+  while i < len(args) {
+    let arg = args[i]
+
+    if arg == "--help" {
+      options["help"] = true
+      i = i + 1
+    } else if arg == "help" {
+      options["help"] = true
+      i = i + 1
+    } else if arg == "--staged" {
+      options["mode"] = "staged"
+      i = i + 1
+    } else if arg == "--unstaged" {
+      options["mode"] = "unstaged"
+      i = i + 1
+    } else if arg == "--all" {
+      options["mode"] = "all"
+      i = i + 1
+    } else if arg == "--write" {
+      if i + 1 < len(args) {
+        options["write"] = args[i + 1]
+        i = i + 2
+      } else {
+        print "Missing value for --write"
+        i = i + 1
+      }
+    } else {
+      print "Ignoring unknown option:" arg
+      i = i + 1
+    }
+  }
+
+  return options
+}
+
+fn run_git(command: str) -> str {
+  try {
+    return exec(command)
+  } catch (err) {
+    print "Git command failed:" command
+    print err
+    return ""
+  }
+}
+
+fn get_diff(mode: str) {
+  let data = {
+    "mode": mode,
+    "status": "",
+    "stat": "",
+    "diff": ""
+  }
+
+  data["status"] = run_git("git status --short")
+
+  if mode == "staged" {
+    data["stat"] = run_git("git diff --cached --stat")
+    data["diff"] = run_git("git diff --cached")
+  } else if mode == "unstaged" {
+    data["stat"] = run_git("git diff --stat")
+    data["diff"] = run_git("git diff")
+  } else if mode == "all" {
+    let staged_stat = run_git("git diff --cached --stat")
+    let unstaged_stat = run_git("git diff --stat")
+    let staged_diff = run_git("git diff --cached")
+    let unstaged_diff = run_git("git diff")
+
+    data["stat"] = "STAGED:
+" + staged_stat + "
+UNSTAGED:
+" + unstaged_stat
+
+    data["diff"] = "STAGED DIFF:
+" + staged_diff + "
+UNSTAGED DIFF:
+" + unstaged_diff
+  }
+
+  return data
+}
+
+fn has_changes(data) -> bool {
+  if len(trim(data["diff"])) > 0 {
+    return true
+  }
+
+  return false
+}
+
+fn generate_commit_message(data) -> str {
+  prompt request {"You are generating a git commit message.
+
+Rules:
+- Return only the commit message.
+- Use Conventional Commit format.
+- Use one concise subject line.
+- Add a blank line and 2-5 bullet points only if the diff needs explanation.
+- Prefer these types when appropriate: feat, fix, refactor, docs, test, chore, build, ci, perf.
+- Keep the subject under 72 characters.
+- Do not invent changes not shown in the diff.
+- Do not wrap the response in markdown.
+
+Mode: " data["mode"] "
+
+Git status:
+" data["status"] "
+
+Diff stat:
+" data["stat"] "
+
+Diff:
+" data["diff"]}
+
+  let message = model("gemini-3.1-flash-lite") {thinkingLevel: "low", max_tokens: 300} {request}
+  return trim(message)
+}
+
+fn write_output(path: str, message: str) {
+  try {
+    write_file(path, message)
+    print "Commit message written:" path
+  } catch (err) {
+    print "Could not write commit message:" err
+  }
+}
+
+let options = parse_options()
+
+if options["help"] {
+  show_help()
+} else {
+  let data = get_diff(options["mode"])
+
+  if !has_changes(data) {
+    print "No diff found for mode:" options["mode"]
+    print "Try --unstaged or --all if your changes are not staged."
+  } else {
+    let message = generate_commit_message(data)
+
+    print message
+
+    if options["write"] != null {
+      write_output(options["write"], message)
+    }
+  }
+}

@@ -655,7 +655,7 @@ for arg in args {
 
 if len(specifiedFile) > 0 && wantRemove {
   try {
-    exec("rm " + specifiedFile)
+    exec("rm \"" + specifiedFile + "\"")
     print "✓ Removed" specifiedFile "from source directory"
   } catch (err) {
     print "⚠️ Failed to remove" specifiedFile "from source directory."
@@ -666,7 +666,7 @@ if len(specifiedFile) > 0 && wantRemove {
 if !skipInstall {
   print "⚡ Running npm install to pull node_modules..."
   try {
-    exec("npm install --prefix " + target)
+    exec("npm install --prefix \"" + target + "\"")
     print "✓ npm dependencies installed successfully!"
   } catch (err) {
     print "⚠️ Auto npm install failed. Please re-run with '-install' after scaffold finishes."

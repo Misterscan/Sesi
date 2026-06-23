@@ -28,9 +28,9 @@ When AI agents write or edit `.sesi` scripts, they must use this debugging loop:
    - Do NOT use Bash/Shell scripting to rewrite or patch Sesi source code.
 
    **Automated Refactoring & Codemods (MANDATORY):**
-   - If you need to automate file edits, mass refactoring, or search-and-replace tasks across the workspace, you MUST write a repeatable `.sesi` script utilizing Sesi's native I/O (`read_file`/`write_file`) and the global `swap()` function.
+   - If you need to automate file edits, mass refactoring, or search-and-replace tasks across the workspace, you MUST utilize the helpers/ scripts. These are designed SPECIFICALLY for edits within this workspace.
    - Do NOT write Python scripts, Node.js scripts, or Bash/Shell scripts for workspace file manipulations. Always let Sesi do its job.
-   - **Why:** Sesi syntax is sensitive to whitespace, newlines, and brace positioning. Terminal-based string replacement will invariably break code.
+     **Why:** Sesi syntax is sensitive to whitespace, newlines, and brace positioning. Terminal-based string replacement will invariably break code.
 
 8. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run sesi:eval "sesi code"` or `node bin/sesi.js -e "..."`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.
 
@@ -71,14 +71,23 @@ Sesi is **NOT** the following coding languages, therefore **NEVER UTILIZE THE SA
 
 - **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
 - **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print "User:" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
-- **No Raw Newlines in Prompt Blocks:** Raw newlines (e.g. formatting layout carriage returns) are strictly forbidden outside of string literals inside prompt blocks `{}` (e.g., between `{` and the first string, or between elements). These will be parsed as statement separators and trigger syntax errors. Write prompt blocks inline on a single line (e.g., `{"prompt text " variable}`), or place newlines inside the double quotes of a multiline string.
+- **No Raw Newlines in Prompt Blocks:** Raw newlines (e.g. formatting layout carriage returns) are strictly forbidden outside of string literals inside prompt blocks `{}` (e.g., between `{` and the first string, or between elements). These will be parsed as statement separators and trigger syntax errors. Write prompt blocks inline on a single line (e.g., `{"prompt text " variable}`), or place newlines inside the double quotes of a multiline string. To include actual newlines in the **output**, place them literally inside the string quotes:
+
+```sesi
+prompt report {"Student: " name "
+Score: " score "
+Grade: A"}
+```
+
+The newline is a real line break _inside the string literal_ — not `\n`, not any escape sequence.
+
 - **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{"key": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
 - **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{"name": "Alice"}`).
 - **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
 - **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
 
-For all quirks and specific syntaxing, visit WRITING_SCRIPTS.md, /docs/BUILTINS.md, /docs/CLI, and getting-started/.
+For all quirks and specific syntaxing, visit GUIDE.md, /docs/WRITING_SCRIPTS.md, /docs/BUILTINS.md, /docs/CLI, and getting-started/.
 
 ## IGNORE THESE FILES/DIRECTORIES
 
