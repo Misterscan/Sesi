@@ -1,4 +1,7 @@
-# The Sesi Programming Language
+---
+name: sesi-programming-lang
+description: The core identity and execution rules for the Sesi programming language.
+---
 
 ## Core Identity & Execution
 

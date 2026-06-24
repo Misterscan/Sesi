@@ -649,23 +649,19 @@ These are always available — no imports needed:
 | `find(arr, fn)`      | First matching element, or null      |
 | `contains(str, sub)` | String/array containment check       |
 | `keys(obj)`          | Array of object keys                 |
-| `sort(arr)`          | Sort array (returns sorted copy)     |
-| `reverse(arr)`       | Reverse array                        |
 | `slice(arr, s, e)`   | Sub-array from index s to e          |
 | `join(arr, sep)`     | Join array elements into string      |
 | `split(str, sep)`    | Split string into array              |
 
 ### Strings
 
-| Function              | Description                 |
-| --------------------- | --------------------------- |
-| `to_upper(str)`       | Uppercase                   |
-| `to_lower(str)`       | Lowercase                   |
-| `trim(str)`           | Strip whitespace            |
-| `replace(str, a, b)`  | Replace a with b            |
-| `starts_with(str, p)` | Boolean prefix check        |
-| `ends_with(str, s)`   | Boolean suffix check        |
-| `str(val)`            | Convert any value to string |
+| Function             | Description                 |
+| -------------------- | --------------------------- |
+| `to_upper(str)`      | Uppercase                   |
+| `to_lower(str)`      | Lowercase                   |
+| `trim(str)`          | Strip whitespace            |
+| `replace(str, a, b)` | Replace a with b            |
+| `str(val)`           | Convert any value to string |
 
 ### JSON
 
@@ -676,19 +672,16 @@ These are always available — no imports needed:
 
 > Always use `to_json()` for serialization. Never use `stringify()`.
 
-### Math & Randomness
+### Math & Randomness (Must be used as "std/math")
 
-| Function    | Description              |
-| ----------- | ------------------------ |
-| `random()`  | Float in `[0, 1)`        |
-| `floor(n)`  | Round down               |
-| `ceil(n)`   | Round up                 |
-| `round(n)`  | Round to nearest integer |
-| `abs(n)`    | Absolute value           |
-| `min(a, b)` | Minimum                  |
-| `max(a, b)` | Maximum                  |
-| `pow(b, e)` | Exponentiation           |
-| `sqrt(n)`   | Square root              |
+| Function                        | Description       |
+| ------------------------------- | ----------------- |
+| `random()` // Readily available | Float in `[0, 1)` |
+| `floor(n)`                      | Round down        |
+| `ceil(n)`                       | Round up          |
+| `abs(n)`                        | Absolute value    |
+| `pow(b, e)`                     | Exponentiation    |
+| `sqrt(n)`                       | Square root       |
 
 ### File I/O
 
@@ -709,6 +702,8 @@ These are always available — no imports needed:
 | `swap(str, a, b)`    | String swap/replacement utility        |
 | `define_tool(n,f,d)` | Register a function as a named AI tool |
 | `list_tools()`       | List all registered tools              |
+
+## FOR MORE PLEASE VISIT "BUILTINS.md" EITHER IN docs/ OR IF NOT PRESENT, THEN IN node_modules/@misterscan/sesi/docs/BUILTINS.md
 
 ---
 
