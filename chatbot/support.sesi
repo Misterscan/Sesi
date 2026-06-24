@@ -1,14 +1,17 @@
-/* support.sesi
-Sesi Support Local Server
-Handles visual dashboard requests and executes pure Sesi model queries offline! */
+/* 
+  Sesi Support Local Server
+  Handles visual dashboard requests and executes pure Sesi model queries offline! 
+*/
 
 // Global session store
 let sessions = {}
 
 // Load repo documents dynamically once at startup
 let docs_list = []
+let getting_started_list = []
 try {
   docs_list = list_dir("docs")
+  getting_started_list = list_dir("getting-started")
 } catch (e) {}
 
 let sesiDocs = ""
@@ -28,7 +31,34 @@ while d < len(docs_list) {
   d = d + 1
 }
 
-let system_context = "You are Sesi Support, the official support bot for the Sesi Programming Language. Below is the official reference documentation and native codebase of Sesi: " + sesiDocs + "\nUse this data to answer the user's question with absolute technical precision. Maintain Sesi's programming rules. Be helpful, highly structured, and technical.\n"
+let g = 0
+while g < len(getting_started_list) {
+  let f_name = getting_started_list[g]
+  let parts = split(f_name, ".")
+  let ext = parts[len(parts) - 1]
+  
+  if ext == "md" {
+    let doc_content = ""
+    try {
+      doc_content = read_file("getting-started/" + f_name)
+    } catch (e2) {}
+    sesiDocs = sesiDocs + "\n\n=== GETTING STARTED: " + f_name + " ===\n" + doc_content
+  }
+  g = g + 1
+}
+
+prompt system_context {"# ROLE
+You are Sesi Support, the official support bot for the Sesi Programming Language.
+
+# OFFICIAL KNOWLEDGE BASE
+Below is the official reference documentation and native codebase of Sesi: 
+" sesiDocs "
+
+# INSTRUCTIONS
+Use this data to answer the user's question with absolute technical precision:
+- Maintain Sesi's programming rules. 
+- Be helpful, highly structured, and technical.
+"}
 
 async fn handleRequest(req) {
   print "Received request on path:" req.path "with method:" req.method
@@ -81,7 +111,9 @@ async fn handleRequest(req) {
       history = system_context
     }
 
-    let prompt_context = history + "\nUser: " + q + "\n"
+    prompt prompt_context {history "
+    User: " q "
+    "}
 
     print "[SERVER] Starting native Sesi Support Bot..."
     let response_content = "Sorry, no response could be generated."
@@ -195,3 +227,5 @@ print "[URL] Serving at: http://localhost:8000/index.html"
 print "=================================================="
 
 let server = listen(port, handleRequest)
+let end = input("Press Enter to stop server...")
+server.close(end)

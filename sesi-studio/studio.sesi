@@ -56,8 +56,11 @@ fn exec_node(args) {
 
 fn exec_in_project(cmd) {
   if PROJECT_ROOT != "" && PROJECT_ROOT != "." {
-    // Basic attempt to change directory before running command.
-    // Handles most POSIX environments and Windows cmd.exe basics.
+
+    /*
+      Basic attempt to change directory before running command.
+      Handles most POSIX environments and Windows cmd.exe basics.
+    */
     return exec("cd \"" + PROJECT_ROOT + "\" && " + cmd)
   }
   return exec(cmd)
@@ -95,7 +98,6 @@ fn get_db_collections(db_path, password) {
     return []
   }
 }
-
 
 let docs_list = list_dir("getting-started")
 let more_files = read_file("docs/WRITING_SCRIPTS.md")
@@ -329,7 +331,9 @@ fn handle_http(req) {
 
         ====IGNORE ME====
 
-        " timestamp}
+        " timestamp "
+        
+        ====IGNORE ME===="}
         res = model("chat") {thinkingLevel: "low", max_tokens: 4096, cache: false} {copilotMemory chat_msg}
       } else {
         prompt chat_msg {"History of our conversation:
@@ -338,7 +342,9 @@ fn handle_http(req) {
 
         ====IGNORE ME====
 
-        " timestamp}
+        " timestamp "
+        
+        ====IGNORE ME===="}
         res = model("chat") {thinkingLevel: "low", max_tokens: 4096, cache: false} {copilotMemory chat_msg}
       }
       
@@ -1031,14 +1037,26 @@ fn handle_http(req) {
       }
 
       if action == "generate_commit_msg" {
-        let diff_str = ""
+        let generated_msg = ""
         try {
-          diff_str = exec_in_project("git diff --staged")
+          generated_msg = exec_in_project("node bin/sesi.js -l helpers/commit_message.sesi --staged")
+          
+          let lines = split(generated_msg, "\n")
+          let filtered = []
+          let i = 0
+          while i < len(lines) {
+            let line = lines[i]
+            if !contains(line, "injected env") {
+              push(filtered, line)
+            }
+            i = i + 1
+          }
+          generated_msg = trim(join(filtered, "\n"))
         } catch (e) {
-          diff_str = ""
+          generated_msg = ""
         }
         
-        if diff_str == "" {
+        if generated_msg == "" || contains(generated_msg, "No diff found") {
           return {
             "status": 200,
             "headers": {"Content-Type": "application/json"},
@@ -1046,37 +1064,6 @@ fn handle_http(req) {
               "success": false,
               "error": "No staged changes detected. Please stage files first."
             }
-          }
-        }
-        
-        if len(diff_str) > 12000 {
-          let lines = split(diff_str, "\n")
-          let trimmed_lines = []
-          let total_len = 0
-          for line in lines {
-            if total_len < 10000 {
-              push(trimmed_lines, line)
-              total_len = total_len + len(line)
-            }
-          }
-          diff_str = join(trimmed_lines, "\n") + "\n... [diff truncated] ..."
-        }
-        prompt commitPrompt {"You are an AI git assistant. Generate a detailed, pretty-printed, multi-line Conventional Commits-compliant commit message based on the following diff of staged changes.
-Do NOT return a single-line message. You MUST return a subject line under 72 characters, followed by a blank line, and then a bulleted body detailing the changes.
-Do NOT wrap your response in markdown code blocks or quotes. Respond ONLY with the raw commit message text.
-
-Staged Diff:
-" diff_str}
-        
-        let generated_msg = ""
-        try {
-          generated_msg = model("copilot") {temperature: 0.4, max_tokens: 300, cache: false} {copilotMemory commitPrompt}
-          generated_msg = split(generated_msg, "\r")[0]
-        } catch (e) {
-          return {
-            "status": 200,
-            "headers": {"Content-Type": "application/json"},
-            "body": {"success": false, "error": "AI model error: " + str(e)}
           }
         }
         

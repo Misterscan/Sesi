@@ -265,7 +265,7 @@ try {
     
     let skills = ""
     try {
-      skills = read_file("SKILLS.md")
+      skills = read_file(".agents/skills/SKILLS.md")
     } catch (e) {
       try {
         skills = read_file("docs/SKILLS.md")
@@ -273,11 +273,12 @@ try {
         print "Error reading SKILLS.md:" e
       }
     }
+
     prompt instructions {"Instructions: 
     "  skills " 
     
     If Active File Context is present, use it directly and talk about that file concretely. 
-    - Be helpful and robust. 
+    - Be accurate and verbose. 
     - Do NOT invent syntax. 
     - Use the correct style for multi-line comments:
     ```
@@ -313,6 +314,7 @@ try {
     and end on the same line as the closing '}' ""}
     ```
     "}
+
     prompt ragPrompt {"Sesi Official Reference Documentation:
     " sesiDocs "
     
@@ -324,9 +326,11 @@ try {
     Matched Context from Sesi DB:
     Summary: " rec["summary"] "
     Key Rules: " rec["key_rules"]}
+
     prompt persona {"Your name is Sesi Co-Pilot. 
     - You are an expert in Sesi and very efficient at coding. 
     - You prefer an original way of doing things. "}
+
     let generated_response = model("gemini-3.1-flash-lite") {thinkingLevel: "low", max_tokens: 4096} {instructions ragPrompt persona}
     
     let helpResponse = false
