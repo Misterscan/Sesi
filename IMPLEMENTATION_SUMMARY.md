@@ -105,7 +105,7 @@ prompt greeting {"Hello, " name "!"}
 **Structured Output**
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.5.5\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.5.8\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -411,10 +411,10 @@ npm test
 | main/25_webpage_server.sesi                  | High-performance dynamic HTML site rendering          |
 | main/26_database.sesi                        | Embedded Document Database (`std/db`) crud operations |
 | main/27_robust_web_db.sesi                   | Secured combined API server backed by persistent DB   |
-| optional/28_streaming.sesi                   | Streaming API responses                           |
-| main/29_tool_piping.sesi                     | Tool-chaining and data pipelining                 |
-| main/30_error_recovery.sesi                  | Robust error handling and retry policies            |
-| main/31_synthesizer.sesi                     | Music and SVG native capabilities                 |
+| optional/28_streaming.sesi                   | Streaming API responses                               |
+| main/29_tool_piping.sesi                     | Tool-chaining and data pipelining                     |
+| main/30_error_recovery.sesi                  | Robust error handling and retry policies              |
+| main/31_synthesizer.sesi                     | Music and SVG native capabilities                     |
 
 ## 🔮 Future Directions
 

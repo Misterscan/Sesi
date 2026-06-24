@@ -185,7 +185,7 @@ Structured output allows you to extract structured data natively or via Reasonin
 ### Basic Structured Output
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.5.5\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.5.8\", \"status\": \"active\"}"
 let analysis = structured_output({projectName: string, version: string, status: string})(rawJson)
 print "Project: " analysis["projectName"]
 print "Version: " analysis["version"]
@@ -273,6 +273,9 @@ write_image(path, content) // Write base64 encoded image to a file
 convert(type) { config } { file } // Convert documents/media/audio between formats
 list_dir(path)     // List directory contents
 make_dir(path)     // Create a new directory
+rename(old, new)   // Rename or move a file/directory
+archive(src, dest) // Backup/copy file/directory recursively
+trash(path, auto)  // Move to trash or permanently remove
 spawn(path)        // Launch concurrent background process
 exec(command)      // Synchronous shell execution
 time()             // Unix timestamp (ms)

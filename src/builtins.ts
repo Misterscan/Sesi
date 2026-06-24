@@ -631,6 +631,125 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
+  builtins.set('rename', {
+    type: 'function',
+    name: 'rename',
+    params: [{ name: 'oldPath' }, { name: 'newPath' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (oldPathVal: RuntimeValue, newPathVal: RuntimeValue): RuntimeValue => {
+      if (typeof oldPathVal !== 'string' || typeof newPathVal !== 'string') {
+        throw new Error('rename expects string parameters: (oldPath, newPath)');
+      }
+      try {
+        const oldAbsolutePath = ensureSafePath(oldPathVal, interpreter);
+        const newAbsolutePath = ensureSafePath(newPathVal, interpreter);
+        fs.renameSync(oldAbsolutePath, newAbsolutePath);
+        return true;
+      } catch (e: any) {
+        throw new Error(`Failed to rename: from "${oldPathVal}" to "${newPathVal}". Reason: ${e.message}`);
+      }
+    },
+  });
+
+  builtins.set('archive', {
+    type: 'function',
+    name: 'archive',
+    params: [{ name: 'sourcePath' }, { name: 'destPath', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (...args: RuntimeValue[]): RuntimeValue => {
+      const [srcPathVal, destPathVal] = args;
+      if (typeof srcPathVal !== 'string') {
+        throw new Error('archive expects the sourcePath as a string parameter');
+      }
+      if (destPathVal !== undefined && destPathVal !== null && typeof destPathVal !== 'string') {
+        throw new Error('archive expects the destPath to be a string parameter if provided');
+      }
+      try {
+        const srcAbs = ensureSafePath(srcPathVal, interpreter);
+        if (!fs.existsSync(srcAbs)) {
+          throw new Error(`Source path does not exist: "${srcPathVal}"`);
+        }
+        
+        let finalDestPathVal = destPathVal;
+        if (finalDestPathVal === undefined || finalDestPathVal === null) {
+          const baseName = path.basename(srcAbs);
+          // Hidden cache folder: .archive in project root
+          finalDestPathVal = path.join('.archive', baseName);
+        }
+        
+        const destAbs = ensureSafePath(finalDestPathVal as string, interpreter);
+        const destParent = path.dirname(destAbs);
+        if (!fs.existsSync(destParent)) {
+          fs.mkdirSync(destParent, { recursive: true });
+        }
+
+        fs.cpSync(srcAbs, destAbs, { recursive: true, force: true });
+        return true;
+      } catch (e: any) {
+        throw new Error(`Failed to archive "${srcPathVal}": ${e.message}`);
+      }
+    },
+  });
+
+  builtins.set('trash', {
+    type: 'function',
+    name: 'trash',
+    params: [{ name: 'path' }, { name: 'autoRemove', defaultValue: false as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (...args: RuntimeValue[]): RuntimeValue => {
+      const [filePathVal, autoRemoveVal] = args;
+      if (typeof filePathVal !== 'string') {
+        throw new Error('trash expects a string parameter: (path)');
+      }
+      try {
+        const absolutePath = ensureSafePath(filePathVal, interpreter);
+        if (!fs.existsSync(absolutePath)) {
+          return false;
+        }
+        
+        const autoRemove = isTruthy(autoRemoveVal);
+        if (autoRemove) {
+          fs.rmSync(absolutePath, { recursive: true, force: true });
+          return true;
+        }
+        
+        const trashDir = path.resolve(process.cwd(), '.trash');
+        if (!fs.existsSync(trashDir)) {
+          fs.mkdirSync(trashDir, { recursive: true });
+        }
+        
+        const fileBasename = path.basename(absolutePath);
+        const timestamp = Date.now();
+        const ext = path.extname(fileBasename);
+        const nameWithoutExt = path.basename(fileBasename, ext);
+        
+        const trashName = `${nameWithoutExt}_${timestamp}${ext}`;
+        const trashPath = path.resolve(trashDir, trashName);
+        const safeTrashPath = ensureSafePath(trashPath, interpreter);
+        
+        try {
+          fs.renameSync(absolutePath, safeTrashPath);
+        } catch (renameErr: any) {
+          if (renameErr.code === 'EXDEV') {
+            fs.cpSync(absolutePath, safeTrashPath, { recursive: true, force: true });
+            fs.rmSync(absolutePath, { recursive: true, force: true });
+          } else {
+            throw renameErr;
+          }
+        }
+        return true;
+      } catch (e: any) {
+        throw new Error(`Failed to trash "${filePathVal}": ${e.message}`);
+      }
+    },
+  });
+
   builtins.set('spawn', {
     type: 'function',
     name: 'spawn',

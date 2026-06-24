@@ -217,7 +217,7 @@ fn lex(content) {
       }
       
       let type = "IDENTIFIER"
-      let keywords = ["let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "import", "export", "memory", "true", "false", "null", "print", "prompt", "model", "image", "structured_output", "tool_call", "async", "await", "convert", "from", "to", "allow", "with"]
+      let keywords = ["let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "import", "export", "memory", "true", "false", "null", "print", "prompt", "model", "image", "structured_output", "tool_call", "async", "await", "convert", "from", "to", "allow", "with", "workflow"]
       
       for kw in keywords {
         if lexeme == kw {
@@ -259,6 +259,7 @@ fn lex(content) {
       if type == "to" { upperType = "TO" }
       if type == "allow" { upperType = "ALLOW" }
       if type == "with" { upperType = "WITH" }
+      if type == "workflow" { upperType = "WORKFLOW" }
       
       push(tokens, {"type": upperType, "lexeme": lexeme, "line": line})
       continue
@@ -407,21 +408,36 @@ fn audit_syntax(tokens) {
     }
     
     if type == "FOR" {
-      let hasIn = false
-      let temp = i + 1
-      while temp < n {
-        let t = tokens[temp]
-        if t.type == "IN" { hasIn = true; break }
-        if t.type == "NEWLINE" { break }
-        if t.type == "LEFT_BRACE" { break }
-        temp = temp + 1
+      // Detect numeric range: `for i = 0 to N` (no `in` keyword expected)
+      let isNumericRange = false
+      let temp2 = i + 1
+      // skip identifier then check for EQUAL
+      if temp2 < n {
+        if tokens[temp2].type == "IDENTIFIER" {
+          temp2 = temp2 + 1
+          if temp2 < n {
+            if tokens[temp2].type == "EQUAL" { isNumericRange = true }
+          }
+        }
       }
-      if hasIn == false {
-        push(errors, {"line": line, "message": "Syntax Error: `for` loop missing native `in` keyword"})
+
+      if isNumericRange == false {
+        let hasIn = false
+        let temp = i + 1
+        while temp < n {
+          let t = tokens[temp]
+          if t.type == "IN" { hasIn = true; break }
+          if t.type == "NEWLINE" { break }
+          if t.type == "LEFT_BRACE" { break }
+          temp = temp + 1
+        }
+        if hasIn == false {
+          push(errors, {"line": line, "message": "Syntax Error: `for` loop missing native `in` keyword"})
+        }
       }
-      
+
       let hasBlock = false
-      temp = i + 1
+      let temp = i + 1
       while temp < n {
         let t = tokens[temp]
         if t.type == "LEFT_BRACE" { hasBlock = true; break }
@@ -577,6 +593,102 @@ fn audit_syntax(tokens) {
             }
           }
         }
+        if tok.lexeme == "web_get" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `web_get` is a builtin function, expected `(` instead of whitespace"})
+                }
+              }
+            }
+          }
+        }
+        if tok.lexeme == "web_send" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `web_send` is a builtin function, expected `(` instead of whitespace"})
+                }
+              }
+            }
+          }
+        }
+        if tok.lexeme == "make_dir" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `make_dir` is a builtin function, expected `(` instead of whitespace"})
+                }
+              }
+            }
+          }
+        }
+        if tok.lexeme == "list_dir" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `list_dir` is a builtin function, expected `(` instead of whitespace"})
+                }
+              }
+            }
+          }
+        }
+        if tok.lexeme == "spawn" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `spawn` is a builtin function, expected `(` instead of whitespace"})
+                }
+              }
+            }
+          }
+        }
+        if tok.lexeme == "trash" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `trash` is a builtin function, expected `(` instead of whitespace"})
+                }
+              }
+            }
+          }
+        }
+        if tok.lexeme == "rename" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `rename` is a builtin function, expected `(` instead of whitespace"})
+                }
+              }
+            }
+          }
+        }
+        if tok.lexeme == "archive" {
+          if i + 1 < n {
+            let next = tokens[i+1]
+            if next.type != "LEFT_PAREN" {
+              if next.type != "NEWLINE" {
+                if next.type != "EOF" {
+                  push(errors, {"line": line, "message": "Syntax Error: `archive` is a builtin function, expected `(` instead of whitespace"})
+                }
+              }
+            }
+          }
+        }
         
         // Look for statement termination violations (let x = 1 let y = 2)
         if i + 1 < n {
@@ -592,6 +704,14 @@ fn audit_syntax(tokens) {
             if tok.lexeme == "exec" { isKeywordCall = true }
             if tok.lexeme == "write_file" { isKeywordCall = true }
             if tok.lexeme == "read_file" { isKeywordCall = true }
+            if tok.lexeme == "web_get" { isKeywordCall = true }
+            if tok.lexeme == "web_send" { isKeywordCall = true }
+            if tok.lexeme == "make_dir" { isKeywordCall = true }
+            if tok.lexeme == "list_dir" { isKeywordCall = true }
+            if tok.lexeme == "spawn" { isKeywordCall = true }
+            if tok.lexeme == "trash" { isKeywordCall = true }
+            if tok.lexeme == "rename" { isKeywordCall = true }
+            if tok.lexeme == "archive" { isKeywordCall = true }
             
             if isKeywordCall == false {
               push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got '" + next.lexeme + "'"})
@@ -600,7 +720,66 @@ fn audit_syntax(tokens) {
         }
       }
     }
-    
+
+    // Foreign language syntax detection in let-assigned string literals
+    if type == "STRING" {
+      if i >= 3 {
+        let p1 = tokens[i-1]
+        let p2 = tokens[i-2]
+        let p3 = tokens[i-3]
+        if p1.type == "EQUAL" {
+          if p2.type == "IDENTIFIER" {
+            if p3.type == "LET" {
+              let val = tok.lexeme
+              let foreignFound = false
+              let foreignLang = ""
+              let foreignPat = ""
+
+              // JavaScript / TypeScript
+              if foreignFound == false { let s = split(val, "console.log("); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript"; foreignPat = "console.log(" } }
+              if foreignFound == false { let s = split(val, "console.error("); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript"; foreignPat = "console.error(" } }
+              if foreignFound == false { let s = split(val, "console.warn("); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript"; foreignPat = "console.warn(" } }
+              if foreignFound == false { let s = split(val, "==="); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript"; foreignPat = "===" } }
+              if foreignFound == false { let s = split(val, "!=="); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript"; foreignPat = "!==" } }
+              if foreignFound == false { let s = split(val, "require("); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript/Node.js"; foreignPat = "require(" } }
+              if foreignFound == false { let s = split(val, "=> {"); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript/TypeScript"; foreignPat = "=>" } }
+              if foreignFound == false { let s = split(val, "=> ("); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript/TypeScript"; foreignPat = "=>" } }
+
+              // Python
+              if foreignFound == false { let s = split(val, "def "); if len(s) > 1 { foreignFound = true; foreignLang = "Python"; foreignPat = "def " } }
+              if foreignFound == false { let s = split(val, "elif "); if len(s) > 1 { foreignFound = true; foreignLang = "Python"; foreignPat = "elif " } }
+              if foreignFound == false { let s = split(val, "lambda "); if len(s) > 1 { foreignFound = true; foreignLang = "Python"; foreignPat = "lambda " } }
+              if foreignFound == false {let s = split(val, "print("); if len(s) > 1 { foreignFound = true; foreignLang = "Python"; foreignPat = "print()" } }
+
+              // Java / C#
+              if foreignFound == false { let s = split(val, "public static"); if len(s) > 1 { foreignFound = true; foreignLang = "Java/C#"; foreignPat = "public static" } }
+              if foreignFound == false { let s = split(val, "public class"); if len(s) > 1 { foreignFound = true; foreignLang = "Java/C#"; foreignPat = "public class" } }
+              if foreignFound == false { let s = split(val, "System.out."); if len(s) > 1 { foreignFound = true; foreignLang = "Java"; foreignPat = "System.out." } }
+              if foreignFound == false { let s = split(val, "using System"); if len(s) > 1 { foreignFound = true; foreignLang = "C#"; foreignPat = "using System" } }
+
+              // C / C++
+              if foreignFound == false { let s = split(val, "#include"); if len(s) > 1 { foreignFound = true; foreignLang = "C/C++"; foreignPat = "#include" } }
+              if foreignFound == false { let s = split(val, "using namespace"); if len(s) > 1 { foreignFound = true; foreignLang = "C++"; foreignPat = "using namespace" } }
+
+              // PHP
+              if foreignFound == false { let s = split(val, "<?php"); if len(s) > 1 { foreignFound = true; foreignLang = "PHP"; foreignPat = "<?php" } }
+
+              // Go
+              if foreignFound == false { let s = split(val, "package main"); if len(s) > 1 { foreignFound = true; foreignLang = "Go"; foreignPat = "package main" } }
+              if foreignFound == false { let s = split(val, "fmt.Println"); if len(s) > 1 { foreignFound = true; foreignLang = "Go"; foreignPat = "fmt.Println" } }
+
+              // Rust
+              if foreignFound == false { let s = split(val, "println!"); if len(s) > 1 { foreignFound = true; foreignLang = "Rust"; foreignPat = "println!" } }
+
+              if foreignFound {
+                push(errors, {"line": line, "message": "Possible " + foreignLang + " syntax in string literal (`" + foreignPat + "`). Verify this is intentional — Sesi is not " + foreignLang + ".", "isWarning": true})
+              }
+            }
+          }
+        }
+      }
+    }
+
     i = i + 1
   }
   
@@ -734,6 +913,8 @@ for filePath in targetFiles {
       // Unwrapped I/O
       let writeSegs = split(line, "write_file(")
       let readSegs = split(line, "read_file(")
+      let webGetSegs = split(line, "web_get(")
+      let webSendSegs = split(line, "web_send(")
       if len(writeSegs) > 1 {
         if tryStartDepth == -1 {
           report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Unwrapped `write_file` call. Enclose in a try/catch block to prevent filesystem contention crashes.\n"
@@ -744,6 +925,48 @@ for filePath in targetFiles {
         if tryStartDepth == -1 {
           report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Unwrapped `read_file` call. Enclose in a try/catch block to prevent filesystem contention crashes.\n"
           fileErrors = fileErrors + 1
+        }
+      }
+      if len(webGetSegs) > 1 {
+        if tryStartDepth == -1 {
+          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Unwrapped `web_get` call. Wrap in try/catch to handle network failures gracefully.\n"
+          fileWarnings = fileWarnings + 1
+        }
+      }
+      if len(webSendSegs) > 1 {
+        if tryStartDepth == -1 {
+          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Unwrapped `web_send` call. Wrap in try/catch to handle network failures gracefully.\n"
+          fileWarnings = fileWarnings + 1
+        }
+      }
+
+      // Risky / destructive operations
+      let trashSegs = split(line, "trash(")
+      let execSegs = split(line, "exec(")
+      let renameSegs = split(line, "rename(")
+      let archiveSegs = split(line, "archive(")
+      if len(trashSegs) > 1 {
+        if tryStartDepth == -1 {
+          report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Unwrapped `trash()` call. This permanently deletes files/directories — always wrap in try/catch.\n"
+          fileErrors = fileErrors + 1
+        }
+      }
+      if len(execSegs) > 1 {
+        if tryStartDepth == -1 {
+          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Unwrapped `exec()` call. Shell commands can fail or have destructive side effects — wrap in try/catch.\n"
+          fileWarnings = fileWarnings + 1
+        }
+      }
+      if len(renameSegs) > 1 {
+        if tryStartDepth == -1 {
+          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Unwrapped `rename()` call. Filesystem mutations can throw on invalid paths or permissions — wrap in try/catch.\n"
+          fileWarnings = fileWarnings + 1
+        }
+      }
+      if len(archiveSegs) > 1 {
+        if tryStartDepth == -1 {
+          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Unwrapped `archive()` call. File copy operations can throw on permission or path errors — wrap in try/catch.\n"
+          fileWarnings = fileWarnings + 1
         }
       }
       

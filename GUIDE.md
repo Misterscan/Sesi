@@ -692,6 +692,9 @@ These are always available — no imports needed:
 | `write_image(path, data)` | Write image data to file            |
 | `list_dir(path)`          | List directory → array of filenames |
 | `make_dir(path)`          | Create directory → bool             |
+| `rename(old, new)`        | Rename or move file/directory       |
+| `archive(src, dest?)`     | Backup/copy file/directory          |
+| `trash(path, auto?)`      | Delete (trash or permanent remove)  |
 
 ### Misc
 

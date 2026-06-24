@@ -738,7 +738,7 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio',
+        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio',
         'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float',
         // Audio & Theory
         'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
@@ -1062,6 +1062,24 @@ function activate(context) {
             source: 'System I/O Standard Library',
             description: 'Recursively creates nested directory paths on the local system storage.',
             example: 'make_dir("main/tests/cache")'
+        },
+        'rename': {
+            signature: 'rename(old_path, new_path)',
+            source: 'System I/O Standard Library',
+            description: 'Renames or moves a file or directory on the filesystem.',
+            example: 'rename("main/temp.txt", "main/final.txt")'
+        },
+        'archive': {
+            signature: 'archive(source_path, dest_path = null)',
+            source: 'System I/O Standard Library',
+            description: 'Recursively copies/backs up a file or folder. If dest_path is null, automatically saves inside the hidden .archive directory in the workspace root.',
+            example: 'archive("main/tests", "main/backups/tests")'
+        },
+        'trash': {
+            signature: 'trash(path, auto_remove = false)',
+            source: 'System I/O Standard Library',
+            description: 'Safely deletes a file or directory. By default, moves the item into a local .trash recycle bin directory with a unique timestamped name. If auto_remove is true, deletes permanently.',
+            example: 'trash("main/temp.txt", true)'
         },
         'spawn': {
             signature: 'spawn(script_path)',

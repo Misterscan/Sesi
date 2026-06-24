@@ -58,7 +58,7 @@ const BUILTINS = new Set([
   'keys','values','push','pop','join','split',
   'to_upper','to_lower','trim','slice','swap','contains','locate',
   'map','filter','reduce','find','retry',
-  'read_file','write_file','write_image','list_dir','make_dir',
+  'read_file','write_file','write_image','list_dir','make_dir','rename','archive','trash',
   'spawn','exec','time','random',
   'to_json','from_json',
   'input','debug',

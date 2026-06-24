@@ -511,6 +511,66 @@ if success {print "Directory created successfully"}
 
 **Returns**: `bool` (true on success, throws on error)
 
+---
+
+### rename(oldPath, newPath) -> bool
+
+Rename or move a file or directory.
+
+```sesi
+let success = rename("old_name.txt", "new_name.txt")
+if success {print "File renamed successfully"}
+```
+
+**Parameters**:
+
+- `oldPath` (`string`): The current path of the file or directory.
+- `newPath` (`string`): The target path.
+
+**Returns**: `bool` (true on success, throws on error)
+
+---
+
+### archive(sourcePath, destPath = null) -> bool
+
+Recursively backup/copy a file or directory.
+
+```sesi
+// Backs up to a target destination
+archive("src/index.ts", "backup/index.ts")
+
+// Automatically backs up to the hidden `.archive` directory in project root
+archive("src/index.ts") // Saves to .archive/index.ts
+```
+
+**Parameters**:
+
+- `sourcePath` (`string`): The file or directory to back up.
+- `destPath` (`string`, optional): The destination path. Defaults to `.archive/<basename>` in the current working directory if omitted.
+
+**Returns**: `bool` (true on success, throws on error)
+
+---
+
+### trash(path, autoRemove = false) -> bool
+
+Delete a file or directory. By default, moves the item to a local `.trash` recycle bin directory, uniquely naming it with a timestamp. Can optionally delete permanently.
+
+```sesi
+// Moves file to project's .trash folder with a unique timestamp (e.g. temp_1719253450000.txt)
+trash("temp.txt")
+
+// Permanently and recursively deletes the file/directory immediately
+trash("temp.txt", true)
+```
+
+**Parameters**:
+
+- `path` (`string`): The path of the file or directory to delete.
+- `autoRemove` (`bool`, optional): If `true`, permanently deletes the item instead of moving it to the trash folder. Defaults to `false`.
+
+**Returns**: `bool` (true on success, returns `false` if path doesn't exist, throws on error)
+
 ### convert(type) { config } { file } -> string
 
 Convert file or document content between formats.
@@ -1369,7 +1429,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.5.5"
+  "version": "1.5.8"
 }
 print Json.stringify(original)
 ```
