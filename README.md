@@ -1,7 +1,7 @@
 ## SESI IS **NOT** AN AI WRAPPER LANGUAGE. IT IS **NOT** AN AI-NATIVE PROGRAMMING LANGUAGE. IT IS A GENERAL-PURPOSE PROGRAMMING LANGUAGE WITH **OPTIONAL** AI CAPABILITIES BUILT-IN. STRONG EMPHASIS ON **OPTIONAL**.
 
 <p align="center">
-  <img src="./sesi-logo.svg" alt="Sesi Logo" width="250" />
+  <img src="https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/sesi-logo.svg" alt="Sesi Logo" width="250" />
 </p>
 
 <h1 align="center">Sesi: A Concise, Legible Programming Language</h1>
@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <img src="./docs/Sesi-Status-Badge.svg" alt="Sesi Status Badge" height="20" />
-  <img src="./docs/Sesi-Version-Badge.svg" alt="Sesi Version Badge" height="20" />
+  <img src="https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/docs/Sesi-Status-Badge.svg" alt="Sesi Status Badge" height="20" />
+  <img src="https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/docs/Sesi-Version-Badge.svg" alt="Sesi Version Badge" height="20" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-Interpreter-blue?logo=typescript">
   <img alt="Powered by Gemini" src="https://img.shields.io/badge/Powered%20By-Google%20Gemini-orange">

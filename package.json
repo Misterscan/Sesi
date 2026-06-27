@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.5.8",
+  "version": "1.5.9",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -84,7 +84,7 @@
     "ws": "8.21.0"
   },
   "devDependencies": {
-    "@types/node": "26.0.0",
+    "@types/node": "26.0.1",
     "globals": "^17.7.0",
     "rcedit": "^5.0.2",
     "typescript": "6.0.3"
