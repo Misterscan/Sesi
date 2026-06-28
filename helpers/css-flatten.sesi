@@ -1,0 +1,165 @@
+/*
+  Sesi CSS Flattener
+  
+  Strips CSS comments, normalizes whitespace, collapses spaces, 
+  and cleans up formatting around structural delimiters.
+  Supports both single-file targeting and full-directory batch processing.
+  
+  Usage:
+    sesi css-flatten.sesi [input_file_or_dir] [output_dir]
+*/
+
+let input_target = "style.css"
+let output_dir = "minified"
+
+// Parse CLI arguments
+if len(args) > 0 { input_target = args[0] }
+if len(args) > 1 { output_dir = args[1] }
+
+// Ensure output directory exists safely
+try {
+  make_dir(output_dir)
+} catch (err) {}
+
+fn minify_css(css: string) -> string {
+  // 1. Strip standard comments, but extract and protect JSON comments
+  let parts = split(css, "/*")
+  let uncommented = [parts[0]]
+  let preserved_blocks = []
+  
+  if len(parts) > 1 {
+    for i = 1 to len(parts) {
+      let chunk = parts[i]
+      let end_idx = locate(chunk, "*/")
+      
+      if end_idx != -1 {
+        let comment_body = slice(chunk, 0, end_idx)
+        let after_comment = slice(chunk, end_idx + 2)
+        
+        // Inspect the comment: does it start with a JSON bracket?
+        let trimmed_body = trim(comment_body)
+        let first_char = slice(trimmed_body, 0, 1)
+        
+        if first_char == "{" {
+          // Reconstruct the exact comment and save it securely
+          prompt exact_comment {"/*" comment_body "*/"}
+          push(preserved_blocks, exact_comment)
+          
+          // Drop a safe, minifier-proof placeholder in the CSS
+          let p_idx = len(preserved_blocks) - 1
+          prompt marker {"___PRESERVED_" p_idx "___"}
+          
+          prompt combined {marker after_comment}
+          push(uncommented, combined)
+        } else {
+          // Standard comment - discard the body
+          push(uncommented, after_comment)
+        }
+      } else {
+        // Malformed comment, ignore and preserve
+        push(uncommented, chunk)
+      }
+    }
+  }
+  
+  let clean_css = join(uncommented, "")
+  
+  // 2. Strip newlines and tabs entirely
+  let newline = "
+"
+  clean_css = swap(clean_css, "\r", "")
+  clean_css = swap(clean_css, newline, "")
+  clean_css = swap(clean_css, "\t", " ")
+  
+  // 3. Collapse multiple spaces into a single space
+  let prev_spaces = ""
+  while prev_spaces != clean_css {
+    prev_spaces = clean_css
+    clean_css = swap(clean_css, "  ", " ")
+  }
+  
+  // 4. Remove unnecessary spaces around CSS delimiters
+  let delimiters = ["{", "}", ":", ";", ","]
+  
+  for d in delimiters {
+    prompt space_before {" " d}
+    prompt space_after {d " "}
+    
+    let prev_clean = ""
+    while prev_clean != clean_css {
+      prev_clean = clean_css
+      clean_css = swap(clean_css, space_before, d)
+      clean_css = swap(clean_css, space_after, d)
+    }
+  }
+  
+  // 5. Final byte-shaving: remove trailing semicolons before closing braces
+  clean_css = swap(clean_css, ";}", "}")
+  
+  // 6. Restore preserved JSON comments back into their placeholders
+  let p = 0
+  while p < len(preserved_blocks) {
+    prompt marker {"___PRESERVED_" p "___"}
+    // Re-inject with a trailing newline so the minified CSS starts cleanly on the next line
+    prompt restored {preserved_blocks[p] newline}
+    clean_css = swap(clean_css, marker, restored)
+    p = p + 1
+  }
+  
+  return trim(clean_css)
+}
+
+// Reusable I/O worker block
+fn process_file(in_path: string, out_path: string) {
+  print "Processing:" in_path
+  try {
+    let source_css = read_file(in_path)
+    print "Original size:" len(source_css) "bytes"
+    let minified_css = minify_css(source_css)
+    let success = write_file(out_path, minified_css)
+    
+    if success {
+      print "  -> Saved:" out_path "(" len(minified_css) "bytes )"
+    }
+  } catch (err) {
+    print "  -> File I/O Error processing" in_path ":" err
+  }
+}
+
+// ---------------------------------------------------------
+// Execution Routing
+// ---------------------------------------------------------
+
+if contains(input_target, ".css") {
+  print "Running in Single File Mode..."
+  
+  // Cleanly extract the filename in case the user passed a path (e.g. "src/main.css")
+  let path_parts = split(input_target, "/")
+  let filename = pop(path_parts)
+  
+  prompt target_out {output_dir "/" filename}
+  process_file(input_target, target_out)
+  
+} else {
+  print "Running in Batch Directory Mode..."
+  print "Scanning directory:" input_target
+  
+  try {
+    let files = list_dir(input_target)
+    let count = 0
+    
+    for file in files {
+      if contains(file, ".css") {
+        prompt target_in {input_target "/" file}
+        prompt target_out {output_dir "/" file}
+        
+        process_file(target_in, target_out)
+        count = count + 1
+      }
+    }
+    
+    print "Batch complete. Processed" count "files."
+  } catch (err) {
+    print "Error reading directory. Ensure the path exists and permissions are valid." err
+  }
+}

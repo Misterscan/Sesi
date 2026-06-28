@@ -1,0 +1,167 @@
+/*
+  Sesi SVG Compressor
+  
+  Reads an SVG file, locates all path data attributes (d="..."), 
+  and applies Lossy Precision Reduction to the coordinates to save bytes,
+  followed by a lossless whitespace collapse.
+  Supports both single-file targeting and full-directory batch processing.
+  
+  Usage:
+    sesi svg-compress.sesi [input_file_or_dir] [output_dir]
+*/
+
+allow "std/math" in with Math
+
+let input_target = "vector.svg"
+let output_dir = "minified"
+
+if len(args) > 0 { input_target = args[0] }
+if len(args) > 1 { output_dir = args[1] }
+
+// Ensure output directory exists safely
+try {
+  make_dir(output_dir)
+} catch (err) {}
+
+// Rounds numbers to a specific number of decimal places
+fn round_token(token: string, decimals: number) -> string {
+  let n = num(token)
+  
+  // If conversion fails, it's a path command letter (M, L, C, Z, etc.)
+  // Just return the letter completely unmodified.
+  if type(n) != "number" { return token }
+  
+  // Calculate multiplier for decimal shift (e.g., 10 for 1 decimal place)
+  let mult = Math.pow(10, decimals)
+  
+  // Shift, round, and unshift
+  let rounded = Math.floor((n * mult) + 0.5) / mult
+  return str(rounded)
+}
+
+// Parses and reduces precision of a single SVG path string
+fn compress_path(d: string) -> string {
+  // Normalize commas to spaces (SVGs allow both)
+  let clean_d = swap(d, ",", " ")
+  
+  // Collapse consecutive spaces iteratively
+  let prev = ""
+  while prev != clean_d {
+    prev = clean_d
+    clean_d = swap(clean_d, "  ", " ")
+  }
+  
+  let tokens = split(trim(clean_d), " ")
+  let processed = []
+  
+  for t in tokens {
+    push(processed, round_token(t, 1)) // Compress to 1 decimal place
+  }
+  
+  return join(processed, " ")
+}
+
+fn compress_svg(svg: string) -> string {
+  let marker = "d=\""
+  let parts = split(svg, marker)
+  
+  if len(parts) <= 1 { return svg }
+  
+  let result = [parts[0]]
+  
+  // Process everything after the first `d="`
+  for i = 1 to len(parts) {
+    let chunk = parts[i]
+    let end_quote = locate(chunk, "\"")
+    
+    if end_quote != -1 {
+      // Slice out just the path data
+      let d_str = slice(chunk, 0, end_quote)
+      
+      // Slice out the rest of the file chunk (including the closing quote)
+      let remainder = slice(chunk, end_quote)
+      
+      // Compress the path data
+      let compressed_d = compress_path(d_str)
+      
+      // Reassemble sequentially in a prompt block
+      prompt reconstructed {compressed_d remainder}
+      push(result, reconstructed)
+    } else {
+      // Fallback if formatting is unexpected
+      push(result, chunk)
+    }
+  }
+  
+  return join(result, marker)
+}
+
+// Reusable I/O worker block
+fn process_file(in_path: string, out_path: string) {
+  print "Processing:" in_path
+  try {
+    let raw_svg = read_file(in_path)
+    
+    // 1. Apply Path Precision Reduction
+    let min_svg = compress_svg(raw_svg)
+    
+    // 2. Apply Lossless Whitespace Minification
+    let newline = "
+"
+    min_svg = swap(min_svg, newline, "")
+    min_svg = swap(min_svg, "\r", "")
+    min_svg = swap(min_svg, "\t", "")
+    
+    let prev_spaces = ""
+    while prev_spaces != min_svg {
+      prev_spaces = min_svg
+      min_svg = swap(min_svg, "  ", " ")
+    }
+    min_svg = swap(min_svg, "> <", "><")
+    
+    let success = write_file(out_path, min_svg)
+    if success {
+      print "  -> Saved:" out_path "(" len(min_svg) "bytes )"
+    }
+  } catch (err) {
+    print "  -> File I/O Error processing" in_path ":" err
+  }
+}
+
+// ---------------------------------------------------------
+// Execution Routing
+// ---------------------------------------------------------
+
+if contains(input_target, ".svg") {
+  print "Running in Single File Mode..."
+  
+  // Cleanly extract the filename from the path
+  let path_parts = split(input_target, "/")
+  let filename = pop(path_parts)
+  
+  prompt target_out {output_dir "/" filename}
+  process_file(input_target, target_out)
+  
+} else {
+  print "Running in Batch Directory Mode..."
+  print "Scanning directory:" input_target
+  
+  try {
+    let files = list_dir(input_target)
+    let count = 0
+    
+    for file in files {
+      if contains(file, ".svg") {
+        prompt target_in {input_target "/" file}
+        prompt target_out {output_dir "/" file}
+        
+        process_file(target_in, target_out)
+        count = count + 1
+      }
+    }
+    
+    print "Batch SVG compression complete. Processed" count "files."
+  } catch (err) {
+    print "Error reading directory. Ensure the path exists and permissions are valid." err
+  }
+}

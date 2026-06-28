@@ -217,7 +217,7 @@ fn handle_http(req) {
   
   if path == "/" {
     try {
-      let content = read_file("sesi-studio/index.html")
+      let content = read_file("sesi-studio/build/index.min.html")
       return {"status": 200, "headers": {"Content-Type": "text/html"}, "body": content}
     } catch (e) {
       return {"status": 500, "body": "Failed to load index.html"}
