@@ -1,0 +1,12 @@
+<svg width="860" height="180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#0f2027" />
+    <stop offset="50%" stop-color="#203a43" />
+    <stop offset="100%" stop-color="#2c5364" />
+  </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="860" height="180" fill="url(#bg)" rx="14" ry="14" />
+  <text x="430" y="86" font-size="52" fill="#ffffff" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700">Sesi</text>
+  <text x="430" y="122" font-size="18" fill="#7dd3fc" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="400">A Concise, Legible Programming Language</text>
+</svg>

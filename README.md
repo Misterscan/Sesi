@@ -1,10 +1,8 @@
 ## SESI IS **NOT** AN AI WRAPPER LANGUAGE. IT IS **NOT** AN AI-NATIVE PROGRAMMING LANGUAGE. IT IS A GENERAL-PURPOSE PROGRAMMING LANGUAGE WITH **OPTIONAL** AI CAPABILITIES BUILT-IN. STRONG EMPHASIS ON **OPTIONAL**.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/sesi-logo.svg" alt="Sesi Logo" width="250" />
+  <img src="https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/banner-ocean.svg" alt="Sesi Banner"/>
 </p>
-
-<h1 align="center">Sesi: A Concise, Legible Programming Language</h1>
 
 <p align="center">
   <em>Pronounced "say-see" — What you say, you'll see.</em>

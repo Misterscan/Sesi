@@ -17,7 +17,9 @@ if (process.platform !== 'darwin') {
 }
 
 const binaryCandidates = [
+  { arch: 'arm64', file: 'sesi.bundled-arm64' },
   { arch: 'arm64', file: 'sesi.bundled-macos-arm64' },
+  { arch: 'x64', file: 'sesi.bundled-x64' },
   { arch: 'x64', file: 'sesi.bundled-macos-x64' },
   { arch: 'x64', file: 'sesi.bundled-macos' }
 ];

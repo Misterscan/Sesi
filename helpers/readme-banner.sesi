@@ -1,0 +1,241 @@
+/*
+    Generates a styled SVG banner for README files.
+
+    Produces a wide gradient banner with a title, optional tagline,
+    and optional accent dot. Writes the SVG to disk and can inject
+    it into a README automatically.
+
+Usage:
+    sesi helpers/readme-banner.sesi <title> <output>
+    sesi helpers/readme-banner.sesi <title> <output> --tagline "A short description"
+    sesi helpers/readme-banner.sesi <title> <output> --theme <name>
+    sesi helpers/readme-banner.sesi <title> <output> --inject <readme>
+    sesi helpers/readme-banner.sesi help
+
+Themes:
+    midnight   Deep purple-to-navy (default)
+    ocean      Teal-to-deep-blue
+    ember      Dark orange-to-crimson
+    forest     Deep green-to-teal
+    slate      Charcoal-to-steel
+
+Examples:
+    sesi helpers/readme-banner.sesi "MySideProject" img/banner.svg
+    sesi helpers/readme-banner.sesi "Sesi" img/banner.svg --tagline "A Concise, Legible Language" --theme ocean
+    sesi helpers/readme-banner.sesi "MyApp" img/banner.svg --theme ember --inject README.md
+*/
+
+allow "std/draw" in with Draw
+
+let W = 860
+let H = 180
+
+fn show_help() {
+  print "readme-banner.sesi — README SVG banner generator"
+  print ""
+  print "Usage:"
+  print "  sesi helpers/readme-banner.sesi <title> <output>"
+  print "  sesi helpers/readme-banner.sesi <title> <output> --tagline <text>"
+  print "  sesi helpers/readme-banner.sesi <title> <output> --theme <name>"
+  print "  sesi helpers/readme-banner.sesi <title> <output> --inject <readme>"
+  print ""
+  print "Themes: midnight (default), ocean, ember, forest, slate"
+  print ""
+  print "Examples:"
+  print "  sesi helpers/readme-banner.sesi \"MySideProject\" img/banner.svg"
+  print "  sesi helpers/readme-banner.sesi \"Sesi\" img/banner.svg --tagline \"A Concise Language\" --theme ocean"
+  print "  sesi helpers/readme-banner.sesi \"MyApp\" img/banner.svg --theme ember --inject README.md"
+}
+
+fn parse_options() {
+  let options = {
+    "tagline": null,
+    "theme": "midnight",
+    "inject": null
+  }
+
+  let i = 2
+  while i < len(args) {
+    let key = args[i]
+
+    if key == "--tagline" {
+      if i + 1 < len(args) {
+        options["tagline"] = args[i + 1]
+        i = i + 2
+      } else {
+        print "Missing value for --tagline"
+        i = i + 1
+      }
+    } else if key == "--theme" {
+      if i + 1 < len(args) {
+        options["theme"] = args[i + 1]
+        i = i + 2
+      } else {
+        print "Missing value for --theme"
+        i = i + 1
+      }
+    } else if key == "--inject" {
+      if i + 1 < len(args) {
+        options["inject"] = args[i + 1]
+        i = i + 2
+      } else {
+        print "Missing value for --inject"
+        i = i + 1
+      }
+    } else {
+      print "Ignoring unknown option:" key
+      i = i + 1
+    }
+  }
+
+  return options
+}
+
+fn get_theme(name: str) {
+  if name == "ocean" {
+    return {
+      "from": "#0f2027",
+      "mid": "#203a43",
+      "to": "#2c5364",
+      "accent": "#38bdf8",
+      "tagline": "#7dd3fc"
+    }
+  }
+
+  if name == "ember" {
+    return {
+      "from": "#1a0a00",
+      "mid": "#7c2d12",
+      "to": "#9a3412",
+      "accent": "#fb923c",
+      "tagline": "#fdba74"
+    }
+  }
+
+  if name == "forest" {
+    return {
+      "from": "#052e16",
+      "mid": "#14532d",
+      "to": "#134e4a",
+      "accent": "#4ade80",
+      "tagline": "#86efac"
+    }
+  }
+
+  if name == "slate" {
+    return {
+      "from": "#0f172a",
+      "mid": "#1e293b",
+      "to": "#334155",
+      "accent": "#94a3b8",
+      "tagline": "#cbd5e1"
+    }
+  }
+
+  // default: midnight
+  return {
+    "from": "#0f0c29",
+    "mid": "#302b63",
+    "to": "#24243e",
+    "accent": "#a5b4fc",
+    "tagline": "#c4b5fd"
+  }
+}
+
+fn estimate_title_width(title: str) -> num {
+  return len(title) * 28
+}
+
+fn draw_banner(title: str, output: str, options) {
+  let theme = get_theme(options["theme"])
+  let has_tagline = options["tagline"] != null
+
+  Draw.clear()
+
+  // Background gradient left to right
+  Draw.gradient("linear", "bg", [
+    {"offset": "0%", "color": theme["from"]},
+    {"offset": "50%", "color": theme["mid"]},
+    {"offset": "100%", "color": theme["to"]}
+  ], {"x1": "0%", "y1": "0%", "x2": "100%", "y2": "0%"})
+
+  // Base background
+  Draw.rect(0, 0, W, H, "url(#bg)", {"rx": 14, "ry": 14})
+
+  // Title
+  let title_y = H / 2 + 18
+  if has_tagline {
+    title_y = H / 2 - 4
+  }
+
+  Draw.text(W / 2, title_y, title, 52, "#ffffff", {"text-anchor": "middle", "font-family": "system-ui, -apple-system, sans-serif", "font-weight": "700"})
+
+  // Tagline
+  if has_tagline {
+    Draw.text(W / 2, title_y + 36, options["tagline"], 18, theme["tagline"], {"text-anchor": "middle", "font-family": "system-ui, -apple-system, sans-serif", "font-weight": "400"})
+  }
+
+  Draw.save_svg(output, W, H)
+  print "Banner written:" output
+  print "Title:" title
+  if has_tagline {
+    print "Tagline:" options["tagline"]
+  }
+  print "Theme:" options["theme"]
+  print "Size:" W "x" H
+}
+
+fn inject_banner(readme: str, output: str) {
+  try {
+    let content = read_file(readme)
+    let tag = "<img src=\"" + output + "\" alt=\"banner\" width=\"100%\" />"
+    let marker = "<!-- banner -->"
+
+    if contains(content, marker) {
+      // Replace between markers
+      let parts = split(content, marker)
+      if len(parts) >= 3 {
+        let updated = parts[0] + marker + "
+" + tag + "
+" + marker + parts[2]
+        write_file(readme, updated)
+        print "Injected banner between <!-- banner --> markers in" readme
+        return null
+      }
+    }
+
+    // No marker — prepend to file
+    let updated = "<div align=\"center\">
+" + tag + "
+</div>
+
+" + content
+    write_file(readme, updated)
+    print "Prepended banner to" readme
+  } catch (err) {
+    print "Inject failed:" err
+  }
+}
+
+if len(args) == 0 {
+  show_help()
+} else if args[0] == "help" {
+  show_help()
+} else if len(args) < 2 {
+  print "Missing arguments."
+  show_help()
+} else {
+  let title = args[0]
+  let output = args[1]
+  let options = parse_options()
+
+  try {
+    draw_banner(title, output, options)
+
+    if options["inject"] != null {
+      inject_banner(options["inject"], output)
+    }
+  } catch (err) {
+    print "Banner generation failed:" err
+  }
+}

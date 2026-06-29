@@ -1,13 +1,14 @@
-/* scaffold_project.sesi
- A Sesi project scaffolder that creates a self-contained Sesi project.
+/*
+  A Sesi project scaffolder that creates a self-contained Sesi project.
+ 
  Usage:
-  sesi scaffold.sesi [target_folder_name] [-rm] [-no-install] [optional_file_to_copy]
+  sesi -l scaffold.sesi [target_folder_name] [-rm] [-no-install] [optional_file_to_copy]
 
   -rm: Removes the target folder if it exists (uses trash functionality)
   -no-install: Skips the npm install step
   optional_file_to_copy: Copies the specified file into the target folder
 
-  Or simply run `sesi scaffold.sesi` and it will prompt you for the rest.
+  Or simply run `sesi -l scaffold.sesi` and it will prompt you for the rest.
 */
 
 allow "std/time" in with Time

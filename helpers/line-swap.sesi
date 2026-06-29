@@ -1,0 +1,254 @@
+/*
+    Line-by-line text swap helper for files.
+
+    Reads a file, iterates every line, and replaces all occurrences
+    of a target string on each matching line with a replacement string.
+    Optionally limits swaps to a specific line range or reports a dry run.
+
+Usage:
+    sesi helpers/line-swap.sesi <path> <from> <to>
+    sesi helpers/line-swap.sesi <path> <from> <to> --dry-run
+    sesi helpers/line-swap.sesi <path> <from> <to> --lines <start> <end>
+    sesi helpers/line-swap.sesi <path> <from> <to> --backup
+    sesi helpers/line-swap.sesi help
+
+Examples:
+    sesi helpers/line-swap.sesi src/main.sesi "let debug = true" "let debug = false"
+    sesi helpers/line-swap.sesi README.md "v1.0" "v2.0" --dry-run
+    sesi helpers/line-swap.sesi app.sesi "old_fn" "new_fn" --lines 10 50
+    sesi helpers/line-swap.sesi config.sesi "staging" "production" --backup
+*/
+
+fn show_help() {
+  print "line-swap.sesi — line-by-line text swap helper"
+  print ""
+  print "Usage:"
+  print "  sesi helpers/line-swap.sesi <path> <from> <to>"
+  print "  sesi helpers/line-swap.sesi <path> <from> <to> --dry-run"
+  print "  sesi helpers/line-swap.sesi <path> <from> <to> --lines <start> <end>"
+  print "  sesi helpers/line-swap.sesi <path> <from> <to> --backup"
+  print "  sesi helpers/line-swap.sesi <path> <from> <to> --exact"
+  print ""
+  print "Options:"
+  print "  --dry-run        Preview changes without writing to disk"
+  print "  --lines N M      Only swap within line range N to M (1-indexed, inclusive)"
+  print "  --backup         Archive the original file before overwriting"
+  print "  --exact          Skip matches where the next character is alphanumeric or _ (avoids substring collisions)"
+  print ""
+  print "Examples:"
+  print "  sesi helpers/line-swap.sesi src/main.sesi \"let debug = true\" \"let debug = false\""
+  print "  sesi helpers/line-swap.sesi README.md \"v1.0\" \"v2.0\" --dry-run"
+  print "  sesi helpers/line-swap.sesi app.sesi \"old_fn\" \"new_fn\" --lines 10 50"
+  print "  sesi helpers/line-swap.sesi config.sesi \"staging\" \"production\" --backup"
+}
+
+let word_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+
+fn is_word_char(c: str) -> bool {
+  return contains(word_chars, c)
+}
+
+fn exact_swap(line: str, from_text: str, to_text: str) -> str {
+  let result = ""
+  let remaining = line
+  let from_len = len(from_text)
+
+  let searching = true
+  while searching {
+    let idx = locate(remaining, from_text)
+    if idx == -1 {
+      result = result + remaining
+      searching = false
+    } else {
+      let after_idx = idx + from_len
+      let after_char = ""
+      if after_idx < len(remaining) {
+        after_char = slice(remaining, after_idx, after_idx + 1)
+      }
+
+      if after_char != "" {
+        if is_word_char(after_char) {
+          result = result + slice(remaining, 0, after_idx)
+          remaining = slice(remaining, after_idx, len(remaining))
+        } else {
+          result = result + slice(remaining, 0, idx) + to_text
+          remaining = slice(remaining, after_idx, len(remaining))
+        }
+      } else {
+        result = result + slice(remaining, 0, idx) + to_text
+        remaining = slice(remaining, after_idx, len(remaining))
+      }
+    }
+  }
+  return result
+}
+
+fn parse_options() {
+  let options = {
+    "dry_run": false,
+    "backup": false,
+    "exact": false,
+    "line_start": null,
+    "line_end": null
+  }
+
+  let i = 3
+  while i < len(args) {
+    let key = args[i]
+
+    if key == "--dry-run" {
+      options["dry_run"] = true
+      i = i + 1
+    } else if key == "--exact" {
+      options["exact"] = true
+      i = i + 1
+    } else if key == "--backup" {
+      options["backup"] = true
+      i = i + 1
+    } else if key == "--lines" {
+      if i + 2 < len(args) {
+        options["line_start"] = num(args[i + 1])
+        options["line_end"] = num(args[i + 2])
+        i = i + 3
+      } else {
+        print "Missing values for --lines <start> <end>"
+        i = i + 1
+      }
+    } else {
+      print "Ignoring unknown option:" key
+      i = i + 1
+    }
+  }
+
+  return options
+}
+
+fn in_range(line_number: num, options) -> bool {
+  if options["line_start"] == null {
+    return true
+  }
+
+  if line_number < options["line_start"] {
+    return false
+  }
+
+  if options["line_end"] != null {
+    if line_number > options["line_end"] {
+      return false
+    }
+  }
+
+  return true
+}
+
+fn read_text(path: str) {
+  try {
+    return read_file(path)
+  } catch (err) {
+    print "Read failed for" path ":" err
+    return null
+  }
+}
+
+fn write_text(path: str, text: str) -> bool {
+  try {
+    write_file(path, text)
+    return true
+  } catch (err) {
+    print "Write failed for" path ":" err
+    return false
+  }
+}
+
+fn run_swap(path: str, from_text: str, to_text: str, options) {
+  let text = read_text(path)
+
+  if text == null {
+    return null
+  }
+
+  let lines = split(text, "
+")
+
+  let updated_lines = []
+  let swap_count = 0
+  let line_number = 1
+
+  for line in lines {
+    if in_range(line_number, options) {
+      if contains(line, from_text) {
+        let new_line = ""
+        if options["exact"] {
+          new_line = exact_swap(line, from_text, to_text)
+        } else {
+          new_line = swap(line, from_text, to_text)
+        }
+
+        if new_line == line {
+          push(updated_lines, line)
+        } else {
+          push(updated_lines, new_line)
+
+          if options["dry_run"] {
+            print "[line " line_number "] -" line
+            print "[line " line_number "] +" new_line
+          }
+
+          swap_count = swap_count + 1
+        }
+      } else {
+        push(updated_lines, line)
+      }
+    } else {
+      push(updated_lines, line)
+    }
+
+    line_number = line_number + 1
+  }
+
+  if swap_count == 0 {
+    print "No matches found for:" from_text
+    return null
+  }
+
+  print "Lines matched:" swap_count
+
+  if options["dry_run"] {
+    print "[dry-run] No changes written to" path
+    return null
+  }
+
+  if options["backup"] {
+    try {
+      archive(path)
+      print "Backup saved for" path
+    } catch (err) {
+      print "Backup failed:" err
+    }
+  }
+
+  let result = join(updated_lines, "
+")
+
+  let ok = write_text(path, result)
+
+  if ok {
+    print "Done. Saved:" path
+  }
+}
+
+if len(args) == 0 {
+  show_help()
+} else if args[0] == "help" {
+  show_help()
+} else if len(args) < 3 {
+  print "Missing arguments."
+  show_help()
+} else {
+  let path = args[0]
+  let from_text = args[1]
+  let to_text = args[2]
+  let options = parse_options()
+
+  run_swap(path, from_text, to_text, options)
+}
