@@ -8,7 +8,7 @@
     - Searches and replaces in three locations:
         1. All .js files in the /bin directory (compiled outputs).
         2. All .md files in the /docs directory (documentation).
-        3. All .md files in the root directory (READMEs).
+        3. All .md and .sesi files in the root directory (READMEs).
 
 Usage:
     sesi -l helpers/version-bump.sesi
@@ -18,9 +18,15 @@ Usage:
 let srcDir1 = list_dir("bin")
 let srcDir2 = list_dir("docs")
 let rootDir = list_dir(".")
-print "srcDir1:" srcDir1
-print "srcDir2:" srcDir2
-print "rootDir:" rootDir
+print "srcDir1:
+" srcDir1 "
+"
+print "srcDir2:
+" srcDir2 "
+"
+print "rootDir:
+" rootDir "
+"
 
 print ""
 let fromVar = input("Enter version to swap from: ")
@@ -32,15 +38,12 @@ print ""
 
 for file in srcDir1 {
     try {
-        file = "bin/" + file
         let contents = ""
         if contains(file, ".js") {
+            file = "bin/" + file
             contents = read_file(file)
             print "Successfully loaded" file
         } else {
-            print "Skipping file:" file
-            print "Reason: " file " does not contain .js"
-            print ""
             continue
         }
         let newContents = ""
@@ -67,9 +70,6 @@ for file in srcDir2 {
             contents = read_file(file)
             print "Successfully loaded" file
         } else {
-            print "Skipping file:" file
-            print "Reason: " file " does not contain .md"
-            print ""
             continue
         }
         let newContents = ""
@@ -91,13 +91,11 @@ for file in srcDir2 {
 for file in rootDir {
     try {
         let contents = ""
-        if contains(file, ".md") {
+        if contains(file, ".md") || contains(file, ".sesi") {
+            file = "./" + file
             contents = read_file(file)
             print "Successfully loaded" file
         } else {
-            print "Skipping file:" file
-            print "Reason: " file " does not contain .md"
-            print ""
             continue
         }
         let newContents = ""
@@ -108,7 +106,7 @@ for file in rootDir {
             print ""
         } else {
             print "Skipping file:" file
-            print "Reason: " file " already up to date."
+            print "Reason: " file " already up to date or doesn't contain " fromVar " at all."
             print ""
         }
     } catch(e) {
