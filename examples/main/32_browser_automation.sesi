@@ -1,0 +1,80 @@
+/*
+    Example 32: Browser Automation & Web Scraping with std/browser
+
+    Demonstrates:
+        1. Launching a headless Chromium browser.
+        2. Navigating to Hacker News (news.ycombinator.com) and scraping the top stories.
+        3. Executing in-browser JavaScript with evaluate() to extract structured data.
+        4. Navigating to Wikipedia, interacting with search inputs, and submitting queries.
+        5. Taking a screenshot of the search results page.
+
+    NOTE: Since std/browser interacts with the system, you must run this script 
+          with safe mode disabled:
+          
+          sesi examples/main/32_browser_automation.sesi -l
+*/
+
+print "=== Sesi Web Scraping & Browser Automation ==="
+
+allow "std/browser" in with Browser
+
+print "Launching headless Chromium browser..."
+let browser = Browser.launch({"headless": true})
+let page = browser.newPage()
+
+// Part 1: Scrape Hacker News
+print ""
+print "1. Scraping top stories from Hacker News..."
+page.goto("https://news.ycombinator.com")
+
+let jsQuery = "Array.from(document.querySelectorAll('.titleline > a')).slice(0, 5).map(a => ({ 'title': a.innerText, 'url': a.href }))"
+let stories = page.evaluate(jsQuery)
+
+print "Top 5 Stories on Hacker News:"
+let file = ""
+fn append_stories(file, stories) {
+    for story in stories {
+        let title = "### Title: " + story["title"] + "\n"
+        let url = " URL: " + story["url"] + "\n\n"
+        file = file + title + "\n" + url
+    }
+    return file
+}
+file = append_stories(file, stories)
+
+try {
+    write_file("scraper-results.md", file)
+    print "Scraped result and saved to scraper-results.md"
+} catch (e) {
+    print "Failed to write file:" e
+}
+
+// Part 2: Search on Wikipedia
+print ""
+print "2. Searching Wikipedia for 'Software engineering'..."
+page.goto("https://en.wikipedia.org")
+
+// Type query into the search input box
+page.fill("input[name='search']", "Software engineering")
+
+// Press Enter to submit the search
+page.press("input[name='search']", "Enter")
+
+// Wait for the search results page to load
+page.wait_for_timeout(1000)
+
+let wikiTitle = page.title()
+print "Search Result Page Title: " wikiTitle
+
+// Capture screenshot of the results
+print "Capturing page screenshot..."
+page.screenshot({"path": "wiki_search.png"})
+print "Saved screenshot to wiki_search.png"
+
+// Clean up
+print ""
+print "Closing browser session..."
+page.close()
+browser.close()
+
+print "Done!"

@@ -72,6 +72,41 @@ Testing in Sesi involves both internal TypeScript testing and Sesi script execut
    sesi main/tests/test_syntax.sesi
    ```
 
+## Creating & Importing Third-Party Sesi Libraries
+
+Sesi has built-in support for sharing and importing third-party libraries using a git-centric, zero-registry package system.
+
+### 1. Sesi Package Structure
+To build a Sesi library that can be imported by other developers:
+- **Entry point**: Your repository must expose one of these two main entry points in the root directory:
+  - `index.sesi` (Recommended)
+  - `main.sesi`
+- **Exports**: Ensure all variables, configurations, or functions you wish to share are marked with the `export` keyword:
+  ```sesi
+  export let lib_version = "1.0.0"
+  export fn compute(val) {
+    return val * 10
+  }
+  ```
+
+### 2. Hosting & Versioning
+Since Sesi uses direct Git resolution:
+1. Publish your library source code to a public Git repository (e.g. GitHub).
+2. Create Git tags or releases (e.g., `v1.0.0`, `v1.1.0`) so users can pin specific versions of your library.
+
+### 3. Installing & Importing Packages
+Developers can import your library inside their projects as follows:
+- **Install**:
+  ```bash
+  sesi install github:username/repo#v1.0.0
+  ```
+  This creates/updates `sesi.json` and extracts the library into `sesi_modules/repo`.
+- **Import**:
+  ```sesi
+  allow "repo" in with MyLib
+  print MyLib.compute(42)
+  ```
+
 ## Submitting a Pull Request
 
 1. Fork the repository and create your branch from `main`.

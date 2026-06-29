@@ -182,6 +182,49 @@ let ws = api(8989, handleMessage)
 ws.close()
 ```
 
+## Browser Automation — `std/browser`
+
+For complex web pages that require rendering JavaScript, clicking buttons, filling forms, taking screenshots, or exporting to PDF, import the `std/browser` library. Sesi uses Playwright under the hood:
+
+```sesi
+allow "std/browser" in with {launch}
+
+// Open browser in headless mode
+let browser = launch({"headless": true})
+let page = browser.newPage()
+
+// Navigate to the target page
+page.goto("https://example.com")
+
+// Get the page title
+let title = page.title()
+print "Title is:" title
+
+// Click a button/link
+page.click("a")
+
+// Retrieve inner text
+let heading = page.inner_text("h1")
+
+// Retrieve attributes
+let url = page.attribute("a", "href")
+
+// Evaluate JavaScript inside the browser context
+let height = page.evaluate("document.body.scrollHeight")
+
+// Take a base64 screenshot or save it to a file
+page.screenshot({"path": "screenshot.png"})
+
+// Export the page as a PDF
+page.pdf({"path": "output.pdf", "format": "A4"})
+
+// Close browser
+browser.close()
+```
+
+> [!NOTE]
+> `std/browser` requires Sesi to run in local/unsafe mode (pass the `-l` or `--local` flag to `sesi`).
+
 ---
 
 ## Quick Reference
@@ -213,6 +256,14 @@ http.close()
 fn onMsg(client, msg) { client.send("Echo: " + msg) }
 let ws = api(8989, onMsg)
 ws.close()
+
+// Browser Automation (requires -l)
+allow "std/browser" in with {launch}
+let browser = launch({"headless": true})
+let page = browser.newPage()
+page.goto("https://example.com")
+print page.title()
+browser.close()
 ```
 
 ---

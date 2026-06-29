@@ -6,10 +6,13 @@ Usage:
 */
 
 allow "std/time" in with Time
+allow "std/browser" in with Browser
+let currentTime = Time.format(Time.now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "short"})
 
 // Ensure reports directory exists
 let outputDir = "reports"
-if list_dir(outputDir) == "" {
+let existing = list_dir(outputDir)
+if type(existing) == "null" {
   make_dir(outputDir)
 }
 
@@ -42,24 +45,63 @@ if !isValid {
   raise_error("ValidationError", "Invalid URL scheme")
 }
 
-print "🌐 Fetching webpage content from:" target_url
-let html = ""
+print "🌐 Fetching webpage and extracting metadata via browser automation from:" target_url
+let result = {}
 try {
-  html = web_get(target_url)
+  let browser = Browser.launch({"headless": true})
+  let page = browser.newPage()
+  page.goto(target_url)
+  page.wait_for_timeout(1000)
+
+  // Extract all details directly from the page context using browser APIs
+  let extractScript = "(() => {
+    const descMeta = document.querySelector('meta[name=\"description\"]') || document.querySelector('meta[property=\"og:description\"]');
+    let siteTopic = descMeta ? descMeta.getAttribute('content') : '';
+    if (siteTopic === '') {
+      siteTopic = 'News and General Content';
+    }
+
+    // Extract headlines
+    let elements = Array.from(document.querySelectorAll('h1, h2, h3, .titleline > a, .storylink'));
+    let headlines = Array.from(new Set(
+      elements.map(el => el.innerText.trim()).filter(t => t.length > 10)
+    )).slice(0, 10);
+
+    if (headlines.length === 0) {
+      headlines = [document.title];
+    }
+
+    // Extract paragraphs/content
+    let pElements = Array.from(document.querySelectorAll('p, td.title, .entry-content')).slice(0, 5);
+    let keyContent = pElements.map(p => p.innerText.trim()).filter(t => t.length > 20).join('\\n\\n').slice(0, 1000);
+    if (keyContent === '') {
+      keyContent = 'No key content paragraphs found.';
+    }
+
+    let highlights = headlines[0] || 'No headlines found.';
+
+    return {
+      'pageTitle': document.title || 'Untitled Page',
+      'siteTopic': siteTopic,
+      'headlines': headlines,
+      'keyContent': keyContent,
+      'highlights': highlights
+    };
+  })()"
+
+  result = page.evaluate(extractScript)
+  let cleanPath = swap(target_url, "https://", "")
+  page.screenshot({"path": outputDir + "/" + cleanPath + currentTime + "-screenshot.png"})
+  page.close()
+  browser.close()
 } catch (e) {
   print "❌ Failed to retrieve page content:" e
   raise_error("NetworkError", "Failed to retrieve webpage content")
 }
 
-print "🧠 Parsing HTML and extracting structured data..."
-let result = structured_output({pageTitle: string, siteTopic: string, headlines: array<string>, keyContent: string, highlights: string})(model("gemini-3.1-flash-lite") {temperature: 0.1} {"Extract the pageTitle, primary siteTopic, a list of headlines (as array of strings), key content, and highlights from: " html})
-
 let pageTitle = result["pageTitle"]
 let siteTopic = result["siteTopic"]
 let headlines = result["headlines"]
-if type(headlines) == "string" {
-  headlines = split(headlines, "; ")
-}
 let keyContent = result["keyContent"]
 let highlights = result["highlights"]
 
@@ -73,7 +115,7 @@ let outputData = {
   "url": target_url,
   "pageTitle": pageTitle,
   "siteTopic": siteTopic,
-  "scrapedAt": format(Time.now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "short"}),
+  "scrapedAt": currentTime,
   "headlines": headlines,
   "keyContent": keyContent,
   "highlights": highlights

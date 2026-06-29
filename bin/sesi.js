@@ -20,7 +20,7 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.5.9
+Sesi Programming Language v1.6.0
 
 Usage:
   sesi <file> [options] <args>  Run a Sesi program
@@ -38,6 +38,8 @@ Usage:
   sesi --tokens <file>   Show the tokens of a file
   sesi -b <file>         Run via bytecode VM
   sesi -bd <file>        Print disassembled bytecode
+  sesi install           Install all dependencies listed in sesi.json
+  sesi install <pkg>     Install a third-party package (e.g. github:owner/repo)
 
   Options:
   -v --version           Show version
@@ -60,6 +62,17 @@ Usage:
 `;
 
 function parseArgs(args) {
+  if (args[0] === 'install') {
+    return {
+      install: true,
+      installPackage: args[1],
+      sesiOptions: {
+        safeMode: false,
+        allowedPaths: [process.cwd()]
+      }
+    };
+  }
+
   const options = {
     file: null,
     eval: null,
@@ -83,7 +96,7 @@ function parseArgs(args) {
     const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
 
     if (arg === '-v' || arg === '--version') {
-      console.log('Sesi v1.5.9');
+      console.log('Sesi v1.6.0');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -155,7 +168,7 @@ async function startRepl() {
 
   const interpreter = new Interpreter(process.cwd(), parsed.sesiOptions);
 
-  console.log('Sesi Interactive REPL (v1.5.9)');
+  console.log('Sesi Interactive REPL (v1.6.0)');
   console.log('Type ".exit" or press Ctrl+C to exit.');
 
   const rl = readline.createInterface({
@@ -204,6 +217,15 @@ async function startRepl() {
 const parsed = parseArgs(args);
 
 async function main() {
+  if (parsed.install) {
+    const { runInstall } = require('../dist/index.js');
+    await runInstall(parsed.installPackage).catch((error) => {
+      console.error('Package installation failed:', error.message);
+      process.exit(1);
+    });
+    return;
+  }
+
   if (parsed.studio) {
     const studioServerPath = path.join(__dirname, '..', 'sesi-studio', 'studio.sesi');
     if (fs.existsSync(studioServerPath)) {

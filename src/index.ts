@@ -8,6 +8,7 @@ export { Environment } from './types';
 export { Compiler } from './compiler';
 export { VM } from './vm';
 export { disassemble } from './chunk';
+export { runInstall } from './pm';
 import { Lexer } from './lexer';
 import { Parser } from './parser';
 import { Interpreter } from './interpreter';

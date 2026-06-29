@@ -226,6 +226,44 @@ async function main() {
     console.error(`  ✗ allow named function imports validation failed: piVal9=${piVal9}, sVal9=${sVal9}`);
   }
 
+  // Test 10: Third-Party Directory Module Resolution in sesi_modules
+  const localModulesDir = path.resolve(process.cwd(), 'sesi_modules');
+  const tempPkgDir = path.join(localModulesDir, 'temp_test_pkg');
+  
+  if (!fs.existsSync(localModulesDir)) {
+    fs.mkdirSync(localModulesDir, { recursive: true });
+  }
+  if (!fs.existsSync(tempPkgDir)) {
+    fs.mkdirSync(tempPkgDir, { recursive: true });
+  }
+  fs.writeFileSync(path.join(tempPkgDir, 'index.sesi'), `
+    export let pkg_name = "test-pkg"
+    export fn double_value(x) { return x * 2 }
+  `, 'utf-8');
+
+  try {
+    const int10 = new Interpreter();
+    await runTest('Import third-party directory module from sesi_modules', `
+      allow "temp_test_pkg" in with Pkg
+      let doubleVal = Pkg.double_value(10)
+      let nameVal = Pkg.pkg_name
+    `, int10);
+    
+    const doubleVal = (int10 as any).currentEnv.get('doubleVal');
+    const nameVal = (int10 as any).currentEnv.get('nameVal');
+    if (doubleVal === 20 && nameVal === 'test-pkg') {
+      console.log('  ✓ Third-party directory module resolved and executed successfully');
+    } else {
+      console.error(`  ✗ Third-party directory module validation failed: doubleVal=${doubleVal}, nameVal=${nameVal}`);
+    }
+  } finally {
+    if (fs.existsSync(tempPkgDir)) {
+      try {
+        fs.rmSync(tempPkgDir, { recursive: true, force: true });
+      } catch (e) {}
+    }
+  }
+
   console.log('\nAll module tests passed!');
 }
 

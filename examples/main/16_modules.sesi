@@ -41,3 +41,13 @@ allow "main/tests/temp_math_mod" in with LocalMath
 
 print "Imported magic number from local module:" str(LocalMath.magic_number)
 print "Running imported multiply(5, 5):" str(LocalMath.multiply(5, 5))
+
+print "=== 5. Third-Party Modules & Sesi Packages ==="
+
+/* Sesi supports downloading and importing third-party packages from Git.
+To install a package, run:
+    sesi install github:owner/repo
+The package will be installed in `sesi_modules/repo`.
+You can then import it like standard local modules: */
+
+// allow "repo" in with MyRepo

@@ -90,14 +90,55 @@ print JSON.parse("[1,2,3]")
 
 ## Module Resolution Order
 
-When you import `"mymodule"`, Sesi searches for `mymodule.sesi` in this order:
+When you import `"mymodule"`, Sesi searches for `mymodule.sesi` (or the folder `mymodule` for directory modules) in this order:
 
 | Priority | Location                  | Description                                                           |
 | -------- | ------------------------- | --------------------------------------------------------------------- |
 | 1        | Script's own directory    | Same folder as the running `.sesi` file                               |
 | 2        | Current working directory | Where you ran `sesi` from                                             |
-| 3        | `SESI_PATH`               | Colon-separated (Unix) or semicolon-separated (Windows) list of paths |
-| 4        | `~/.sesi/lib`             | Global shared library, available system-wide                          |
+| 3        | `sesi_modules/`           | Project third-party dependencies directory                            |
+| 4        | `SESI_PATH`               | Colon-separated (Unix) or semicolon-separated (Windows) list of paths |
+| 5        | `~/.sesi/lib`             | Global shared library, available system-wide                          |
+
+---
+
+## Third-Party Package Management
+
+Sesi features a built-in, git-centric package manager to install and share reusable libraries. Packages are stored inside a local `sesi_modules` directory in your project.
+
+### Project Manifest (`sesi.json`)
+
+To track dependencies, Sesi uses a simple `sesi.json` file in the root of your project:
+
+```json
+{
+  "name": "my-project",
+  "version": "1.0.0",
+  "dependencies": {
+    "http-router": "github:sesi-lang/http-router#v1.0.0"
+  }
+}
+```
+
+### Installation Commands
+
+- **Install a specific package**:
+  ```bash
+  sesi install github:owner/repo[#ref]
+  ```
+  This downloads the package from GitHub, extracts it to `sesi_modules/repo`, and registers it inside `sesi.json`. You can specify branch names, tag names, or commit hashes using `#ref`.
+
+- **Restore all dependencies**:
+  ```bash
+  sesi install
+  ```
+  This reads your `sesi.json` and restores all dependencies into `sesi_modules/`.
+
+### Directory Modules & Entry Points
+
+When you import a third-party package folder (e.g. `allow "repo" in with Repo`), Sesi automatically resolves the module's entry point. It checks the directory for:
+1. `sesi_modules/<package-name>/index.sesi`
+2. `sesi_modules/<package-name>/main.sesi`
 
 ---
 

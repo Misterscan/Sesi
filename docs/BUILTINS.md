@@ -1429,7 +1429,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.5.9"
+  "version": "1.6.0"
 }
 print Json.stringify(original)
 ```
@@ -1455,6 +1455,122 @@ users.find(query_object?) -> Returns array of matching documents (returns all if
 users.update(query_object, update_object) -> Returns number of updated documents
 users.delete(query_object) -> Returns number of deleted documents */
 ```
+### std/browser
+
+Includes Sesi's browser automation capabilities powered by Playwright: `launch(options?)`.
+A browser instance supports opening new pages. A page instance supports navigation, selector actions, JavaScript evaluation, base64 screenshot and PDF generation.
+
+```sesi
+allow "std/browser" in with {launch}
+
+// Launch browser (headless or headed)
+let browser = launch({"headless": true})
+
+// Open a new page/tab
+let page = browser.newPage()
+
+// Navigate to a website
+page.goto("https://example.com")
+
+// Get the page title
+let title = page.title()
+print "Title:" title
+
+// Get inner text of a selector
+let heading = page.inner_text("h1")
+print "Heading:" heading
+
+// Get an attribute of an element
+let link_href = page.attribute("a", "href")
+
+// Evaluate JavaScript on the page
+let scrollX = page.evaluate("window.scrollX")
+
+// Take a base64 screenshot
+let b64_screenshot = page.screenshot()
+
+// Take a screenshot and save it to a file
+page.screenshot({"path": "screenshot.png", "fullPage": true})
+
+// Generate PDF (base64 and saved to file)
+page.pdf({"path": "page.pdf", "format": "A4"})
+
+// Wait for a selector
+page.wait_for_selector("h1", {"state": "visible", "timeout": 5000})
+
+// Wait for a specific timeout in milliseconds
+page.wait_for_timeout(1000)
+
+// Clean up
+page.close()
+browser.close()
+```
+
+#### API Reference:
+
+##### `launch(options)` -> `browser`
+Launches a browser instance. `options` is an object with:
+- `headless` (`bool`, optional): Whether to run browser in headless mode. Defaults to `true`.
+
+##### `browser.newPage()` -> `page`
+Creates a new page/tab.
+
+##### `browser.close()`
+Closes the browser instance.
+
+##### `page.goto(url)`
+Navigates to the specified URL.
+
+##### `page.content()` -> `string`
+Gets the full HTML content of the page.
+
+##### `page.screenshot(options?)` -> `string` (base64)
+Takes a screenshot of the page. Returns a base64 encoded string.
+`options` is an optional object containing:
+- `path` (`string`): File path to save the screenshot.
+- `fullPage` (`bool`): Whether to capture the full scrollable page.
+
+##### `page.click(selector)`
+Clicks the element matching the selector.
+
+##### `page.fill(selector, value)`
+Fills the input matching the selector with the specified value.
+
+##### `page.type(selector, value)`
+Types the specified value into the element matching the selector.
+
+##### `page.press(selector, key)`
+Presses the specified key on the element matching the selector.
+
+##### `page.inner_text(selector)` -> `string`
+Gets the inner text of the element matching the selector.
+
+##### `page.attribute(selector, name)` -> `string`
+Gets the value of the attribute `name` of the element matching the selector.
+
+##### `page.evaluate(script)` -> `any`
+Evaluates a JavaScript script/expression in the page context and returns the result.
+
+##### `page.title()` -> `string`
+Gets the page title.
+
+##### `page.close()`
+Closes the page.
+
+##### `page.pdf(options?)` -> `string` (base64)
+Generates a PDF of the page. Returns a base64 encoded string.
+`options` is an optional object containing:
+- `path` (`string`): File path to save the PDF.
+- `format` (`string`): Paper format (e.g. `"A4"`, `"Letter"`).
+
+##### `page.wait_for_selector(selector, options?)`
+Waits for the element matching the selector to satisfy the options.
+`options` is an optional object containing:
+- `state` (`string`): Wait for state (`"attached"`, `"detached"`, `"visible"`, `"hidden"`).
+- `timeout` (`number`): Timeout in milliseconds.
+
+##### `page.wait_for_timeout(ms)`
+Waits for the specified duration in milliseconds.
 
 ---
 

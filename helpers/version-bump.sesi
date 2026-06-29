@@ -1,0 +1,117 @@
+/*
+    VERSION BUMP SCRIPT
+
+    Purpose: Automatically updates version numbers across the project.
+
+    - Must be run in the root directory of the repository.
+    - Prompts for the version to replace (FROM) and the new version (TO).
+    - Searches and replaces in three locations:
+        1. All .js files in the /bin directory (compiled outputs).
+        2. All .md files in the /docs directory (documentation).
+        3. All .md files in the root directory (READMEs).
+
+Usage:
+    sesi -l helpers/version-bump.sesi
+    Enter old version when prompted, then new version when prompted)
+*/
+
+let srcDir1 = list_dir("bin")
+let srcDir2 = list_dir("docs")
+let rootDir = list_dir(".")
+print "srcDir1:" srcDir1
+print "srcDir2:" srcDir2
+print "rootDir:" rootDir
+
+print ""
+let fromVar = input("Enter version to swap from: ")
+let toVar = input("Enter version to swap to: ")
+print "================"
+print "Starting swap..."
+print "================"
+print ""
+
+for file in srcDir1 {
+    try {
+        file = "bin/" + file
+        let contents = ""
+        if contains(file, ".js") {
+            contents = read_file(file)
+            print "Successfully loaded" file
+        } else {
+            print "Skipping file:" file
+            print "Reason: " file " does not contain .js"
+            print ""
+            continue
+        }
+        let newContents = ""
+        if contains(contents, fromVar) {
+            newContents = swap(contents, fromVar, toVar)
+            write_file(file, newContents)
+            print "Swapped " fromVar " to " toVar " in " file
+            print ""
+        } else {
+            print "Skipping file:" file
+            print "Reason: " file " already up to date."
+            print ""
+        }
+    } catch(e) {
+        print "An error occured:" e
+    }
+}
+
+for file in srcDir2 {
+    try {
+        file = "docs/" + file
+        let contents = ""
+        if contains(file, ".md") {
+            contents = read_file(file)
+            print "Successfully loaded" file
+        } else {
+            print "Skipping file:" file
+            print "Reason: " file " does not contain .md"
+            print ""
+            continue
+        }
+        let newContents = ""
+        if contains(contents, fromVar) {
+            newContents = swap(contents, fromVar, toVar)
+            write_file(file, newContents)
+            print "Swapped " fromVar " to " toVar " in " file
+            print ""
+        } else {
+            print "Skipping file:" file
+            print "Reason: " file " already up to date."
+            print ""
+        }
+    } catch(e) {
+        print "An error occured:" e
+    }
+}
+
+for file in rootDir {
+    try {
+        let contents = ""
+        if contains(file, ".md") {
+            contents = read_file(file)
+            print "Successfully loaded" file
+        } else {
+            print "Skipping file:" file
+            print "Reason: " file " does not contain .md"
+            print ""
+            continue
+        }
+        let newContents = ""
+        if contains(contents, fromVar) {
+            newContents = swap(contents, fromVar, toVar)
+            write_file(file, newContents)
+            print "Swapped " fromVar " to " toVar " in " file
+            print ""
+        } else {
+            print "Skipping file:" file
+            print "Reason: " file " already up to date."
+            print ""
+        }
+    } catch(e) {
+        print "An error occured:" e
+    }
+}

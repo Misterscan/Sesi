@@ -148,7 +148,7 @@
 
 - [x] import/export statements
 - [x] Standard library modules (std/math, std/time, etc.)
-- [ ] Third-party package management
+- [x] Third-party package management
 - [x] Lib support
 
 ### Tooling

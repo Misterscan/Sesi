@@ -1,0 +1,78 @@
+/*
+    TEST SCRIPT: verify_browser.sesi
+
+    Purpose: Runs automated tests to verify the built-in browser automation module.
+    Dependencies: Requires 'test-runner.sesi' for assertion functions.
+
+  Usage:
+    node bin/sesi.js -l main/tests/verify_browser.sesi
+*/
+
+allow "test-runner" in with {
+  assert_equals,
+  assert_not_null,
+  run_test_suite
+}
+allow "std/browser" in with {launch}
+
+print "Starting verification tests for Sesi Browser Automation..."
+
+let results = []
+
+// Test 1: Launch browser
+let browser = launch({"headless": true})
+let res1 = assert_not_null(browser, "Browser launch returns a valid browser object")
+push(results, res1)
+
+// Test 2: Create a new page
+let page = browser.newPage()
+let res2 = assert_not_null(page, "browser.newPage() returns a page object")
+push(results, res2)
+
+// Test 3: Navigate and check title
+page.goto("https://example.com")
+let title = page.title()
+let res3 = assert_equals(title, "Example Domain", "page.title() returns correct page title")
+push(results, res3)
+
+// Test 4: Get page content
+let content = page.content()
+let containsTitle = contains(content, "Example Domain")
+let res4 = assert_equals(containsTitle, true, "page.content() contains page text")
+push(results, res4)
+
+// Test 5: Inner text of an element
+let heading = page.inner_text("h1")
+let res5 = assert_equals(heading, "Example Domain", "page.inner_text() returns text of h1 element")
+push(results, res5)
+
+// Test 6: Attribute of an element
+let link_href = page.attribute("a", "href")
+let res6 = assert_equals(link_href, "https://iana.org/domains/example", "page.attribute() retrieves href attribute of links")
+push(results, res6)
+
+// Test 7: Evaluate JS
+let scrollX = page.evaluate("window.scrollX")
+let res7 = assert_equals(scrollX, 0, "page.evaluate() executes JS and returns result")
+push(results, res7)
+
+// Test 8: Screenshot base64
+let screenshot_b64 = page.screenshot()
+let is_base64 = len(screenshot_b64) > 100
+let res8 = assert_equals(is_base64, true, "page.screenshot() returns a non-empty base64 string")
+push(results, res8)
+
+// Test 9: Close page and browser
+page.close()
+browser.close()
+let res9 = assert_equals(true, true, "browser/page clean up executed successfully")
+push(results, res9)
+
+// Run the suite
+let success = run_test_suite("Sesi Built-in Browser Module", results)
+
+if success {
+  print "Browser verification passed."
+} else {
+  raise_error("TestFailure", "One or more browser verification assertions failed.")
+}

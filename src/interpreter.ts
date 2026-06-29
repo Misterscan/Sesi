@@ -106,7 +106,8 @@ export class Interpreter {
     const os = require('os');
 
     let filePath = source;
-    if (!filePath.endsWith('.sesi')) filePath += '.sesi';
+    const hasExtension = filePath.endsWith('.sesi');
+    if (!hasExtension) filePath += '.sesi';
 
     const searchDirs: string[] = [];
 
@@ -116,7 +117,10 @@ export class Interpreter {
     // 2. Current working directory
     searchDirs.push(process.cwd());
 
-    // 3. SESI_PATH environment variable (semicolon or colon separated)
+    // 3. Local third-party modules: ./sesi_modules
+    searchDirs.push(path.join(process.cwd(), 'sesi_modules'));
+
+    // 4. SESI_PATH environment variable (semicolon or colon separated)
     if (this.safeMode !== true) {
       const sesiPath = process.env.SESI_PATH || '';
       if (sesiPath) {
@@ -125,14 +129,32 @@ export class Interpreter {
       }
     }
 
-    // 4. Global library: ~/.sesi/lib
+    // 5. Global library: ~/.sesi/lib
     if (this.safeMode !== true) {
       searchDirs.push(path.join(os.homedir(), '.sesi', 'lib'));
     }
 
     for (const dir of searchDirs) {
-      const resolved = path.resolve(dir, filePath);
-      if (fs.existsSync(resolved)) return resolved;
+      // 1. Try directly as file
+      const resolvedFile = path.resolve(dir, filePath);
+      if (fs.existsSync(resolvedFile) && !fs.statSync(resolvedFile).isDirectory()) {
+        return resolvedFile;
+      }
+
+      // 2. If it did not have an extension, try resolving as a directory module
+      if (!hasExtension) {
+        const dirPath = path.resolve(dir, source);
+        if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+          const indexSesi = path.join(dirPath, 'index.sesi');
+          if (fs.existsSync(indexSesi) && !fs.statSync(indexSesi).isDirectory()) {
+            return indexSesi;
+          }
+          const mainSesi = path.join(dirPath, 'main.sesi');
+          if (fs.existsSync(mainSesi) && !fs.statSync(mainSesi).isDirectory()) {
+            return mainSesi;
+          }
+        }
+      }
     }
 
     return null;
@@ -2567,6 +2589,293 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           const absPath = ensureSafePath(stringify(filePath), this);
           fs.writeFileSync(absPath, svg);
           return true;
+        }
+      });
+      return exports;
+    } else if (source === 'std/browser') {
+      if (this.safeMode) {
+        throw new Error('Security Violation: std/browser is disabled in Sesi safe mode.');
+      }
+      const { chromium } = require('playwright');
+      
+      exports.set('launch', {
+        type: 'function',
+        name: 'launch',
+        params: [{ name: 'options', defaultValue: {} as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+          const rawOpts = args[0] as any;
+          const launchOptions: any = {};
+          if (rawOpts && typeof rawOpts === 'object' && !Array.isArray(rawOpts)) {
+            if (rawOpts.headless !== undefined) {
+              launchOptions.headless = isTruthy(rawOpts.headless);
+            }
+          }
+          const browser = await chromium.launch(launchOptions);
+          const browserObj: Record<string, RuntimeValue> = Object.create(null);
+          
+          browserObj.newPage = {
+            type: 'function',
+            name: 'newPage',
+            params: [],
+            body: {} as any,
+            closure: {} as any,
+            isBuiltin: true,
+            builtin: async (): Promise<RuntimeValue> => {
+              const page = await browser.newPage();
+              const pageObj: Record<string, RuntimeValue> = Object.create(null);
+              
+              pageObj.goto = {
+                type: 'function',
+                name: 'goto',
+                params: [{ name: 'url' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const url = stringify(pageArgs[0]);
+                  await page.goto(url);
+                  return null;
+                }
+              };
+              
+              pageObj.content = {
+                type: 'function',
+                name: 'content',
+                params: [],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (): Promise<RuntimeValue> => {
+                  return await page.content();
+                }
+              };
+
+              pageObj.screenshot = {
+                type: 'function',
+                name: 'screenshot',
+                params: [{ name: 'options', defaultValue: {} as any }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const opts = pageArgs[0] as any;
+                  const screenshotOptions: any = {};
+                  if (opts && typeof opts === 'object' && !Array.isArray(opts)) {
+                    if (opts.path) {
+                      screenshotOptions.path = ensureSafePath(stringify(opts.path), this);
+                    }
+                    if (opts.fullPage !== undefined) {
+                      screenshotOptions.fullPage = isTruthy(opts.fullPage);
+                    }
+                  }
+                  const buffer = await page.screenshot(screenshotOptions);
+                  return buffer.toString('base64');
+                }
+              };
+
+              pageObj.click = {
+                type: 'function',
+                name: 'click',
+                params: [{ name: 'selector' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const selector = stringify(pageArgs[0]);
+                  await page.click(selector);
+                  return null;
+                }
+              };
+
+              pageObj.fill = {
+                type: 'function',
+                name: 'fill',
+                params: [{ name: 'selector' }, { name: 'value' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const selector = stringify(pageArgs[0]);
+                  const val = stringify(pageArgs[1]);
+                  await page.fill(selector, val);
+                  return null;
+                }
+              };
+
+              pageObj.type = {
+                type: 'function',
+                name: 'type',
+                params: [{ name: 'selector' }, { name: 'value' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const selector = stringify(pageArgs[0]);
+                  const val = stringify(pageArgs[1]);
+                  await page.type(selector, val);
+                  return null;
+                }
+              };
+
+              pageObj.press = {
+                type: 'function',
+                name: 'press',
+                params: [{ name: 'selector' }, { name: 'key' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const selector = stringify(pageArgs[0]);
+                  const key = stringify(pageArgs[1]);
+                  await page.press(selector, key);
+                  return null;
+                }
+              };
+
+              pageObj.inner_text = {
+                type: 'function',
+                name: 'inner_text',
+                params: [{ name: 'selector' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const selector = stringify(pageArgs[0]);
+                  return await page.innerText(selector);
+                }
+              };
+
+              pageObj.attribute = {
+                type: 'function',
+                name: 'attribute',
+                params: [{ name: 'selector' }, { name: 'name' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const selector = stringify(pageArgs[0]);
+                  const name = stringify(pageArgs[1]);
+                  return await page.getAttribute(selector, name);
+                }
+              };
+
+              pageObj.evaluate = {
+                type: 'function',
+                name: 'evaluate',
+                params: [{ name: 'script' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const script = stringify(pageArgs[0]);
+                  const result = await page.evaluate(script);
+                  return stripPrototypes(result);
+                }
+              };
+
+              pageObj.title = {
+                type: 'function',
+                name: 'title',
+                params: [],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (): Promise<RuntimeValue> => {
+                  return await page.title();
+                }
+              };
+
+              pageObj.close = {
+                type: 'function',
+                name: 'close',
+                params: [],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (): Promise<RuntimeValue> => {
+                  await page.close();
+                  return null;
+                }
+              };
+
+              pageObj.pdf = {
+                type: 'function',
+                name: 'pdf',
+                params: [{ name: 'options', defaultValue: {} as any }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const opts = pageArgs[0] as any;
+                  const pdfOptions: any = {};
+                  if (opts && typeof opts === 'object' && !Array.isArray(opts)) {
+                    if (opts.path) {
+                      pdfOptions.path = ensureSafePath(stringify(opts.path), this);
+                    }
+                    if (opts.format) {
+                      pdfOptions.format = stringify(opts.format);
+                    }
+                  }
+                  const buffer = await page.pdf(pdfOptions);
+                  return buffer.toString('base64');
+                }
+              };
+
+              pageObj.wait_for_selector = {
+                type: 'function',
+                name: 'wait_for_selector',
+                params: [{ name: 'selector' }, { name: 'options', defaultValue: {} as any }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const selector = stringify(pageArgs[0]);
+                  const opts = pageArgs[1] as any;
+                  const waitOptions: any = {};
+                  if (opts && typeof opts === 'object' && !Array.isArray(opts)) {
+                    if (opts.state) waitOptions.state = stringify(opts.state);
+                    if (opts.timeout) waitOptions.timeout = Number(opts.timeout);
+                  }
+                  await page.waitForSelector(selector, waitOptions);
+                  return null;
+                }
+              };
+
+              pageObj.wait_for_timeout = {
+                type: 'function',
+                name: 'wait_for_timeout',
+                params: [{ name: 'ms' }],
+                body: {} as any,
+                closure: {} as any,
+                isBuiltin: true,
+                builtin: async (...pageArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+                  const ms = Number(pageArgs[0]) || 0;
+                  await page.waitForTimeout(ms);
+                  return null;
+                }
+              };
+
+              return pageObj;
+            }
+          };
+
+          browserObj.close = {
+            type: 'function',
+            name: 'close',
+            params: [],
+            body: {} as any,
+            closure: {} as any,
+            isBuiltin: true,
+            builtin: async (): Promise<RuntimeValue> => {
+              await browser.close();
+              return null;
+            }
+          };
+
+          return browserObj;
         }
       });
       return exports;

@@ -136,6 +136,14 @@ sesi -dec my_script.sesi
 ```
 
 ```bash
+# Install third-party package dependency
+sesi install github:owner/repo
+
+# Install all dependencies declared in sesi.json
+sesi install
+```
+
+```bash
 # Run with sandbox restrictions disabled
 sesi examples/main/01_hello.sesi -l
 ```
@@ -185,6 +193,13 @@ npm run example examples/main/01_hello.sesi
 npm run example:ai examples/optional/08_model_call.sesi
 npm run example:all
 ```
+
+## 📦 Package Management
+
+Sesi has a native, git-centric package manager. You can install third-party libraries directly from GitHub into a local `sesi_modules/` folder and import them cleanly.
+
+- **Install a library**: `sesi install github:owner/repo` (adds it to your local `sesi.json` and downloads it).
+- **Restore dependencies**: `sesi install` (installs all dependencies declared in your local `sesi.json`).
 
 ## Language Overview
 
@@ -305,33 +320,42 @@ Sesi/
 │
 │
 ├── examples/
-│   ├── 01_hello.sesi                # Hello World
-│   ├── 02_variables.sesi            # Variables & operations
-│   ├── 03_functions.sesi            # Functions with parameters
-│   ├── 04_conditionals.sesi         # If/else control flow
-│   ├── 05_loops.sesi                # While, for, for-in loops
-│   ├── 06_arrays_objects.sesi       # Collections
-│   ├── 07_prompts.sesi              # Reasoning blocks
-│   ├── 08_model_call.sesi           # Basic reasoning calls
-│   ├── 09_structured_output.sesi    # Type-safe reasoning responses
-│   ├── 10_code_generation.sesi      # Systems logic generation
-│   ├── 11_memory_conversation.sesi  # Multi-turn stateful reasoning
-│   ├── 12_classification.sesi       # Systems classification loop
-│   ├── 13_data_pipeline.sesi        # Complete systems pipeline
-│   ├── 14_folder_explainer.sesi     # Directory parsing & reasoning
-│   ├── 15_image_generation.sesi     # Image generation API test
-│   ├── 16_modules.sesi              # Modules & std library namespaces
-│   ├── 17_http_client.sesi          # Network GET/POST client
-│   ├── 18_parallel_requests.sesi    # Parallel requests concurrency
-│   ├── 19_search_web.sesi           # Web search integration
-│   ├── 20_model_aliases.sesi        # Custom model naming aliases
-│   ├── 21_custom_tools.sesi         # Custom runtime tool definitions
-│   ├── 22_reasoning_plus_custom_tools.sesi # Reasoning composed with custom tools
-│   ├── 23_file_conversion.sesi      # File and document format conversions
-│   ├── 24_http_server.sesi          # Non-blocking native HTTP server
-│   ├── 25_webpage_server.sesi       # Native web page hosting
-│   ├── 26_database.sesi             # Embedded document database operations
-│   └── 27_robust_web_db.sesi        # Dynamic database-backed web analytics
+│   ├── main/                        # Core language & systems feature examples
+│   │   ├── 01_hello.sesi            # Hello World
+│   │   ├── 02_variables.sesi        # Variables & operations
+│   │   ├── 03_functions.sesi        # Functions with parameters
+│   │   ├── 04_conditionals.sesi     # If/else control flow
+│   │   ├── 05_loops.sesi            # While, for, for-in loops
+│   │   ├── 06_arrays_objects.sesi   # Collections
+│   │   ├── 07_prompts.sesi          # Prompt blocks composition
+│   │   ├── 09_structured_output.sesi # Type-safe reasoning responses
+│   │   ├── 11_memory_storage.sesi   # Multi-turn stateful reasoning
+│   │   ├── 12_classification.sesi   # Systems classification loop
+│   │   ├── 13_data_pipeline.sesi    # Complete systems pipeline
+│   │   ├── 16_modules.sesi          # Modules & standard library imports
+│   │   ├── 17_http_client.sesi      # Native HTTP client (web_get/web_send)
+│   │   ├── 18_parallel_requests.sesi # Parallel request concurrency (multi_req)
+│   │   ├── 19_search_web.sesi       # Built-in search_web integration
+│   │   ├── 21_custom_tools.sesi     # Declaring and using custom tools
+│   │   ├── 23_file_conversion.sesi  # File and format conversions
+│   │   ├── 24_http_handler.sesi     # Native HTTP server request routing
+│   │   ├── 24_http_server.sesi      # Non-blocking native HTTP server
+│   │   ├── 25_webpage_server.sesi   # Native webpage hosting
+│   │   ├── 26_database.sesi         # Embedded document database operations
+│   │   ├── 27_robust_web_db.sesi    # Dynamic database-backed web analytics
+│   │   ├── 29_tool_piping.sesi      # Functional piping operator (|)
+│   │   ├── 30_error_recovery.sesi   # Error retry backoff handling
+│   │   ├── 31_synthesizer.sesi      # Sound/music synthesis & SVG drawing
+│   │   └── 32_browser_automation.sesi # Headless browser automation with Playwright
+│   │
+│   └── optional/                    # Optional reasoning & advanced AI examples
+│       ├── 08_model_call.sesi       # Basic reasoning model calls
+│       ├── 10_code_generation.sesi  # AI code generation logic
+│       ├── 14_folder_explainer.sesi # AI workspace directory analyzer
+│       ├── 15_image_generation.sesi # AI image generation API
+│       ├── 20_model_aliases.sesi    # Custom model naming aliases
+│       ├── 22_reasoning_plus_custom_tools.sesi # Reasoning composed with custom tools
+│       └── 28_streaming.sesi        # Real-time AI response streaming
 │
 └── tests/                           # Engine test suite
     ├── basic.test.ts                # Core parsing & evaluation tests

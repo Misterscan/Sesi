@@ -40,7 +40,8 @@ function resolveSesiModule(specifier, documentPath, workspaceRoot) {
     }
 
     let filePath = specifier;
-    if (!filePath.endsWith('.sesi')) filePath += '.sesi';
+    const hasExtension = filePath.endsWith('.sesi');
+    if (!hasExtension) filePath += '.sesi';
 
     const searchDirs = [];
 
@@ -52,8 +53,10 @@ function resolveSesiModule(specifier, documentPath, workspaceRoot) {
     // 2. Current working directory / workspace root
     if (workspaceRoot) {
         searchDirs.push(workspaceRoot);
+        searchDirs.push(path.join(workspaceRoot, 'sesi_modules'));
     }
     searchDirs.push(process.cwd());
+    searchDirs.push(path.join(process.cwd(), 'sesi_modules'));
 
     // 3. SESI_PATH
     const sesiPath = process.env.SESI_PATH || '';
@@ -67,13 +70,37 @@ function resolveSesiModule(specifier, documentPath, workspaceRoot) {
 
     for (const dir of searchDirs) {
         try {
-            const resolved = path.resolve(dir, filePath);
-            if (fs.existsSync(resolved)) {
+            // 1. Try directly as file
+            const resolvedFile = path.resolve(dir, filePath);
+            if (fs.existsSync(resolvedFile) && !fs.statSync(resolvedFile).isDirectory()) {
                 return {
                     type: 'local',
-                    path: resolved,
+                    path: resolvedFile,
                     searchDir: dir
                 };
+            }
+
+            // 2. Try resolving as a directory module
+            if (!hasExtension) {
+                const dirPath = path.resolve(dir, specifier);
+                if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+                    const indexSesi = path.join(dirPath, 'index.sesi');
+                    if (fs.existsSync(indexSesi) && !fs.statSync(indexSesi).isDirectory()) {
+                        return {
+                            type: 'local',
+                            path: indexSesi,
+                            searchDir: dir
+                        };
+                    }
+                    const mainSesi = path.join(dirPath, 'main.sesi');
+                    if (fs.existsSync(mainSesi) && !fs.statSync(mainSesi).isDirectory()) {
+                        return {
+                            type: 'local',
+                            path: mainSesi,
+                            searchDir: dir
+                        };
+                    }
+                }
             }
         } catch (e) {
             // Ignore
@@ -738,7 +765,7 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio',
+        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch',
         'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float',
         // Audio & Theory
         'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
@@ -791,7 +818,7 @@ function analyzeScope(tokens, decls, refs) {
 
 function validateImports(document, workspaceRoot) {
     const diagnostics = [];
-    const text = document.getText();
+    const text = stripComments(document.getText());
     const lines = text.split('\n');
 
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
@@ -1255,6 +1282,12 @@ function activate(context) {
             description: 'Opens or creates a persistent, JSON-backed document database file. Returns a database instance with collection-based CRUD capabilities.',
             example: 'import { db_open } from "std/db"\nlet db = db_open("data.db")\nlet users = db.collection("users")'
         },
+        'launch': {
+            signature: 'launch(options)',
+            source: 'Browser Standard Library (std/browser)',
+            description: 'Launches a browser instance using Playwright. Options supports configuration such as headless mode.',
+            example: 'allow "std/browser" in with {launch}\nlet browser = launch({"headless": true})\nlet page = browser.newPage()\npage.goto("https://example.com")'
+        },
         'sf2': {
             signature: 'sf2(path, options)',
             source: 'Audio Standard Library (std/audio)',
@@ -1562,6 +1595,9 @@ function activate(context) {
                             ],
                             'std/db': [
                                 'db_open(filename, password)'
+                            ],
+                            'std/browser': [
+                                'launch(options)'
                             ],
                             'std/audio': [
                                 'sf2(path, options)', 'mix(path, tracks, type, options)', 
