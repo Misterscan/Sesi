@@ -5,6 +5,8 @@
 </p>
 
 <p align="center">
+  <img src="https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/eye-con.svg" alt="Sesi Logo" width="60" />
+  <br />
   <em>Pronounced "say-see" — What you say, you'll see.</em>
 </p>
 

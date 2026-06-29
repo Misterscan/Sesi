@@ -1,0 +1,21 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Modern tech gradient from Voice (Indigo) to Vision (Cyan) -->
+    <linearGradient id="sesiGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+  </defs>
+    
+  <!-- The Mark -->
+  <g transform="translate(-36, -41)">
+    <!-- Speech bubble representing "Say" -->
+    <path d="M 50 100 C 50 60, 80 50, 100 50 C 120 50, 150 60, 150 100 C 150 130, 130 145, 100 145 L 60 160 L 68 135 C 55 125, 50 115, 50 100 Z" fill="none" stroke="url(#sesiGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Eye inside representing "See" -->
+    <path d="M 75 100 C 90 85, 110 85, 125 100 C 110 115, 90 115, 75 100 Z" fill="none" stroke="url(#sesiGrad)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- AI Spark / Pupil -->
+    <circle cx="100" cy="100" r="6" fill="url(#sesiGrad)"/>
+  </g>
+</svg>
