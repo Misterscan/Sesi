@@ -12,6 +12,23 @@
 */
 allow "std/time" in with Time
 allow "std/db" in with {db_open}
+allow "ai_agent" in with Agent
+allow "std/browser" in with {launch}
+
+let active_browser = null
+let active_page = null
+
+let current_ws_client = null
+fn on_agent_chunk(chunk) {
+  if current_ws_client != null {
+    try {
+      current_ws_client.send(to_json({"type": "chat_chunk", "chunk": chunk}))
+    } catch(err_c) {}
+  }
+}
+
+set_alias("copilot", "gemini-3.1-flash-lite")
+set_alias("chat", "gemini-3.1-pro-preview")
 
 let SESI_ROOT = ""
 try {
@@ -99,6 +116,259 @@ fn get_db_collections(db_path, password) {
   }
 }
 
+fn agent_read_file(args) {
+  let path = args["path"]
+  if path == null {
+    path = args["filename"]
+  }
+  if path == null {
+    return "Error: missing 'path' or 'filename' argument"
+  }
+  try {
+    return read_file(path)
+  } catch(e) {
+    return "Error reading file: " + str(e)
+  }
+}
+
+fn agent_write_file(args) {
+  let path = args["path"]
+  if path == null {
+    path = args["filename"]
+  }
+  let content = args["content"]
+  if path == null || content == null {
+    return "Error: missing 'path' or 'content' argument"
+  }
+  try {
+    write_file(path, content)
+    return "Successfully wrote to file " + path
+  } catch(e) {
+    return "Error writing file: " + str(e)
+  }
+}
+
+fn agent_list_directory(args) {
+  let path = args["path"]
+  if path == null || path == "" {
+    path = "."
+  }
+  try {
+    let items = list_dir(path)
+    let out = ""
+    for item in items {
+      out = out + item + "\n"
+    }
+    return out
+  } catch(e) {
+    return "Error listing directory: " + str(e)
+  }
+}
+
+fn agent_run_helper_script(args) {
+  let script_name = args["script_name"]
+  let args_str = args["args_str"]
+  if script_name == null {
+    return "Error: missing 'script_name' argument"
+  }
+  if args_str == null {
+    args_str = ""
+  }
+  try {
+    let clean_script = join(split(script_name, ".."), "")
+    let helper_path = "helpers/" + clean_script
+    let cmd = "node bin/sesi.js -l " + helper_path + " " + args_str
+    let output = exec_in_project(cmd)
+    return output
+  } catch(e) {
+    return "Error running helper script: " + str(e)
+  }
+}
+
+fn agent_eval_sesi_code(args) {
+  let code = args["code"]
+  if code == null || code == "" {
+    return "Error: missing 'code' argument"
+  }
+  try {
+    let temp_file = "sesi-studio/temp_eval_" + str(Time.now().unix()) + ".sesi"
+    write_file(temp_file, code)
+    let cmd = "node bin/sesi.js -l " + temp_file
+    let output = exec_in_project(cmd)
+    try {
+      exec("rm " + temp_file)
+    } catch(rm_e) {
+      try {
+        exec("del " + temp_file)
+      } catch(del_e) {}
+    }
+    return output
+  } catch(e) {
+    return "Error evaluating Sesi code: " + str(e)
+  }
+}
+
+fn agent_generate_image(args) {
+  let user_prompt = args["prompt"]
+  let ratio = args["aspect_ratio"]
+  let path = args["output_path"]
+
+  if user_prompt == null {
+    return "Error: missing 'prompt' argument"
+  }
+  if ratio == null || ratio == "" {
+    ratio = "1:1"
+  }
+  if path == null || path == "" {
+    path = "generated_image.png"
+  }
+
+  try {
+    let subagent_system = "You are an expert prompt engineering agent for image generation models. Your job is to take a simple image request and refine it into a highly detailed, descriptive, and artistic prompt. Your output must be a single refined prompt string. Do not include any other conversational filler or explanations."
+
+    let subagent = Agent.create({
+      "model": "copilot",
+      "system": subagent_system,
+      "thinkingLevel": "low",
+      "cache": false,
+      "max_tokens": 1024
+    })
+
+    let refined_prompt = Agent.chat(subagent, "Expand this image request: " + user_prompt)
+    if refined_prompt == null || refined_prompt == "" {
+      refined_prompt = user_prompt
+    }
+
+    let imageData = image("gemini-3.1-flash-image") {ratio: ratio, size: "1K"} {refined_prompt}
+    let success = write_image(path, imageData)
+    if success {
+      return "Subagent successfully generated and saved image. Refined prompt used: '" + refined_prompt + "'. Saved path: '" + path + "'"
+    } else {
+      return "Subagent failed to write image to " + path
+    }
+  } catch(e) {
+    return "Subagent image generation error: " + str(e)
+  }
+}
+
+fn agent_browser_goto(args) {
+  let url = args["url"]
+  if url == null {
+    return "Error: missing 'url' argument"
+  }
+  try {
+    if active_browser == null {
+      active_browser = launch({"headless": true})
+    }
+    if active_page == null {
+      active_page = active_browser.newPage()
+    }
+    active_page.goto(url)
+    let title = active_page.title()
+    return "Successfully navigated to " + url + " (Title: " + title + ")"
+  } catch(e) {
+    return "Error navigating to page: " + str(e)
+  }
+}
+
+fn agent_browser_click(args) {
+  let selector = args["selector"]
+  if selector == null {
+    return "Error: missing 'selector' argument"
+  }
+  if active_page == null {
+    return "Error: browser is not open. Call browser_goto first."
+  }
+  try {
+    active_page.click(selector)
+    return "Clicked selector: " + selector
+  } catch(e) {
+    return "Error clicking selector: " + str(e)
+  }
+}
+
+fn agent_browser_fill(args) {
+  let selector = args["selector"]
+  let value = args["value"]
+  if selector == null || value == null {
+    return "Error: missing 'selector' or 'value' argument"
+  }
+  if active_page == null {
+    return "Error: browser is not open. Call browser_goto first."
+  }
+  try {
+    active_page.fill(selector, value)
+    return "Filled selector: " + selector + " with value"
+  } catch(e) {
+    return "Error filling selector: " + str(e)
+  }
+}
+
+fn agent_browser_screenshot(args) {
+  let path = args["path"]
+  if path == null {
+    path = "browser_screenshot.png"
+  }
+  if active_page == null {
+    return "Error: browser is not open. Call browser_goto first."
+  }
+  try {
+    active_page.screenshot({"path": path, "fullPage": true})
+    return "Screenshot saved to: " + path
+  } catch(e) {
+    return "Error taking screenshot: " + str(e)
+  }
+}
+
+fn agent_browser_get_content(args) {
+  if args == null {}
+  if active_page == null {
+    return "Error: browser is not open. Call browser_goto first."
+  }
+  try {
+    let text = active_page.inner_text("body")
+    return text
+  } catch(e) {
+    try {
+      return active_page.content()
+    } catch(err) {
+      return "Error getting page content: " + str(e)
+    }
+  }
+}
+
+fn agent_browser_close(args) {
+  if args == null {}
+  try {
+    if active_page != null {
+      active_page.close()
+      active_page = null
+    }
+    if active_browser != null {
+      active_browser.close()
+      active_browser = null
+    }
+    return "Browser closed successfully."
+  } catch(e) {
+    return "Error closing browser: " + str(e)
+  }
+}
+
+let global_tools = {
+  "read_file": agent_read_file,
+  "write_file": agent_write_file,
+  "list_directory": agent_list_directory,
+  "run_helper_script": agent_run_helper_script,
+  "eval_sesi_code": agent_eval_sesi_code,
+  "call_image_subagent": agent_generate_image,
+  "browser_goto": agent_browser_goto,
+  "browser_click": agent_browser_click,
+  "browser_fill": agent_browser_fill,
+  "browser_screenshot": agent_browser_screenshot,
+  "browser_get_content": agent_browser_get_content,
+  "browser_close": agent_browser_close
+}
+
 let docs_list = list_dir("getting-started")
 let more_files = read_file("docs/WRITING_SCRIPTS.md")
 more_files = "\n\n=== DOCUMENT: " + "WRITING_SCRIPTS.md" + " ===\n" + more_files
@@ -113,8 +383,6 @@ for f_name in docs_list {
   } catch (e) {}
 }
 
-set_alias("copilot", "gemini-3.1-flash-lite")
-set_alias("chat", "gemini-3.1-pro-preview")
 let timestamp = Time.now()
 
 prompt mandatory {"## Mandatory Syntax Rules & Quirks
@@ -136,7 +404,8 @@ prompt mandatory {"## Mandatory Syntax Rules & Quirks
   */ <- This always has to be on a seperate line from the comment text.
   ```
 - Do not mention that you got this from a database.
-- CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins).
+- CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins). Note: This restriction does not apply to executing tools like `call_image_subagent` to generate images/diagrams, or other registered tools to satisfy user requests.
+- **Tool Execution Priority:** If the task requested by the user requires performing an action (such as reading/writing a file, listing a directory, running a helper script, or generating an image/flowchart/diagram), you MUST call the appropriate registered tool (e.g. `call_image_subagent`) to perform the action. You are FORBIDDEN from claiming you have completed the task or presenting a final answer without executing the necessary tool(s) first.
 "}
 
 memory copilotMemory { "Your name is Sesi Co-Pilot, an expert programmer for the Sesi language. 
@@ -316,37 +585,95 @@ fn handle_http(req) {
       let user_msg = {"text": q, "isUser": true}
       push(chat_doc["messages"], user_msg)
       
-      let res = ""
+      let system_prompt = copilotMemory
       if body_obj["filePath"] != null {
         let active_file = body_obj["filePath"]
         let active_content = body_obj["fileContent"]
-        prompt chat_msg {"History of our conversation:
-        " history_str "
-        [Active File: " active_file "
-        ```
-        " active_content "
-        ```
-
-        User Question: " q "
-
-        ====IGNORE ME====
-
-        " timestamp "
-        
-        ====IGNORE ME===="}
-        res = model("chat") {thinkingLevel: "low", max_tokens: 4096, cache: false} {copilotMemory chat_msg}
-      } else {
-        prompt chat_msg {"History of our conversation:
-        " history_str "
-        User Question: " q "
-
-        ====IGNORE ME====
-
-        " timestamp "
-        
-        ====IGNORE ME===="}
-        res = model("chat") {thinkingLevel: "low", max_tokens: 4096, cache: false} {copilotMemory chat_msg}
+        system_prompt = system_prompt + "\n\n[Active File: " + active_file + "\n```\n" + active_content + "\n```]"
       }
+      system_prompt = system_prompt + "\n\n====IGNORE ME====\n" + timestamp + "\n====IGNORE ME===="
+
+      system_prompt = system_prompt + "
+
+You have access to the following tools to assist the user:
+
+- `list_directory`: Lists files in a directory.
+  Arguments JSON schema: {\"path\": string} (optional, defaults to \".\")
+- `read_file`: Reads the full content of a file.
+  Arguments JSON schema: {\"path\": string}
+- `write_file`: Writes content to a file, creating or overwriting it.
+  Arguments JSON schema: {\"path\": string, \"content\": string}
+- `run_helper_script`: Runs a specific Sesi helper script from the `helpers/` directory (e.g. line-swap.sesi, dependency-graph.sesi, css-flatten.sesi, version-bump.sesi, text-search.sesi, html-minify.sesi, agent-file-ops.sesi, etc.). Use this for mass/automated code refactoring and edits instead of other generic tools.
+  Arguments JSON schema: {\"script_name\": string, \"args_str\": string}
+- `eval_sesi_code`: Evaluates inline Sesi code. Use this to execute code snippets, verify Sesi script behavior, and call Sesi's essential built-in functions.
+  Arguments JSON schema: {\"code\": string}
+- `call_image_subagent`: Delegates image asset generation to a dedicated prompt-refinement subagent. Generates the image via Sesi's native image engine, saves the file to disk, and returns the result path.
+  Arguments JSON schema: {\"prompt\": string, \"aspect_ratio\": string (e.g. \"1:1\", \"16:9\", \"4:3\", \"3:2\", \"9:16\", defaults to \"1:1\"), \"output_path\": string (defaults to \"generated_image.png\")}
+
+Essential Sesi Built-in Functions Reference:
+- I/O: `print(...args)`
+- Type conversions: `str(val)`, `num(val)`, `bool(val)`, `to_json(val)`, `from_json(str)`
+- Collections: `len(col)`, `keys(obj)`, `values(obj)`, `push(arr, val)`, `pop(arr)`, `join(arr, sep)`, `split(str, sep)`, `slice(str, start, end)`, `locate(str, target)`, `contains(str, target)`
+- Filesystem: `read_file(path)`, `write_file(path, content)`, `write_image(path, base64_data_url_or_b64str)`, `make_dir(path)`, `list_dir(path)`
+- Encryption & DB: `db_open(path, pwd)` (returns Database object with collections/insert/find/update/delete)
+- Browser Automation: `launch(opts)`, `newPage()`, `goto(url)`, `click(sel)`, `fill(sel, val)`, `screenshot(path)`
+
+If the user request requires examining files, writing/testing scripts, performing automated edits, or generating visual assets/images, use the appropriate tools.
+"
+
+      let copilot_tools = {
+        "read_file": agent_read_file,
+        "write_file": agent_write_file,
+        "list_directory": agent_list_directory,
+        "run_helper_script": agent_run_helper_script,
+        "eval_sesi_code": agent_eval_sesi_code,
+        "call_image_subagent": agent_generate_image
+      }
+
+      if body_obj["browserAccess"] == true {
+        copilot_tools["browser_goto"] = agent_browser_goto
+        copilot_tools["browser_click"] = agent_browser_click
+        copilot_tools["browser_fill"] = agent_browser_fill
+        copilot_tools["browser_screenshot"] = agent_browser_screenshot
+        copilot_tools["browser_get_content"] = agent_browser_get_content
+        copilot_tools["browser_close"] = agent_browser_close
+
+        system_prompt = system_prompt + "
+
+You have browser access enabled. Use these tools for visual analysis and verification (such as checking layouts, UI styling, rendered graphics, or media) whenever direct visual inspection is needed to evaluate the application's state:
+
+- `browser_goto`: Navigates to a URL. Arguments JSON schema: {\"url\": string}
+- `browser_click`: Clicks an element. Arguments JSON schema: {\"selector\": string}
+- `browser_fill`: Fills an input value. Arguments JSON schema: {\"selector\": string, \"value\": string}
+- `browser_screenshot`: Captures screenshot. Arguments JSON schema: {\"path\": string} (optional)
+- `browser_get_content`: Gets the visible text content of the page. Arguments: {}
+- `browser_close`: Closes the active browser. Arguments: {}
+"
+      }
+
+      let agent = Agent.create({
+        "model": "chat",
+        "system": system_prompt,
+        "thinkingLevel": "low",
+        "cache": false,
+        "max_tokens": 4096,
+        "tools": copilot_tools
+      })
+
+      if len(existing) > 0 {
+        let messages = existing[0]["messages"]
+        if messages != null {
+          for msg in messages {
+            let role = "user"
+            if msg["isUser"] == false {
+              role = "assistant"
+            }
+            push(agent["history"], {"role": role, "text": msg["text"]})
+          }
+        }
+      }
+
+      let res = Agent.chat(agent, q)
       
       let assistant_msg = {"text": res, "isUser": false}
       push(chat_doc["messages"], assistant_msg)
@@ -437,7 +764,13 @@ fn handle_http(req) {
         file_path = "unsaved.sesi"
       }
       prompt completionPrompt { "You are a professional software engineer. Your job is to act as an inline code completion engine (like GitHub Copilot) for the Sesi programming language.\n\nHere is the context of the active file:\nFile name: " file_path "\n\nPrefix (code before cursor):\n" prefix "\n\nSuffix (code after cursor):\n" suffix "\n\nTask: Complete the code exactly from where the cursor left off.\nRules:\n- Respond ONLY with the raw code completion that immediately continues the prefix.\n- Do NOT wrap your response in markdown code blocks.\n- Do NOT include the prefix or suffix in your response.\n- Do NOT provide explanations, commentary, or comments.\n- Complete only the immediate logical block, line, or expression.\n- If no completion makes sense, return absolutely nothing." }
-      let res = model("copilot") {thinkingLevel: "low", max_tokens: 300} {copilotMemory completionPrompt}
+      let agent = Agent.create({
+        "model": "copilot",
+        "system": copilotMemory,
+        "thinkingLevel": "low",
+        "max_tokens": 300
+      })
+      let res = Agent.run(agent, completionPrompt)
       return {"status": 200, "body": {"suggestion": res}}
     } catch (e) {
       print "Autocomplete Error: " str(e)
@@ -543,6 +876,24 @@ fn handle_http(req) {
       }
     } catch (e) {
       return {"status": 500, "body": {"error": "Failed to parse AST: " + str(e)}}
+    }
+  }
+
+  if path == "/api/agent/tool" && method == "POST" {
+    try {
+      let body_obj = from_json(req.body)
+      let tool_name = body_obj["tool_name"]
+      let tool_args = body_obj["tool_args"]
+      
+      let tool_fn = global_tools[tool_name]
+      if tool_fn == null {
+        return {"status": 400, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": "Tool " + tool_name + " not found"}}
+      }
+      
+      let res = tool_fn(tool_args)
+      return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": true, "result": res}}
+    } catch(e) {
+      return {"status": 500, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": "Tool execution failed: " + str(e)}}
     }
   }
 
@@ -1259,6 +1610,156 @@ fn handle_ws(client, msg) {
     if parsed["type"] == "terminal_write" {
       let data_str = parsed["data"]
       client.send(to_json({"type": "output", "data": data_str}))
+    } else if parsed["type"] == "ping" {
+      client.send(to_json({"type": "pong"}))
+    } else if parsed["type"] == "chat" {
+      let q = parsed["query"]
+      let sessionId = parsed["sessionId"]
+      let active_file = parsed["filePath"]
+      let active_content = parsed["fileContent"]
+      let browserAccess = parsed["browserAccess"]
+
+      let existing = []
+      if sessionId != null && conversations_col != null {
+        try {
+          existing = conversations_col.find({"session_id": sessionId})
+        } catch(db_err) {}
+      }
+
+      let chat_doc = null
+      if len(existing) > 0 {
+        chat_doc = existing[0]
+      } else {
+        chat_doc = {
+          "session_id": sessionId,
+          "messages": [],
+          "metadata": {"title": "New Chat"}
+        }
+      }
+      if chat_doc["messages"] == null {
+        chat_doc["messages"] = []
+      }
+
+      let user_msg = {"text": q, "isUser": true}
+      push(chat_doc["messages"], user_msg)
+
+      let system_prompt = copilotMemory
+      if active_file != null {
+        system_prompt = system_prompt + "\n\n[Active File: " + active_file + "\n```\n" + active_content + "\n```]"
+      }
+      let timestamp = ""
+      try {
+        timestamp = Time.now().format()
+      } catch (err_t) {}
+      system_prompt = system_prompt + "\n\n====IGNORE ME====\n" + timestamp + "\n====IGNORE ME===="
+
+      system_prompt = system_prompt + "
+
+You have access to the following tools to assist the user:
+
+- `list_directory`: Lists files in a directory.
+  Arguments JSON schema: {\"path\": string} (optional, defaults to \".\")
+- `read_file`: Reads the full content of a file.
+  Arguments JSON schema: {\"path\": string}
+- `write_file`: Writes content to a file, creating or overwriting it.
+  Arguments JSON schema: {\"path\": string, \"content\": string}
+- `run_helper_script`: Runs a specific Sesi helper script from the `helpers/` directory (e.g. line-swap.sesi, dependency-graph.sesi, css-flatten.sesi, version-bump.sesi, text-search.sesi, html-minify.sesi, agent-file-ops.sesi, etc.). Use this for mass/automated code refactoring and edits instead of other generic tools.
+  Arguments JSON schema: {\"script_name\": string, \"args_str\": string}
+- `eval_sesi_code`: Evaluates inline Sesi code. Use this to execute code snippets, verify Sesi script behavior, and call Sesi's essential built-in functions.
+  Arguments JSON schema: {\"code\": string}
+
+- `call_image_subagent`: Delegates image asset generation to a dedicated prompt-refinement subagent. Generates the image via Sesi's native image engine, saves the file to disk, and returns the result path.
+  Arguments JSON schema: {\"prompt\": string, \"aspect_ratio\": string (e.g. \"1:1\", \"16:9\", \"4:3\", \"3:2\", \"9:16\", defaults to \"1:1\"), \"output_path\": string (defaults to \"generated_image.png\")}
+
+Essential Sesi Built-in Functions Reference:
+- I/O: `print(...args)`
+- Type conversions: `str(val)`, `num(val)`, `bool(val)`, `to_json(val)`, `from_json(str)`
+- Collections: `len(col)`, `keys(obj)`, `values(obj)`, `push(arr, val)`, `pop(arr)`, `join(arr, sep)`, `split(str, sep)`, `slice(str, start, end)`, `locate(str, target)`, `contains(str, target)`
+- Filesystem: `read_file(path)`, `write_file(path, content)`, `write_image(path, base64_data_url_or_b64str)`, `make_dir(path)`, `list_dir(path)`
+- Encryption & DB: `db_open(path, pwd)` (returns Database object with collections/insert/find/update/delete)
+- Browser Automation: `launch(opts)`, `newPage()`, `goto(url)`, `click(sel)`, `fill(sel, val)`, `screenshot(path)`
+
+If the user request requires examining files, writing/testing scripts, performing automated edits, or generating visual assets/images, use the appropriate tools.
+"
+
+      let copilot_tools = {
+        "read_file": agent_read_file,
+        "write_file": agent_write_file,
+        "list_directory": agent_list_directory,
+        "run_helper_script": agent_run_helper_script,
+        "eval_sesi_code": agent_eval_sesi_code,
+        "call_image_subagent": agent_generate_image
+      }
+
+      if browserAccess == true {
+        copilot_tools["browser_goto"] = agent_browser_goto
+        copilot_tools["browser_click"] = agent_browser_click
+        copilot_tools["browser_fill"] = agent_browser_fill
+        copilot_tools["browser_screenshot"] = agent_browser_screenshot
+        copilot_tools["browser_get_content"] = agent_browser_get_content
+        copilot_tools["browser_close"] = agent_browser_close
+
+        system_prompt = system_prompt + "
+
+You have browser access enabled. Use these tools for visual analysis and verification (such as checking layouts, UI styling, rendered graphics, or media) whenever direct visual inspection is needed to evaluate the application's state:
+
+- `browser_goto`: Navigates to a URL. Arguments JSON schema: {\"url\": string}
+- `browser_click`: Clicks an element. Arguments JSON schema: {\"selector\": string}
+- `browser_fill`: Fills an input value. Arguments JSON schema: {\"selector\": string, \"value\": string}
+- `browser_screenshot`: Captures screenshot. Arguments JSON schema: {\"path\": string} (optional)
+- `browser_get_content`: Gets the visible text content of the page. Arguments: {}
+- `browser_close`: Closes the active browser. Arguments: {}
+"
+      }
+
+      current_ws_client = client
+
+      let agent = Agent.create({
+        "model": "chat",
+        "system": system_prompt,
+        "thinkingLevel": "low",
+        "cache": false,
+        "max_tokens": 4096,
+        "tools": copilot_tools,
+        "stream": on_agent_chunk
+      })
+
+      if len(existing) > 0 {
+        let messages = existing[0]["messages"]
+        if messages != null {
+          for msg in messages {
+            let role = "user"
+            if msg["isUser"] == false {
+              role = "assistant"
+            }
+            push(agent["history"], {"role": role, "text": msg["text"]})
+          }
+        }
+      }
+
+      let res = ""
+      try {
+        res = Agent.chat(agent, q)
+      } catch(chat_err) {
+        res = "⚠️ Co-pilot error: " + str(chat_err)
+        client.send(to_json({"type": "chat_chunk", "chunk": res}))
+      }
+
+      let assistant_msg = {"text": res, "isUser": false}
+      push(chat_doc["messages"], assistant_msg)
+
+      if conversations_col != null && sessionId != null {
+        try {
+          if len(existing) > 0 {
+            conversations_col.update({"session_id": sessionId}, chat_doc)
+          } else {
+            conversations_col.insert(chat_doc)
+          }
+        } catch (db_save_err) {}
+      }
+
+      client.send(to_json({"type": "chat_end", "response": res}))
+      current_ws_client = null
     } else if parsed["type"] == "input" {
       let data_str = parsed["data"]
       if data_str == "backspace" || data_str == "escape" || data_str == "ctrl-c" {

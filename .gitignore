@@ -18,6 +18,7 @@ cab1.cab
 
 # Sesi specific folders and files
 
+sesi_modules
 data.txt
 report.md
 research_report.md

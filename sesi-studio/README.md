@@ -28,11 +28,20 @@ Sesi Studio is a premium, high-density development environment built specificall
 - **Workspace Explorer**: Manage your local repository files with a persistent sidebar.
 - **Local History**: Automatic "Timeline" saves of your file edits, stored safely in IndexedDB.
 
-### 🤖 Sesi Co-Pilot
+### 🤖 Autonomous Sesi Co-Pilot & Subagents
 
-- **Context-Aware Chat**: Chat with an AI assistant that understands your current file and project structure.
+- **Autonomous ReAct Agent**: Co-Pilot uses a full ReAct loop to solve complex multi-step tasks like reading, writing, and listing files in the workspace.
+- **Real-Time Streaming**: Watch the agent's step-by-step thoughts, tool invocations, and responses stream and render in real-time.
+- **Conversation Memory**: Maintains deep, context-aware history across multi-turn sessions even during tool execution.
+- **Image Generation Subagent**: A dedicated subagent handles prompt-refinement and leverages Sesi's native `image()` engine to write physical image assets directly to the workspace.
+- **Code Execution & Validation**: Safely evaluates inline Sesi scripts and executes native helper scripts for automated refactoring.
 - **Code Insertion**: Apply suggested code fixes directly into your editor with one click.
 - **Multi-Chat Support**: Manage multiple reasoning threads simultaneously.
+
+### 🔌 Custom AI Provider (Agentic)
+
+- **Bring Your Own Model**: Configure custom AI endpoints (OpenAI, Gemini, Anthropic, Ollama, local LLMs) for chat and inline code completion.
+- **Client-Side ReAct Engine**: The custom provider features a client-side ReAct interpreter, providing full tool-calling support (file I/O, code evaluation, helper scripts, and image subagents) to custom models.
 
 ### 🎨 Extensible Architecture
 

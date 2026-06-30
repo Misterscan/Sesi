@@ -1,0 +1,148 @@
+/*
+  Scrape and Generate Agent.
+  This script demonstrates how an AI Agent can:
+  1. Search the web for target URLs/information.
+  2. Launch a browser (std/browser) to scrape content.
+  3. Write a styled HTML webpage using Sesi's write_file builtin.
+  
+  Run with: sesi examples/optional/scrape_and_generate_agent.sesi -l
+*/
+
+allow "ai_agent" in with Agent
+allow "std/browser" in with {launch}
+
+print "🚀 Initializing Scrape & Generate Agent..."
+
+// Register model aliases
+set_alias("agent", "gemini-3.1-pro-preview")
+set_alias("search", "gemini-3.1-flash-lite")
+
+// Tool to search Google using Sesi's model with search: true
+fn web_search(arg: string) -> string {
+  let query = arg
+  if locate(arg, "{") == 0 {
+    try {
+      let parsed = from_json(arg)
+      if parsed["query"] != null {
+        query = parsed["query"]
+      }
+    } catch(e) {}
+  }
+  print "🔍 Searching Google for:" query
+  try {
+    let result = model("search") {temperature: 0.3, search: true} {"Search the web for the following query and return key summaries along with reputable article/news URLs: " query}
+    return result
+  } catch(e) {
+    return "Search failed: " + e
+  }
+}
+
+// Tool to browse and scrape text content from a web page
+fn browser_scrape(arg: string) -> string {
+  let url = arg
+  // Handle JSON wrapper if sent by the agent
+  if locate(arg, "{") == 0 {
+    try {
+      let parsed = from_json(arg)
+      if parsed["url"] != null {
+        url = parsed["url"]
+      }
+    } catch(e) {}
+  }
+  
+  print "🌐 Browser navigating to:" url
+  let browser = null
+  try {
+    browser = launch({"headless": true})
+    let page = browser.newPage()
+    page.goto(url)
+    page.wait_for_timeout(2000) // Wait for content load
+    
+    // Extract inner text to save tokens and eliminate HTML boilerplate
+    let page_text = page.evaluate("document.body.innerText")
+    
+    // Truncate to avoid exceeding model context window limits
+    if len(page_text) > 8000 {
+      page_text = slice(page_text, 0, 8000) + "\n... [Content Truncated]"
+    }
+    
+    page.close()
+    browser.close()
+    return page_text
+  } catch(e) {
+    if browser != null {
+      try { browser.close() } catch(err) {}
+    }
+    return "Error scraping webpage: " + e
+  }
+}
+
+// Tool to write the generated HTML/CSS webpage to disk
+fn write_webpage(arg: string) -> string {
+  try {
+    let parsed = from_json(arg)
+    let filename = parsed["filename"]
+    if filename == null {
+      filename = parsed["name"]
+    }
+    if filename == null {
+      filename = parsed["script_name"]
+    }
+    if filename == null {
+      filename = parsed["filepath"]
+    }
+    if filename == null {
+      return "Failed: Filename key missing."
+    }
+    
+    let code = parsed["code"]
+    if code == null {
+      code = parsed["content"]
+    }
+    if code == null {
+      code = parsed["html_content"]
+    }
+    if code == null {
+      return "Failed: Code, content, or html_content key missing."
+    }
+    
+    print "💾 Writing webpage to:" filename
+    let ok = write_file(filename, code)
+    if ok == null {
+      return "Failed to write webpage file."
+    }
+    return "Successfully wrote webpage to " + filename
+  } catch(e) {
+    return "Failed to write webpage: " + e
+  }
+}
+
+// Create the agent
+let scraper_agent = Agent.create({
+  "model": "agent",
+  "system": "You are a research and web development assistant.
+Use 'web_search' to search for news and URLs.
+Once you find target URLs, use 'browser_scrape' to get page contents.
+Finally, write the generated HTML/CSS page to disk using 'write_webpage'. Make sure to include a summary of your findings in your final answer.",
+  "temperature": 0.2,
+  "tools": {
+    "web_search": web_search,
+    "browser_scrape": browser_scrape,
+    "write_webpage": write_webpage
+  }
+})
+
+let task_prompt = "Perform the following actions:
+1. Search the web using 'web_search' to find the latest announcements, products, or stock milestones of NVIDIA (NVDA) and Apple (AAPL) from the past month.
+2. Identify a reputable news/summary URL from the search result, and call 'browser_scrape' on that URL to extract the detailed text.
+3. Synthesize the findings into a gorgeous HTML dashboard page named 'tech_news_dashboard.html' featuring cards, modern styling (glassmorphism/gradients), and a responsive layout."
+
+print "
+Starting Scrape & Generate ReAct Loop..."
+let final_answer = Agent.run_react(scraper_agent, task_prompt, 8)
+
+print "
+========================================="
+print "FINAL ANSWER FROM SCRAPER AGENT:"
+print final_answer
+print "========================================="

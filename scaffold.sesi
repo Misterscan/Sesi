@@ -179,8 +179,8 @@ prompt mainSesi {'/*
 
 // 1. Variables and Types
 let language = "Sesi"
-let version = "1.5"
-let features = ["Reasoning", "Embedded DB", "SVG Drawing", "Audio Synthesis"]
+let version = "1.6"
+let features = ["Reasoning", "Embedded DB", "SVG Drawing", "Audio Synthesis", "Browser Integration"]
 
 print "Welcome to" language "version" version "!"
 print "----------------------------------------"
@@ -227,7 +227,18 @@ User: " userName "
 Status: Ready for experimentation!"}
 
 print welcomeMessage
-'}
+
+// 7. Scrape a website
+allow "std/browser" with {launch}
+
+let browser = launch({"headless": true})
+let page = browser.newPage()
+
+browser.goto("https://wikipedia.org")
+page.screenshot({"path": "screenshot.png"})
+page.pdf({"path": "output.pdf", "format": "A4"})
+
+browser.close()'}
 
 if safe_write(target + "/main.sesi", mainSesi) {
   print "✓ Generated main.sesi"

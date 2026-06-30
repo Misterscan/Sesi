@@ -1,0 +1,141 @@
+/*
+  Autonomous Coding Agent with self-correction loop in Sesi.
+  Run with: sesi run_self_correction_agent.sesi -l
+*/
+
+allow "ai_agent" in with Agent
+
+// Set model alias for agent execution
+set_alias("agent", "gemini-3.1-pro-preview")
+
+print "Initializing Coding Assistant Agent..."
+
+// Tool to write a script
+fn write_script(arg: string) -> string {
+  try {
+    let parsed = from_json(arg)
+    let filename = parsed["filename"]
+    if filename == null {
+      filename = parsed["name"]
+    }
+    if filename == null {
+      filename = parsed["script_name"]
+    }
+    if filename == null {
+      return "Failed: 'filename', 'name', or 'script_name' field is missing."
+    }
+    let code = parsed["code"]
+    if code == null {
+      code = parsed["content"]
+    }
+    if code == null {
+      return "Failed: 'code' or 'content' field is missing or not a string."
+    }
+    print "💾 Writing script to:" filename
+    let ok = write_file(filename, code)
+    if ok == null {
+      return "Failed to write file (returned null from write_file)."
+    }
+    return "Successfully wrote script to " + filename
+  } catch(e) {
+    return "Failed to write script. Make sure to pass a JSON object with 'filename' and 'code' keys. Error: " + e
+  }
+}
+
+// Tool to execute and test a script
+fn test_script(arg: string) -> string {
+  let filename = arg
+  if locate(arg, "{") == 0 {
+    try {
+      let parsed = from_json(arg)
+      if parsed["filename"] != null {
+        filename = parsed["filename"]
+      } else {
+        if parsed["name"] != null {
+          filename = parsed["name"]
+        } else {
+          if parsed["script_name"] != null {
+            filename = parsed["script_name"]
+          }
+        }
+      }
+    } catch(e) {}
+  }
+  print "🧪 Testing script:" filename
+  
+  let cmd = ""
+  if contains(filename, ".js") {
+    cmd = "node " + filename
+  }
+  if contains(filename, ".py") {
+    cmd = "python3 " + filename
+  }
+  
+  if cmd == "" {
+    return "Failed: Unsupported script file type. Only .js and .py files are supported."
+  }
+  
+  try {
+    let result = exec(cmd)
+    return "Execution Succeeded!\nOutput:\n" + result
+  } catch(e) {
+    return "Execution Failed!\nError details:\n" + e
+  }
+}
+
+// Tool to generate architecture & code plan via Sesi's native workflow()
+fn generate_code_plan(arg: string) -> string {
+  let task = arg
+  if locate(arg, "{") == 0 {
+    try {
+      let parsed = from_json(arg)
+      if parsed["task"] != null {
+        task = parsed["task"]
+      }
+    } catch(e) {}
+  }
+  print "🧠 Generating multi-stage code plan for task:" task
+  
+  let steps = [
+    {"prompt": "Generate a detailed software architecture plan to solve: "},
+    {"prompt": "Based on the architecture, draft the Python CNN structure: "},
+    {"prompt": "Analyze the draft for potential improvements and output a finalized implementation plan: "}
+  ]
+  
+  try {
+    let result = workflow(steps, task)
+    return result["final"]
+  } catch(e) {
+    return "Failed to run planning workflow: " + e
+  }
+}
+
+// Create the coding agent
+let coder = Agent.create({
+  "model": "agent",
+  "system": "You are a software developer assistant. You write JavaScript and Python code, test it, analyze errors, and iterate until the code executes successfully.
+For complex tasks (like designing/training a CNN), call 'generate_code_plan' first to get a structured implementation design, then write the code based on the generated plan.",
+  "temperature": 0.3,
+  "tools": {
+    "write_script": write_script,
+    "test_script": test_script,
+    "generate_code_plan": generate_code_plan
+  }
+})
+
+print "
+Starting ReAct Coding & Self-Correction Task..."
+let task_prompt = "Perform the following steps:
+1. Generate an implementation plan for a robust Python script that trains a Convolutional Neural Network (CNN) to identify and classify different dog breeds from a provided image dataset.
+2. Write a Python script named 'factorial.py' or 'dog_cnn.py' (or similar script as planned) containing the CNN structure. Intentionally introduce a syntax error in your first draft (e.g. invalid indentation or missing colon).
+3. Test the script and observe the execution error.
+4. Correct the script to valid Python syntax.
+5. Test the script again to verify it works successfully."
+
+let final_answer = Agent.run_react(coder, task_prompt, 6)
+
+print "
+========================================="
+print "FINAL ANSWER FROM CODING AGENT:"
+print final_answer
+print "========================================="

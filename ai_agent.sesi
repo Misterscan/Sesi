@@ -1,0 +1,320 @@
+/*
+  AI Agent Module for Sesi
+  Implements an intelligent conversational agent with native tool execution capabilities.
+*/
+
+fn list_tools_description(tools) {
+  let desc = ""
+  for name in keys(tools) {
+    desc = desc + "- " + name + "
+"
+  }
+  return desc
+}
+
+fn call_model_helper(model_name: string, temp: number, thinking: string, search_flag: bool, stream_val: any, cache_flag: bool, max_tokens_val: any, prompt_val: string) -> string {
+  if model_name == "agent" {
+    return model("agent") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "agent_model" {
+    return model("agent_model") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "workflow_model" {
+    return model("workflow_model") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "search" {
+    return model("search") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "tutor" {
+    return model("tutor") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "developer" {
+    return model("developer") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "chat" {
+    return model("chat") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "copilot" {
+    return model("copilot") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "gemini-3.5-flash" {
+    return model("gemini-3.5-flash") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "gemini-3.1-pro-preview" {
+    return model("gemini-3.1-pro-preview") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "gemini-3-flash-preview" {
+    return model("gemini-3-flash-preview") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  return model("gemini-3.1-flash-lite") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+}
+
+export fn create(config) {
+  let model_name = "gemini-3.5-flash"
+  if config["model"] != null {
+    model_name = config["model"]
+  }
+
+  let system_prompt = "You are a helpful assistant."
+  if config["system"] != null {
+    system_prompt = config["system"]
+  }
+
+  let temperature_val = 0.1
+  if config["temperature"] != null {
+    temperature_val = config["temperature"]
+  }
+
+  let thinking_level_val = "low"
+  if config["thinkingLevel"] != null {
+    thinking_level_val = config["thinkingLevel"]
+  }
+
+  let search_enabled = false
+  if config["search"] != null {
+    search_enabled = config["search"]
+  }
+
+  let stream_val = null
+  if config["stream"] != null {
+    stream_val = config["stream"]
+  }
+
+  let cache_enabled = true
+  if config["cache"] != null {
+    cache_enabled = config["cache"]
+  }
+
+  let agent_tools = {}
+  if config["tools"] != null {
+    agent_tools = config["tools"]
+  }
+
+  let max_tokens_val = null
+  if config["max_tokens"] != null {
+    max_tokens_val = config["max_tokens"]
+  }
+
+  return {
+    "model": model_name,
+    "system": system_prompt,
+    "temperature": temperature_val,
+    "thinkingLevel": thinking_level_val,
+    "search": search_enabled,
+    "stream": stream_val,
+    "cache": cache_enabled,
+    "max_tokens": max_tokens_val,
+    "tools": agent_tools,
+    "history": []
+  }
+}
+
+export fn get_history_string(agent) {
+  let h_str = ""
+  let history = agent["history"]
+  
+  // Truncate history to last 20 turns
+  if len(history) > 20 {
+    history = slice(history, len(history) - 20, len(history))
+  }
+  
+  for turn in history {
+    let role = turn["role"]
+    let text = turn["text"]
+    h_str = h_str + role + ": " + text + "
+"
+  }
+  return h_str
+}
+
+export fn chat(agent, message) {
+  let tools = agent["tools"]
+  if len(keys(tools)) > 0 {
+    let user_turn = {"role": "user", "text": message}
+    push(agent["history"], user_turn)
+
+    let res = run_react(agent, message, 10)
+
+    let assistant_turn = {"role": "assistant", "text": res}
+    push(agent["history"], assistant_turn)
+
+    return res
+  }
+
+  let user_turn = {"role": "user", "text": message}
+  push(agent["history"], user_turn)
+
+  let sys = agent["system"]
+  let hist = get_history_string(agent)
+  let prompt_text = "System: " + sys + "
+
+History:
+" + hist + "
+Assistant:"
+
+  let resp = call_model_helper(agent["model"], agent["temperature"], agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
+
+  let assistant_turn = {"role": "assistant", "text": resp}
+  push(agent["history"], assistant_turn)
+
+  return resp
+}
+
+export fn run_react(agent, task, max_steps) {
+  let steps_taken = 0
+  let react_history = ""
+  let final_res = ""
+  let error_count = 0
+
+  let tools_desc = list_tools_description(agent["tools"])
+  let hist = get_history_string(agent)
+
+  while steps_taken < max_steps {
+      let sys = agent["system"]
+      prompt prompt_text {sys "
+
+Conversation History:
+" hist "
+
+System: You are an agent with access to these tools:
+" tools_desc "
+Solve the task step-by-step.
+At each step, output a JSON object with:
+- thought (string): reasoning
+- tool_name (string): name of the tool to run, or empty if finished
+- tool_args_json (string): JSON string containing all arguments for the tool
+- finished (bool): true if done
+- final_answer (string): final result if finished is true
+
+Task: " task "
+
+Previous steps and observations:
+" react_history "
+Next Step JSON:"}
+
+      let step_text = call_model_helper(agent["model"], 0.1, agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
+      let step = structured_output({thought: string, tool_name: string, tool_args_json: string, finished: bool, final_answer: string})(step_text)
+
+      if step == null || len(keys(step)) == 0 {
+        print "Error: Agent returned invalid step format"
+        error_count = error_count + 1
+        let stream_fn = agent["stream"]
+        if stream_fn != null {
+          try {
+            stream_fn("❌ *Error:* Invalid JSON response format from model\n\n")
+          } catch(e_sf_err) {}
+        }
+        react_history = react_history + "
+Thought: Failed to parse step response.
+Observation: Invalid JSON format.
+"
+        if error_count >= 3 {
+          final_res = "Error: Task failed due to consecutive tool errors."
+          break
+        }
+      } else {
+        print "💭 Thought:" step["thought"]
+        let stream_fn = agent["stream"]
+        if stream_fn != null {
+          try {
+            stream_fn("💭 *Thought:* " + step["thought"] + "\n\n")
+          } catch(e_sf) {}
+        }
+
+        if step["finished"] {
+          print "🏁 Finished! Final Answer:" step["final_answer"]
+          if stream_fn != null {
+            try {
+              stream_fn(step["final_answer"] + "\n")
+            } catch(e_sf2) {}
+          }
+          final_res = step["final_answer"]
+          break
+        } else {
+          let tool_name = step["tool_name"]
+          let tool_args_str = step["tool_args_json"]
+          let tool_args = null
+          if tool_args_str != null {
+            try {
+              tool_args = from_json(tool_args_str)
+            } catch(e) {
+              tool_args = tool_args_str
+            }
+          }
+          if tool_args == null {
+            tool_args = {}
+          }
+          print "🛠️ Calling tool:" tool_name "with args:" tool_args
+          if stream_fn != null {
+            try {
+              stream_fn("🛠️ *Calling tool:* `" + tool_name + "`\n\n")
+            } catch(e_sf3) {}
+          }
+
+          let obs = ""
+          let tools = agent["tools"]
+          let tool_fn = tools[tool_name]
+          if tool_fn == null {
+            obs = "Error: Tool " + tool_name + " is not registered."
+            print "❌ Error: Tool not found"
+            error_count = error_count + 1
+            if stream_fn != null {
+              try {
+                stream_fn("❌ *Error:* Tool `" + tool_name + "` not found\n\n")
+              } catch(e_sf4) {}
+            }
+          } else {
+            try {
+              obs = tool_fn(tool_args)
+              print "📥 Observation:" obs
+              error_count = 0
+              if stream_fn != null {
+                try {
+                  stream_fn("📥 *Observation:* " + obs + "\n\n")
+                } catch(e_sf5) {}
+              }
+            } catch(e) {
+              obs = "Error executing tool: " + e
+              print "❌ Tool Error:" e
+              error_count = error_count + 1
+              if stream_fn != null {
+                try {
+                  stream_fn("❌ *Tool Error:* " + str(e) + "\n\n")
+                } catch(e_sf6) {}
+              }
+            }
+          }
+
+          if error_count >= 3 {
+            final_res = "Error: Task failed due to consecutive tool errors."
+            break
+          }
+
+          react_history = react_history + "
+Thought: " + step["thought"] + "
+Tool: " + tool_name + "(" + tool_args + ")
+Observation: " + obs + "
+"
+        }
+      }
+
+      steps_taken = steps_taken + 1
+  }
+
+  if final_res == "" {
+    final_res = "⚠️ Maximum reasoning steps reached (limit: " + str(max_steps) + ") without a final answer. Last observations:\n\n" + react_history
+  }
+  return final_res
+}
+
+export fn clear_history(agent) {
+  agent["history"] = []
+}
+
+export fn run(agent, message) {
+  let sys = agent["system"]
+  let prompt_text = "System: " + sys + "
+User: " + message + "
+Assistant:"
+  return call_model_helper(agent["model"], agent["temperature"], agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
+}

@@ -1,0 +1,215 @@
+/*
+  SVG Generation and Verification Agent.
+  This script demonstrates an AI Agent that:
+  1. Accepts user input to describe an SVG graphic.
+  2. Generates the SVG XML and writes it to a file.
+  3. Launches a headless browser (std/browser) to render the file and check for SVG/XML parse errors.
+  4. Takes a screenshot of the SVG.
+  5. Generates a Markdown report summarizing the workflow and embedding the screenshot.
+
+  Run with: sesi examples/optional/svg_generation_agent.sesi -l
+*/
+
+allow "ai_agent" in with Agent
+allow "std/browser" in with {launch}
+
+print "🚀 Initializing SVG Generator Agent..."
+
+// Register model aliases
+set_alias("agent", "gemini-3.1-pro-preview")
+
+// Tool to write Sesi script content to disk
+fn write_sesi_script(arg: string) -> string {
+  try {
+    let parsed = from_json(arg)
+    let filename = parsed["filename"]
+    if filename == null { filename = parsed["name"] }
+    if filename == null { return "Failed: 'filename' key is missing." }
+    
+    let content = parsed["content"]
+    if content == null { content = parsed["code"] }
+    if content == null { return "Failed: 'content' key is missing." }
+    
+    print "💾 Saving Sesi script to:" filename
+    let ok = write_file(filename, content)
+    if ok == null { return "Failed to write Sesi script." }
+    return "Successfully wrote Sesi script to " + filename
+  } catch(e) {
+    return "Failed to parse write_sesi_script arguments: " + e
+  }
+}
+
+// Tool to execute a Sesi script
+fn execute_sesi_script(arg: string) -> string {
+  let filename = arg
+  if locate(arg, "{") == 0 {
+    try {
+      let parsed = from_json(arg)
+      if parsed["filename"] != null { filename = parsed["filename"] }
+      if filename == null && parsed["name"] != null { filename = parsed["name"] }
+    } catch(e) {}
+  }
+  print "⚡ Executing Sesi script:" filename
+  try {
+    let result = exec("node bin/sesi.js " + filename + " -l")
+    return "Execution Succeeded!\nOutput:\n" + result
+  } catch(e) {
+    return "Execution Failed!\nError details:\n" + e
+  }
+}
+
+// Tool to verify SVG in browser
+fn verify_svg_file(arg: string) -> string {
+  let filename = arg
+  if locate(arg, "{") == 0 {
+    try {
+      let parsed = from_json(arg)
+      if parsed["filename"] != null { filename = parsed["filename"] }
+      if filename == null && parsed["name"] != null { filename = parsed["name"] }
+    } catch(e) {}
+  }
+  
+  // Resolve absolute path for browser local load
+  let cwd = swap(exec("pwd"), "\n", "")
+  let file_url = "file://" + cwd + "/" + filename
+  print "🌐 Navigating browser to:" file_url
+  
+  let browser = null
+  try {
+    browser = launch({"headless": true})
+    let page = browser.newPage()
+    page.goto(file_url)
+    page.wait_for_timeout(1500) // Allow render time
+    
+    // Check if browser encountered an XML parsing error
+    let has_error = page.evaluate("document.querySelector('parsererror') !== null")
+    
+    // Save a visual snapshot of the rendered SVG
+    let screenshot_path = swap(filename, ".svg", "") + "_screenshot.png"
+    page.screenshot({"path": screenshot_path})
+    
+    page.close()
+    browser.close()
+    
+    if has_error {
+      return "Verification Failed: The SVG XML has syntax/parsing errors (detected <parsererror> in the document structure)."
+    }
+    
+    return "Verification Succeeded: SVG loaded cleanly. Screenshot saved to " + screenshot_path
+  } catch(e) {
+    if browser != null {
+      try { browser.close() } catch(err) {}
+    }
+    return "Verification Failed: Browser navigation error: " + e
+  }
+}
+
+// Tool to write the markdown workflow report
+fn write_report(arg: string) -> string {
+  try {
+    let parsed = from_json(arg)
+    let filename = parsed["filename"]
+    if filename == null { filename = parsed["name"] }
+    if filename == null { return "Failed: 'filename' key is missing." }
+    
+    let content = parsed["content"]
+    if content == null { content = parsed["markdown"] }
+    if content == null { return "Failed: 'content' key is missing." }
+    
+    print "📝 Writing report to:" filename
+    let ok = write_file(filename, content)
+    if ok == null { return "Failed to write report file." }
+    return "Successfully wrote report to " + filename
+  } catch(e) {
+    return "Failed to parse write_report arguments: " + e
+  }
+}
+
+// Tool to read a file safely
+fn safeRead(arg: string) -> string {
+  let parsed = from_json(arg)
+  let filename = parsed["filename"]
+  if filename == null { filename = parsed["name"] }
+  if filename == null { return "Failed: 'filename' key is missing." }
+  try {
+    let content = read_file(filename)
+    if content == null { return "Failed to read file." }
+    return content
+  } catch (e) {
+    return "Failed to read file: " + e
+  }
+}
+
+// Create agent configuration
+let svg_agent = Agent.create({
+  "model": "agent",
+  "cache": true,
+  "system": "You are an expert developer and designer specializing in the Sesi programming language and standard vector graphics.
+Your task is to write a Sesi script using Sesi's native 'std/draw' graphics library to draw a beautiful vector graphic and save it to disk.
+
+### 🛑 CRITICAL INSTRUCTION:
+Do NOT guess Sesi syntax or standard library functions.
+You MUST use the 'read_file' tool to read the documentation files:
+- 'getting-started/SVG.md' to check the exact Sesi 'std/draw' graphics module syntax and signatures (e.g. Draw.rect, Draw.circle, Draw.save_svg).
+- 'docs/WRITING_SCRIPTS.md' to check Sesi language syntax (no const, C-like loops, etc.).
+Follow the documentation exactly to write valid Sesi code!
+
+### ⚙️ WORKFLOW PROCESS:
+1. Read the official documentation using 'read_file' to learn Sesi syntax and std/draw API.
+2. Write your Sesi drawing script. Save it with 'write_sesi_script' (name it 'draw_design.sesi').
+3. Run the script with 'execute_sesi_script' to generate 'design.svg'.
+4. Use 'verify_svg_file' on 'design.svg' to check for errors and take a screenshot.
+5. If there are syntax or execution errors, read the error message carefully, read the docs to identify the mistake, rewrite/fix your Sesi script, and run it again.
+6. Once verified, generate the markdown report summarizing your workflow using 'write_report'.
+In the markdown report, embed the screenshot using markdown: ![Rendered SVG](design_screenshot.png).",
+  "temperature": 0.2,
+  "tools": {
+    "read_file": safeRead,
+    "write_sesi_script": write_sesi_script,
+    "execute_sesi_script": execute_sesi_script,
+    "verify_svg_file": verify_svg_file,
+    "write_report": write_report
+  }
+})
+
+// Listen to input from the user
+let user_prompt = ""
+if len(args) > 0 {
+  user_prompt = args[0]
+} else {
+  user_prompt = input("What SVG would you like to generate? (e.g. 'A futuristic rocket orbiting a planet'): ")
+}
+
+if user_prompt == "" || user_prompt == null {
+  user_prompt = "A futuristic rocket orbiting a planet"
+}
+
+let baseFilename = input("What filename would you like to use? (e.g. 'design', 'artwork', etc.): ")
+let filename = baseFilename + ".sesi"
+filename = swap(filename, " ", "_")
+
+if baseFilename == "" || baseFilename == null {
+  filename = "design.sesi"
+}
+
+let svg_filename = swap(filename, ".sesi", ".svg")
+
+print "🎨 Generating SVG for prompt:" user_prompt
+print "Starting ReAct Loop..."
+
+prompt task_instruction {"Perform the following actions:
+1. Use 'read_file' to read 'getting-started/SVG.md' to check the exact function signatures and syntax rules of Sesi's 'std/draw' module.
+2. Write a Sesi script named '" filename "' that imports 'std/draw' and constructs a beautiful SVG graphic representing: '" user_prompt "'.
+- Ensure the script ends by saving the SVG to '" svg_filename "' using Draw.save_svg(\"" svg_filename "\", 500, 500).
+3. Execute '" filename "' using 'execute_sesi_script'.
+4. Verify '" svg_filename "' using 'verify_svg_file' to check for errors and capture a screenshot.
+5. Save a detailed report named '" baseFilename "_svg_workflow_report.md' detailing your steps, Sesi script code, and embedding the screenshot '" baseFilename "_screenshot.png'.
+   ⚠️ CRITICAL: You MUST use the 'write_report' tool to write this file. Do NOT set finished: true until you have successfully executed the 'write_report' tool."}
+
+let final_answer = Agent.run_react(svg_agent, task_instruction, 15)
+
+print "
+========================================="
+print "FINAL ANSWER FROM SVG GENERATOR AGENT:"
+print final_answer
+print "========================================="

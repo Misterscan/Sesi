@@ -59,10 +59,12 @@ Usage:
   --tokens               Show the tokens
   -b, --byte             Run via bytecode VM (experimental)
   -bd, --byte-dump       Print disassembled bytecode and exit
+  -i, install            Install all dependencies listed in sesi.json
+
 `;
 
 function parseArgs(args) {
-  if (args[0] === 'install') {
+  if (args[0] === 'install' || args[0] === 'i') {
     return {
       install: true,
       installPackage: args[1],

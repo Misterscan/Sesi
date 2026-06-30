@@ -1,0 +1,45 @@
+/*
+  Demonstration of the Sesi AI Agent Module.
+  Run with: sesi run_agent_demo.sesi
+*/
+
+allow "ai_agent" in with Agent
+
+// Set model aliases
+set_alias("tutor", "gemini-3.1-flash-lite")
+set_alias("developer", "gemini-3.1-pro-preview")
+
+print "=== Part 1: Streaming Conversational Agent ==="
+
+let chat_agent = Agent.create({
+  "model": "tutor",
+  "system": "You are a concise, helpful tutor. Keep responses under 20 words.",
+  "temperature": 0.3,
+  "stream": true
+})
+
+print "Prompting streaming agent: 'What is the speed of light?'"
+print "--- Agent Output ---"
+let response = Agent.chat(chat_agent, "What is the speed of light?")
+print "
+--------------------"
+
+print "
+=== Part 2: ReAct File Analyzer Agent ==="
+
+// We can register native Sesi built-in functions directly as tools!
+let react_agent = Agent.create({
+  "model": "developer",
+  "system": "You are a developer assistant. Use the read_file tool to read local files.",
+  "temperature": 0.1,
+  "tools": {
+    "read_file": read_file
+  }
+})
+
+print "Task: Find the name of this project in package.json."
+let final_answer = Agent.run_react(react_agent, "Read package.json and find the name of the project.", 3)
+
+print "
+Final result from ReAct agent:"
+print final_answer

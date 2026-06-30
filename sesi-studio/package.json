@@ -1,6 +1,6 @@
 {
   "name": "sesi-studio",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Sesi Studio — IDE for the Sesi Programming Language",
   "main": "studio.sesi",
   "author": "Misterscan",
