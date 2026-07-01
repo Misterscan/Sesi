@@ -28,6 +28,11 @@ import {
   type ModelCallExpression,
   type StructuredOutputExpression,
   type ToolCallExpression,
+  type BreakStatement,
+  type ContinueStatement,
+  type ImportStatement,
+  type AllowStatement,
+  type MemoryStatement,
 } from './types';
 
 import {
@@ -45,11 +50,19 @@ import {
 } from './chunk';
 
 // ---------------------------------------------------------------------------
-// Scope tracking for locals
+// Scope tracking for locals and loops
 // ---------------------------------------------------------------------------
 interface Local {
   name: string;
   depth: number;
+  isCaptured: boolean;
+}
+
+interface LoopInfo {
+  continueTarget: number;
+  continueJumps: number[];
+  breakJumps: number[];
+  scopeDepth: number;
 }
 
 // Known Sesi built-in names — compiled to CALL_BUILTIN for a speed win
@@ -72,6 +85,9 @@ export class Compiler {
   private locals: Local[] = [];
   private scopeDepth = 0;
   public errors: string[] = [];
+  private enclosing: Compiler | null = null;
+  private upvalues: Array<{ index: number; isLocal: boolean }> = [];
+  private loops: LoopInfo[] = [];
 
   constructor(existingChunk?: Chunk) {
     this.chunk = existingChunk ?? makeChunk();
@@ -91,11 +107,36 @@ export class Compiler {
 
   private compileFunctionBody(stmt: FunctionStatement): FunctionProto {
     const inner = new Compiler();
+    inner.enclosing = this;
     inner.scopeDepth = 1;
 
     // Bind params as locals in slot order
     for (const p of stmt.parameters) {
-      inner.locals.push({ name: p.name, depth: 1 });
+      inner.locals.push({ name: p.name, depth: 1, isCaptured: false });
+    }
+
+    // Emit default parameter value checks
+    for (let i = 0; i < stmt.parameters.length; i++) {
+      const p = stmt.parameters[i];
+      if (p.defaultValue) {
+        const line = stmt.line;
+        // Check if param is null
+        emitBytes(inner.chunk, OpCode.GET_LOCAL, i, line);
+        inner.emitOp(OpCode.NIL, line);
+        inner.emitOp(OpCode.EQUAL, line);
+        
+        const thenJump = emitJump(inner.chunk, OpCode.JUMP_IF_FALSE, line);
+        inner.emitOp(OpCode.POP, line); // pop true
+        
+        inner.compileExpression(p.defaultValue);
+        emitBytes(inner.chunk, OpCode.SET_LOCAL, i, line);
+        inner.emitOp(OpCode.POP, line);
+        
+        const elseJump = emitJump(inner.chunk, OpCode.JUMP, line);
+        patchJump(inner.chunk, thenJump);
+        inner.emitOp(OpCode.POP, line); // pop false
+        patchJump(inner.chunk, elseJump);
+      }
     }
 
     for (const s of stmt.body.statements) {
@@ -110,6 +151,7 @@ export class Compiler {
       params: stmt.parameters.map(p => ({ name: p.name, hasDefault: !!p.defaultValue })),
       chunk: inner.chunk,
       isAsync: !!stmt.isAsync,
+      upvalues: inner.upvalues,
     };
   }
 
@@ -129,15 +171,14 @@ export class Compiler {
         case 'WhileStatement':     return this.compileWhile(stmt);
         case 'ForStatement':       return this.compileFor(stmt);
         case 'ReturnStatement':    return this.compileReturn(stmt);
+        case 'BreakStatement':     return this.compileBreak(stmt);
+        case 'ContinueStatement':  return this.compileContinue(stmt);
         case 'TryStatement':       return this.compileTry(stmt);
+        case 'ImportStatement':    return this.compileImport(stmt);
+        case 'AllowStatement':     return this.compileAllow(stmt);
+        case 'MemoryStatement':    return this.compileMemory(stmt);
         case 'ExportStatement':    return this.compileStatement(stmt.statement);
-        // ImportStatement / AllowStatement / MemoryStatement:
-        // these delegate to the interpreter at runtime since they involve
-        // filesystem I/O, the module system, and AI state — they are emitted
-        // as a special CALL_BUILTIN that passes control back.
         default:
-          // For statement types the VM doesn't yet handle natively,
-          // fall back gracefully by emitting a NIL (no-op effect).
           this.emitOp(OpCode.NIL, (stmt as any).line ?? 0);
           this.emitOp(OpCode.POP, (stmt as any).line ?? 0);
       }
@@ -164,7 +205,7 @@ export class Compiler {
   private compileFn(stmt: FunctionStatement): void {
     const proto = this.compileFunctionBody(stmt);
     const idx = addConstant(this.chunk, proto);
-    emit16(this.chunk, OpCode.CLOSURE, idx, stmt.line);
+    emitBytes(this.chunk, OpCode.CLOSURE, idx, stmt.line);
     this.defineVariable(stmt.name, stmt.line);
   }
 
@@ -215,13 +256,31 @@ export class Compiler {
   private compileWhile(stmt: WhileStatement): void {
     const line = stmt.line;
     const loopStart = this.chunk.code.length;
+
+    const loopInfo: LoopInfo = {
+      continueTarget: loopStart,
+      continueJumps: [],
+      breakJumps: [],
+      scopeDepth: this.scopeDepth
+    };
+    this.loops.push(loopInfo);
+
     this.compileExpression(stmt.condition);
     const exitJump = emitJump(this.chunk, OpCode.JUMP_IF_FALSE, line);
     this.emitOp(OpCode.POP, line);
+    
     this.compileBlock(stmt.body);
+    
     emitLoop(this.chunk, loopStart, line);
     patchJump(this.chunk, exitJump);
     this.emitOp(OpCode.POP, line);
+
+    // Patch break jumps
+    const loopEnd = this.chunk.code.length;
+    for (const breakJump of loopInfo.breakJumps) {
+      patchJump(this.chunk, breakJump);
+    }
+    this.loops.pop();
   }
 
   private compileFor(stmt: ForStatement): void {
@@ -229,26 +288,29 @@ export class Compiler {
     this.beginScope();
 
     if (stmt.iterable) {
-      // for x in array — compile to index-based loop at runtime
-      // We push the array, an index counter, and loop
       this.compileExpression(stmt.iterable);
-      // index = 0
       const zeroIdx = addConstant(this.chunk, 0);
       emitBytes(this.chunk, OpCode.CONSTANT, zeroIdx, line);
 
-      // locals: [array, index]
-      this.locals.push({ name: '__for_arr__', depth: this.scopeDepth });
-      this.locals.push({ name: '__for_idx__', depth: this.scopeDepth });
+      this.locals.push({ name: '__for_arr__', depth: this.scopeDepth, isCaptured: false });
+      this.locals.push({ name: '__for_idx__', depth: this.scopeDepth, isCaptured: false });
 
       const arrSlot = this.locals.length - 2;
       const idxSlot = this.locals.length - 1;
 
       const loopStart = this.chunk.code.length;
 
+      const loopInfo: LoopInfo = {
+        continueTarget: -1,
+        continueJumps: [],
+        breakJumps: [],
+        scopeDepth: this.scopeDepth
+      };
+      this.loops.push(loopInfo);
+
       // condition: index < len(array)
       emitBytes(this.chunk, OpCode.GET_LOCAL, idxSlot, line);
       emitBytes(this.chunk, OpCode.GET_LOCAL, arrSlot, line);
-      // emit CALL_BUILTIN len 1
       const lenIdx = addConstant(this.chunk, 'len');
       emitByte(this.chunk, OpCode.CALL_BUILTIN, line);
       emitByte(this.chunk, lenIdx, line);
@@ -263,12 +325,17 @@ export class Compiler {
       emitBytes(this.chunk, OpCode.GET_LOCAL, arrSlot, line);
       emitBytes(this.chunk, OpCode.GET_LOCAL, idxSlot, line);
       this.emitOp(OpCode.GET_INDEX, line);
-      this.locals.push({ name: stmt.variable, depth: this.scopeDepth });
-      // don't emit DEFINE — value is already on stack as the new local slot
+      this.locals.push({ name: stmt.variable, depth: this.scopeDepth, isCaptured: false });
 
       for (const s of stmt.body.statements) this.compileStatement(s);
 
       this.endScope(line);
+
+      // Update/continue target
+      const updateStart = this.chunk.code.length;
+      for (const continueJump of loopInfo.continueJumps) {
+        patchJump(this.chunk, continueJump);
+      }
 
       // index = index + 1
       emitBytes(this.chunk, OpCode.GET_LOCAL, idxSlot, line);
@@ -281,13 +348,28 @@ export class Compiler {
       emitLoop(this.chunk, loopStart, line);
       patchJump(this.chunk, exitJump);
       this.emitOp(OpCode.POP, line);
+
+      // Patch breaks
+      for (const breakJump of loopInfo.breakJumps) {
+        patchJump(this.chunk, breakJump);
+      }
+      this.loops.pop();
+
     } else if (stmt.start && stmt.end) {
-      // for x = start to end
       this.compileExpression(stmt.start);
-      this.locals.push({ name: stmt.variable, depth: this.scopeDepth });
+      this.locals.push({ name: stmt.variable, depth: this.scopeDepth, isCaptured: false });
       const varSlot = this.locals.length - 1;
 
       const loopStart = this.chunk.code.length;
+
+      const loopInfo: LoopInfo = {
+        continueTarget: -1,
+        continueJumps: [],
+        breakJumps: [],
+        scopeDepth: this.scopeDepth
+      };
+      this.loops.push(loopInfo);
+
       emitBytes(this.chunk, OpCode.GET_LOCAL, varSlot, line);
       this.compileExpression(stmt.end);
       this.emitOp(OpCode.LESS, line);
@@ -298,6 +380,12 @@ export class Compiler {
       this.beginScope();
       for (const s of stmt.body.statements) this.compileStatement(s);
       this.endScope(line);
+
+      // Update/continue target
+      const updateStart = this.chunk.code.length;
+      for (const continueJump of loopInfo.continueJumps) {
+        patchJump(this.chunk, continueJump);
+      }
 
       // i = i + 1
       emitBytes(this.chunk, OpCode.GET_LOCAL, varSlot, line);
@@ -310,31 +398,158 @@ export class Compiler {
       emitLoop(this.chunk, loopStart, line);
       patchJump(this.chunk, exitJump);
       this.emitOp(OpCode.POP, line);
+
+      // Patch breaks
+      for (const breakJump of loopInfo.breakJumps) {
+        patchJump(this.chunk, breakJump);
+      }
+      this.loops.pop();
     }
 
     this.endScope(line);
   }
 
   private compileReturn(stmt: ReturnStatement): void {
+    const line = stmt.line;
     if (stmt.value) {
       this.compileExpression(stmt.value);
-      this.emitOp(OpCode.RETURN, stmt.line);
+      this.emitOp(OpCode.RETURN, line);
     } else {
-      this.emitOp(OpCode.RETURN_VOID, stmt.line);
+      this.emitOp(OpCode.RETURN_VOID, line);
+    }
+  }
+
+  private compileBreak(stmt: BreakStatement): void {
+    const line = stmt.line;
+    if (this.loops.length === 0) {
+      throw new Error('Break statement outside of loop');
+    }
+    const loop = this.loops[this.loops.length - 1];
+
+    // Pop/close local variables inside loop block
+    for (let i = this.locals.length - 1; i >= 0; i--) {
+      if (this.locals[i].depth > loop.scopeDepth) {
+        if (this.locals[i].isCaptured) {
+          this.emitOp(OpCode.CLOSE_UPVALUE, line);
+        } else {
+          this.emitOp(OpCode.POP, line);
+        }
+      }
+    }
+
+    const jump = emitJump(this.chunk, OpCode.JUMP, line);
+    loop.breakJumps.push(jump);
+  }
+
+  private compileContinue(stmt: ContinueStatement): void {
+    const line = stmt.line;
+    if (this.loops.length === 0) {
+      throw new Error('Continue statement outside of loop');
+    }
+    const loop = this.loops[this.loops.length - 1];
+
+    // Pop/close local variables inside loop block
+    for (let i = this.locals.length - 1; i >= 0; i--) {
+      if (this.locals[i].depth > loop.scopeDepth) {
+        if (this.locals[i].isCaptured) {
+          this.emitOp(OpCode.CLOSE_UPVALUE, line);
+        } else {
+          this.emitOp(OpCode.POP, line);
+        }
+      }
+    }
+
+    if (loop.continueTarget !== -1) {
+      emitLoop(this.chunk, loop.continueTarget, line);
+    } else {
+      const jump = emitJump(this.chunk, OpCode.JUMP, line);
+      loop.continueJumps.push(jump);
     }
   }
 
   private compileTry(stmt: TryStatement): void {
-    // TryStatement is complex to implement purely in bytecode (requires an
-    // exception handler table and unwinding). For now we emit a special
-    // sentinel that the VM recognises and delegates to interpreter helpers.
-    // The constant stores a serialised marker; the VM handles the rest.
     const line = stmt.line;
-    const markerIdx = addConstant(this.chunk, '__try__');
-    emitBytes(this.chunk, OpCode.CONSTANT, markerIdx, line);
-    this.emitOp(OpCode.POP, line);
-    // Compile try body normally — errors propagate to VM's JS try/catch
+
+    // TRY_START
+    emitByte(this.chunk, OpCode.TRY_START, line);
+    const catchOffsetOffset = this.chunk.code.length;
+    emitByte(this.chunk, 0xff, line);
+    emitByte(this.chunk, 0xff, line);
+    const finallyOffsetOffset = this.chunk.code.length;
+    emitByte(this.chunk, 0xff, line);
+    emitByte(this.chunk, 0xff, line);
+
+    const tryStartIp = this.chunk.code.length;
+
+    // Try block
     this.compileBlock(stmt.tryBlock);
+    this.emitOp(OpCode.TRY_END, line);
+
+    // Jump past catch block to finally block
+    const jumpToFinally = emitJump(this.chunk, OpCode.JUMP, line);
+
+    // Catch block start
+    const catchStartIp = this.chunk.code.length;
+    const catchOffset = catchStartIp - tryStartIp;
+    this.chunk.code[catchOffsetOffset] = (catchOffset >> 8) & 0xff;
+    this.chunk.code[catchOffsetOffset + 1] = catchOffset & 0xff;
+
+    // Compile catch block (the error value is pushed onto the stack by the VM)
+    this.beginScope();
+    this.locals.push({ name: stmt.catchParameter, depth: this.scopeDepth, isCaptured: false });
+    for (const s of stmt.catchBlock.statements) {
+      this.compileStatement(s);
+    }
+    this.endScope(line);
+
+    // Jump past finally block setup to actual finally execution
+    const jumpFromCatchToFinally = emitJump(this.chunk, OpCode.JUMP, line);
+
+    // Finally block start
+    const finallyStartIp = this.chunk.code.length;
+    const finallyOffset = finallyStartIp - tryStartIp;
+    this.chunk.code[finallyOffsetOffset] = (finallyOffset >> 8) & 0xff;
+    this.chunk.code[finallyOffsetOffset + 1] = finallyOffset & 0xff;
+
+    patchJump(this.chunk, jumpToFinally);
+    patchJump(this.chunk, jumpFromCatchToFinally);
+
+    // Finally body
+    this.emitOp(OpCode.FINALLY_START, line);
+    if (stmt.finallyBlock) {
+      this.compileBlock(stmt.finallyBlock);
+    }
+    this.emitOp(OpCode.FINALLY_END, line);
+  }
+
+  private compileImport(stmt: ImportStatement): void {
+    const line = stmt.line;
+    const sourceIdx = addConstant(this.chunk, stmt.source);
+    const namesIdx = addConstant(this.chunk, stmt.names);
+    emitByte(this.chunk, OpCode.IMPORT, line);
+    emitByte(this.chunk, sourceIdx, line);
+    emitByte(this.chunk, namesIdx, line);
+  }
+
+  private compileAllow(stmt: AllowStatement): void {
+    const line = stmt.line;
+    const sourceIdx = addConstant(this.chunk, stmt.source);
+    const bindingIdx = addConstant(this.chunk, stmt.binding);
+    emitByte(this.chunk, OpCode.ALLOW, line);
+    emitByte(this.chunk, sourceIdx, line);
+    emitByte(this.chunk, bindingIdx, line);
+  }
+
+  private compileMemory(stmt: MemoryStatement): void {
+    const line = stmt.line;
+    if (stmt.initialValue) {
+      this.compileExpression(stmt.initialValue);
+    } else {
+      const emptyIdx = addConstant(this.chunk, '');
+      emitBytes(this.chunk, OpCode.CONSTANT, emptyIdx, line);
+    }
+    const nameIdx = addConstant(this.chunk, stmt.name);
+    emitBytes(this.chunk, OpCode.INITIALIZE_MEMORY, nameIdx, line);
   }
 
   // -------------------------------------------------------------------------
@@ -396,8 +611,13 @@ export class Compiler {
     if (slot !== -1) {
       emitBytes(this.chunk, OpCode.GET_LOCAL, slot, expr.line);
     } else {
-      const idx = addConstant(this.chunk, expr.name);
-      emitBytes(this.chunk, OpCode.GET_GLOBAL, idx, expr.line);
+      const upvalueSlot = this.resolveUpvalue(expr.name);
+      if (upvalueSlot !== -1) {
+        emitBytes(this.chunk, OpCode.GET_UPVALUE, upvalueSlot, expr.line);
+      } else {
+        const idx = addConstant(this.chunk, expr.name);
+        emitBytes(this.chunk, OpCode.GET_GLOBAL, idx, expr.line);
+      }
     }
   }
 
@@ -457,8 +677,13 @@ export class Compiler {
       if (slot !== -1) {
         emitBytes(this.chunk, OpCode.SET_LOCAL, slot, line);
       } else {
-        const idx = addConstant(this.chunk, name);
-        emitBytes(this.chunk, OpCode.SET_GLOBAL, idx, line);
+        const upvalueSlot = this.resolveUpvalue(name);
+        if (upvalueSlot !== -1) {
+          emitBytes(this.chunk, OpCode.SET_UPVALUE, upvalueSlot, line);
+        } else {
+          const idx = addConstant(this.chunk, name);
+          emitBytes(this.chunk, OpCode.SET_GLOBAL, idx, line);
+        }
       }
     } else if (left.type === 'IndexExpression') {
       const ie = left as IndexExpression;
@@ -613,7 +838,12 @@ export class Compiler {
   private endScope(line: number): void {
     this.scopeDepth--;
     while (this.locals.length > 0 && this.locals[this.locals.length - 1].depth > this.scopeDepth) {
-      this.emitOp(OpCode.POP, line);
+      const local = this.locals[this.locals.length - 1];
+      if (local.isCaptured) {
+        this.emitOp(OpCode.CLOSE_UPVALUE, line);
+      } else {
+        this.emitOp(OpCode.POP, line);
+      }
       this.locals.pop();
     }
   }
@@ -621,7 +851,7 @@ export class Compiler {
   private defineVariable(name: string, line: number): void {
     if (this.scopeDepth > 0) {
       // local
-      this.locals.push({ name, depth: this.scopeDepth });
+      this.locals.push({ name, depth: this.scopeDepth, isCaptured: false });
       // value is already on the stack — no extra opcode needed
     } else {
       // global
@@ -635,6 +865,36 @@ export class Compiler {
       if (this.locals[i].name === name) return i;
     }
     return -1;
+  }
+
+  private resolveUpvalue(name: string): number {
+    if (this.enclosing === null) return -1;
+
+    // 1. Resolve in direct enclosing scope's locals
+    const local = this.enclosing.resolveLocal(name);
+    if (local !== -1) {
+      this.enclosing.locals[local].isCaptured = true;
+      return this.addUpvalue(local, true);
+    }
+
+    // 2. Resolve recursively in enclosing scope's upvalues
+    const upvalue = this.enclosing.resolveUpvalue(name);
+    if (upvalue !== -1) {
+      return this.addUpvalue(upvalue, false);
+    }
+
+    return -1;
+  }
+
+  private addUpvalue(index: number, isLocal: boolean): number {
+    for (let i = 0; i < this.upvalues.length; i++) {
+      const up = this.upvalues[i];
+      if (up.index === index && up.isLocal === isLocal) {
+        return i;
+      }
+    }
+    this.upvalues.push({ index, isLocal });
+    return this.upvalues.length - 1;
   }
 
   private emitOp(op: OpCode, line: number): void {

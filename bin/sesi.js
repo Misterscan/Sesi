@@ -20,7 +20,7 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.6.0
+Sesi Programming Language v1.6.1
 
 Usage:
   sesi <file> [options] <args>  Run a Sesi program
@@ -36,7 +36,7 @@ Usage:
   sesi -c <file>         Check syntax of a file
   sesi --ast <file>      Show the AST of a file
   sesi --tokens <file>   Show the tokens of a file
-  sesi -b <file>         Run via bytecode VM
+  sesi -t <file>         Run via legacy tree-walking interpreter
   sesi -bd <file>        Print disassembled bytecode
   sesi install           Install all dependencies listed in sesi.json
   sesi install <pkg>     Install a third-party package (e.g. github:owner/repo)
@@ -57,7 +57,7 @@ Usage:
   -c, --check, --dry     Perform a dry-run syntax check without executing
   --ast                  Show the AST
   --tokens               Show the tokens
-  -b, --byte             Run via bytecode VM (experimental)
+  -t, --tree-walker      Run via legacy tree-walking interpreter fallback
   -bd, --byte-dump       Print disassembled bytecode and exit
   -i, install            Install all dependencies listed in sesi.json
 
@@ -98,7 +98,7 @@ function parseArgs(args) {
     const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
 
     if (arg === '-v' || arg === '--version') {
-      console.log('Sesi v1.6.0');
+      console.log('Sesi v1.6.1');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -138,10 +138,10 @@ function parseArgs(args) {
       options.sesiOptions.tokens = true;
     } else if (arg === '-c' || arg === '--check' || arg === '--dry') {
       options.sesiOptions.dry = true;
-    } else if (arg === '-b' || arg === '--byte') {
-      options.sesiOptions.bytecode = true;
     } else if (arg === '-bd' || arg === '--byte-dump') {
       options.sesiOptions.bytecodeDump = true;
+    } else if (arg === '-t' || arg === '--tree-walker') {
+      options.sesiOptions.treeWalker = true;
     } else if (arg === '--repl') {
       options.repl = true;
     } else if (arg === '--studio' || arg === '-s') {
@@ -170,7 +170,7 @@ async function startRepl() {
 
   const interpreter = new Interpreter(process.cwd(), parsed.sesiOptions);
 
-  console.log('Sesi Interactive REPL (v1.6.0)');
+  console.log('Sesi Interactive REPL (v1.6.1)');
   console.log('Type ".exit" or press Ctrl+C to exit.');
 
   const rl = readline.createInterface({
@@ -235,7 +235,8 @@ async function main() {
       const studioOptions = {
         ...parsed.sesiOptions,
         safeMode: false,
-        allowLocalFs: true
+        allowLocalFs: true,
+        treeWalker: true
       };
       await runSesiFile(studioServerPath, studioOptions).catch((error) => {
         console.error('Fatal error in Sesi Studio:', error.message);

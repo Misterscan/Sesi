@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -41,7 +41,7 @@
     "sesi:parse": "sesi -r",
     "sesi:encrypt": "sesi -enc",
     "sesi:decrypt": "sesi -dec",
-    "studio": "sesi -l sesi-studio/studio.sesi",
+    "studio": "sesi -t -l sesi-studio/studio.sesi",
     "studio:css": "sesi -l sesi-studio/customize_css.sesi",
     "studio:css:pack": "sesi -l sesi-studio/theme-packager.sesi pack",
     "studio:css:unpack": "sesi -l sesi-studio/theme-packager.sesi unpack",
@@ -78,7 +78,7 @@
   "author": "Misterscan",
   "license": "MIT",
   "dependencies": {
-    "@dotenvx/dotenvx": "1.75.1",
+    "@dotenvx/dotenvx": "2.0.0",
     "@dotenvx/dotenvx-armor": "0.56.1",
     "@dotenvx/dotenvx-ops": "0.56.1",
     "@google/genai": "2.10.0",
@@ -86,7 +86,7 @@
     "ws": "8.21.0"
   },
   "devDependencies": {
-    "@types/node": "26.0.1",
+    "@types/node": "26.1.0",
     "globals": "^17.7.0",
     "rcedit": "^5.0.2",
     "typescript": "6.0.3"

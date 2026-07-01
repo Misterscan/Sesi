@@ -6,7 +6,7 @@
   "author": "Misterscan",
   "license": "MIT",
   "scripts": {
-    "start": "sesi -l studio.sesi",
+    "start": "sesi -t -l studio.sesi",
     "dev": "sesi -l studio.sesi",
     "css": "sesi customize_css.sesi",
     "css:pack": "sesi -l theme-packager.sesi pack",

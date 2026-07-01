@@ -318,3 +318,100 @@ User: " + message + "
 Assistant:"
   return call_model_helper(agent["model"], agent["temperature"], agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
 }
+
+export fn clone(agent) {
+  let cloned_history = []
+  for turn in agent["history"] {
+    push(cloned_history, {
+      "role": turn["role"],
+      "text": turn["text"]
+    })
+  }
+  let cloned_tools = {}
+  for k in keys(agent["tools"]) {
+    cloned_tools[k] = agent["tools"][k]
+  }
+  return {
+    "model": agent["model"],
+    "system": agent["system"],
+    "temperature": agent["temperature"],
+    "thinkingLevel": agent["thinkingLevel"],
+    "search": agent["search"],
+    "stream": agent["stream"],
+    "cache": agent["cache"],
+    "max_tokens": agent["max_tokens"],
+    "tools": cloned_tools,
+    "history": cloned_history
+  }
+}
+
+export fn save(agent, path) {
+  let data = {
+    "model": agent["model"],
+    "system": agent["system"],
+    "temperature": agent["temperature"],
+    "thinkingLevel": agent["thinkingLevel"],
+    "search": agent["search"],
+    "stream": agent["stream"],
+    "cache": agent["cache"],
+    "max_tokens": agent["max_tokens"],
+    "history": agent["history"]
+  }
+  return write_file(path, to_json(data))
+}
+
+export fn load(agent, path) {
+  let content = read_file(path)
+  if content == null {
+    return false
+  }
+  let data = from_json(content)
+  if data == null {
+    return false
+  }
+  agent["model"] = data["model"]
+  agent["system"] = data["system"]
+  agent["temperature"] = data["temperature"]
+  agent["thinkingLevel"] = data["thinkingLevel"]
+  agent["search"] = data["search"]
+  agent["stream"] = data["stream"]
+  agent["cache"] = data["cache"]
+  agent["max_tokens"] = data["max_tokens"]
+  agent["history"] = data["history"]
+  return true
+}
+
+export fn get_last_response(agent) {
+  let history = agent["history"]
+  let length = len(history)
+  if length == 0 {
+    return null
+  }
+  let last_turn = history[length - 1]
+  if last_turn["role"] == "assistant" {
+    return last_turn["text"]
+  }
+  return null
+}
+
+export fn add_message(agent, role, text) {
+  push(agent["history"], {
+    "role": role,
+    "text": text
+  })
+}
+
+export fn add_tool(agent, name, tool_fn) {
+  agent["tools"][name] = tool_fn
+}
+
+export fn remove_tool(agent, name) {
+  let new_tools = {}
+  let old_tools = agent["tools"]
+  for k in keys(old_tools) {
+    if k != name {
+      new_tools[k] = old_tools[k]
+    }
+  }
+  agent["tools"] = new_tools
+}

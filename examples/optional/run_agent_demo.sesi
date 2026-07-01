@@ -25,7 +25,7 @@ print "
 --------------------"
 
 print "
-=== Part 2: ReAct File Analyzer Agent ==="
+=== Part 2: SesiDo File Analyzer Agent ==="
 
 // We can register native Sesi built-in functions directly as tools!
 let react_agent = Agent.create({
@@ -41,5 +41,53 @@ print "Task: Find the name of this project in package.json."
 let final_answer = Agent.run_react(react_agent, "Read package.json and find the name of the project.", 3)
 
 print "
-Final result from ReAct agent:"
+Final result from SesiDo agent:"
 print final_answer
+
+print "
+=== Part 3: Dynamic Tool Administration and State Persistence ==="
+
+// Create an agent with no initial tools
+let admin_agent = Agent.create({
+  "model": "tutor",
+  "system": "You are a calculator assistant.",
+  "temperature": 0.1
+})
+
+// Define a dynamic tool function
+fn double_tool(args) {
+  let val = args["value"]
+  if val == null {
+    val = args["number"]
+  }
+  if val == null {
+    val = args["num"]
+  }
+  return str(val * 2)
+}
+
+// Add the tool dynamically
+Agent.add_tool(admin_agent, "double", double_tool)
+print "Dynamically registered the 'double' tool."
+
+// Chat with the agent using the dynamic tool
+print "Asking agent to double 125..."
+let chat_result = Agent.chat(admin_agent, "Use the double tool to double the number 125.")
+print "Final Answer:" chat_result
+
+// Retrieve the last response
+let last = Agent.get_last_response(admin_agent)
+print "Last assistant response in history:" last
+
+// Clone the agent
+let cloned_agent = Agent.clone(admin_agent)
+print "Cloned agent state successfully."
+
+// Save original agent state
+Agent.save(admin_agent, "agent_session.json")
+print "Saved agent state to agent_session.json."
+
+// Remove the tool dynamically
+Agent.remove_tool(admin_agent, "double")
+print "Dynamically removed the 'double' tool."
+

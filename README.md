@@ -234,7 +234,7 @@ Sesi incorporates a **safe-by-default, zero-trust sandboxing engine**.
 
 1. **Safe-by-Default Execution**:
    - Sesi's sandbox is **enabled by default**. Any standard Sesi interpreter execution blocks system command lines (`exec`, `spawn`) and locks down imports and paths.
-   - _Overriding Safety:_ Developers can explicitly bypass safe mode programmatically by initializing the interpreter with options, or on the command line by setting `SESI_SAFE_MODE=false`.
+   - _Overriding Safety:_ Developers can explicitly bypass safe mode programmatically by initializing the interpreter with options, using the `-l` flag when running the `sesi` executable, or in the .env file by setting `SESI_SAFE_MODE=false`.
 
 2. **Absolute Prototype Pollution Immunity**:
    - Sesi uses **prototype-free objects (`Object.create(null)`)** for all object literals, JSON parses (`from_json` or `std/json`), and structured model responses inside the interpreter.
@@ -297,7 +297,10 @@ Sesi/
 │   ├── types.ts                     # Type definitions & AST nodes (400+ lines)
 │   ├── lexer.ts                     # Tokenization (350+ lines)
 │   ├── parser.ts                    # Recursive descent parser (700+ lines)
-│   ├── interpreter.ts               # Tree-walking interpreter (600+ lines)
+│   ├── compiler.ts                  # AST → Bytecode compiler
+│   ├── chunk.ts                     # Bytecode Chunk & OpCode definitions
+│   ├── vm.ts                        # Bytecode virtual machine
+│   ├── interpreter.ts               # Tree-walking interpreter (fallback, 600+ lines)
 │   ├── builtins.ts                  # Built-in functions (250+ lines)
 │   ├── ai-runtime.ts                # Integrated reasoning integration (120+ lines)
 │   └── index.ts                     # Entry point (30+ lines)

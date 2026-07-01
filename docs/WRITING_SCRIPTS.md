@@ -345,7 +345,7 @@ Objects are useful for configuration and structured records.
 ```sesi
 let app = {
   "name": "Sesi",
-  "version": "1.6.0"
+  "version": "1.6.1"
 }
 
 for key in keys(app) {
@@ -712,7 +712,7 @@ allow "std/json" in with {
 }
 let original = {
   "project": "Sesi",
-  "version": "1.6.0"
+  "version": "1.6.1"
 }
 print stringify(original)
 ```

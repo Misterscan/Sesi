@@ -821,6 +821,45 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (): RuntimeValue => Math.random(),
   });
 
+  builtins.set('memory_search', {
+    type: 'function',
+    name: 'memory_search',
+    params: [{ name: 'name' }, { name: 'query' }, { name: 'top_k' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const [nameVal, queryVal, topKVal] = args;
+      if (typeof nameVal !== 'string') {
+        throw new Error('memory_search expects a string memory name as the first argument');
+      }
+      if (typeof queryVal !== 'string') {
+        throw new Error('memory_search expects a string query as the second argument');
+      }
+      const topK = typeof topKVal === 'number' ? topKVal : 3;
+      const results = await aiRuntime.searchMemory(nameVal, queryVal, topK);
+      return results;
+    },
+  });
+
+  builtins.set('memory_trim', {
+    type: 'function',
+    name: 'memory_trim',
+    params: [{ name: 'name' }, { name: 'max_tokens' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const [nameVal, maxTokensVal] = args;
+      if (typeof nameVal !== 'string') {
+        throw new Error('memory_trim expects a string memory name as the first argument');
+      }
+      const maxTokens = typeof maxTokensVal === 'number' ? maxTokensVal : 900000;
+      const trimmed = await aiRuntime.trimMemory(nameVal, maxTokens);
+      return trimmed;
+    },
+  });
+
   builtins.set('set_alias', {
     type: 'function',
     name: 'set_alias',

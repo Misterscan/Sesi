@@ -509,7 +509,13 @@
       try {
         console.log(`[Custom AI] Intercepting fetch request to ${url}`);
         const body = JSON.parse(options.body || '{}');
-        const resText = await executeCustomAIRequest(url, body);
+        
+        let resText;
+        if (url === '/api/chat') {
+          resText = await runClientSideSesiDo(body);
+        } else {
+          resText = await executeCustomAIRequest(url, body);
+        }
         
         // Format response to match Sesi Studio expected output
         const responseData = url === '/api/chat' 
@@ -536,6 +542,68 @@
 
     return originalFetch(resource, options);
   };
+
+  // Intercept WebSocket chat calls for Custom AI Provider
+  const originalSend = WebSocket.prototype.send;
+  WebSocket.prototype.send = function(data) {
+    let payload;
+    try {
+      payload = JSON.parse(data);
+    } catch (e) {
+      originalSend.apply(this, arguments);
+      return;
+    }
+
+    const isEnabled = localStorage.getItem(CONFIG_PREFIX + "enabled") === 'true';
+    if (isEnabled && payload && payload.type === 'chat') {
+      console.log("[Custom AI] Intercepting WebSocket chat request:", payload);
+      handleCustomAIWebSocketChat(this, payload);
+      return; // Intercept and block sending to native server
+    }
+
+    originalSend.apply(this, arguments);
+  };
+
+  async function handleCustomAIWebSocketChat(socket, payload) {
+    let accumulatedText = "";
+    
+    const onChunk = (text) => {
+      accumulatedText += text;
+      if (socket.onmessage) {
+        socket.onmessage({
+          data: JSON.stringify({
+            type: "chat_chunk",
+            chunk: text
+          })
+        });
+      }
+    };
+
+    try {
+      const finalResult = await runClientSideSesiDoStreaming(payload, onChunk);
+      
+      if (socket.onmessage) {
+        socket.onmessage({
+          data: JSON.stringify({
+            type: "chat_end",
+            response: accumulatedText
+          })
+        });
+      }
+    } catch (err) {
+      console.error("[Custom AI] WebSocket execution error:", err);
+      const errMsg = `\n\n⚠️ Custom AI Error: ${err.message}\n`;
+      onChunk(errMsg);
+      if (socket.onmessage) {
+        socket.onmessage({
+          data: JSON.stringify({
+            type: "chat_end",
+            response: accumulatedText
+          })
+        });
+      }
+    }
+  }
 
   const SESI_SYSTEM_INSTRUCTIONS = `You are Sesi Co-Pilot, an expert programmer for the Sesi programming language.
 Sesi is a clean, minimal, and highly legible programming language.
@@ -596,6 +664,227 @@ Key Syntax Rules:
       console.error("Failed to load Sesi documentation context:", err);
       return "";
     }
+  }
+
+  // Client-side SesiDo Loop for Custom AI Provider
+  async function runClientSideSesiDo(body) {
+    return runClientSideSesiDoStreaming(body, (chunk) => {});
+  }
+
+  // Client-side SesiDo Loop with real-time streaming updates
+  async function runClientSideSesiDoStreaming(body, onChunk) {
+    const provider = getConf("provider", "openai");
+    const apiKey = getConf("api-key");
+    const model = getConf("model");
+    const endpoint = getConf("endpoint");
+    const useProxy = getConf("use-proxy") === "true";
+    const thinking = getConf("thinking", "default");
+    const docs = await getSesiDocs();
+
+    let reactHistory = "";
+    let stepsTaken = 0;
+    const maxSteps = 5;
+
+    // Define the tools description
+    const toolsDesc = `
+- list_directory: Lists files in a directory.
+  Arguments JSON schema: {"path": string} (optional, defaults to ".")
+- read_file: Reads the full content of a file.
+  Arguments JSON schema: {"path": string}
+- write_file: Writes content to a file, creating or overwriting it.
+  Arguments JSON schema: {"path": string, "content": string}
+- run_helper_script: Runs a specific Sesi helper script from the helpers/ directory.
+  Arguments JSON schema: {"script_name": string, "args_str": string}
+- eval_sesi_code: Evaluates inline Sesi code.
+  Arguments JSON schema: {"code": string}
+- call_image_subagent: Delegates image asset generation to a dedicated prompt-refinement subagent. Generates the image via Sesi's native image engine, saves the file to disk, and returns the result path.
+  Arguments JSON schema: {"prompt": string, "aspect_ratio": string (e.g. "1:1", "16:9"), "output_path": string}
+- browser_goto: Navigates the browser to a URL.
+  Arguments JSON schema: {"url": string}
+- browser_click: Clicks an element in the browser.
+  Arguments JSON schema: {"selector": string}
+- browser_fill: Fills an input value in the browser.
+  Arguments JSON schema: {"selector": string, "value": string}
+- browser_screenshot: Captures a screenshot of the browser page.
+  Arguments JSON schema: {"path": string} (optional)
+- browser_get_content: Gets the text content of the body of the page.
+  Arguments: {}
+- browser_close: Closes the browser.
+  Arguments: {}
+`;
+
+    // Construct the active file context
+    let activeFileContext = "";
+    if (body.filePath && body.fileContent) {
+      activeFileContext = `\\n\\n[Active File: ${body.filePath}]\\n\`\`\`\\n${body.fileContent}\\n\`\`\`\\n`;
+    }
+
+    // Get the base system prompt
+    const baseSystemPrompt = SESI_SYSTEM_INSTRUCTIONS + docs;
+
+    // Fetch conversation history from the UI
+    let historyMessages = [];
+    const activeChat = (window.chats || []).find(c => c.id === body.sessionId);
+    if (activeChat && activeChat.messages) {
+      const lastMsgs = activeChat.messages.slice(-15);
+      for (const msg of lastMsgs) {
+        historyMessages.push({
+          role: msg.isUser ? "user" : "assistant",
+          content: msg.text
+        });
+      }
+    }
+
+    // Construct history string for the prompt
+    let historyStr = "";
+    historyMessages.forEach(msg => {
+      historyStr += `${msg.role === "user" ? "User" : "Co-Pilot"}: ${msg.content}\\n`;
+    });
+
+    let finalAnswer = "";
+
+    while (stepsTaken < maxSteps) {
+      let promptText = `
+System: You are an agent with access to these tools:
+${toolsDesc}
+
+Solve the task step-by-step.
+At each step, output a JSON object with:
+- thought (string): reasoning
+- tool_name (string): name of the tool to run, or empty if finished
+- tool_args_json (string): JSON string containing all arguments for the tool
+- finished (bool): true if done
+- final_answer (string): final result if finished is true
+
+Conversation History:
+${historyStr}
+
+Active File Context:
+${activeFileContext}
+
+Task: ${body.query}
+
+Previous steps and observations:
+${reactHistory}
+
+Next Step JSON:`;
+
+      // Call the provider
+      let stepText = "";
+      try {
+        stepText = await sendRequestToProvider({
+          provider,
+          apiKey,
+          model,
+          endpoint,
+          useProxy,
+          systemInstruction: baseSystemPrompt,
+          promptText,
+          historyMessages: [],
+          temperature: 0.1,
+          maxTokens: 4096,
+          isChat: true,
+          thinking
+        });
+      } catch (e) {
+        onChunk(`⚠️ error: failed to call model provider: ${e.message}\n\n`);
+        finalAnswer = `Error: Model provider request failed: ${e.message}`;
+        break;
+      }
+
+      // Parse step JSON
+      let step;
+      try {
+        const jsonMatch = stepText.match(/\\{[\\s\\S]*\\}/);
+        if (jsonMatch) {
+          step = JSON.parse(jsonMatch[0]);
+        } else {
+          // fallback to using a structured output parsing request to the provider
+          const parsePrompt = `Convert this response to JSON matching this schema:
+{"thought": "string", "tool_name": "string", "tool_args_json": "string", "finished": true/false, "final_answer": "string"}
+
+Response: ${stepText}`;
+          const parseRes = await sendRequestToProvider({
+            provider,
+            apiKey,
+            model,
+            endpoint,
+            useProxy,
+            systemInstruction: "You are a JSON converter.",
+            promptText: parsePrompt,
+            historyMessages: [],
+            temperature: 0,
+            maxTokens: 500,
+            isChat: true,
+            thinking: "default"
+          });
+          const jsonMatch2 = parseRes.match(/\\{[\\s\\S]*\\}/);
+          if (jsonMatch2) {
+            step = JSON.parse(jsonMatch2[0]);
+          } else {
+            throw new Error("Could not parse structured step JSON");
+          }
+        }
+      } catch (e) {
+        console.error("[Custom AI SesiDo] Parse error:", e, "Step text was:", stepText);
+        onChunk(stepText + "\n\n");
+        finalAnswer = stepText;
+        break;
+      }
+
+      if (step.thought) {
+        onChunk(`💭 *Thought:* ${step.thought}\n\n`);
+      }
+
+      if (step.finished || !step.tool_name) {
+        finalAnswer = step.final_answer || step.thought;
+        onChunk(finalAnswer + "\n");
+        break;
+      }
+
+      // Execute tool
+      let observation = "";
+      const toolName = step.tool_name;
+      let toolArgs = {};
+      try {
+        toolArgs = JSON.parse(step.tool_args_json || "{}");
+      } catch(e) {}
+
+      onChunk(`🛠️ *Calling tool:* \`${toolName}\`\n\n`);
+
+      try {
+        const res = await originalFetch("/api/agent/tool", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool_name: toolName, tool_args: toolArgs })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            observation = typeof data.result === 'string' ? data.result : JSON.stringify(data.result);
+          } else {
+            observation = `Error: ${data.error}`;
+          }
+        } else {
+          const errText = await res.text();
+          observation = `HTTP Error ${res.status}: ${errText}`;
+        }
+      } catch (err) {
+        observation = `Error executing tool: ${err.message}`;
+      }
+
+      onChunk(`📥 *Observation:* ${observation}\n\n`);
+
+      reactHistory += `Step ${stepsTaken + 1}:\nThought: ${step.thought}\nAction: ${toolName} with ${JSON.stringify(toolArgs)}\nObservation: ${observation}\n\n`;
+      stepsTaken++;
+    }
+
+    if (stepsTaken >= maxSteps && !finalAnswer) {
+      finalAnswer = "Max execution steps reached without a final answer.";
+      onChunk(finalAnswer + "\n");
+    }
+
+    return finalAnswer;
   }
 
   // Build the request and execute it

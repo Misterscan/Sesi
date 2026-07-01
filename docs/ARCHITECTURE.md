@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Sesi** is a concise and highly legible programming language. It uses a clean tree-walking interpreter model built in TypeScript. The architecture is optimized for simplicity and eliminating the need for `async/await` syntax or heavy module imports. By acting as a minimal orchestration layer, Sesi allows developers to write clean, straightforward logic that natively handles background processes and API or Reasoning calls without SDK overhead.
+**Sesi** is a concise and highly legible programming language. It uses a high-performance bytecode compilation model built in TypeScript. The architecture features a compiler that lowers the AST to a flat bytecode chunk, executed by a register-based virtual machine, with the original tree-walking interpreter retained as a fallback path. The architecture is optimized for simplicity and eliminating the need for `async/await` syntax or heavy module imports. By acting as a minimal orchestration layer, Sesi allows developers to write clean, straightforward logic that natively handles background processes and API or Reasoning calls without SDK overhead.
 
 ## Component Stack
 
@@ -22,11 +22,16 @@
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
-│      Interpreter (src/interpreter.ts)       │
-│  Tree-walking interpreter                   │
-│  - Evaluates expressions                    │
-│  - Executes statements                      │
-│  - Manages scopes/environments              │
+│      Compiler (src/compiler.ts)             │
+│  Lowers AST → Bytecode Chunk                │
+└──────────────────┬──────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────┐
+│      VM (src/vm.ts)                         │
+│  Bytecode virtual machine                   │
+│  - Executes OpCode instructions             │
+│  - Manages call frames & value stack        │
+│  - Supports closures, try/catch, imports    │
 └──────┬───────────────────────┬──────────────┘
        │                       │
        │                       │
@@ -94,16 +99,20 @@ Tokens: [LET, IDENTIFIER("x"), EQUAL, NUMBER(10), EOF]
 }
 ```
 
-### 3. Interpretation (Interpreter)
+### 3. Compilation & Execution (Compiler → VM)
 
 - **Input**: AST
-- **Process**: Recursive tree evaluation
-  - Statement execution in order
-  - Expression evaluation with proper operator precedence
-  - Environment/scope management with lexical scoping
-  - Blocking host-side async calls for Reasoning operations
-  - Control flow (return, break, continue)
+- **Compiler process**: Single-pass AST lowering
+  - Emits flat OpCode instructions into a `Chunk`
+  - Resolves local variable slots at compile time
+  - Compiles closures, loops, conditionals, and try/catch
+- **VM process**: Stack-based execution
+  - Dispatches OpCode instructions in a tight loop
+  - Maintains a value stack and call frame stack
+  - Calls into builtins and AI runtime as needed
 - **Output**: Program side effects (print, Reasoning calls, etc.)
+
+> **Note**: The original tree-walking interpreter (`src/interpreter.ts`) is retained as a fallback execution path for any constructs not yet supported by the compiler.
 
 ## Scope and Environment Management
 
@@ -267,9 +276,10 @@ Sesi now has basic exception-style error handling in v1:
 
 ## Limitations (V1)
 
-- **Interpreter Single-threaded**: Each individual Sesi process is single-threaded.
+- **VM Single-threaded**: Each individual Sesi process is single-threaded.
 - **Process-level Concurrency**: Sesi uses a multi-process model via `spawn()` for concurrent task execution.
-- **No optimization**: No bytecode or JIT.
+- **Bytecode coverage**: The compiler covers expressions, loops, functions, closures, try/catch, and imports; edge-case constructs fall back to the tree-walking interpreter.
+- **No JIT**: The VM executes bytecode directly; JIT compilation is a V4+ goal.
 - **Simple type system**: Runtime checking only.
 - **No macro system**: No compile-time code generation
 - **No introspection**: Can't inspect function bodies
@@ -277,13 +287,14 @@ Sesi now has basic exception-style error handling in v1:
 
 ## Future Architecture (V2+)
 
-### V2 Planned Improvements
+### V2 Delivered ✅
 
-- Async/await syntax for concurrent Reasoning calls
-- Bytecode compiler for faster execution
-- Advanced error handling with stack traces
+- Bytecode compiler (`src/compiler.ts`) that lowers the AST to a flat `Chunk`
+- Stack-based virtual machine (`src/vm.ts`) with OpCode dispatch
+- Closures, loops, try/catch, and imports handled natively by the VM
+- Legacy interpreter flag (`-t`) to enable the tree-walking execution path
 - Streaming response support
-- Function composition and piping
+- Advanced error handling with stack traces
 
 ### V3+ Vision
 
@@ -313,7 +324,10 @@ src/
 ├── types.ts              # Type definitions and AST
 ├── lexer.ts              # Tokenization
 ├── parser.ts             # AST generation
-├── interpreter.ts        # Execution engine
+├── compiler.ts           # AST → Bytecode compiler
+├── chunk.ts              # Bytecode Chunk & OpCode definitions
+├── vm.ts                 # Bytecode virtual machine
+├── interpreter.ts        # Tree-walking interpreter (fallback)
 ├── ai-runtime.ts         # Gemini integration
 ├── builtins.ts           # Built-in functions
 └── index.ts              # Main entry point
@@ -436,11 +450,10 @@ sesi --tokens program.sesi
 
 ## Conclusion
 
-Sesi's architecture prioritizes **clarity and simplicity** over performance. The tree-walking interpreter is ideal for:
+Sesi's architecture has evolved from a simple tree-walking interpreter to a dual-mode engine. The bytecode compiler + VM is now the **primary execution path**, delivering faster startup and lower per-instruction overhead. The tree-walking interpreter is retained as a well-understood fallback. Both paths share the same Lexer, Parser, builtins, and AI Runtime.
 
-- Easy debugging
-- Simple extensions
-- Clear control flow
-- Smooth Reasoning integration
+- High-throughput execution via bytecode VM
+- Easy extensibility via the shared AST and builtin layer
+- Smooth Reasoning integration regardless of execution path
 
-As the language matures, optimizations can be added without changing the API.
+As the language matures, JIT compilation and further VM optimizations can be added without changing the Sesi API.

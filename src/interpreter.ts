@@ -889,6 +889,36 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
   }
 
   public async callSesiFunction(fn: RuntimeFunction, args: RuntimeValue[]): Promise<RuntimeValue> {
+    if ((fn as any)._proto) {
+      const { VM } = require('./vm');
+      const vm = new VM(this.scriptDir, {
+        safeMode: this.safeMode,
+        allowLocalFs: this.allowLocalFs,
+        allowedPaths: this.allowedPaths,
+        args: this.args
+      });
+      if ((vm as any).interpreter) {
+        for (const [k, v] of this.modelAliases.entries()) {
+          (vm as any).interpreter.setModelAlias(k, v);
+        }
+      }
+      for (const [k, v] of this.globalEnv.getValues().entries()) {
+        (vm as any).globals.set(k, v);
+      }
+      (vm as any).prompts = new Map(this.prompts);
+      (vm as any).memory = new Map(this.memory);
+
+      const res = await vm.callCompiledFunction(fn, args);
+
+      for (const [k, v] of (vm as any).memory.entries()) {
+        this.memory.set(k, v);
+      }
+      for (const [k, v] of (vm as any).globals.entries()) {
+        this.globalEnv.define(k, v);
+      }
+      return res;
+    }
+
     if (fn.isBuiltin && fn.builtin) {
       return await fn.builtin(...args);
     }
@@ -902,6 +932,9 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         allowedPaths: [...this.allowedPaths],
         args: [...this.args]
       });
+      for (const [k, v] of this.modelAliases.entries()) {
+        subInterpreter.setModelAlias(k, v);
+      }
       subInterpreter.prompts = new Map(this.prompts);
       subInterpreter.memory = new Map(this.memory);
 
@@ -1005,6 +1038,9 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         allowedPaths: this.allowedPaths,
         args: this.args
       });
+      for (const [k, v] of this.modelAliases.entries()) {
+        subInterpreter.setModelAlias(k, v);
+      }
       await subInterpreter.interpret(program);
       moduleExports = subInterpreter.exports;
     }

@@ -50,9 +50,10 @@ Before making changes, we highly recommend reading the following documentation:
 
 ### Core Guidelines
 
-- **AST Modifications:** If you add syntax, you must update `src/lexer.ts`, `src/parser.ts`, and `src/types.ts` before modifying `src/interpreter.ts`.
+- **AST Modifications:** If you add syntax, you must update `src/lexer.ts`, `src/parser.ts`, and `src/types.ts`. Then update `src/compiler.ts` to emit the correct OpCodes for the new construct. Only modify `src/interpreter.ts` if the construct is not yet handled by the compiler (fallback path).
 - **TypeScript Settings:** Do not remove `import { type ... }` statements, as they are mandatory for type narrowing.
-- **Interpreter Logic:** Tree-walking in `interpreter.ts` uses dynamic casting and `any` types by design. This is intentional for functional execution; do not attempt to "clean up" the dynamic `any` casts in the interpreter core.
+- **VM & Compiler Logic:** The compiler (`compiler.ts`) performs a single-pass AST lowering; the VM (`vm.ts`) dispatches OpCode instructions. Keep these two in sync when adding new language constructs.
+- **Interpreter Logic (Fallback):** The tree-walking interpreter in `interpreter.ts` uses dynamic casting and `any` types by design. This is intentional for functional execution; do not attempt to "clean up" the dynamic `any` casts in the interpreter core.
 
 ## Testing Your Changes
 

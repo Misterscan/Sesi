@@ -316,7 +316,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.0\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.1\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -452,6 +452,8 @@ exec(string) -> string            // Synchronous shell execution
 time() -> number                  // Current Unix timestamp
 random() -> number                // Random float (0.0 to 1.0)
 convert() -> bool                 // Convert between formats
+memory_search(string, string, number?) -> array // Semantic similarity search over memory entries
+memory_trim(string, number?) -> string          // Context window management with auto-summarization
 ```
 
 ### Built-in Global Variables

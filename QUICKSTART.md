@@ -185,7 +185,7 @@ Structured output allows you to extract structured data natively or via Reasonin
 ### Basic Structured Output
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.0\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.1\", \"status\": \"active\"}"
 let analysis = structured_output({projectName: string, version: string, status: string})(rawJson)
 print "Project: " analysis["projectName"]
 print "Version: " analysis["version"]
@@ -322,8 +322,25 @@ find(array, callback) // Find first matching element
 web_get(url, headers = {})        // Natively fetch from URL via HTTP GET
 web_send(url, body, headers = {}) // Natively post body to URL via HTTP POST
 multi_req(array<function>)        // Run multiple tasks/requests physically in parallel
-listen(port, handler)              // Starts HTTP server
-api(port, handler)                 // Starts WebSocket server
+listen(port, handler)             // Starts HTTP server
+api(port, handler)                // Starts WebSocket server
+launch(options)                   // Launches a browser with given options
+browser.newPage()                 // Creates a new page
+browser.close()                   // Closes the browser
+page.goto(url)                    // Navigates to a URL
+page.get_attribute(selector, attr) // Retrieves the value of an attribute
+page.title()                      // Retrieves the title of the page`
+page.content()                    // Retrieves the HTML content of the page
+page.screenshot(options?)         // Takes a screenshot of the page
+page.evaluate(script)             // Evaluates a script in the page context
+page.wait_for_selector(selector, options?) // Waits for a selector to appear
+page.wait_for_timeout(ms)         // Waits for a specified time in milliseconds
+page.fill(selector, name)         // Fills a form field
+page.press(selector, key)         // Presses a key in an element
+page.click(selector)              // Clicks an element
+page.inner_text(selector)         // Retrieves the text content of an element
+page.pdf(options?)                // Generates a PDF of the current page
+page.close()                      // Closes the current page
 ```
 
 ### Reasoning
@@ -426,6 +443,9 @@ sesi examples/optional/28_streaming.sesi
 sesi examples/main/29_tool_piping.sesi
 sesi examples/main/30_error_recovery.sesi
 sesi examples/main/31_synthesizer.sesi
+
+# Pre-2.0 features
+sesi examples/main/32_browser_automation.sesi
 ```
 
 ## Common Patterns

@@ -18,16 +18,85 @@ print "🚀 Initializing SVG Generator Agent..."
 // Register model aliases
 set_alias("agent", "gemini-3.1-pro-preview")
 
+// Helper function to extract a file path/name from various argument forms
+fn get_filepath_from_args(arg) {
+  let parsed = null
+  if type(arg) == "object" {
+    parsed = arg
+  } else if type(arg) == "string" {
+    if locate(arg, "{") == 0 {
+      try {
+        parsed = from_json(arg)
+      } catch(e) {}
+    }
+  }
+  if parsed == null {
+    if type(arg) == "string" {
+      return arg
+    }
+    return null
+  }
+  
+  let keys_list = ["filename", "name", "file_path", "filepath", "path", "script_path", "svg_file_path", "svg_filename", "report_filename"]
+  for k in keys_list {
+    if parsed[k] != null {
+      return parsed[k]
+    }
+  }
+  
+  let all_keys = keys(parsed)
+  for k in all_keys {
+    let lower_k = to_lower(k)
+    if contains(lower_k, "path") || contains(lower_k, "file") || contains(lower_k, "name") {
+      return parsed[k]
+    }
+  }
+  
+  if len(all_keys) == 1 {
+    return parsed[all_keys[0]]
+  }
+  
+  return null
+}
+
+// Helper function to extract content from various argument forms
+fn get_content_from_args(parsed) {
+  if parsed == null { return null }
+  let content = parsed["content"]
+  if content == null { content = parsed["code"] }
+  if content == null { content = parsed["markdown"] }
+  if content == null { content = parsed["html_content"] }
+  if content == null { content = parsed["text"] }
+  if content == null { content = parsed["body"] }
+  
+  if content == null {
+    let all_keys = keys(parsed)
+    for k in all_keys {
+      let lower_k = to_lower(k)
+      if contains(lower_k, "content") || contains(lower_k, "code") || contains(lower_k, "markdown") || contains(lower_k, "text") {
+        return parsed[k]
+      }
+    }
+  }
+  return content
+}
+
 // Tool to write Sesi script content to disk
-fn write_sesi_script(arg: string) -> string {
+fn write_sesi_script(arg) -> string {
   try {
-    let parsed = from_json(arg)
-    let filename = parsed["filename"]
-    if filename == null { filename = parsed["name"] }
+    let parsed = null
+    if type(arg) == "object" {
+      parsed = arg
+    } else if type(arg) == "string" {
+      parsed = from_json(arg)
+    }
+    if parsed == null {
+      return "Failed: Invalid argument format or type."
+    }
+    let filename = get_filepath_from_args(parsed)
     if filename == null { return "Failed: 'filename' key is missing." }
     
-    let content = parsed["content"]
-    if content == null { content = parsed["code"] }
+    let content = get_content_from_args(parsed)
     if content == null { return "Failed: 'content' key is missing." }
     
     print "💾 Saving Sesi script to:" filename
@@ -40,14 +109,10 @@ fn write_sesi_script(arg: string) -> string {
 }
 
 // Tool to execute a Sesi script
-fn execute_sesi_script(arg: string) -> string {
-  let filename = arg
-  if locate(arg, "{") == 0 {
-    try {
-      let parsed = from_json(arg)
-      if parsed["filename"] != null { filename = parsed["filename"] }
-      if filename == null && parsed["name"] != null { filename = parsed["name"] }
-    } catch(e) {}
+fn execute_sesi_script(arg) -> string {
+  let filename = get_filepath_from_args(arg)
+  if filename == null {
+    return "Failed: File path/filename is missing."
   }
   print "⚡ Executing Sesi script:" filename
   try {
@@ -59,14 +124,10 @@ fn execute_sesi_script(arg: string) -> string {
 }
 
 // Tool to verify SVG in browser
-fn verify_svg_file(arg: string) -> string {
-  let filename = arg
-  if locate(arg, "{") == 0 {
-    try {
-      let parsed = from_json(arg)
-      if parsed["filename"] != null { filename = parsed["filename"] }
-      if filename == null && parsed["name"] != null { filename = parsed["name"] }
-    } catch(e) {}
+fn verify_svg_file(arg) -> string {
+  let filename = get_filepath_from_args(arg)
+  if filename == null {
+    return "Failed: SVG filename is missing."
   }
   
   // Resolve absolute path for browser local load
@@ -105,15 +166,21 @@ fn verify_svg_file(arg: string) -> string {
 }
 
 // Tool to write the markdown workflow report
-fn write_report(arg: string) -> string {
+fn write_report(arg) -> string {
   try {
-    let parsed = from_json(arg)
-    let filename = parsed["filename"]
-    if filename == null { filename = parsed["name"] }
+    let parsed = null
+    if type(arg) == "object" {
+      parsed = arg
+    } else if type(arg) == "string" {
+      parsed = from_json(arg)
+    }
+    if parsed == null {
+      return "Failed: Invalid argument format or type."
+    }
+    let filename = get_filepath_from_args(parsed)
     if filename == null { return "Failed: 'filename' key is missing." }
     
-    let content = parsed["content"]
-    if content == null { content = parsed["markdown"] }
+    let content = get_content_from_args(parsed)
     if content == null { return "Failed: 'content' key is missing." }
     
     print "📝 Writing report to:" filename
@@ -126,10 +193,8 @@ fn write_report(arg: string) -> string {
 }
 
 // Tool to read a file safely
-fn safeRead(arg: string) -> string {
-  let parsed = from_json(arg)
-  let filename = parsed["filename"]
-  if filename == null { filename = parsed["name"] }
+fn safeRead(arg) -> string {
+  let filename = get_filepath_from_args(arg)
   if filename == null { return "Failed: 'filename' key is missing." }
   try {
     let content = read_file(filename)
@@ -185,17 +250,18 @@ if user_prompt == "" || user_prompt == null {
 }
 
 let baseFilename = input("What filename would you like to use? (e.g. 'design', 'artwork', etc.): ")
-let filename = baseFilename + ".sesi"
+let filename = "playground/create/" + baseFilename + ".sesi"
 filename = swap(filename, " ", "_")
 
 if baseFilename == "" || baseFilename == null {
-  filename = "design.sesi"
+  filename = "playground/create/design.sesi"
 }
 
 let svg_filename = swap(filename, ".sesi", ".svg")
+svg_filename = swap(svg_filename, "playground/create/", "playground/svgs/")
 
 print "🎨 Generating SVG for prompt:" user_prompt
-print "Starting ReAct Loop..."
+print "Starting SesiDo Loop..."
 
 prompt task_instruction {"Perform the following actions:
 1. Use 'read_file' to read 'getting-started/SVG.md' to check the exact function signatures and syntax rules of Sesi's 'std/draw' module.

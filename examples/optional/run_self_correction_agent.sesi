@@ -124,7 +124,7 @@ For complex tasks (like designing/training a CNN), call 'generate_code_plan' fir
 })
 
 print "
-Starting ReAct Coding & Self-Correction Task..."
+Starting SesiDo Coding & Self-Correction Task..."
 let task_prompt = "Perform the following steps:
 1. Generate an implementation plan for a robust Python script that trains a Convolutional Neural Network (CNN) to identify and classify different dog breeds from a provided image dataset.
 2. Write a Python script named 'factorial.py' or 'dog_cnn.py' (or similar script as planned) containing the CNN structure. Intentionally introduce a syntax error in your first draft (e.g. invalid indentation or missing colon).

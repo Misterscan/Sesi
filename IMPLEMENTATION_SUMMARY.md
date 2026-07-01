@@ -8,27 +8,27 @@
 
 1. **Practical Over Perfect**: Focus on what developers actually need, not theoretical completeness.
 2. **Transparency Over Magic**: Sesi runs exactly what you write with clear costs and execution maps.
-3. **Simplicity First**: A custom tree-walking interpreter for clarity and maintainability.
+3. **Performance with Clarity**: A bytecode compiler and stack-based virtual machine for fast execution, backed by the original tree-walking interpreter as a proven fallback.
 4. **Type Safety with Flexibility**: Static types for normal code, runtime checking for integration outputs.
 
 ## 🔧 Technology Stack
 
-| Component | Technology               | Rationale                                |
-| --------- | ------------------------ | ---------------------------------------- |
-| Language  | TypeScript               | Type safety, IDE support, easy debugging |
-| Runtime   | Node.js 18+              | Wide availability, async support         |
-| Reasoning | Gemini 3.1               | Latest models, 1M token context, fast    |
-| SDK       | @google/genai            | Official, well-maintained, async-first   |
-| Parser    | Recursive descent        | Simple, readable, extensible             |
-| Execution | Tree-walking interpreter | Easy to understand and modify            |
-| Testing   | Typescript               | Standard Node.js test framework          |
+| Component | Technology                                       | Rationale                                                           |
+| --------- | ------------------------------------------------ | ------------------------------------------------------------------- |
+| Language  | TypeScript                                       | Type safety, IDE support, easy debugging                            |
+| Runtime   | Node.js 18+                                      | Wide availability, async support                                    |
+| Reasoning | Gemini 3.1                                       | Latest models, 1M token context, fast                               |
+| SDK       | @google/genai                                    | Official, well-maintained, async-first                              |
+| Parser    | Recursive descent                                | Simple, readable, extensible                                        |
+| Execution | Bytecode VM (`vm.ts`) + Compiler (`compiler.ts`) | Fast OpCode dispatch; tree-walking interpreter retained as fallback |
+| Testing   | Typescript                                       | Standard Node.js test framework                                     |
 
-### Why a tree-walking interpreter?
+### Why a bytecode VM?
 
-- **Simplicity**: Easy to understand, modify, extend
-- **Debugging**: Can print AST and execution steps
-- **Iteration**: No compilation overhead, fast development
-- **Good enough**: Performance is adequate for v1+
+- **Performance**: OpCode dispatch is significantly faster than recursive AST traversal
+- **Determinism**: Flat instruction sequences are easier to reason about at runtime
+- **Iteration**: The compiler shares the same AST so no grammar changes are needed
+- **Fallback safety**: The tree-walking interpreter remains for edge-case constructs not yet lowered by the compiler
 
 ### Why recursive descent parser?
 
@@ -105,7 +105,7 @@ prompt greeting {"Hello, " name "!"}
 **Structured Output**
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.0\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.1\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -312,13 +312,14 @@ npm test
 - Full AST construction
 - Support for all language constructs
 
-### Interpreter Design
+### Execution Design
 
-- Tree-walking evaluation
-- Environment chain for scoping
-- Async support for reasoning calls
-- Control flow exceptions (return, break, continue)
-- Built-in function dispatch
+- Bytecode compiler (`compiler.ts`) performs a single-pass AST lowering into a `Chunk`
+- Stack-based VM (`vm.ts`) dispatches OpCode instructions in a tight loop
+- Call frames manage local variable slots resolved at compile time
+- Closures, loops, conditionals, try/catch, and imports are all handled natively
+- Tree-walking interpreter (`interpreter.ts`) retained as fallback for unsupported constructs
+- Built-in function dispatch shared across both execution paths
 
 ### Reasoning Runtime Design
 
@@ -485,7 +486,8 @@ npm test
 
 ## 🎁 What's Included
 
-- ✅ Complete interpreter (3000+ lines of TypeScript)
+- ✅ Bytecode compiler + VM (V2.0, expressions, loops, functions, closures, try/catch, imports)
+- ✅ Tree-walking interpreter retained as fallback (3000+ lines of TypeScript)
 - ✅ Full language specification (600+ lines)
 - ✅ Architecture documentation (400+ lines)
 - ✅ API reference (450+ lines)
@@ -514,10 +516,10 @@ The language is designed to evolve. V1+ provides a solid foundation. V2+ adds po
 
 ---
 
-**Status**: ✅ Complete V1.5 implementation  
-**Ready for**: File manipulation and process orchestration  
-**Not ready for**: Massive-scale production (until v2.0 bytecode)  
-**Next milestone**: V2.0 (Async & advanced reasoning)
+**Status**: ⏳ In-Progress V2.0 implementation  
+**Ready for**: File manipulation, process orchestration, and high-throughput scripting  
+**Not ready for**: Massive-scale production (until V3.0+)  
+**Next milestone**: V3.0 (Systems Framework & Knowledge Base)
 
 Sesi is not just an experiment in language design. Use it to learn, explore, and evolve what the future of coding will become.
 

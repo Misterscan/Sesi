@@ -66,12 +66,30 @@ export const enum OpCode {
 
   // Output
   PRINT,         // operand: arg count (pops N values, prints space-joined)
+
+  // Try/Catch/Finally
+  TRY_START,     // operands: catchOffset (16-bit), finallyOffset (16-bit)
+  TRY_END,
+  FINALLY_START,
+  FINALLY_END,
+
+  // Imports and modules
+  IMPORT,        // operands: source index, names index
+  ALLOW,         // operands: source index, binding index
+
+  // Memory
+  INITIALIZE_MEMORY, // operand: name index
+
+  // Upvalues / Closures
+  GET_UPVALUE,   // operand: upvalue index
+  SET_UPVALUE,   // operand: upvalue index
+  CLOSE_UPVALUE,
 }
 
 // ---------------------------------------------------------------------------
 // Constant pool values
 // ---------------------------------------------------------------------------
-export type ConstantValue = string | number | boolean | null | FunctionProto;
+export type ConstantValue = string | number | boolean | null | FunctionProto | string[] | any;
 
 // A compiled function (used as a constant in the parent chunk)
 export interface FunctionProto {
@@ -81,6 +99,7 @@ export interface FunctionProto {
   params: Array<{ name: string; hasDefault: boolean }>;
   chunk: Chunk;
   isAsync: boolean;
+  upvalues: Array<{ index: number; isLocal: boolean }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -237,6 +256,20 @@ function disassembleInstruction(chunk: Chunk, ip: number): [string, number] {
     case OpCode.CALL_MODEL:     return twoByteInstr('CALL_MODEL');
     case OpCode.CALL_IMAGE:     return twoByteInstr('CALL_IMAGE');
     case OpCode.PRINT:          return byteInstr('PRINT');
+    case OpCode.TRY_START: {
+      const catchOff = read16(chunk.code, ip + 1);
+      const finOff = read16(chunk.code, ip + 3);
+      return [`${prefix}TRY_START            catch: → ${ip + 5 + catchOff} finally: → ${ip + 5 + finOff}`, 5];
+    }
+    case OpCode.TRY_END:        return simpleInstr('TRY_END');
+    case OpCode.FINALLY_START:  return simpleInstr('FINALLY_START');
+    case OpCode.FINALLY_END:    return simpleInstr('FINALLY_END');
+    case OpCode.IMPORT:         return twoByteInstr('IMPORT');
+    case OpCode.ALLOW:          return twoByteInstr('ALLOW');
+    case OpCode.INITIALIZE_MEMORY: return constantInstr('INITIALIZE_MEMORY');
+    case OpCode.GET_UPVALUE:    return byteInstr('GET_UPVALUE');
+    case OpCode.SET_UPVALUE:    return byteInstr('SET_UPVALUE');
+    case OpCode.CLOSE_UPVALUE:  return simpleInstr('CLOSE_UPVALUE');
     default:
       return [`${prefix}UNKNOWN(${op})`, 1];
   }

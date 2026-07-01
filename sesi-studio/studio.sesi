@@ -29,6 +29,7 @@ fn on_agent_chunk(chunk) {
 
 set_alias("copilot", "gemini-3.1-flash-lite")
 set_alias("chat", "gemini-3.1-pro-preview")
+set_alias("search", "gemini-3-flash-preview")
 
 let SESI_ROOT = ""
 try {
@@ -165,6 +166,19 @@ fn agent_list_directory(args) {
   }
 }
 
+fn agent_search_google(args) {
+  let query = args["query"]
+  if query == null {
+    return "Error: missing 'query' argument"
+  }
+  try {
+    let search_results = model("search"){temperature: 0.1, thinkingLevel: "low", search: true, cache: false, max_tokens: 1024}{query}
+    return search_results
+  } catch(e) {
+    return "Error searching Google: " + str(e)
+  }
+}
+
 fn agent_run_helper_script(args) {
   let script_name = args["script_name"]
   let args_str = args["args_str"]
@@ -190,9 +204,15 @@ fn agent_eval_sesi_code(args) {
   if code == null || code == "" {
     return "Error: missing 'code' argument"
   }
+  let final_code = code
+  if contains(code, ".sesi") && !contains(code, " ") && !contains(code, "\n") {
+    try {
+      final_code = read_file(code)
+    } catch(read_e) {}
+  }
   try {
-    let temp_file = "sesi-studio/temp_eval_" + str(Time.now().unix()) + ".sesi"
-    write_file(temp_file, code)
+    let temp_file = "sesi-studio/temp_eval_" + str(Time.now()) + ".sesi"
+    write_file(temp_file, final_code)
     let cmd = "node bin/sesi.js -l " + temp_file
     let output = exec_in_project(cmd)
     try {
@@ -207,6 +227,7 @@ fn agent_eval_sesi_code(args) {
     return "Error evaluating Sesi code: " + str(e)
   }
 }
+
 
 fn agent_generate_image(args) {
   let user_prompt = args["prompt"]
@@ -358,6 +379,7 @@ let global_tools = {
   "read_file": agent_read_file,
   "write_file": agent_write_file,
   "list_directory": agent_list_directory,
+  "search_google": agent_search_google,
   "run_helper_script": agent_run_helper_script,
   "eval_sesi_code": agent_eval_sesi_code,
   "call_image_subagent": agent_generate_image,
@@ -603,6 +625,8 @@ You have access to the following tools to assist the user:
   Arguments JSON schema: {\"path\": string}
 - `write_file`: Writes content to a file, creating or overwriting it.
   Arguments JSON schema: {\"path\": string, \"content\": string}
+- `search_google`: Searches the internet for information using search engine.
+  Arguments JSON schema: {\"query\": string}
 - `run_helper_script`: Runs a specific Sesi helper script from the `helpers/` directory (e.g. line-swap.sesi, dependency-graph.sesi, css-flatten.sesi, version-bump.sesi, text-search.sesi, html-minify.sesi, agent-file-ops.sesi, etc.). Use this for mass/automated code refactoring and edits instead of other generic tools.
   Arguments JSON schema: {\"script_name\": string, \"args_str\": string}
 - `eval_sesi_code`: Evaluates inline Sesi code. Use this to execute code snippets, verify Sesi script behavior, and call Sesi's essential built-in functions.
@@ -625,6 +649,7 @@ If the user request requires examining files, writing/testing scripts, performin
         "read_file": agent_read_file,
         "write_file": agent_write_file,
         "list_directory": agent_list_directory,
+        "search_google": agent_search_google,
         "run_helper_script": agent_run_helper_script,
         "eval_sesi_code": agent_eval_sesi_code,
         "call_image_subagent": agent_generate_image

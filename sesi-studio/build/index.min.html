@@ -37,7 +37,7 @@ style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver
 🛒 Marketplace</div><div class="settings-tab" onclick="switchSettingsTab('shortcuts', this)"
 style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">
 Keyboard Shortcuts</div></div><!-- Settings Content --><div id="settingsContent" style="flex: 1; padding: 24px; overflow-y: auto;"><!-- Content injected here --></div></div><div
-style="padding: 12px 24px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); font-size: 11px; color: var(--silver-dark); display: flex; justify-content: space-between;"><span>Sesi Studio v2.0.0</span><span>Environment: Native Browser IDE</span></div></div></div><!-- Monaco and xterm scripts --><script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js"></script><script src="/api/analyzer"></script><script>
+style="padding: 12px 24px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); font-size: 11px; color: var(--silver-dark); display: flex; justify-content: space-between;"><span>Sesi Studio v2.1.0</span><span>Environment: Native Browser IDE</span></div></div></div><!-- Monaco and xterm scripts --><script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js"></script><script src="/api/analyzer"></script><script>
 // State management
 window.editor = null;
 window.terminal = null;
@@ -144,7 +144,7 @@ require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1
 require(['vs/editor/editor.main'], async function () {
 let syntax = {
 keywords: [
-'if', 'else', 'while', 'for', 'in', 'to', 'return', 'break', 'continue', 'try', 'catch', 'finally', 'async', 'await',
+'if', 'else', 'while', 'for', 'in', 'to', 'return', 'break', 'continue', 'try', 'catch', 'finally', 'async', 'await', 'allow', 'with',
 'temperature', 'max_tokens', 'top_p', 'top_k', 'thinkingLevel', 'cache', 'search', 'ratio', 'size', 'output_type', 'file_type', 'max_retries', 'stream', 'stop', 'seed',
 'let', 'const', 'fn', 'import', 'from', 'export'
 ],
@@ -152,7 +152,7 @@ typeKeywords: ['number', 'string', 'bool', 'null', 'array', 'object', 'args'],
 constants: ['true', 'false', 'null', 'media', 'audio', 'video', 'text', 'doc', 'PI', 'E', 'INFINITY', 'NaN'],
 builtins: [
 'set_alias', 'model', 'image', 'workflow',
-'print', 'memory', 'prompt', 'structured_output', 'tool_call', 'define_tool', 'web_send', 'web_get', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'len', 'range', 'type', 'str', 'num', 'bool', 'keys', 'values', 'push', 'pop', 'join', 'split', 'read_file', 'write_file', 'write_image', 'convert', 'list_dir', 'make_dir', 'spawn', 'exec', 'time', 'random', 'exp', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'now', 'sleep', 'format', 'parse', 'stringify', 'to_json', 'from_json', 'listen', 'db_open'
+'print', 'memory', 'memory_search', 'memory_trim', 'prompt', 'structured_output', 'tool_call', 'define_tool', 'web_send', 'web_get', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'len', 'range', 'type', 'str', 'num', 'bool', 'keys', 'values', 'push', 'pop', 'join', 'split', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'contains', 'locate', 'map', 'filter', 'reduce', 'find', 'retry', 'read_file', 'write_file', 'write_image', 'convert', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'spawn', 'exec', 'time', 'random', 'exp', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'now', 'sleep', 'format', 'parse', 'stringify', 'to_json', 'from_json', 'listen', 'live', 'api', 'db_open', 'launch', 'input', 'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw'
 ],
 docs: {}
 };
@@ -1013,7 +1013,7 @@ break;
 };
 function renderGeneralSettings(container) {
 container.innerHTML = `
-<div class="settings-section"><h3>Editor Preferences</h3><div class="setting-item"><div class="setting-label"><span class="setting-title">Auto-Save</span><span class="setting-desc">Automatically save files when switching tabs or losing focus.</span></div><input type="checkbox" ${localStorage.getItem('setting-autosave') === 'true' ? 'checked' : ''} onchange="localStorage.setItem('setting-autosave', this.checked)"></div><div class="setting-item"><div class="setting-label"><span class="setting-title">Font Size</span><span class="setting-desc">Adjust the editor font size (px).</span></div><input type="number" value="${window.editor?.getOption(monaco.editor.EditorOption.fontSize) || 13}" style="width: 60px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; padding: 4px;" onchange="window.editor.updateOptions({ fontSize: parseInt(this.value) })"></div><div class="setting-item"><div class="setting-label"><span class="setting-title">Minimap</span><span class="setting-desc">Show or hide the code minimap.</span></div><input type="checkbox" ${window.editor?.getOption(monaco.editor.EditorOption.minimap).enabled ? 'checked' : ''} onchange="window.editor.updateOptions({ minimap: { enabled: this.checked } })"></div></div><div class="settings-section"><h3>Terminal Preferences</h3><div class="setting-item"><div class="setting-label"><span class="setting-title">Cursor Blinking</span><span class="setting-desc">Enable blinking cursor in the integrated terminal.</span></div><input type="checkbox" checked onchange="window.terminal.options.cursorBlink = this.checked"></div></div><div class="settings-section"><h3>AI Co-Pilot Settings</h3><div class="setting-item"><div class="setting-label"><span class="setting-title">AI Inline Autocomplete</span><span class="setting-desc">Enable ghost-text code suggestions as you type.</span></div><input type="checkbox" ${localStorage.getItem('setting-ai-autocomplete') !== 'false' ? 'checked' : ''} onchange="localStorage.setItem('setting-ai-autocomplete', this.checked)"></div><div class="setting-item"><div class="setting-label"><span class="setting-title">Suggestion Frequency</span><span class="setting-desc">Control how aggressively the AI suggests code.</span></div><select style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; padding: 4px; font-size: 11px;" onchange="localStorage.setItem('setting-ai-frequency', this.value)"><option value="150" ${localStorage.getItem('setting-ai-frequency') === '150' ? 'selected' : ''}>Aggressive (150ms)</option><option value="350" ${localStorage.getItem('setting-ai-frequency') === '350' || !localStorage.getItem('setting-ai-frequency') ? 'selected' : ''}>Normal (350ms)</option><option value="800" ${localStorage.getItem('setting-ai-frequency') === '800' ? 'selected' : ''}>Conservative (800ms)</option><option value="1500" ${localStorage.getItem('setting-ai-frequency') === '1500' ? 'selected' : ''}>Very Slow (1.5s)</option></select></div></div>
+<div class="settings-section"><h3>Editor Preferences</h3><div class="setting-item"><div class="setting-label"><span class="setting-title">Auto-Save</span><span class="setting-desc">Automatically save files when switching tabs or losing focus.</span></div><input type="checkbox" ${localStorage.getItem('setting-autosave') === 'true' ? 'checked' : ''} onchange="localStorage.setItem('setting-autosave', this.checked)"></div><div class="setting-item"><div class="setting-label"><span class="setting-title">Font Size</span><span class="setting-desc">Adjust the editor font size (px).</span></div><input type="number" value="${window.editor?.getOption(monaco.editor.EditorOption.fontSize) || 13}" style="width: 60px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; padding: 4px;" onchange="window.editor.updateOptions({ fontSize: parseInt(this.value) })"></div><div class="setting-item"><div class="setting-label"><span class="setting-title">Minimap</span><span class="setting-desc">Show or hide the code minimap.</span></div><input type="checkbox" ${window.editor?.getOption(monaco.editor.EditorOption.minimap).enabled ? 'checked' : ''} onchange="window.editor.updateOptions({ minimap: { enabled: this.checked } })"></div></div><div class="settings-section"><h3>Terminal Preferences</h3><div class="setting-item"><div class="setting-label"><span class="setting-title">Cursor Blinking</span><span class="setting-desc">Enable blinking cursor in the integrated terminal.</span></div><input type="checkbox" checked onchange="window.terminal.options.cursorBlink = this.checked"></div></div><div class="settings-section"><h3>AI Co-Pilot Settings</h3><div class="setting-item"><div class="setting-label"><span class="setting-title">AI Inline Autocomplete</span><span class="setting-desc">Enable ghost-text code suggestions as you type.</span></div><input type="checkbox" ${localStorage.getItem('setting-ai-autocomplete') !== 'false' ? 'checked' : ''} onchange="localStorage.setItem('setting-ai-autocomplete', this.checked)"></div><div class="setting-item"><div class="setting-label"><span class="setting-title">Suggestion Frequency</span><span class="setting-desc">Control how aggressively the AI suggests code.</span></div><select style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; padding: 4px; font-size: 11px;" onchange="localStorage.setItem('setting-ai-frequency', this.value)"><option value="150" ${localStorage.getItem('setting-ai-frequency') === '150' ? 'selected' : ''}>Aggressive (150ms)</option><option value="350" ${localStorage.getItem('setting-ai-frequency') === '350' || !localStorage.getItem('setting-ai-frequency') ? 'selected' : ''}>Normal (350ms)</option><option value="800" ${localStorage.getItem('setting-ai-frequency') === '800' ? 'selected' : ''}>Conservative (800ms)</option><option value="1500" ${localStorage.getItem('setting-ai-frequency') === '1500' ? 'selected' : ''}>Very Slow (1.5s)</option></select></div><div class="setting-item"><div class="setting-label"><span class="setting-title">Browser Debugging Access</span><span class="setting-desc">Allow the Copilot agent to launch and control a browser for debugging.</span></div><input type="checkbox" ${localStorage.getItem('setting-ai-browser') === 'true' ? 'checked' : ''} onchange="localStorage.setItem('setting-ai-browser', this.checked)"></div></div>
 `;
 }
 async function renderAppearanceSettings(container) {
@@ -1501,15 +1501,27 @@ console.log('Connecting to terminal socket:', socketUrl);
 const ws = new WebSocket(socketUrl);
 window.terminalSocket = ws;
 let hasOpened = false;
+let heartbeatInterval = null;
 ws.onopen = () => {
 hasOpened = true;
 console.log('Terminal socket connected on port ' + port);
 ws.send(JSON.stringify({ type: 'input', data: '\r' }));
+// Keep-alive heartbeat to prevent idle timeouts during agent reasoning
+heartbeatInterval = setInterval(() => {
+if (ws.readyState === WebSocket.OPEN) {
+ws.send(JSON.stringify({ type: 'ping' }));
+} else {
+clearInterval(heartbeatInterval);
+}
+}, 15000);
 };
 ws.onerror = (err) => {
 console.error('Terminal socket error on port ' + port + ':', err);
 };
 ws.onclose = () => {
+if (heartbeatInterval) {
+clearInterval(heartbeatInterval);
+}
 if (!hasOpened) {
 console.log('Failed to connect on port ' + port + ', trying next port...');
 portIndex++;
@@ -1524,6 +1536,24 @@ window.terminal.write('\b \b');
 } else {
 window.terminal.write(msg.data);
 }
+} else if (msg.type === 'chat_chunk') {
+if (window.activeStreamingMessageEl) {
+window.activeStreamingText += msg.chunk;
+window.activeStreamingCodeBlocks = updateStreamingMessage(window.activeStreamingMessageEl, window.activeStreamingText);
+}
+} else if (msg.type === 'chat_end') {
+if (window.activeStreamingMessageEl) {
+if (msg.response !== null && msg.response !== undefined && String(msg.response).trim() !== '') {
+window.activeStreamingText = msg.response;
+}
+const finalCodeBlocks = updateStreamingMessage(window.activeStreamingMessageEl, window.activeStreamingText);
+responseCodeBlocks.push(...finalCodeBlocks);
+}
+window.activeStreamingMessageEl = null;
+window.activeStreamingText = '';
+document.getElementById('chatInput').disabled = false;
+document.getElementById('chatInput').focus();
+saveChatHistory();
 }
 };
 }
@@ -1976,6 +2006,46 @@ editor.executeEdits("my-source", [op]);
 terminal.write(`\r\n\x1b[32m[IDE] Inserted code block at cursor.\x1b[0m\r\n`);
 }
 // Sesi Co-Pilot Chat functions
+window.activeStreamingMessageEl = null;
+window.activeStreamingText = '';
+window.activeStreamingCodeBlocks = [];
+function updateStreamingMessage(msgDiv, text) {
+if (text === null || text === undefined) {
+text = '';
+}
+let formattedText = String(text);
+// Extract complete code blocks
+const codeBlockRegex = /```(?:sesi|javascript|json|markdown|python)?([\s\S]+?)```/g;
+let tempCodeBlocks = [];
+formattedText = formattedText.replace(codeBlockRegex, (fullMatch, codeContent) => {
+tempCodeBlocks.push(codeContent.trim());
+const index = responseCodeBlocks.length + tempCodeBlocks.length - 1;
+return `
+ <pre>
+ <div class="code-actions-header">
+ <button class="code-action-btn" onclick="applyCodeToFile(${index})">Replace File</button>
+ <button class="code-action-btn" onclick="insertCodeAtCursor(${index})">Insert</button>
+ </div>
+ <code>${codeContent.trim().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code>
+ </pre>
+`.trim();
+});
+// Handle unclosed trailing code block
+if (formattedText.includes('```')) {
+const parts = formattedText.split('```');
+const lastPart = parts.pop();
+ formattedText = parts.join('```') + '<pre><code>' + lastPart.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</code></pre>';
+}
+formattedText = formattedText
+.replace(/\*\*([^*]+)\*\*/g, '<strong class="glow-text">$1</strong>')
+.replace(/`([^`]+)`/g, '<code>$1</code>')
+.replace(/\n/g, '<br>');
+msgDiv.innerHTML = formattedText;
+const chatMessages = document.getElementById('chatMessages');
+chatMessages.scrollTop = chatMessages.scrollHeight;
+return tempCodeBlocks;
+}
+// Sesi Co-Pilot Chat functions
 async function sendChatMessage() {
 const chatInput = document.getElementById('chatInput');
 const query = chatInput.value.trim();
@@ -1984,22 +2054,33 @@ chatInput.value = '';
 chatInput.disabled = true;
 appendMessage(query, true);
 saveChatHistory();
-// Add thinking placeholder
-const thinkingEl = appendMessage('Co-Pilot is thinking...', false, true);
-try {
 const payload = {
 query,
 sessionId: window.activeChatId,
 filePath: activeFilePath,
-fileContent: activeFilePath ? editor.getValue() : null
+fileContent: activeFilePath ? editor.getValue() : null,
+browserAccess: localStorage.getItem('setting-ai-browser') === 'true'
 };
+if (window.terminalSocket && window.terminalSocket.readyState === WebSocket.OPEN) {
+// Send over WebSocket for real-time streaming response
+const thinkingEl = appendMessage('', false, true); // start with empty system message element
+window.activeStreamingMessageEl = thinkingEl;
+window.activeStreamingText = '';
+window.activeStreamingCodeBlocks = [];
+window.terminalSocket.send(JSON.stringify({
+type: 'chat',
+...payload
+}));
+} else {
+// Fallback to standard HTTP fetch if WebSocket is not open
+const thinkingEl = appendMessage('Co-Pilot is thinking...', false, true);
+try {
 const response = await fetch('/api/chat', {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify(payload)
 });
 const data = await response.json();
-// Remove thinking placeholder and append real response
 thinkingEl.remove();
 appendMessage(data.response);
 saveChatHistory();
@@ -2011,11 +2092,15 @@ chatInput.disabled = false;
 chatInput.focus();
 }
 }
+}
 // Helper to format and display messages
 function appendMessage(text, isUser = false, isPlaceholder = false, isLoading = false) {
+if (text === null || text === undefined) {
+text = '';
+}
 const msgDiv = document.createElement('div');
 msgDiv.className = `message ${isUser ? 'user' : 'system'}`;
-let formattedText = text;
+let formattedText = String(text);
 if (!isUser && !isPlaceholder) {
 // Parse code blocks, extract them, and replace with decorated containers
 const codeBlockRegex = /```(?:sesi|javascript|json|markdown|python)?([\s\S]+?)```/g;

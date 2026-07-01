@@ -54,8 +54,9 @@ export interface SesiOptions {
   tokens?: boolean;
   args?: string[];
   dry?: boolean;
-  bytecode?: boolean;      // run via bytecode VM instead of tree-walker
+  bytecode?: boolean;      // run via bytecode VM (default: true unless treeWalker is specified)
   bytecodeDump?: boolean;  // print disassembled bytecode then exit
+  treeWalker?: boolean;    // run via tree-walking interpreter fallback
 }
 
 function printTokensTable(tokens: any[]): void {
@@ -166,8 +167,8 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
       return;
     }
 
-    // Bytecode path
-    if (options?.bytecode || options?.bytecodeDump) {
+    // Bytecode path (default)
+    if (!options?.treeWalker && (options?.bytecode !== false || options?.bytecodeDump)) {
       const compiler = new Compiler();
       const chunk = compiler.compileProgram(program);
 
@@ -176,7 +177,7 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
         process.exit(1);
       }
 
-      if (options.bytecodeDump) {
+      if (options?.bytecodeDump) {
         console.log(disassemble(chunk, scriptDir ? path.basename(scriptDir) : '<script>'));
         return;
       }
@@ -186,7 +187,7 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
       return;
     }
 
-    // Tree-walking interpreter (default)
+    // Tree-walking interpreter fallback
     const interpreter = new Interpreter(scriptDir, options);
     await interpreter.interpret(program);
   } catch (error: any) {

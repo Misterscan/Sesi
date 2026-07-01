@@ -20,6 +20,7 @@ function stripPrototypes(val: any): any {
 export class AIRuntime {
   private _client: any = null;
   private conversationHistory: Map<string, string[]> = new Map();
+  private embeddingCache: Map<string, number[]> = new Map();
 
   constructor() {}
 
@@ -468,6 +469,131 @@ export class AIRuntime {
   updateMemory(memoryId: string, content: string): void {
     this.conversationHistory.set(memoryId, [content]);
   }
+
+  countTokens(text: string): number {
+    // Heuristic: ~4 characters per token for English text.
+    // Avoids an API call and is accurate enough for context window budgeting.
+    return Math.ceil(text.length / 4);
+  }
+
+  async embedText(text: string): Promise<number[]> {
+    const crypto = require('crypto');
+    const cacheKey = crypto.createHash('sha256').update(text).digest('hex');
+    if (this.embeddingCache.has(cacheKey)) {
+      return this.embeddingCache.get(cacheKey)!;
+    }
+
+    const client = this.client;
+    const models = ['gemini-embedding-001', 'gemini-embedding-2'];
+    let lastError: Error | null = null;
+
+    for (const model of models) {
+      try {
+        const response = await client.models.embedContent({
+          model,
+          contents: text,
+        });
+        const embedding: number[] = response.embeddings?.[0]?.values
+          ?? response.embedding?.values
+          ?? [];
+        if (embedding.length > 0) {
+          this.embeddingCache.set(cacheKey, embedding);
+          return embedding;
+        }
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    throw new Error(
+      'Failed to generate embedding with both gemini-embedding-001 and gemini-embedding-2.' +
+      (lastError ? ` Last error: ${lastError.message}` : '')
+    );
+  }
+
+  async searchMemory(
+    memoryId: string,
+    query: string,
+    topK: number = 3,
+  ): Promise<Array<{ text: string; score: number }>> {
+    const history = this.conversationHistory.get(memoryId);
+    if (!history || history.length === 0) return [];
+
+    // Embed the query
+    const queryVec = await this.embedText(query);
+
+    // Embed each memory chunk and compute cosine similarity
+    const scored: Array<{ text: string; score: number }> = [];
+    for (const chunk of history) {
+      if (!chunk.trim()) continue;
+      const chunkVec = await this.embedText(chunk);
+      const score = cosineSimilarity(queryVec, chunkVec);
+      scored.push({ text: chunk, score });
+    }
+
+    // Sort descending by score and return top-K
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, topK).map(item => {
+      const obj: any = Object.create(null);
+      obj.text = item.text;
+      obj.score = Math.round(item.score * 10000) / 10000;
+      return obj;
+    });
+  }
+
+  async trimMemory(memoryId: string, maxTokens: number = 900000): Promise<string> {
+    const history = this.conversationHistory.get(memoryId);
+    if (!history || history.length === 0) return '';
+
+    const fullText = history.join('\n');
+    const currentTokens = this.countTokens(fullText);
+
+    if (currentTokens <= maxTokens) {
+      return fullText;
+    }
+
+    // Keep the most recent entries (roughly half), summarize the older half
+    const midpoint = Math.floor(history.length / 2);
+    const oldEntries = history.slice(0, midpoint);
+    const recentEntries = history.slice(midpoint);
+
+    const oldText = oldEntries.join('\n');
+
+    // Summarize old entries using a fast model
+    let summary: string;
+    try {
+      const response = await this.callModel({
+        model: 'gemini-3.1-flash-lite',
+        prompt: `Summarize the following conversation history into a concise paragraph that preserves all key facts, decisions, and context. Do not add commentary.\n\n${oldText}`,
+        temperature: 0,
+        cache: false,
+      });
+      summary = response.text.trim();
+    } catch (err: any) {
+      // If summarization fails, just truncate to the recent half
+      summary = `[Summary of ${oldEntries.length} earlier entries — summarization unavailable]`;
+    }
+
+    // Replace history with summarized older part + recent entries
+    const newHistory = [`[Memory Summary]\n${summary}`, ...recentEntries];
+    this.conversationHistory.set(memoryId, newHistory);
+    const result = newHistory.join('\n');
+    return result;
+  }
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length === 0 || b.length === 0 || a.length !== b.length) return 0;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
 }
 
 export const aiRuntime = new AIRuntime();

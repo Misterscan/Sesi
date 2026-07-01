@@ -18,15 +18,20 @@ set_alias("agent", "gemini-3.1-pro-preview")
 set_alias("search", "gemini-3.1-flash-lite")
 
 // Tool to search Google using Sesi's model with search: true
-fn web_search(arg: string) -> string {
+fn web_search(arg) -> string {
   let query = arg
-  if locate(arg, "{") == 0 {
-    try {
-      let parsed = from_json(arg)
-      if parsed["query"] != null {
-        query = parsed["query"]
-      }
-    } catch(e) {}
+  let parsed = null
+  if type(arg) == "object" {
+    parsed = arg
+  } else if type(arg) == "string" {
+    if locate(arg, "{") == 0 {
+      try {
+        parsed = from_json(arg)
+      } catch(e) {}
+    }
+  }
+  if parsed != null && parsed["query"] != null {
+    query = parsed["query"]
   }
   print "🔍 Searching Google for:" query
   try {
@@ -38,16 +43,20 @@ fn web_search(arg: string) -> string {
 }
 
 // Tool to browse and scrape text content from a web page
-fn browser_scrape(arg: string) -> string {
+fn browser_scrape(arg) -> string {
   let url = arg
-  // Handle JSON wrapper if sent by the agent
-  if locate(arg, "{") == 0 {
-    try {
-      let parsed = from_json(arg)
-      if parsed["url"] != null {
-        url = parsed["url"]
-      }
-    } catch(e) {}
+  let parsed = null
+  if type(arg) == "object" {
+    parsed = arg
+  } else if type(arg) == "string" {
+    if locate(arg, "{") == 0 {
+      try {
+        parsed = from_json(arg)
+      } catch(e) {}
+    }
+  }
+  if parsed != null && parsed["url"] != null {
+    url = parsed["url"]
   }
   
   print "🌐 Browser navigating to:" url
@@ -78,9 +87,17 @@ fn browser_scrape(arg: string) -> string {
 }
 
 // Tool to write the generated HTML/CSS webpage to disk
-fn write_webpage(arg: string) -> string {
+fn write_webpage(arg) -> string {
   try {
-    let parsed = from_json(arg)
+    let parsed = null
+    if type(arg) == "object" {
+      parsed = arg
+    } else if type(arg) == "string" {
+      parsed = from_json(arg)
+    }
+    if parsed == null {
+      return "Failed: Invalid argument format or type."
+    }
     let filename = parsed["filename"]
     if filename == null {
       filename = parsed["name"]
@@ -122,7 +139,7 @@ let scraper_agent = Agent.create({
   "model": "agent",
   "system": "You are a research and web development assistant.
 Use 'web_search' to search for news and URLs.
-Once you find target URLs, use 'browser_scrape' to get page contents.
+Once you find target URLs, use 'browser_scrape' to get page contents Do not include `/` at the end of the url.
 Finally, write the generated HTML/CSS page to disk using 'write_webpage'. Make sure to include a summary of your findings in your final answer.",
   "temperature": 0.2,
   "tools": {
@@ -132,14 +149,15 @@ Finally, write the generated HTML/CSS page to disk using 'write_webpage'. Make s
   }
 })
 
+let queryPrompt = input("Enter your query: ")
 let task_prompt = "Perform the following actions:
-1. Search the web using 'web_search' to find the latest announcements, products, or stock milestones of NVIDIA (NVDA) and Apple (AAPL) from the past month.
+1. Search the web using 'web_search' to find relevant information on " + queryPrompt + ".
 2. Identify a reputable news/summary URL from the search result, and call 'browser_scrape' on that URL to extract the detailed text.
-3. Synthesize the findings into a gorgeous HTML dashboard page named 'tech_news_dashboard.html' featuring cards, modern styling (glassmorphism/gradients), and a responsive layout."
+3. Synthesize the findings into a gorgeous HTML dashboard page named 'news_dashboard.html' featuring cards, modern styling (glassmorphism/gradients), and a responsive layout."
 
 print "
-Starting Scrape & Generate ReAct Loop..."
-let final_answer = Agent.run_react(scraper_agent, task_prompt, 8)
+Starting Scrape & Generate SesiDo Loop..."
+let final_answer = Agent.run_react(scraper_agent, task_prompt, 15)
 
 print "
 ========================================="

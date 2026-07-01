@@ -40,7 +40,7 @@
 ### Tooling ✅
 
 - [x] Lexer and parser
-- [x] Tree-walking interpreter
+- [x] Tree-walking interpreter (retained as fallback execution path)
 - [x] CLI executable (sesi)
 - [x] Examples (22 programs)
 - [x] Documentation
@@ -115,8 +115,8 @@
 ### Memory System
 
 - [ ] Long-term memory with embeddings
-- [ ] Memory search by similarity
-- [ ] Context window management
+- [x] Memory search by similarity
+- [x] Context window management
 - [ ] Automatic summarization
 - [x] Persistent storage (file-based)
 
@@ -130,7 +130,7 @@
 
 ### Performance
 
-- [~] Bytecode compilation (VM + compiler foundation: expressions, loops, functions ✅ — closures, try/catch, imports pending)
+- [x] Bytecode compilation (VM + compiler foundation: expressions, loops, functions, closures, try/catch, imports)
 - [x] Logic caching
 - [ ] Token counting and cost estimation
 - [ ] Lazy evaluation

@@ -1173,6 +1173,63 @@ if rand > 0.5 {print "Heads"} else {print "Tails"}
 
 ---
 
+## Memory Functions
+
+### memory_search(name, query, top_k = 3) -> array
+
+Search a `memory` binding's history for entries most semantically similar to a query string. Uses Gemini embedding models (`gemini-embedding-001` with `gemini-embedding-2` fallback) to generate vector embeddings for each memory chunk, then ranks them by cosine similarity.
+
+Embedding results are locally cached by content hash — repeated searches over the same memory entries will not make redundant API calls.
+
+```sesi
+memory chat {"System: You are a helpful assistant."}
+chat = chat "User: Tell me about databases"
+chat = chat "Assistant: Databases store structured data..."
+chat = chat "User: What about caching?"
+chat = chat "Assistant: Caching improves performance..."
+
+let results = memory_search("chat", "database storage")
+for item in results {
+  print "Score:" item["score"]
+  print "Text:" item["text"]
+  print "---"
+}
+```
+
+**Parameters**:
+
+- `name` (`string`): The name of the memory binding to search.
+- `query` (`string`): The search query string.
+- `top_k` (`number`, optional): Maximum number of results to return, sorted by descending similarity score. Defaults to `3`.
+
+**Returns**: `array<object>` — Each object contains `"text"` (the matching memory entry) and `"score"` (cosine similarity from 0.0 to 1.0).
+
+---
+
+### memory_trim(name, max_tokens = 900000) -> string
+
+Manage the context window of a `memory` binding. If the total token count (estimated at ~4 characters per token) exceeds `max_tokens`, the older half of the memory entries are automatically summarized into a single paragraph using `gemini-3.1-flash-lite`, preserving all key facts and context while reducing token usage.
+
+If the memory is already within the budget, the full memory text is returned unchanged.
+
+```sesi
+memory conversation {"System: You are a research assistant."}
+
+// After many turns of conversation...
+// Trim to stay within a 500K token budget
+let trimmed = memory_trim("conversation", 500000)
+print "Memory now:" len(trimmed) "characters"
+```
+
+**Parameters**:
+
+- `name` (`string`): The name of the memory binding to manage.
+- `max_tokens` (`number`, optional): Maximum token budget. Defaults to `900000` (suitable for Gemini's 1M context window with headroom).
+
+**Returns**: `string` — The memory text after trimming (or unchanged if within budget). The memory binding is updated in-place.
+
+---
+
 ## Debugging Functions
 
 ### debug() -> null
@@ -1429,7 +1486,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.6.0"
+  "version": "1.6.1"
 }
 print Json.stringify(original)
 ```
