@@ -165,7 +165,11 @@ export class VM {
           // ---- Globals ----
           case OpCode.DEFINE_GLOBAL: {
             const name = chunk.constants[this.readByte(frame)] as string;
-            this.globals.set(name, this.peek(0));
+            const val = this.peek(0);
+            this.globals.set(name, val);
+            if (this.interpreter) {
+              this.interpreter.globalEnv.define(name, val);
+            }
             this.pop();
             break;
           }
@@ -181,6 +185,9 @@ export class VM {
             if (!this.globals.has(name)) throw new Error(`Undefined variable: ${name}`);
             const val = this.peek(0);
             this.globals.set(name, val);
+            if (this.interpreter) {
+              this.interpreter.globalEnv.define(name, val);
+            }
             if (this.memory.has(name)) {
               const stringVal = stringify(val);
               this.memory.set(name, stringVal);
@@ -435,17 +442,50 @@ export class VM {
             const promptVal = this.pop();
             const modelName = this.pop() as string;
 
-            const resolvedModel = this.interpreter && typeof this.interpreter.resolveModelName === 'function'
-              ? this.interpreter.resolveModelName(modelName)
-              : modelName;
+            if (this.interpreter && typeof (this.interpreter as any).evaluateImageCall === 'function') {
+              const syntheticExpr: any = {
+                type: 'ImageCallExpression',
+                modelName,
+                config: config ? Object.fromEntries(Object.entries(config).map(([k, v]) => [k, { type: 'Literal', value: v }])) : undefined,
+                prompt: { type: 'Literal', value: promptVal },
+              };
+              const result = await (this.interpreter as any).evaluateImageCall(syntheticExpr);
+              this.push(result);
+            } else {
+              // Fallback if interpreter is not linked
+              const resolvedModel = this.interpreter && typeof this.interpreter.resolveModelName === 'function'
+                ? this.interpreter.resolveModelName(modelName)
+                : modelName;
+              const response = await aiRuntime.callModel({
+                model: resolvedModel,
+                prompt: typeof promptVal === 'string' ? promptVal : stringify(promptVal),
+                ratio: config?.ratio as string | undefined,
+                size:  config?.size  as string | undefined,
+              });
+              this.push(response.text);
+            }
+            break;
+          }
 
-            const response  = await aiRuntime.callModel({
-              model: resolvedModel,
-              prompt: typeof promptVal === 'string' ? promptVal : stringify(promptVal),
-              ratio: config?.ratio as string | undefined,
-              size:  config?.size  as string | undefined,
-            });
-            this.push(response.text);
+          case OpCode.CONVERT: {
+            this.readByte(frame);
+            this.readByte(frame);
+            const config = this.pop() as Record<string, any> | null;
+            const file = this.pop();
+            const conversionType = this.pop() as string;
+
+            if (this.interpreter && typeof (this.interpreter as any).evaluateConvert === 'function') {
+              const syntheticExpr: any = {
+                type: 'ConvertExpression',
+                conversionType,
+                config: config ? Object.fromEntries(Object.entries(config).map(([k, v]) => [k, { type: 'Literal', value: v }])) : undefined,
+                file: { type: 'Literal', value: file },
+              };
+              const result = await (this.interpreter as any).evaluateConvert(syntheticExpr);
+              this.push(result);
+            } else {
+              this.push(null);
+            }
             break;
           }
 
@@ -514,12 +554,19 @@ export class VM {
                 nsObj[key] = val;
               }
               this.globals.set(names[0], nsObj);
+              if (this.interpreter) {
+                this.interpreter.globalEnv.define(names[0], nsObj);
+              }
             } else {
               for (const name of names) {
                 if (!moduleExports.has(name)) {
                   throw new Error(`Module "${source}" does not export "${name}"`);
                 }
-                this.globals.set(name, moduleExports.get(name)!);
+                const val = moduleExports.get(name)!;
+                this.globals.set(name, val);
+                if (this.interpreter) {
+                  this.interpreter.globalEnv.define(name, val);
+                }
               }
             }
             break;
@@ -535,12 +582,19 @@ export class VM {
                 nsObj[key] = val;
               }
               this.globals.set(binding, nsObj);
+              if (this.interpreter) {
+                this.interpreter.globalEnv.define(binding, nsObj);
+              }
             } else {
               for (const name of binding) {
                 if (!moduleExports.has(name)) {
                   throw new Error(`Module "${source}" does not export "${name}"`);
                 }
-                this.globals.set(name, moduleExports.get(name)!);
+                const val = moduleExports.get(name)!;
+                this.globals.set(name, val);
+                if (this.interpreter) {
+                  this.interpreter.globalEnv.define(name, val);
+                }
               }
             }
             break;
@@ -554,6 +608,9 @@ export class VM {
             this.memory.set(name, stringVal);
             aiRuntime.initializeMemory(name, stringVal);
             this.globals.set(name, stringVal);
+            if (this.interpreter) {
+              this.interpreter.globalEnv.define(name, stringVal);
+            }
             break;
           }
 

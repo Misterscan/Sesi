@@ -84,6 +84,7 @@ export const enum OpCode {
   GET_UPVALUE,   // operand: upvalue index
   SET_UPVALUE,   // operand: upvalue index
   CLOSE_UPVALUE,
+  CONVERT,
 }
 
 // ---------------------------------------------------------------------------
@@ -270,6 +271,7 @@ function disassembleInstruction(chunk: Chunk, ip: number): [string, number] {
     case OpCode.GET_UPVALUE:    return byteInstr('GET_UPVALUE');
     case OpCode.SET_UPVALUE:    return byteInstr('SET_UPVALUE');
     case OpCode.CLOSE_UPVALUE:  return simpleInstr('CLOSE_UPVALUE');
+    case OpCode.CONVERT:        return twoByteInstr('CONVERT');
     default:
       return [`${prefix}UNKNOWN(${op})`, 1];
   }

@@ -47,6 +47,9 @@ function ensureWatcher(dirToWatch: string) {
         broadcastReload();
       }
     });
+    if (liveReloadWatcher && typeof liveReloadWatcher.unref === 'function') {
+      liveReloadWatcher.unref();
+    }
   } catch (e) {
     try {
       const fs = require('fs');
@@ -55,6 +58,9 @@ function ensureWatcher(dirToWatch: string) {
           broadcastReload();
         }
       });
+      if (liveReloadWatcher && typeof liveReloadWatcher.unref === 'function') {
+        liveReloadWatcher.unref();
+      }
     } catch (err) {}
   }
 }
@@ -1054,7 +1060,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
           throw new Error('multi_req elements must be functions');
         }
         // Create an isolated sub-interpreter to prevent lexical scope and currentEnv corruption
-        const InterpreterClass = interpreter.constructor;
+        const InterpreterClass = interpreter.constructor as any;
         const subInterpreter = new InterpreterClass(undefined, {
           safeMode: interpreter.safeMode,
           allowLocalFs: interpreter.allowLocalFs,
@@ -1062,6 +1068,14 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
           allowedPaths: interpreter.allowedPaths,
           args: interpreter.args
         });
+        // Copy globals
+        for (const [k, v] of (interpreter as any).globalEnv.getValues().entries()) {
+          (subInterpreter as any).globalEnv.define(k, v);
+        }
+        // Copy model aliases
+        for (const [k, v] of (interpreter as any).modelAliases.entries()) {
+          (subInterpreter as any).setModelAlias(k, v);
+        }
         (subInterpreter as any).prompts = new Map((interpreter as any).prompts);
         (subInterpreter as any).memory = new Map((interpreter as any).memory);
 

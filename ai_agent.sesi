@@ -357,11 +357,20 @@ export fn save(agent, path) {
     "max_tokens": agent["max_tokens"],
     "history": agent["history"]
   }
-  return write_file(path, to_json(data))
+  try {
+    return write_file(path, to_json(data))
+  } catch (err) {
+    print "Error saving agent:" err
+  }
 }
 
 export fn load(agent, path) {
-  let content = read_file(path)
+  let content = ""
+  try {
+    content = read_file(path)
+  } catch (err) {
+    print "Error loading agent:" err
+  }
   if content == null {
     return false
   }

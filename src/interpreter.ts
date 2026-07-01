@@ -932,6 +932,9 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         allowedPaths: [...this.allowedPaths],
         args: [...this.args]
       });
+      for (const [k, v] of this.globalEnv.getValues().entries()) {
+        subInterpreter.globalEnv.define(k, v);
+      }
       for (const [k, v] of this.modelAliases.entries()) {
         subInterpreter.setModelAlias(k, v);
       }

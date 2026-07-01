@@ -1,40 +1,132 @@
-try 
-{print "Launching example .sesi files..."
-print exec("sesi examples/main/01_hello.sesi")
-print exec("sesi examples/main/02_variables.sesi")
-print exec("sesi examples/main/03_functions.sesi")
-print exec("sesi examples/main/04_conditionals.sesi")
-print exec("sesi examples/main/05_loops.sesi")
-print exec("sesi examples/main/06_arrays_objects.sesi")
-print exec("sesi examples/main/07_prompts.sesi")
-print exec("sesi examples/optional/08_model_call.sesi")
-print exec("sesi examples/main/09_structured_output.sesi")
-print exec("sesi examples/optional/10_code_generation.sesi")
-print exec("sesi examples/main/11_memory_storage.sesi")
-print exec("sesi examples/main/12_classification.sesi")
-print exec("sesi examples/main/13_data_pipeline.sesi")
-print exec("sesi examples/optional/14_folder_explainer.sesi")
-print "Halfway there..."
-print "Image generation example may take a while..."
-print exec("sesi examples/optional/15_image_generation.sesi")
-print "Done! Moving on..."
-print exec("sesi examples/main/16_modules.sesi")
-print exec("sesi examples/main/17_http_client.sesi")
-print exec("sesi examples/main/18_parallel_requests.sesi")
-print exec("sesi examples/main/19_search_web.sesi")
-print exec("sesi examples/optional/20_model_aliases.sesi")
-print exec("sesi examples/main/21_custom_tools.sesi")
-print exec("sesi examples/optional/22_reasoning_plus_custom_tools.sesi")
-print exec("sesi examples/main/23_file_conversion.sesi")
-print exec("sesi examples/main/24_http_server.sesi -l")
-print exec("sesi examples/main/25_webpage_server.sesi -l")
-print "Now for the final examples!"
-print exec("sesi examples/main/26_database.sesi -l")
-print exec("sesi examples/main/27_robust_web_db.sesi -l")
-print exec("sesi examples/optional/28_streaming.sesi")
-print exec("sesi examples/main/29_tool_piping.sesi")
-print exec("sesi examples/main/30_error_recovery.sesi")
-print exec("sesi examples/main/31_synthesizer.sesi")
-print "All done! No errors means Sesi is ready!"}
-catch (error) {
-print "An error occurred:" error}
+let examples = {
+  "main": [
+    "Hello, Sesi!",
+    "Variables",
+    "Functions",
+    "Conditionals",
+    "Loops",
+    "Arrays & Objects",
+    "Prompts",
+    "Structured Output",
+    "Memory Storage",
+    "Classification",
+    "Data Pipeline",
+    "Modules",
+    "HTTP Client",
+    "Parallel Requests",
+    "Web Search",
+    "Custom Tools",
+    "File Conversion",
+    "HTTP Server",
+    "Webpage Server",
+    "Database",
+    "Robust Web DB",
+    "Tool Piping",
+    "Error Recovery",
+    "Synthesizer",
+    "Browser Automation"
+  ],
+  "optional": [
+    "Model Call",
+    "Code Generation",
+    "Folder Explainer",
+    "Image Generation",
+    "Model Aliases",
+    "Reasoning + Custom Tools",
+    "Streaming"
+  ]
+}
+
+let main = examples["main"]
+let optional = examples["optional"]
+
+fn skip(input) {
+    let input = ""
+    if input == "skip" {
+        return skip
+    } else {
+        continue
+    }
+}
+
+try {
+    print "Launching example .sesi files...
+    If you have the reasoning capabilites commented out, this should be quick.
+    If you have the reasoning capabilites uncommented, this could take a while"
+    print "[1/32] [" main[0] "]"
+    print exec("sesi examples/main/01_hello.sesi")
+    input("[2/32] [" + main[1] + "] Press enter to continue...")
+    print exec("sesi examples/main/02_variables.sesi")
+    input("[3/32] [" + main[2] + "] Press enter to continue...")
+    print exec("sesi examples/main/03_functions.sesi")
+    input("[4/32] [" + main[3] + "] Press enter to continue...")
+    print exec("sesi examples/main/04_conditionals.sesi")
+    input("[5/32] [" + main[4] + "] Press enter to continue...")
+    print exec("sesi examples/main/05_loops.sesi")
+    input("[6/32] [" + main[5] + "] Press enter to continue...")
+    print exec("sesi examples/main/06_arrays_objects.sesi")
+    input("[7/32] [" + main[6] + "] Press enter to continue...")
+    print exec("sesi examples/main/07_prompts.sesi")
+    input("[8/32] [" + optional[0] + "] Press enter to continue or enter 'skip' to skip... ")
+    skip()
+    print exec("sesi examples/optional/08_model_call.sesi")
+    input("[9/32] [" + main[7] + "] Press enter to continue...")
+    print exec("sesi examples/main/09_structured_output.sesi")
+    input("[10/32] [" + optional[1] + "] Press enter to continue or enter 'skip' to skip... ")
+    skip()
+    print exec("sesi examples/optional/10_code_generation.sesi")
+    input("[11/32] [" + main[8] + "] Press enter to continue...")
+    print exec("sesi examples/main/11_memory_storage.sesi")
+    input("[12/32] [" + main[9] + "] Press enter to continue...")
+    print exec("sesi examples/main/12_classification.sesi")
+    input("[13/32] [" + main[10] + "] Press enter to continue...")
+    print exec("sesi examples/main/13_data_pipeline.sesi")
+    input("[14/32] [" + optional[2] + "] Press enter to continue or enter 'skip' to skip... ")
+    skip()
+    print exec("sesi examples/optional/14_folder_explainer.sesi")
+    input("[15/32] [" + optional[3] + "] Press enter to continue or enter 'skip' to skip... ")
+    skip() 
+    print "Only relevant for users who have the capability to generate images uncommented out:
+Image generation example may take a while..." 
+    print exec("sesi examples/optional/15_image_generation.sesi")
+    input("[16/32] [" + main[11] + "] Press enter to continue...")
+    print exec("sesi examples/main/16_modules.sesi")
+    input("[17/32] [" + main[12] + "] Press enter to continue...")
+    print exec("sesi examples/main/17_http_client.sesi")
+    input("[18/32] [" + main[13] + "] Press enter to continue...")
+    print exec("sesi examples/main/18_parallel_requests.sesi")
+    input("[19/32] [" + main[14] + "] Press enter to continue...")
+    print exec("sesi examples/main/19_search_web.sesi")
+    input("[20/32] [" + optional[4] + "] Press enter to continue or enter 'skip' to skip... ")
+    skip()
+    print exec("sesi examples/optional/20_model_aliases.sesi")
+    input("[21/32] [" + main[15] + "] Press enter to continue...")
+    print exec("sesi examples/main/21_custom_tools.sesi")
+    input("[22/32] [" + optional[5] + "] Press enter to continue or enter 'skip' to skip... ")
+    skip()
+    print exec("sesi examples/optional/22_reasoning_plus_custom_tools.sesi")
+    input("[23/32] [" + main[16] + "] Press enter to continue...")
+    print exec("sesi examples/main/23_file_conversion.sesi")
+    input("[24/32] [" + main[17] + "] Press enter to continue...")
+    print exec("sesi examples/main/24_http_server.sesi -l")
+    input("[25/32] [" + main[18] + "] Press enter to continue...")
+    print exec("sesi examples/main/25_webpage_server.sesi -l")
+    input("[26/32] [" + main[19] + "] Press enter to continue...")
+    print exec("sesi examples/main/26_database.sesi -l")
+    input("[27/32] [" + main[20] + "] Press enter to continue...")
+    print exec("sesi examples/main/27_robust_web_db.sesi -l")
+    input("[28/32] [" + optional[6] + "] Press enter to continue or enter 'skip' to skip... ")
+    skip()
+    print exec("sesi examples/optional/28_streaming.sesi")
+    input("[29/32] [" + main[21] + "] Press enter to continue...")
+    print exec("sesi examples/main/29_tool_piping.sesi")
+    input("[30/32] [" + main[22] + "] Press enter to continue...")
+    print exec("sesi examples/main/30_error_recovery.sesi")
+    input("[31/32] [" + main[23] + "] Press enter to continue...")
+    print exec("sesi examples/main/31_synthesizer.sesi")
+    input("[32/32] [" + main[24] + "] Press enter to continue...")
+    print exec("sesi examples/main/32_browser_automation.sesi -l")
+    print "All done! No errors means Sesi is ready!"
+} catch (error) {
+    print "An error occurred:" error
+}

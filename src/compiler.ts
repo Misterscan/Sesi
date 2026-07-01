@@ -33,6 +33,8 @@ import {
   type ImportStatement,
   type AllowStatement,
   type MemoryStatement,
+  type ImageCallExpression,
+  type ConvertExpression,
 } from './types';
 
 import {
@@ -571,8 +573,10 @@ export class Compiler {
       case 'ObjectLiteral':          return this.compileObject(expr as ObjectLiteral);
       case 'PromptExpression':       return this.compilePrompt(expr as PromptExpression);
       case 'ModelCallExpression':    return this.compileModelCall(expr as ModelCallExpression);
+      case 'ImageCallExpression':    return this.compileImageCall(expr as ImageCallExpression);
       case 'StructuredOutputExpression': return this.compileStructuredOutput(expr as StructuredOutputExpression);
       case 'ToolCallExpression':     return this.compileToolCall(expr as ToolCallExpression);
+      case 'ConvertExpression':      return this.compileConvert(expr as ConvertExpression);
       case 'ConditionalExpression': {
         const ce = expr as any;
         this.compileExpression(ce.condition);
@@ -825,6 +829,48 @@ export class Compiler {
     emitByte(this.chunk, OpCode.CALL_BUILTIN, line);
     emitByte(this.chunk, nameIdx, line);
     emitByte(this.chunk, expr.arguments.length, line);
+  }
+
+  private compileImageCall(expr: ImageCallExpression): void {
+    const line = expr.line;
+    const modelNameIdx = addConstant(this.chunk, expr.modelName);
+    emitBytes(this.chunk, OpCode.CONSTANT, modelNameIdx, line);
+    this.compileExpression(expr.prompt);
+    if (expr.config) {
+      const props = Object.entries(expr.config);
+      for (const [k, v] of props) {
+        const kidx = addConstant(this.chunk, k);
+        emitBytes(this.chunk, OpCode.CONSTANT, kidx, line);
+        this.compileExpression(v);
+      }
+      emitBytes(this.chunk, OpCode.BUILD_OBJECT, props.length, line);
+    } else {
+      this.emitOp(OpCode.NIL, line);
+    }
+    emitByte(this.chunk, OpCode.CALL_IMAGE, line);
+    emitByte(this.chunk, modelNameIdx, line);
+    emitByte(this.chunk, 3, line); // model, prompt, config
+  }
+
+  private compileConvert(expr: ConvertExpression): void {
+    const line = expr.line;
+    const typeIdx = addConstant(this.chunk, expr.conversionType);
+    emitBytes(this.chunk, OpCode.CONSTANT, typeIdx, line);
+    this.compileExpression(expr.file);
+    if (expr.config) {
+      const props = Object.entries(expr.config);
+      for (const [k, v] of props) {
+        const kidx = addConstant(this.chunk, k);
+        emitBytes(this.chunk, OpCode.CONSTANT, kidx, line);
+        this.compileExpression(v);
+      }
+      emitBytes(this.chunk, OpCode.BUILD_OBJECT, props.length, line);
+    } else {
+      this.emitOp(OpCode.NIL, line);
+    }
+    emitByte(this.chunk, OpCode.CONVERT, line);
+    emitByte(this.chunk, typeIdx, line);
+    emitByte(this.chunk, 3, line); // type, file, config
   }
 
   // -------------------------------------------------------------------------

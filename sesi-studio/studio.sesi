@@ -79,9 +79,17 @@ fn exec_in_project(cmd) {
       Basic attempt to change directory before running command.
       Handles most POSIX environments and Windows cmd.exe basics.
     */
-    return exec("cd \"" + PROJECT_ROOT + "\" && " + cmd)
+    let safeExec = ""
+    try {
+      safeExec = exec("cd \"" + PROJECT_ROOT + "\" && " + cmd)
+    } catch (e) {}
+    return safeExec
   }
-  return exec(cmd)
+  try {
+    return exec(cmd)
+  } catch(e) {
+    print "Error executing command:" cmd ":" e
+  }
 }
 
 fn get_db_collections(db_path, password) {
@@ -392,10 +400,15 @@ let global_tools = {
 }
 
 let docs_list = list_dir("getting-started")
-let more_files = read_file("docs/WRITING_SCRIPTS.md")
-more_files = "\n\n=== DOCUMENT: " + "WRITING_SCRIPTS.md" + " ===\n" + more_files
-more_files = more_files + "\n\n=== DOCUMENT: " + "BUILTINS.md" + " ===\n" + read_file("docs/BUILTINS.md")
-more_files = more_files + "\n\n=== DOCUMENT: " + "README.md" + " ===\n" + read_file("./README.md")
+let more_files = ""
+try {
+  more_files = read_file("docs/WRITING_SCRIPTS.md")
+  more_files = "\n\n=== DOCUMENT: " + "WRITING_SCRIPTS.md" + " ===\n" + more_files
+  more_files = more_files + "\n\n=== DOCUMENT: " + "BUILTINS.md" + " ===\n" + read_file("docs/BUILTINS.md")
+  more_files = more_files + "\n\n=== DOCUMENT: " + "README.md" + " ===\n" + read_file("./README.md")
+} catch (e) {
+  print "Error reading docs:" e
+}
 docs_list = docs_list
 let sesiDocs = ""
 for f_name in docs_list {
@@ -497,7 +510,7 @@ fn handle_http(req) {
       let new_root = body_obj["path"]
       if new_root != null && new_root != "" {
         PROJECT_ROOT = new_root
-        print "Sesi Studio: Workspace changed to " + PROJECT_ROOT
+        print "Sesi Studio: Workspace changed to" PROJECT_ROOT
         return {"status": 200, "body": {"success": true}}
       }
       return {"status": 400, "body": {"error": "Missing path parameter"}}
@@ -864,10 +877,18 @@ You have browser access enabled. Use these tools for visual analysis and verific
       let temp_name = ".sesi_ast_temp_" + str(time()) + ".sesi"
       let js_temp_name = ".sesi_ast_runner_" + str(time()) + ".js"
       
-      write_file(temp_name, content)
+      try {
+        write_file(temp_name, content)
+      } catch (e) {
+        return {"status": 500, "body": {"error": "Failed to write temp file: " + str(e)}}
+      }
       
       let js_code = "const {Lexer,Parser}=require('./dist/index.js'); const fs=require('fs'); try { const code=fs.readFileSync('" + temp_name + "','utf8'); const tokens=new Lexer(code).scanTokens(); const parser=new Parser(tokens); const prog=parser.parse(); if(parser.errors.length > 0){ console.error(parser.errors.join('\\n')); process.exit(1); } console.log(JSON.stringify(prog)); } catch(e) { console.error(e.message); process.exit(1); }"
-      write_file(js_temp_name, js_code)
+      try {
+        write_file(js_temp_name, js_code)
+      } catch (e) {
+        return {"status": 500, "body": {"error": "Failed to write temp file: " + str(e)}}
+      }
       
       let parse_result = ""
       let success = true
@@ -1158,7 +1179,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
         return {"status": 400, "body": {"error": "Missing downloadUrl parameter"}}
       }
       
-      print "Marketplace: downloading " + download_url
+      print "Marketplace: downloading" download_url
       let bundle_content = web_get(download_url)
       let bundle = from_json(bundle_content)
       if bundle == null {
@@ -1330,7 +1351,11 @@ You have browser access enabled. Use these tools for visual analysis and verific
       
       if action == "commit" {
         let msg = body_obj["message"]
-        write_file("sesi-studio/.git-commit-msg.tmp", msg)
+        try {
+          write_file("sesi-studio/.git-commit-msg.tmp", msg)
+        } catch (e) {
+          return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": "Failed to write temp file: " + str(e)}}
+        }
         let out = ""
         try {
           out = exec_in_project("git commit -F sesi-studio/.git-commit-msg.tmp")
@@ -1822,7 +1847,12 @@ You have browser access enabled. Use these tools for visual analysis and verific
                     clean_cmd = join(cmd_parts, " ")
                   }
                 }
-                let result = exec(clean_cmd)
+                let result = ""
+                try {
+                  result = exec(clean_cmd)
+                } catch (e) {
+                  print "Error in terminal:" e
+                }
                 let formatted = join(split(result, "\r"), "")
                 formatted = join(split(formatted, "\n"), "\r\n")
                 client.send(to_json({"type": "output", "data": formatted + "\r\n"}))

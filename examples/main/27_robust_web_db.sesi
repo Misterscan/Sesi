@@ -236,3 +236,10 @@ async fn handleRequest(req) {
 let port = 8080
 print "Starting combined server at http://localhost:8080"
 let server = listen(port, handleRequest)
+
+/* For automated examples/test run, close the server after 2 seconds. */
+allow "std/time" in with {sleep}
+sleep(2000)
+print "Closing webpage server..."
+server.close()
+print "Webpage server closed successfully."
