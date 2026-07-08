@@ -1,0 +1,12 @@
+/*
+    Safe File Access
+    File operations wrapped in try-catch blocks to prevent crashes and global variables.
+*/
+export fn readFile(path: str) -> str? {try {let content = read_file(path); return content} catch (err) {print "Failed to read file at:" path; print "Details:" err; return null}}
+export fn writeFile(path: str, content: str) {try {write_file(path, content)} catch (err) {print "Failed to write to file at:" path; print "Details:" err}}
+export fn writeImage(path: str, content: str) {try {write_image(path, content)} catch (err) {print "Failed to write image to file at:" path; print "Details:" err}}
+export fn appendFile(path: str, content: str) {try {let existing = ""; try {existing = read_file(path)} catch (e) {}if len(existing) > 0 {if !ends_with(existing, "\n") {existing = existing + "\n"}}write_file(path, existing + content)} catch (err) {}}
+export fn moveFile(path: str, dest: str) {try {rename(path, dest)} catch (err) {print "Failed to move file at:" path; print "Details:" err}}
+let pwd = ""; try {pwd = exec("pwd")}catch (e) {} if pwd == null {try{pwd = exec("cd")} catch (e) {}}
+export let wsRoot = trim(pwd)
+print "wsRoot: " wsRoot

@@ -1,0 +1,32 @@
+allow "std/terminal" in with Term
+allow "std/time" in with Time
+
+// Clear the screen to start fresh
+Term.clear()
+
+// Move cursor to top left
+Term.cursor(1, 1)
+print Term.color("⚡ Sesi Terminal UI Engine", "cyan")
+
+Term.cursor(1, 3)
+print Term.color("Loading system modules...", "yellow")
+
+Time.sleep(1000)
+
+Term.cursor(1, 4)
+print Term.color("[OK] File system ready", "green")
+
+Time.sleep(500)
+
+Term.cursor(1, 5)
+print Term.color("[OK] Network initialized", "green")
+
+Term.cursor(1, 7)
+print Term.color("Ready for commands.", "white")
+
+// Optional: you can combine with input
+Term.cursor(1, 9)
+let cmd = input(Term.color("admin@sesi> ", "magenta"))
+
+Term.cursor(1, 11)
+print "You executed:" Term.color(cmd, "bold")

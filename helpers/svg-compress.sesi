@@ -132,7 +132,7 @@ fn process_file(in_path: string, out_path: string) {
 // Execution Routing
 // ---------------------------------------------------------
 
-if contains(input_target, ".svg") {
+if ends_with(input_target, ".svg") {
   print "Running in Single File Mode..."
   
   // Cleanly extract the filename from the path
@@ -151,7 +151,7 @@ if contains(input_target, ".svg") {
     let count = 0
     
     for file in files {
-      if contains(file, ".svg") {
+      if ends_with(file, ".svg") {
         prompt target_in {input_target "/" file}
         prompt target_out {output_dir "/" file}
         

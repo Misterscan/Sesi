@@ -1,0 +1,311 @@
+allow "std/time" in with Time
+allow "ai_agent" in with Agent
+allow "std/browser" in with {launch}
+allow "helpers/safe" in with Safe
+allow "tools" in with Tools
+
+let active_browser = null
+let active_page = null
+let current_ws_client = Tools.current_ws_client
+let current_confirm_response = Tools.current_confirm_response
+let exec_in_project = Tools.exec_in_project
+
+export fn ask_user_permission(prompt_msg) {
+  current_confirm_response = "pending"
+  if current_ws_client != null {
+    try {
+      current_ws_client.send(to_json({"type": "prompt_confirm", "msg": prompt_msg}))
+    } catch(e) {}
+  }
+  while current_confirm_response == "pending" {
+    try {
+      Time.sleep(200)
+    } catch(e) {}
+  }
+  let res = current_confirm_response
+  current_confirm_response = "pending"
+  return res == "yes"
+}
+export fn read(args) {
+  let path = args["path"]
+  if path == null {
+    path = args["filename"]
+  }
+  if path == null {
+    return "Error: missing 'path' or 'filename' argument"
+  }
+  if !ask_user_permission("Sesi Studio Agent is trying to read file " + path + ". Is this okay?") {
+    return "Error: User rejected read request."
+  }
+  return Safe.readFile(path)
+}
+
+export fn write(args) {
+  let path = args["path"]
+  if path == null {
+    path = args["filename"]
+  }
+  let content = args["content"]
+  if path == null || content == null {
+    return "Error: missing 'path' or 'content' argument"
+  }
+  if !ask_user_permission("Sesi Studio Agent is trying to write to file " + path + ". Is this okay?") {
+    return "Error: User rejected write request."
+  }
+  Safe.writeFile(path, content)
+  return "Successfully wrote to file " + path
+}
+
+export fn list(args) {
+  let path = args["path"]
+  if path == null || path == "" {
+    path = "."
+  }
+  try {
+    let items = list_dir(path)
+    let out = ""
+    for item in items {
+      out = out + item + "\n"
+    }
+    return out
+  } catch(e) {
+    return "Error listing directory: " + str(e)
+  }
+}
+
+export fn searchGoogle(args) {
+  let query = args["query"]
+  if query == null {
+    return "Error: missing 'query' argument"
+  }
+  try {
+    let search_results = model("search"){temperature: 0.1, thinkingLevel: "low", search: true, cache: false, max_tokens: 1024}{query}
+    return search_results
+  } catch(e) {
+    return "Error searching Google: " + str(e)
+  }
+}
+
+export fn runScript(args) {
+  let script_name = args["script_name"]
+  let args_str = args["args_str"]
+  if script_name == null {
+    return "Error: missing 'script_name' argument"
+  }
+  if args_str == null {
+    args_str = ""
+  }
+  if !ask_user_permission("Sesi Studio Agent is trying to run helper script: " + script_name + ". Is this okay?") {
+    return "Error: User rejected run request."
+  }
+  try {
+    let clean_script = join(split(script_name, ".."), "")
+    let helper_path = "helpers/" + clean_script
+    let cmd = "node bin/sesi.js -l " + helper_path + " " + args_str
+    let output = exec_in_project(cmd)
+    return output
+  } catch(e) {
+    return "Error running helper script: " + str(e)
+  }
+}
+
+export fn evaluate(args) {
+  let code = args["code"]
+  if code == null || code == "" {
+    return "Error: missing 'code' argument"
+  }
+  if !ask_user_permission("Sesi Studio Agent is trying to eval code. Is this okay?") {
+    return "Error: User rejected eval request."
+  }
+  let final_code = code
+  if contains(code, ".sesi") && !contains(code, " ") && !contains(code, "\n") {
+    try {
+      final_code = read_file(code)
+    } catch(read_e) {}
+  }
+  try {
+    let temp_file = "sesi-studio/temp_eval_" + str(Time.now()) + ".sesi"
+    Safe.writeFile(temp_file, final_code)
+    let cmd = "node bin/sesi.js -l " + temp_file
+    let output = exec_in_project(cmd)
+    try {
+      trash(temp_file, true)
+    } catch(rm_e) {}
+    return output
+  } catch(e) {
+    return "Error evaluating Sesi code: " + str(e)
+  }
+}
+
+
+export fn generateImage(args) {
+  let user_prompt = args["prompt"]
+  let ratio = args["aspect_ratio"]
+  let path = args["output_path"]
+
+  if user_prompt == null {
+    return "Error: missing 'prompt' argument"
+  }
+  if ratio == null || ratio == "" {
+    ratio = "1:1"
+  }
+  if path == null || path == "" {
+    path = "generated_image.png"
+  }
+
+  try {
+    let subagent_system = "You are an expert prompt engineering agent for image generation models. Your job is to take a simple image request and refine it into a highly detailed, descriptive, and artistic prompt. Your output must be a single refined prompt string. Do not include any other conversational filler or explanations."
+
+    let subagent = Agent.create({
+      "model": "copilot",
+      "system": subagent_system,
+      "thinkingLevel": "low",
+      "cache": false,
+      "max_tokens": 1024
+    })
+
+    let refined_prompt = Agent.chat(subagent, "Expand this image request: " + user_prompt)
+    if refined_prompt == null || refined_prompt == "" {
+      refined_prompt = user_prompt
+    }
+
+    let imageData = image("gemini-3.1-flash-image") {ratio: ratio, size: "1K"} {refined_prompt}
+    let success = Safe.writeImage(path, imageData)
+    if success {
+      return "Subagent successfully generated and saved image. Refined prompt used: '" + refined_prompt + "'. Saved path: '" + path + "'"
+    } else {
+      return "Subagent failed to write image to " + path
+    }
+  } catch(e) {
+    return "Subagent image generation error: " + str(e)
+  }
+}
+
+export fn browser(args) {
+  let url = args["url"]
+  if url == null {
+    return "Error: missing 'url' argument"
+  }
+  try {
+    if active_browser == null {
+      active_browser = launch({"headless": true})
+    }
+    if active_page == null {
+      active_page = active_browser.newPage()
+    }
+    active_page.goto(url)
+    let title = active_page.title()
+    return "Successfully navigated to " + url + " (Title: " + title + ")"
+  } catch(e) {
+    return "Error navigating to page: " + str(e)
+  }
+}
+
+export fn click(args) {
+  let selector = args["selector"]
+  if selector == null {
+    return "Error: missing 'selector' argument"
+  }
+  if active_page == null {
+    return "Error: browser is not open. Call browser_goto first."
+  }
+  try {
+    active_page.click(selector)
+    return "Clicked selector: " + selector
+  } catch(e) {
+    return "Error clicking selector: " + str(e)
+  }
+}
+
+export fn fill(args) {
+  let selector = args["selector"]
+  let value = args["value"]
+  if selector == null || value == null {
+    return "Error: missing 'selector' or 'value' argument"
+  }
+  if active_page == null {
+    return "Error: browser is not open. Call browser_goto first."
+  }
+  try {
+    active_page.fill(selector, value)
+    return "Filled selector: " + selector + " with value"
+  } catch(e) {
+    return "Error filling selector: " + str(e)
+  }
+}
+
+export fn screenshot(args) {
+  let path = args["path"]
+  if path == null {
+    path = "browser_screenshot.png"
+  }
+  if active_page == null {
+    return "Error: browser is not open. Call browser_goto first."
+  }
+  try {
+    active_page.screenshot({"path": path, "fullPage": true})
+    return "Screenshot saved to: " + path
+  } catch(e) {
+    return "Error taking screenshot: " + str(e)
+  }
+}
+
+export fn grabContent(args) {
+  if args == null {}
+  if active_page == null {
+    return "Error: browser is not open. Call browser_goto first."
+  }
+  try {
+    let text = active_page.inner_text("body")
+    return text
+  } catch(e) {
+    try {
+      return active_page.content()
+    } catch(err) {
+      return "Error getting page content: " + str(e)
+    }
+  }
+}
+
+export fn closeBrowser(args) {
+  if args == null {}
+  try {
+    if active_page != null {
+      active_page.close()
+      active_page = null
+    }
+    if active_browser != null {
+      active_browser.close()
+      active_browser = null
+    }
+    return "Browser closed successfully."
+  } catch(e) {
+    return "Error closing browser: " + str(e)
+  }
+}
+
+export let global_tools = {
+  "read_file": read,
+  "write_file": write,
+  "list_directory": list,
+  "search_google": searchGoogle,
+  "run_helper_script": runScript,
+  "eval_sesi_code": evaluate,
+  "call_image_subagent": generateImage,
+  "browser_goto": browser,
+  "browser_click": click,
+  "browser_fill": fill,
+  "browser_screenshot": screenshot,
+  "browser_get_content": grabContent,
+  "browser_close": closeBrowser
+}
+
+export let copilot_tools = {
+    "read_file": read,
+    "write_file": write,
+    "list_directory": list,
+    "search_google": searchGoogle,
+    "run_helper_script": runScript,
+    "eval_sesi_code": evaluate,
+    "call_image_subagent": generateImage
+}

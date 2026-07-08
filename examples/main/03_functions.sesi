@@ -1,6 +1,8 @@
 // Functions
-fn add(a: number, b: number) {print a + b}
-fn greet(name: string = "World") {print "Hello" name "!"}
+allow "std/terminal" in with { color }
+
+fn add(a: number, b: number) {print color(str(a + b), "green")}
+fn greet(name: string = "World") {print color("Hello " + name + "!", "cyan")}
 
 add(5, 3)
 greet()
@@ -9,7 +11,7 @@ greet("Alice")
 // Advanced Functions
 fn calculate(operation: string, a: number, b: number) {
     if operation == "add" {
-        print a + b
+        print color(str(a + b), "green")
     } else if operation == "subtract" {
         print a - b
     } else if operation == "multiply" {
@@ -143,3 +145,33 @@ print "Contains 'V2.0':" hasVersion
 // 7. locate(string, sub)
 let idx = locate(cleaned, "Sesi")
 print "Index of 'Sesi':" idx
+
+print "\n--- New String Functions ---"
+print "length('hello'):" length("hello")
+print "starts_with('hello', 'he'):" starts_with("hello", "he")
+print "ends_with('hello', 'lo'):" ends_with("hello", "lo")
+print "index_of('hello', 'l'):" index_of("hello", "l")
+print "repeat('a', 3):" repeat("a", 3)
+
+print "\n--- New Array Functions ---"
+let myArr = [3, 1, 4, 1, 5, 9]
+print "Original array:" myArr
+print "includes(myArr, 4):" includes(myArr, 4)
+print "reverse(myArr):" reverse(myArr)
+print "sort(myArr):" sort(myArr)
+print "unique(myArr):" unique(myArr)
+print "flatten([[1, 2], [3, 4]]):" flatten([[1, 2], [3, 4]])
+
+print "\n--- Function Introspection ---"
+fn sample_func(a, b) { return a + b }
+print "name(sample_func):" name(sample_func)
+print "arity(sample_func):" arity(sample_func)
+print "is_function(sample_func):" is_function(sample_func)
+
+print "\n--- Collection / Type Checks ---"
+print "is_array([1, 2]):" is_array([1, 2])
+print "is_object({'a': 1}):" is_object({"a": 1})
+print "is_string('hello'):" is_string("hello")
+print "is_number(42):" is_number(42)
+print "is_bool(true):" is_bool(true)
+print "is_null(null):" is_null(null)

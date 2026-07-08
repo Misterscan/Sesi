@@ -6,8 +6,9 @@
 */
 
 allow "std/db" in with {db_open}
+allow "std/terminal" in with { color }
 
-print "Initializing Sesi Database (local.db)..."
+print color("Initializing Sesi Database (local.db)...", "magenta")
 let db = db_open("local.db")
 let items = db.collection("items")
 

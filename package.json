@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -82,6 +82,7 @@
     "@dotenvx/dotenvx-armor": "0.56.1",
     "@dotenvx/dotenvx-ops": "0.56.1",
     "@google/genai": "2.10.0",
+    "blessed": "^0.1.81",
     "playwright": "^1.61.1",
     "ws": "8.21.0"
   },

@@ -1,11 +1,14 @@
 // Variables and basic operations
+allow "std/terminal" in with { color }
+
 let x = 10
 let y = 20
 let z = x + y
-print "x = " x
-print "y = " y
-print "sum = " z
+
+print color("x = ", "yellow") color(str(x), "cyan")
+print color("y = ", "yellow") color(str(y), "cyan")
+print color("sum = ", "green") color(str(z), "white", "bold")
 
 // Reassignment
 x = 30
-print "x updated:" x
+print color("x updated:", "magenta") color(str(x), "cyan")

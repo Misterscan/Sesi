@@ -1,15 +1,17 @@
 // Prompt blocks - composable text templates
+allow "std/terminal" in with { color }
+
 prompt greetingTemplate {"Hello! " "How are you today?"}
 prompt responseTemplate {greetingTemplate " I hope you're having a great day!"}
 
 // Prompts evaluate to strings
 let greeting = responseTemplate
-print greeting
+print color(greeting, "cyan")
 
 // Prompts can use variables
 let userName = "Alice"
 prompt personalGreeting {"Hello, " userName "! Welcome back!"}
-print personalGreeting
+print color(personalGreeting, "magenta")
 
 // You can really explore the power of prompt blocks by using it to structure your outputs
 prompt htmlHead {"<!DOCTYPE html>
@@ -29,7 +31,7 @@ prompt htmlFooter {"</html>"}
 prompt htmlLayout {htmlHead htmlBody htmlFooter}
 try {
     write_file("index.html", htmlLayout)
-    print "HTML file created successfully!"
+    print color("HTML file created successfully!", "green", "bold")
 } catch(error) {
-    print "Error creating HTML file: " error
+    print color("Error creating HTML file: " + str(error), "red")
 }

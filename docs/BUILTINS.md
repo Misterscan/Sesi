@@ -134,6 +134,19 @@ bool(null)         // false
 
 ---
 
+### Type Assertion Helpers
+
+Return `true` if the value matches the respective type.
+
+- `is_array(value) -> bool`
+- `is_object(value) -> bool`
+- `is_string(value) -> bool`
+- `is_number(value) -> bool`
+- `is_bool(value) -> bool`
+- `is_null(value) -> bool`
+
+---
+
 ## Collection Functions
 
 ### len(collection) -> number
@@ -355,6 +368,22 @@ values(obj)        // ["Alice", 30]
 ```
 
 **Returns**: `array<any>` or `null` if not an object
+
+---
+
+### Additional Array / String Utilities
+
+The following utilities work on strings and arrays natively:
+
+- `starts_with(string, prefix) -> bool`
+- `ends_with(string, suffix) -> bool`
+- `index_of(collection, value) -> number`
+- `includes(collection, value) -> bool`
+- `repeat(string, count) -> string`
+- `reverse(array) -> array`
+- `sort(array, compareFn?) -> array`
+- `unique(array) -> array`
+- `flatten(array) -> array`
 
 ---
 
@@ -1298,71 +1327,224 @@ print Math.sqrt(16) // 4
 print Math.floor(3.7) // 3
 ```
 
-## Function Introspection (v2 planned)
+## Function Introspection
 
-These are planned for v2:
+### name(func) -> string
+
+Returns the name of a given function.
 
 ```sesi
-// Get function name
-name(func) -> string
-
-// Get function arity (parameter count)
-arity(func) -> number
-
-// Check if value is a function
-is_function(value) -> bool
+fn my_func() {}
+print name(my_func) // "my_func"
 ```
+
+**Parameters**:
+
+- `func` (`fn`): The function to introspect.
+
+**Returns**: `string` (or `null` if the value is not a function)
 
 ---
 
-## Collection Checks (v2 planned)
+### arity(func) -> number
+
+Returns the number of parameters a function expects.
 
 ```sesi
-// Planned for v2:
-is_array(value) -> bool
-is_object(value) -> bool
-is_string(value) -> bool
-is_number(value) -> bool
-is_bool(value) -> bool
-is_null(value) -> bool
+fn add(a, b) { return a + b }
+print arity(add) // 2
 ```
+
+**Parameters**:
+
+- `func` (`fn`): The function to introspect.
+
+**Returns**: `number` (or `null` if the value is not a function)
 
 ---
 
-## String Functions (v2 planned)
+### is_function(value) -> bool
+
+Checks whether a value is a function.
 
 ```sesi
-// Planned for v2:
-length(string) -> number         // Alias for len()
-upper(string) -> string          // Uppercase
-lower(string) -> string          // Lowercase
-trim(string) -> string           // Remove whitespace
-contains(string, substring) -> bool
-starts_with(string, prefix) -> bool
-ends_with(string, suffix) -> bool
-index_of(string, substring) -> number
-slice(string, start, end?) -> string
-replace(string, from, to) -> string
-repeat(string, count) -> string
+fn my_func() {}
+is_function(my_func) // true
+is_function(42)      // false
 ```
+
+**Parameters**:
+
+- `value` (`any`): The value to check.
+
+**Returns**: `bool`
 
 ---
 
-## Array Functions (v2 planned)
+## Collection Checks
+
+### is_array(value) -> bool
+
+### is_object(value) -> bool
+
+### is_string(value) -> bool
+
+### is_number(value) -> bool
+
+### is_bool(value) -> bool
+
+### is_null(value) -> bool
+
+Type-checking utility functions that return a boolean indicating whether the provided value is of the specified type.
 
 ```sesi
-// Planned for v2:
-map(array, fn) -> array          // Transform elements
-filter(array, fn) -> array       // Keep matching elements
-reduce(array, fn, initial) -> any
-find(array, fn) -> any           // First match
-includes(array, value) -> bool
-index_of(array, value) -> number
-reverse(array) -> array
-sort(array, compareFn?) -> array
-unique(array) -> array           // Remove duplicates
-flatten(array) -> array          // Flatten one level
+is_array([1, 2])         // true
+is_object({"a": 1})      // true
+is_string("hello")       // true
+is_number(42)            // true
+is_bool(true)            // true
+is_null(null)            // true
 ```
+
+**Parameters**:
+
+- `value` (`any`): The value to check.
+
+**Returns**: `bool`
+
+---
+
+## String Functions
+
+### length(string) -> number
+
+An alias for `len()`. Returns the length of the string.
+
+```sesi
+length("hello") // 5
+```
+
+**Returns**: `number`
+
+---
+
+### starts_with(string, prefix) -> bool
+
+Checks if a string starts with the given prefix.
+
+```sesi
+starts_with("hello", "he") // true
+```
+
+**Returns**: `bool`
+
+---
+
+### ends_with(string, suffix) -> bool
+
+Checks if a string ends with the given suffix.
+
+```sesi
+ends_with("hello", "lo") // true
+```
+
+**Returns**: `bool`
+
+---
+
+### index_of(collection, value) -> number
+
+Returns the first index at which a given value can be found in the collection (string or array), or -1 if it is not present.
+
+```sesi
+index_of("hello", "l") // 2
+index_of([1, 2, 3], 2) // 1
+```
+
+**Returns**: `number`
+
+---
+
+### repeat(string, count) -> string
+
+Constructs and returns a new string which contains the specified number of copies of the string concatenated together.
+
+```sesi
+repeat("a", 3) // "aaa"
+```
+
+**Returns**: `string`
+
+---
+
+_(Note: `to_upper`, `to_lower`, `trim`, `contains`, `slice`, and `swap` are documented under Collection Functions.)_
+
+---
+
+## Array Functions
+
+### includes(collection, value) -> bool
+
+Checks if a collection (array or string) includes a certain value.
+
+```sesi
+includes([1, 2, 3], 2) // true
+includes("hello", "e") // true
+```
+
+**Returns**: `bool`
+
+---
+
+### reverse(array) -> array
+
+Reverses an array in place and returns it.
+
+```sesi
+reverse([1, 2, 3]) // [3, 2, 1]
+```
+
+**Returns**: `array`
+
+---
+
+### sort(array, compareFn?) -> array
+
+Sorts the elements of an array and returns it. Optionally takes a comparison function.
+
+```sesi
+sort(["c", "a", "b"]) // ["a", "b", "c"]
+```
+
+**Returns**: `array`
+
+---
+
+### unique(array) -> array
+
+Returns a new array with all duplicate elements removed.
+
+```sesi
+unique([1, 1, 2, 3, 3]) // [1, 2, 3]
+```
+
+**Returns**: `array`
+
+---
+
+### flatten(array) -> array
+
+Returns a new array with all sub-array elements concatenated into it recursively up to one level.
+
+```sesi
+flatten([[1, 2], [3, 4]]) // [1, 2, 3, 4]
+```
+
+**Returns**: `array`
+
+---
+
+_(Note: `map`, `filter`, `reduce`, and `find` are documented under Collection Functions.)_
 
 ---
 
@@ -1486,7 +1668,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.6.1"
+  "version": "1.6.2"
 }
 print Json.stringify(original)
 ```
@@ -1512,6 +1694,26 @@ users.find(query_object?) -> Returns array of matching documents (returns all if
 users.update(query_object, update_object) -> Returns number of updated documents
 users.delete(query_object) -> Returns number of deleted documents */
 ```
+
+### std/terminal
+
+Includes raw ANSI terminal control functions for building CLI applications: `clear`, `cursor`, `color`.
+
+```sesi
+allow "std/terminal" in with Terminal
+
+// Clear the screen
+Terminal.clear()
+
+// Move cursor to x=10, y=5
+Terminal.cursor(10, 5)
+
+// Output colored text
+print Terminal.color("Hello!", "green")
+```
+
+**Available Colors**: `"red"`, `"green"`, `"yellow"`, `"blue"`, `"magenta"`, `"cyan"`, `"white"`, `"bold"`.
+
 ### std/browser
 
 Includes Sesi's browser automation capabilities powered by Playwright: `launch(options?)`.
@@ -1566,67 +1768,89 @@ browser.close()
 #### API Reference:
 
 ##### `launch(options)` -> `browser`
+
 Launches a browser instance. `options` is an object with:
+
 - `headless` (`bool`, optional): Whether to run browser in headless mode. Defaults to `true`.
 
 ##### `browser.newPage()` -> `page`
+
 Creates a new page/tab.
 
 ##### `browser.close()`
+
 Closes the browser instance.
 
 ##### `page.goto(url)`
+
 Navigates to the specified URL.
 
 ##### `page.content()` -> `string`
+
 Gets the full HTML content of the page.
 
 ##### `page.screenshot(options?)` -> `string` (base64)
+
 Takes a screenshot of the page. Returns a base64 encoded string.
 `options` is an optional object containing:
+
 - `path` (`string`): File path to save the screenshot.
 - `fullPage` (`bool`): Whether to capture the full scrollable page.
 
 ##### `page.click(selector)`
+
 Clicks the element matching the selector.
 
 ##### `page.fill(selector, value)`
+
 Fills the input matching the selector with the specified value.
 
 ##### `page.type(selector, value)`
+
 Types the specified value into the element matching the selector.
 
 ##### `page.press(selector, key)`
+
 Presses the specified key on the element matching the selector.
 
 ##### `page.inner_text(selector)` -> `string`
+
 Gets the inner text of the element matching the selector.
 
 ##### `page.attribute(selector, name)` -> `string`
+
 Gets the value of the attribute `name` of the element matching the selector.
 
 ##### `page.evaluate(script)` -> `any`
+
 Evaluates a JavaScript script/expression in the page context and returns the result.
 
 ##### `page.title()` -> `string`
+
 Gets the page title.
 
 ##### `page.close()`
+
 Closes the page.
 
 ##### `page.pdf(options?)` -> `string` (base64)
+
 Generates a PDF of the page. Returns a base64 encoded string.
 `options` is an optional object containing:
+
 - `path` (`string`): File path to save the PDF.
 - `format` (`string`): Paper format (e.g. `"A4"`, `"Letter"`).
 
 ##### `page.wait_for_selector(selector, options?)`
+
 Waits for the element matching the selector to satisfy the options.
 `options` is an optional object containing:
+
 - `state` (`string`): Wait for state (`"attached"`, `"detached"`, `"visible"`, `"hidden"`).
 - `timeout` (`number`): Timeout in milliseconds.
 
 ##### `page.wait_for_timeout(ms)`
+
 Waits for the specified duration in milliseconds.
 
 ---

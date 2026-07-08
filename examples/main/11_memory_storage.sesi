@@ -1,14 +1,15 @@
 // You can use memory to store variables throughout your script without redeclaring it
+allow "std/terminal" in with { color }
 
 memory database {"name: string, age: number, role: string"}
 
 database = {"name": "John", "age": 30, "role": "developer"}
-print "Name:" database["name"]
-print "Age:" database["age"]
-print "Role:" database["role"]
+print color("Name:", "cyan") database["name"]
+print color("Age:", "cyan") str(database["age"])
+print color("Role:", "cyan") database["role"]
 try {
   write_file("data.txt", to_json(database))
-  print "Database saved!"
+  print color("Database saved!", "green", "bold")
 } catch(error) {
   print "Error:" error
 }

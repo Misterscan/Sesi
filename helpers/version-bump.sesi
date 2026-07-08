@@ -28,6 +28,30 @@ print "rootDir:
 " rootDir "
 "
 
+fn getVersionFromFile(fileName) {
+    let fileContents = read_file(fileName)
+    let lines = split(fileContents, "\n")
+    let version = ""
+    for line in lines {
+        let cleanLine = trim(line)
+        if starts_with(cleanLine, '"version"') {
+            let parts = split(cleanLine, ":")
+            if len(parts) > 1 {
+                let v = parts[1]
+                v = swap(v, '"', '')
+                v = swap(v, ',', '')
+                version = trim(v)
+            }
+            break
+        }
+    }
+    return version
+}
+
+let v = getVersionFromFile("package.json")
+
+print "Current version:" v
+
 print ""
 let fromVar = input("Enter version to swap from: ")
 let toVar = input("Enter version to swap to: ")
@@ -39,7 +63,7 @@ print ""
 for file in srcDir1 {
     try {
         let contents = ""
-        if contains(file, ".js") {
+        if ends_with(file, ".js") {
             file = "bin/" + file
             contents = read_file(file)
             print "Successfully loaded" file
@@ -66,7 +90,7 @@ for file in srcDir2 {
     try {
         file = "docs/" + file
         let contents = ""
-        if contains(file, ".md") {
+        if ends_with(file, ".md") {
             contents = read_file(file)
             print "Successfully loaded" file
         } else {
@@ -91,7 +115,7 @@ for file in srcDir2 {
 for file in rootDir {
     try {
         let contents = ""
-        if contains(file, ".md") || contains(file, ".sesi") {
+        if ends_with(file, ".md") || ends_with(file, ".sesi") {
             file = "./" + file
             contents = read_file(file)
             print "Successfully loaded" file

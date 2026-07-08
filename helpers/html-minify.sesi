@@ -103,7 +103,7 @@ fn process_file(in_path: string, out_path: string) {
 // Execution Routing
 // ---------------------------------------------------------
 
-if contains(input_target, ".html") {
+if ends_with(input_target, ".html") {
   print "Running in Single File Mode..."
   
   // Cleanly extract the filename from the path
@@ -122,7 +122,7 @@ if contains(input_target, ".html") {
     let count = 0
     
     for file in files {
-      if contains(file, ".html") {
+      if ends_with(file, ".html") {
         prompt target_in {input_target "/" file}
         prompt target_out {output_dir "/" file}
         

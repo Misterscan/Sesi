@@ -130,7 +130,7 @@ fn process_file(in_path: string, out_path: string) {
 // Execution Routing
 // ---------------------------------------------------------
 
-if contains(input_target, ".css") {
+if ends_with(input_target, ".css") {
   print "Running in Single File Mode..."
   
   // Cleanly extract the filename in case the user passed a path (e.g. "src/main.css")
@@ -149,7 +149,7 @@ if contains(input_target, ".css") {
     let count = 0
     
     for file in files {
-      if contains(file, ".css") {
+      if ends_with(file, ".css") {
         prompt target_in {input_target "/" file}
         prompt target_out {output_dir "/" file}
         

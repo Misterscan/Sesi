@@ -1,18 +1,22 @@
 // Arrays and objects
+allow "std/terminal" in with { color }
+
 let numbers = [1, 2, 3, 4, 5]
-print "Array:" numbers
-print "Length:" len(numbers)
-print "First:" numbers[0]
+print color("Array:", "yellow") to_json(numbers)
+print color("Length:", "yellow") color(str(len(numbers)), "cyan")
+print color("First:", "yellow") color(str(numbers[0]), "cyan")
 
 push(numbers, 6)
-print "After push:" numbers
+print color("After push:", "magenta") to_json(numbers)
 
 // Objects
 let person = {"name": "Alice", "age": 30, "city": "New York"}
-print "Person:" person
-print "Name:" person["name"]
+print color("\nPerson:", "green") to_json(person)
+print color("Name:", "green") color(person["name"], "cyan")
 
 // Array of objects
 let people = [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}, {"name": "Charlie", "age": 35}]
-for person in people 
-{print person["name"] "is" person["age"]}
+print color("\nPeople:", "green")
+for person in people {
+  print "- " color(person["name"], "cyan", "bold") "is" color(str(person["age"]), "yellow")
+}

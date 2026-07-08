@@ -8,13 +8,14 @@ Sesi’s CLI is a powerful, zero-footprint environment orchestrator. It allows y
 
 | Command Syntax               | Execution Mode        | File Dependency                   | Description                                                                         |
 | :--------------------------- | :-------------------- | :-------------------------------- | :---------------------------------------------------------------------------------- |
-| `sesi <file>`                | Standard              | Yes                               | Runs the Sesi script file sequentially.                                             |
+| `sesi <file>`                | **TUI Dashboard**     | Yes                               | Runs the Sesi script file within the graphical Terminal UI dashboard natively.      |
+| `sesi --cli <file>`          | Standard CLI          | Yes                               | Runs the Sesi script file sequentially without the TUI dashboard (raw stdout).      |
 | `sesi <file> <args...>`      | **Parametric Script** | Yes                               | Runs the script and exposes trailing parameters in `args`.                          |
 | `sesi -e "<code>"`           | Inline Eval           | **No (Fileless)**                 | Evaluates the string of Sesi code directly in-memory.                               |
 | `sesi -e "<code>" <args...>` | **Parametric Eval**   | **No (Fileless)**                 | Evaluates inline code and populates `args` array with inputs.                       |
 | `sesi -h "<query>"`          | Co-Pilot Help         | **Yes (Internal chatbot script)** | Converses with Sesi's internal Vector-RAG chatbot (`chatbot/sesi_db_chatbot.sesi`). |
 | `sesi <file> -h "<query>"`   | Grounded Help         | **Yes (Chatbot + context file)**  | Converses with the Co-Pilot using both the vector DB and the user's file.           |
-| `sesi -r <file>`             | AST Inspector         | Yes                               | Dumps raw syntax tokens and AST nodes without running code.                         |
+| `sesi -r <file>`             | AST Dump              | Yes                               | Dumps raw syntax JSON AST payload without running code.                             |
 | `sesi --ast <file>`          | AST Visualization     | Yes                               | Prints a pretty-printed, indented hierarchical tree representation of the AST.      |
 | `sesi --tokens <file>`       | Token Stream          | Yes                               | Prints a structured, tabular grid detailing all tokens scanned by the Lexer.        |
 | `sesi --repl`                | Interactive REPL      | **No (Interactive)**              | Starts a live Sesi prompt session with auto-printing of evaluated expressions.      |
@@ -193,7 +194,7 @@ sesi
 Inside the REPL, any **Expression Statement** (like mathematical equations, string variables, or expressions) will auto-print its evaluated result to the terminal.
 
 ```sesi
-Sesi Interactive REPL (v1.6.1)
+Sesi Interactive REPL (v1.6.2)
 Type ".exit" or press Ctrl+C to exit.
 sesi> let x = 10
 sesi> let y = 20

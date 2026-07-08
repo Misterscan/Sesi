@@ -205,6 +205,11 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     isBuiltin: true,
     builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
       const promptText = args[0] !== undefined ? stringify(args[0]) : '';
+      
+      if ((globalThis as any).sesiInputHandler) {
+        return await (globalThis as any).sesiInputHandler(promptText);
+      }
+      
       const readline = require('readline');
       const rl = readline.createInterface({
         input: process.stdin,
@@ -1708,6 +1713,163 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       };
 
       return liveFn;
+    }
+  });
+
+  // Introspection
+  builtins.set('name', {
+    type: 'function', name: 'name', params: [{ name: 'func' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (func: RuntimeValue): RuntimeValue => {
+      if (typeof func === 'object' && func !== null && (func as any).type === 'function') {
+        return (func as any).name || '';
+      }
+      return null;
+    }
+  });
+
+  builtins.set('arity', {
+    type: 'function', name: 'arity', params: [{ name: 'func' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (func: RuntimeValue): RuntimeValue => {
+      if (typeof func === 'object' && func !== null && (func as any).type === 'function') {
+        return Array.isArray((func as any).params) ? (func as any).params.length : 0;
+      }
+      return null;
+    }
+  });
+
+  builtins.set('is_function', {
+    type: 'function', name: 'is_function', params: [{ name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => {
+      return typeof value === 'object' && value !== null && (value as any).type === 'function';
+    }
+  });
+
+  // Collection Checks
+  builtins.set('is_array', {
+    type: 'function', name: 'is_array', params: [{ name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => Array.isArray(value)
+  });
+  builtins.set('is_object', {
+    type: 'function', name: 'is_object', params: [{ name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => typeof value === 'object' && value !== null && !Array.isArray(value) && (value as any).type !== 'function' && (value as any).type !== 'promise'
+  });
+  builtins.set('is_string', {
+    type: 'function', name: 'is_string', params: [{ name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => typeof value === 'string'
+  });
+  builtins.set('is_number', {
+    type: 'function', name: 'is_number', params: [{ name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => typeof value === 'number'
+  });
+  builtins.set('is_bool', {
+    type: 'function', name: 'is_bool', params: [{ name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => typeof value === 'boolean'
+  });
+  builtins.set('is_null', {
+    type: 'function', name: 'is_null', params: [{ name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => value === null
+  });
+
+  // String Functions
+  builtins.set('length', builtins.get('len')!);
+
+  builtins.set('starts_with', {
+    type: 'function', name: 'starts_with', params: [{ name: 'string' }, { name: 'prefix' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (str: RuntimeValue, prefix: RuntimeValue): RuntimeValue => {
+      if (typeof str !== 'string' || typeof prefix !== 'string') return null;
+      return str.startsWith(prefix);
+    }
+  });
+
+  builtins.set('ends_with', {
+    type: 'function', name: 'ends_with', params: [{ name: 'string' }, { name: 'suffix' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (str: RuntimeValue, suffix: RuntimeValue): RuntimeValue => {
+      if (typeof str !== 'string' || typeof suffix !== 'string') return null;
+      return str.endsWith(suffix);
+    }
+  });
+
+  builtins.set('index_of', {
+    type: 'function', name: 'index_of', params: [{ name: 'collection' }, { name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (collection: RuntimeValue, value: RuntimeValue): RuntimeValue => {
+      if (typeof collection === 'string' && typeof value === 'string') {
+        return collection.indexOf(value);
+      }
+      if (Array.isArray(collection)) {
+        return collection.indexOf(value);
+      }
+      return null;
+    }
+  });
+
+  builtins.set('repeat', {
+    type: 'function', name: 'repeat', params: [{ name: 'string' }, { name: 'count' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (str: RuntimeValue, count: RuntimeValue): RuntimeValue => {
+      if (typeof str !== 'string' || typeof count !== 'number') return null;
+      return str.repeat(Math.max(0, Math.floor(count)));
+    }
+  });
+
+
+  builtins.set('includes', {
+    type: 'function', name: 'includes', params: [{ name: 'collection' }, { name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (collection: RuntimeValue, value: RuntimeValue): RuntimeValue => {
+      if (typeof collection === 'string' && typeof value === 'string') {
+        return collection.includes(value);
+      }
+      if (Array.isArray(collection)) {
+        return collection.includes(value);
+      }
+      return false;
+    }
+  });
+
+  builtins.set('reverse', {
+    type: 'function', name: 'reverse', params: [{ name: 'array' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (array: RuntimeValue): RuntimeValue => {
+      if (!Array.isArray(array)) return null;
+      return [...array].reverse();
+    }
+  });
+
+  builtins.set('sort', {
+    type: 'function', name: 'sort', params: [{ name: 'array' }, { name: 'compareFn', defaultValue: null as any }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: async (array: RuntimeValue, compareFn: RuntimeValue): Promise<RuntimeValue> => {
+      if (!Array.isArray(array)) return null;
+      const copy = [...array];
+      if (typeof compareFn === 'object' && compareFn !== null && (compareFn as any).type === 'function') {
+        if (!interpreter) return null;
+        for (let i = 0; i < copy.length; i++) {
+          for (let j = 0; j < copy.length - 1 - i; j++) {
+            const res = await interpreter.callSesiFunction(compareFn as any, [copy[j], copy[j+1]]);
+            if (typeof res === 'number' && res > 0) {
+              const temp = copy[j];
+              copy[j] = copy[j+1];
+              copy[j+1] = temp;
+            }
+          }
+        }
+        return copy;
+      } else {
+        copy.sort();
+        return copy;
+      }
+    }
+  });
+
+  builtins.set('unique', {
+    type: 'function', name: 'unique', params: [{ name: 'array' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (array: RuntimeValue): RuntimeValue => {
+      if (!Array.isArray(array)) return null;
+      return Array.from(new Set(array));
+    }
+  });
+
+  builtins.set('flatten', {
+    type: 'function', name: 'flatten', params: [{ name: 'array' }], body: {} as any, closure: {} as any, isBuiltin: true,
+    builtin: (array: RuntimeValue): RuntimeValue => {
+      if (!Array.isArray(array)) return null;
+      return array.flat();
     }
   });
 

@@ -6,12 +6,13 @@ Demonstrates:
     2. Allowing access to modules into scoped library namespaces using allow.
     3. Allowing access to custom Sesi modules using relative paths. 
 */
+allow "std/terminal" in with { color }
 
-print "=== 1. Standard Math Module ==="
+print color("=== 1. Standard Math Module ===", "magenta")
 
 allow "std/math" in with Math
 
-print "PI constant:" str(Math.PI)
+print color("PI constant:", "cyan") str(Math.PI)
 print "Euler's number:" str(Math.E)
 print "Square root of 144:" str(Math.sqrt(144))
 print "2 raised to power of 10:" str(Math.pow(2, 10))

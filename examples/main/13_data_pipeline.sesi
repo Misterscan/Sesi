@@ -8,6 +8,7 @@
     - Structured output parsing
     - Memory for multi-step processing
 */
+allow "std/terminal" in with { color }
 
 let numbers = [10, 25, 30, 45, 50]
 let threshold = 30
@@ -21,9 +22,9 @@ fn filterNumbers(list: array, limit: number) -> array {
   return filtered
 }
 let highNumbers = filterNumbers(numbers, threshold)
-print "Numbers above " + threshold + ":"
+print color("Numbers above " str(threshold) ":", "magenta")
 for val in highNumbers {
-  print "- " + val
+  print color("- ", "cyan") str(val)
 }
 try {
   write_file("results.txt", "Processed " + len(highNumbers) + " items.")

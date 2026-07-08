@@ -1,0 +1,72 @@
+allow "helpers/safe" in with Safe
+
+export let SESI_ROOT = ""
+try {
+  SESI_ROOT = exec("cd")
+} catch (e) {}
+SESI_ROOT = split(SESI_ROOT, "\r")[0]
+SESI_ROOT = split(SESI_ROOT, "\n")[0]
+
+if SESI_ROOT == "" {
+  try {
+    SESI_ROOT = Safe.wsRoot
+    SESI_ROOT = split(SESI_ROOT, "\n")[0]
+  } catch (e) {}
+}
+
+export let PROJECT_ROOT = SESI_ROOT
+
+export let IS_WINDOWS = false
+if len(split(SESI_ROOT, "\\")) > 1 || len(split(SESI_ROOT, ":")) > 1 {
+  IS_WINDOWS = true
+}
+
+export fn exec_node(args) {
+  if IS_WINDOWS {
+    try {
+      return exec("cmd.exe /c node " + args)
+    } catch (e) {
+      try {
+        return exec("node " + args)
+      } catch (e2) {
+        return exec("node.exe " + args)
+      }
+    }
+  } else {
+    try {
+      return exec("node " + args)
+    } catch (e) {
+      return exec("node.exe " + args)
+    }
+  }
+}
+
+export fn exec_in_project(cmd) {
+  if PROJECT_ROOT != "" && PROJECT_ROOT != "." {
+
+    /*
+      Basic attempt to change directory before running command.
+      Handles most POSIX environments and Windows cmd.exe basics.
+    */
+    let safeExec = ""
+    try {
+      safeExec = exec("cd \"" + PROJECT_ROOT + "\" && " + cmd)
+    } catch (e) {}
+    return safeExec
+  }
+  try {
+    return exec(cmd)
+  } catch(e) {
+    print "Error executing command:" cmd ":" e
+  }
+}
+
+export let current_ws_client = null
+export fn on_agent_chunk(chunk) {
+  if current_ws_client != null {
+    try {
+      current_ws_client.send(to_json({"type": "chat_chunk", "chunk": chunk}))
+    } catch(err_c) {}
+  }
+}
+export let current_confirm_response = "pending"

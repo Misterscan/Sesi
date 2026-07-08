@@ -8,10 +8,11 @@
 */
 
 allow "std/json" in with {parse}
+allow "std/terminal" in with { color }
 
-print "=== 1. Executing HTTP GET ==="
+print color("=== 1. Executing HTTP GET ===", "magenta")
 let get_url = "https://jsonplaceholder.typicode.com/posts/1"
-print "Fetching from:" get_url
+print color("Fetching from:", "yellow") get_url
 
 let response_str = web_get(get_url)
 print "Raw Response string (truncated):"

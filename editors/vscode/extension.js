@@ -767,6 +767,7 @@ function analyzeScope(tokens, decls, refs) {
     const builtinsSet = new Set([
         'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
         'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float',
+        'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null', 'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
         // Audio & Theory
         'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
         // Draw
@@ -1563,6 +1564,120 @@ function activate(context) {
             source: 'Fault Tolerance Standard Library',
             description: 'Executes the given function with automatic retry and exponential backoff configuration upon encountering an exception.',
             example: 'fn dangerousAction() { ... }\nlet res = retry(dangerousAction, { "max_retries": 3 })'
+        },
+        'name': {
+            signature: 'name(func)',
+            source: 'Function Introspection',
+            description: 'Returns the name of a given function.',
+            example: 'print name(my_func)'
+        },
+        'arity': {
+            signature: 'arity(func)',
+            source: 'Function Introspection',
+            description: 'Returns the number of parameters a function expects.',
+            example: 'print arity(add)'
+        },
+        'is_function': {
+            signature: 'is_function(value)',
+            source: 'Function Introspection',
+            description: 'Checks whether a value is a function.',
+            example: 'print is_function(my_func)'
+        },
+        'is_array': {
+            signature: 'is_array(value)',
+            source: 'Collection Checks',
+            description: 'Checks whether a value is an array.',
+            example: 'print is_array([1, 2])'
+        },
+        'is_object': {
+            signature: 'is_object(value)',
+            source: 'Collection Checks',
+            description: 'Checks whether a value is an object.',
+            example: 'print is_object({"a": 1})'
+        },
+        'is_string': {
+            signature: 'is_string(value)',
+            source: 'Collection Checks',
+            description: 'Checks whether a value is a string.',
+            example: 'print is_string("hello")'
+        },
+        'is_number': {
+            signature: 'is_number(value)',
+            source: 'Collection Checks',
+            description: 'Checks whether a value is a number.',
+            example: 'print is_number(42)'
+        },
+        'is_bool': {
+            signature: 'is_bool(value)',
+            source: 'Collection Checks',
+            description: 'Checks whether a value is a boolean.',
+            example: 'print is_bool(true)'
+        },
+        'is_null': {
+            signature: 'is_null(value)',
+            source: 'Collection Checks',
+            description: 'Checks whether a value is null.',
+            example: 'print is_null(null)'
+        },
+        'length': {
+            signature: 'length(string)',
+            source: 'String Functions',
+            description: 'Alias for len(). Returns the length of the string.',
+            example: 'print length("hello")'
+        },
+        'starts_with': {
+            signature: 'starts_with(string, prefix)',
+            source: 'String Functions',
+            description: 'Checks if a string starts with the given prefix.',
+            example: 'print starts_with("hello", "he")'
+        },
+        'ends_with': {
+            signature: 'ends_with(string, suffix)',
+            source: 'String Functions',
+            description: 'Checks if a string ends with the given suffix.',
+            example: 'print ends_with("hello", "lo")'
+        },
+        'index_of': {
+            signature: 'index_of(collection, value)',
+            source: 'String & Array Functions',
+            description: 'Returns the first index at which a given value can be found in the collection (string or array), or -1 if it is not present.',
+            example: 'print index_of("hello", "l")'
+        },
+        'repeat': {
+            signature: 'repeat(string, count)',
+            source: 'String Functions',
+            description: 'Constructs and returns a new string which contains the specified number of copies of the string concatenated together.',
+            example: 'print repeat("a", 3)'
+        },
+        'includes': {
+            signature: 'includes(collection, value)',
+            source: 'String & Array Functions',
+            description: 'Checks if a collection (array or string) includes a certain value.',
+            example: 'print includes([1, 2, 3], 2)'
+        },
+        'reverse': {
+            signature: 'reverse(array)',
+            source: 'Array Functions',
+            description: 'Reverses an array in place and returns it.',
+            example: 'print reverse([1, 2, 3])'
+        },
+        'sort': {
+            signature: 'sort(array, compareFn?)',
+            source: 'Array Functions',
+            description: 'Sorts the elements of an array and returns it. Optionally takes a comparison function.',
+            example: 'print sort(["c", "a", "b"])'
+        },
+        'unique': {
+            signature: 'unique(array)',
+            source: 'Array Functions',
+            description: 'Returns a new array with all duplicate elements removed.',
+            example: 'print unique([1, 1, 2, 3, 3])'
+        },
+        'flatten': {
+            signature: 'flatten(array)',
+            source: 'Array Functions',
+            description: 'Returns a new array with all sub-array elements concatenated into it recursively up to one level.',
+            example: 'print flatten([[1, 2], [3, 4]])'
         }
     };
 

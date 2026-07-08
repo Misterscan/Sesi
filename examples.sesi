@@ -1,3 +1,5 @@
+allow "std/terminal" in with {color}
+
 let examples = {
   "main": [
     "Hello, Sesi!",
@@ -40,93 +42,82 @@ let examples = {
 let main = examples["main"]
 let optional = examples["optional"]
 
-fn skip(input) {
-    let input = ""
-    if input == "skip" {
-        return skip
-    } else {
-        continue
-    }
-}
+let all_examples = [
+    {"title": main[0], "cmd": "sesi examples/main/01_hello.sesi"},
+    {"title": main[1], "cmd": "sesi examples/main/02_variables.sesi"},
+    {"title": main[2], "cmd": "sesi examples/main/03_functions.sesi"},
+    {"title": main[3], "cmd": "sesi examples/main/04_conditionals.sesi"},
+    {"title": main[4], "cmd": "sesi examples/main/05_loops.sesi"},
+    {"title": main[5], "cmd": "sesi examples/main/06_arrays_objects.sesi"},
+    {"title": main[6], "cmd": "sesi examples/main/07_prompts.sesi"},
+    {"title": optional[0], "cmd": "sesi examples/optional/08_model_call.sesi", "optional": true},
+    {"title": main[7], "cmd": "sesi examples/main/09_structured_output.sesi"},
+    {"title": optional[1], "cmd": "sesi examples/optional/10_code_generation.sesi", "optional": true},
+    {"title": main[8], "cmd": "sesi examples/main/11_memory_storage.sesi"},
+    {"title": main[9], "cmd": "sesi examples/main/12_classification.sesi"},
+    {"title": main[10], "cmd": "sesi examples/main/13_data_pipeline.sesi"},
+    {"title": optional[2], "cmd": "sesi examples/optional/14_folder_explainer.sesi", "optional": true},
+    {"title": optional[3], "cmd": "sesi examples/optional/15_image_generation.sesi", "optional": true},
+    {"title": main[11], "cmd": "sesi examples/main/16_modules.sesi"},
+    {"title": main[12], "cmd": "sesi examples/main/17_http_client.sesi"},
+    {"title": main[13], "cmd": "sesi examples/main/18_parallel_requests.sesi"},
+    {"title": main[14], "cmd": "sesi examples/main/19_search_web.sesi"},
+    {"title": optional[4], "cmd": "sesi examples/optional/20_model_aliases.sesi", "optional": true},
+    {"title": main[15], "cmd": "sesi examples/main/21_custom_tools.sesi"},
+    {"title": optional[5], "cmd": "sesi examples/optional/22_reasoning_plus_custom_tools.sesi", "optional": true},
+    {"title": main[16], "cmd": "sesi examples/main/23_file_conversion.sesi"},
+    {"title": main[17], "cmd": "sesi examples/main/24_http_server.sesi -l"},
+    {"title": main[18], "cmd": "sesi examples/main/25_webpage_server.sesi -l"},
+    {"title": main[19], "cmd": "sesi examples/main/26_database.sesi -l"},
+    {"title": main[20], "cmd": "sesi examples/main/27_robust_web_db.sesi -l"},
+    {"title": optional[6], "cmd": "sesi examples/optional/28_streaming.sesi", "optional": true},
+    {"title": main[21], "cmd": "sesi examples/main/29_tool_piping.sesi"},
+    {"title": main[22], "cmd": "sesi examples/main/30_error_recovery.sesi"},
+    {"title": main[23], "cmd": "sesi examples/main/31_synthesizer.sesi"},
+    {"title": main[24], "cmd": "sesi examples/main/32_browser_automation.sesi -l"}
+]
 
 try {
-    print "Launching example .sesi files...
+    print color("Launching example .sesi files...
     If you have the reasoning capabilites commented out, this should be quick.
-    If you have the reasoning capabilites uncommented, this could take a while"
-    print "[1/32] [" main[0] "]"
-    print exec("sesi examples/main/01_hello.sesi")
-    input("[2/32] [" + main[1] + "] Press enter to continue...")
-    print exec("sesi examples/main/02_variables.sesi")
-    input("[3/32] [" + main[2] + "] Press enter to continue...")
-    print exec("sesi examples/main/03_functions.sesi")
-    input("[4/32] [" + main[3] + "] Press enter to continue...")
-    print exec("sesi examples/main/04_conditionals.sesi")
-    input("[5/32] [" + main[4] + "] Press enter to continue...")
-    print exec("sesi examples/main/05_loops.sesi")
-    input("[6/32] [" + main[5] + "] Press enter to continue...")
-    print exec("sesi examples/main/06_arrays_objects.sesi")
-    input("[7/32] [" + main[6] + "] Press enter to continue...")
-    print exec("sesi examples/main/07_prompts.sesi")
-    input("[8/32] [" + optional[0] + "] Press enter to continue or enter 'skip' to skip... ")
-    skip()
-    print exec("sesi examples/optional/08_model_call.sesi")
-    input("[9/32] [" + main[7] + "] Press enter to continue...")
-    print exec("sesi examples/main/09_structured_output.sesi")
-    input("[10/32] [" + optional[1] + "] Press enter to continue or enter 'skip' to skip... ")
-    skip()
-    print exec("sesi examples/optional/10_code_generation.sesi")
-    input("[11/32] [" + main[8] + "] Press enter to continue...")
-    print exec("sesi examples/main/11_memory_storage.sesi")
-    input("[12/32] [" + main[9] + "] Press enter to continue...")
-    print exec("sesi examples/main/12_classification.sesi")
-    input("[13/32] [" + main[10] + "] Press enter to continue...")
-    print exec("sesi examples/main/13_data_pipeline.sesi")
-    input("[14/32] [" + optional[2] + "] Press enter to continue or enter 'skip' to skip... ")
-    skip()
-    print exec("sesi examples/optional/14_folder_explainer.sesi")
-    input("[15/32] [" + optional[3] + "] Press enter to continue or enter 'skip' to skip... ")
-    skip() 
-    print "Only relevant for users who have the capability to generate images uncommented out:
-Image generation example may take a while..." 
-    print exec("sesi examples/optional/15_image_generation.sesi")
-    input("[16/32] [" + main[11] + "] Press enter to continue...")
-    print exec("sesi examples/main/16_modules.sesi")
-    input("[17/32] [" + main[12] + "] Press enter to continue...")
-    print exec("sesi examples/main/17_http_client.sesi")
-    input("[18/32] [" + main[13] + "] Press enter to continue...")
-    print exec("sesi examples/main/18_parallel_requests.sesi")
-    input("[19/32] [" + main[14] + "] Press enter to continue...")
-    print exec("sesi examples/main/19_search_web.sesi")
-    input("[20/32] [" + optional[4] + "] Press enter to continue or enter 'skip' to skip... ")
-    skip()
-    print exec("sesi examples/optional/20_model_aliases.sesi")
-    input("[21/32] [" + main[15] + "] Press enter to continue...")
-    print exec("sesi examples/main/21_custom_tools.sesi")
-    input("[22/32] [" + optional[5] + "] Press enter to continue or enter 'skip' to skip... ")
-    skip()
-    print exec("sesi examples/optional/22_reasoning_plus_custom_tools.sesi")
-    input("[23/32] [" + main[16] + "] Press enter to continue...")
-    print exec("sesi examples/main/23_file_conversion.sesi")
-    input("[24/32] [" + main[17] + "] Press enter to continue...")
-    print exec("sesi examples/main/24_http_server.sesi -l")
-    input("[25/32] [" + main[18] + "] Press enter to continue...")
-    print exec("sesi examples/main/25_webpage_server.sesi -l")
-    input("[26/32] [" + main[19] + "] Press enter to continue...")
-    print exec("sesi examples/main/26_database.sesi -l")
-    input("[27/32] [" + main[20] + "] Press enter to continue...")
-    print exec("sesi examples/main/27_robust_web_db.sesi -l")
-    input("[28/32] [" + optional[6] + "] Press enter to continue or enter 'skip' to skip... ")
-    skip()
-    print exec("sesi examples/optional/28_streaming.sesi")
-    input("[29/32] [" + main[21] + "] Press enter to continue...")
-    print exec("sesi examples/main/29_tool_piping.sesi")
-    input("[30/32] [" + main[22] + "] Press enter to continue...")
-    print exec("sesi examples/main/30_error_recovery.sesi")
-    input("[31/32] [" + main[23] + "] Press enter to continue...")
-    print exec("sesi examples/main/31_synthesizer.sesi")
-    input("[32/32] [" + main[24] + "] Press enter to continue...")
-    print exec("sesi examples/main/32_browser_automation.sesi -l")
-    print "All done! No errors means Sesi is ready!"
+    If you have the reasoning capabilites uncommented, this could take a while...", "magenta")
+
+    for i = 0 to len(all_examples) - 1 {
+        let ex = all_examples[i]
+        let step = str(i + 1) + "/32"
+        let title_tag = "[" + step + "] [" + ex["title"] + "]"
+        
+        if i > 0 {
+            let prompt_text = title_tag + " Press enter to continue (or type 'skip' to bypass, 'exit' to quit)... "
+            if ex["optional"] == true {
+                prompt_text = title_tag + " (OPTIONAL) Press enter to continue (or type 'skip' to bypass, 'exit' to quit)... "
+            }
+            let ans = input(prompt_text)
+            if ans == "exit" {
+                print color("Exiting examples early.", "yellow")
+                break
+            } else if ans == "skip" {
+                print color("Skipped " + ex["title"], "yellow")
+                continue
+            }
+        } else {
+            print title_tag
+        }
+
+        if ex["cmd"] == "sesi examples/optional/15_image_generation.sesi" {
+            print "Only relevant for users who have the capability to generate images uncommented out: Image generation example may take a while..." 
+        }
+
+        let run_cmd = ex["cmd"]
+        if !contains(run_cmd, "--cli") {
+            run_cmd = swap(run_cmd, "sesi ", "node bin/sesi.js --cli ")
+        } else {
+            run_cmd = swap(run_cmd, "sesi ", "node bin/sesi.js ")
+        }
+        
+        print exec(run_cmd)
+    }
+    print color("All done! No errors means Sesi is ready!", "green", "bold")
 } catch (error) {
-    print "An error occurred:" error
+    print color("An error occurred: " + str(error), "red")
 }

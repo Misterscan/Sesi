@@ -12,89 +12,31 @@
 */
 allow "std/time" in with Time
 allow "std/db" in with {db_open}
-allow "ai_agent" in with Agent
-allow "std/browser" in with {launch}
+allow "ai_agent" in with Copilot
+allow "helpers/safe" in with Safe
+allow "agent/agent" in with Agent
+allow "agent/memory" in with Memory
+allow "agent/tools" in with Tools
+allow "agent/prompts" in with Prompts
 
-let active_browser = null
-let active_page = null
-
-let current_ws_client = null
-fn on_agent_chunk(chunk) {
-  if current_ws_client != null {
-    try {
-      current_ws_client.send(to_json({"type": "chat_chunk", "chunk": chunk}))
-    } catch(err_c) {}
-  }
-}
+let current_ws_client = Tools.current_ws_client
+let current_confirm_response = Tools.current_confirm_response
+let exec_in_project = Tools.exec_in_project
+let exec_node = Tools.exec_node
+let SESI_ROOT = Tools.SESI_ROOT
+let IS_WINDOWS = Tools.IS_WINDOWS
+let PROJECT_ROOT = Tools.PROJECT_ROOT
+let global_tools = Agent.global_tools
+let copilotMemory = Memory.context
+let sesiDocs = Memory.sesiDocs
 
 set_alias("copilot", "gemini-3.1-flash-lite")
 set_alias("chat", "gemini-3.1-pro-preview")
 set_alias("search", "gemini-3-flash-preview")
 
-let SESI_ROOT = ""
-try {
-  SESI_ROOT = exec("cd")
-} catch (e) {}
-SESI_ROOT = split(SESI_ROOT, "\r")[0]
-SESI_ROOT = split(SESI_ROOT, "\n")[0]
-
-if SESI_ROOT == "" {
-  try {
-    SESI_ROOT = exec("pwd")
-    SESI_ROOT = split(SESI_ROOT, "\n")[0]
-  } catch (e) {}
-}
-
-let PROJECT_ROOT = SESI_ROOT
-
-let IS_WINDOWS = false
-if len(split(SESI_ROOT, "\\")) > 1 || len(split(SESI_ROOT, ":")) > 1 {
-  IS_WINDOWS = true
-}
-
-fn exec_node(args) {
-  if IS_WINDOWS {
-    try {
-      return exec("cmd.exe /c node " + args)
-    } catch (e) {
-      try {
-        return exec("node " + args)
-      } catch (e2) {
-        return exec("node.exe " + args)
-      }
-    }
-  } else {
-    try {
-      return exec("node " + args)
-    } catch (e) {
-      return exec("node.exe " + args)
-    }
-  }
-}
-
-fn exec_in_project(cmd) {
-  if PROJECT_ROOT != "" && PROJECT_ROOT != "." {
-
-    /*
-      Basic attempt to change directory before running command.
-      Handles most POSIX environments and Windows cmd.exe basics.
-    */
-    let safeExec = ""
-    try {
-      safeExec = exec("cd \"" + PROJECT_ROOT + "\" && " + cmd)
-    } catch (e) {}
-    return safeExec
-  }
-  try {
-    return exec(cmd)
-  } catch(e) {
-    print "Error executing command:" cmd ":" e
-  }
-}
-
 fn get_db_collections(db_path, password) {
   try {
-    let content = read_file(db_path)
+    let content = Safe.readFile(db_path)
     let is_encrypted = false
     let parts = split(content, ":")
     if len(parts) == 2 {
@@ -125,331 +67,7 @@ fn get_db_collections(db_path, password) {
   }
 }
 
-fn agent_read_file(args) {
-  let path = args["path"]
-  if path == null {
-    path = args["filename"]
-  }
-  if path == null {
-    return "Error: missing 'path' or 'filename' argument"
-  }
-  try {
-    return read_file(path)
-  } catch(e) {
-    return "Error reading file: " + str(e)
-  }
-}
-
-fn agent_write_file(args) {
-  let path = args["path"]
-  if path == null {
-    path = args["filename"]
-  }
-  let content = args["content"]
-  if path == null || content == null {
-    return "Error: missing 'path' or 'content' argument"
-  }
-  try {
-    write_file(path, content)
-    return "Successfully wrote to file " + path
-  } catch(e) {
-    return "Error writing file: " + str(e)
-  }
-}
-
-fn agent_list_directory(args) {
-  let path = args["path"]
-  if path == null || path == "" {
-    path = "."
-  }
-  try {
-    let items = list_dir(path)
-    let out = ""
-    for item in items {
-      out = out + item + "\n"
-    }
-    return out
-  } catch(e) {
-    return "Error listing directory: " + str(e)
-  }
-}
-
-fn agent_search_google(args) {
-  let query = args["query"]
-  if query == null {
-    return "Error: missing 'query' argument"
-  }
-  try {
-    let search_results = model("search"){temperature: 0.1, thinkingLevel: "low", search: true, cache: false, max_tokens: 1024}{query}
-    return search_results
-  } catch(e) {
-    return "Error searching Google: " + str(e)
-  }
-}
-
-fn agent_run_helper_script(args) {
-  let script_name = args["script_name"]
-  let args_str = args["args_str"]
-  if script_name == null {
-    return "Error: missing 'script_name' argument"
-  }
-  if args_str == null {
-    args_str = ""
-  }
-  try {
-    let clean_script = join(split(script_name, ".."), "")
-    let helper_path = "helpers/" + clean_script
-    let cmd = "node bin/sesi.js -l " + helper_path + " " + args_str
-    let output = exec_in_project(cmd)
-    return output
-  } catch(e) {
-    return "Error running helper script: " + str(e)
-  }
-}
-
-fn agent_eval_sesi_code(args) {
-  let code = args["code"]
-  if code == null || code == "" {
-    return "Error: missing 'code' argument"
-  }
-  let final_code = code
-  if contains(code, ".sesi") && !contains(code, " ") && !contains(code, "\n") {
-    try {
-      final_code = read_file(code)
-    } catch(read_e) {}
-  }
-  try {
-    let temp_file = "sesi-studio/temp_eval_" + str(Time.now()) + ".sesi"
-    write_file(temp_file, final_code)
-    let cmd = "node bin/sesi.js -l " + temp_file
-    let output = exec_in_project(cmd)
-    try {
-      exec("rm " + temp_file)
-    } catch(rm_e) {
-      try {
-        exec("del " + temp_file)
-      } catch(del_e) {}
-    }
-    return output
-  } catch(e) {
-    return "Error evaluating Sesi code: " + str(e)
-  }
-}
-
-
-fn agent_generate_image(args) {
-  let user_prompt = args["prompt"]
-  let ratio = args["aspect_ratio"]
-  let path = args["output_path"]
-
-  if user_prompt == null {
-    return "Error: missing 'prompt' argument"
-  }
-  if ratio == null || ratio == "" {
-    ratio = "1:1"
-  }
-  if path == null || path == "" {
-    path = "generated_image.png"
-  }
-
-  try {
-    let subagent_system = "You are an expert prompt engineering agent for image generation models. Your job is to take a simple image request and refine it into a highly detailed, descriptive, and artistic prompt. Your output must be a single refined prompt string. Do not include any other conversational filler or explanations."
-
-    let subagent = Agent.create({
-      "model": "copilot",
-      "system": subagent_system,
-      "thinkingLevel": "low",
-      "cache": false,
-      "max_tokens": 1024
-    })
-
-    let refined_prompt = Agent.chat(subagent, "Expand this image request: " + user_prompt)
-    if refined_prompt == null || refined_prompt == "" {
-      refined_prompt = user_prompt
-    }
-
-    let imageData = image("gemini-3.1-flash-image") {ratio: ratio, size: "1K"} {refined_prompt}
-    let success = write_image(path, imageData)
-    if success {
-      return "Subagent successfully generated and saved image. Refined prompt used: '" + refined_prompt + "'. Saved path: '" + path + "'"
-    } else {
-      return "Subagent failed to write image to " + path
-    }
-  } catch(e) {
-    return "Subagent image generation error: " + str(e)
-  }
-}
-
-fn agent_browser_goto(args) {
-  let url = args["url"]
-  if url == null {
-    return "Error: missing 'url' argument"
-  }
-  try {
-    if active_browser == null {
-      active_browser = launch({"headless": true})
-    }
-    if active_page == null {
-      active_page = active_browser.newPage()
-    }
-    active_page.goto(url)
-    let title = active_page.title()
-    return "Successfully navigated to " + url + " (Title: " + title + ")"
-  } catch(e) {
-    return "Error navigating to page: " + str(e)
-  }
-}
-
-fn agent_browser_click(args) {
-  let selector = args["selector"]
-  if selector == null {
-    return "Error: missing 'selector' argument"
-  }
-  if active_page == null {
-    return "Error: browser is not open. Call browser_goto first."
-  }
-  try {
-    active_page.click(selector)
-    return "Clicked selector: " + selector
-  } catch(e) {
-    return "Error clicking selector: " + str(e)
-  }
-}
-
-fn agent_browser_fill(args) {
-  let selector = args["selector"]
-  let value = args["value"]
-  if selector == null || value == null {
-    return "Error: missing 'selector' or 'value' argument"
-  }
-  if active_page == null {
-    return "Error: browser is not open. Call browser_goto first."
-  }
-  try {
-    active_page.fill(selector, value)
-    return "Filled selector: " + selector + " with value"
-  } catch(e) {
-    return "Error filling selector: " + str(e)
-  }
-}
-
-fn agent_browser_screenshot(args) {
-  let path = args["path"]
-  if path == null {
-    path = "browser_screenshot.png"
-  }
-  if active_page == null {
-    return "Error: browser is not open. Call browser_goto first."
-  }
-  try {
-    active_page.screenshot({"path": path, "fullPage": true})
-    return "Screenshot saved to: " + path
-  } catch(e) {
-    return "Error taking screenshot: " + str(e)
-  }
-}
-
-fn agent_browser_get_content(args) {
-  if args == null {}
-  if active_page == null {
-    return "Error: browser is not open. Call browser_goto first."
-  }
-  try {
-    let text = active_page.inner_text("body")
-    return text
-  } catch(e) {
-    try {
-      return active_page.content()
-    } catch(err) {
-      return "Error getting page content: " + str(e)
-    }
-  }
-}
-
-fn agent_browser_close(args) {
-  if args == null {}
-  try {
-    if active_page != null {
-      active_page.close()
-      active_page = null
-    }
-    if active_browser != null {
-      active_browser.close()
-      active_browser = null
-    }
-    return "Browser closed successfully."
-  } catch(e) {
-    return "Error closing browser: " + str(e)
-  }
-}
-
-let global_tools = {
-  "read_file": agent_read_file,
-  "write_file": agent_write_file,
-  "list_directory": agent_list_directory,
-  "search_google": agent_search_google,
-  "run_helper_script": agent_run_helper_script,
-  "eval_sesi_code": agent_eval_sesi_code,
-  "call_image_subagent": agent_generate_image,
-  "browser_goto": agent_browser_goto,
-  "browser_click": agent_browser_click,
-  "browser_fill": agent_browser_fill,
-  "browser_screenshot": agent_browser_screenshot,
-  "browser_get_content": agent_browser_get_content,
-  "browser_close": agent_browser_close
-}
-
-let docs_list = list_dir("getting-started")
-let more_files = ""
-try {
-  more_files = read_file("docs/WRITING_SCRIPTS.md")
-  more_files = "\n\n=== DOCUMENT: " + "WRITING_SCRIPTS.md" + " ===\n" + more_files
-  more_files = more_files + "\n\n=== DOCUMENT: " + "BUILTINS.md" + " ===\n" + read_file("docs/BUILTINS.md")
-  more_files = more_files + "\n\n=== DOCUMENT: " + "README.md" + " ===\n" + read_file("./README.md")
-} catch (e) {
-  print "Error reading docs:" e
-}
-docs_list = docs_list
-let sesiDocs = ""
-for f_name in docs_list {
-  try {
-    let doc_content = read_file("getting-started/" + f_name)
-    sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
-  } catch (e) {}
-}
-
 let timestamp = Time.now()
-
-prompt mandatory {"## Mandatory Syntax Rules & Quirks
-
-- **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
-- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print ""User:"" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
-- **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{""key"": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
-- **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{""name"": ""Alice""}`).
-- **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
-- **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
-- **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
-- **Forbidden:** Do NOT invent syntax. 
-- **Comments:** Use the correct multi-line comments style shown here:
-  ```
-  /* <- This always has to be on a seperate line from the comment text.
-    This is how you do a multi-line comment.
-    Notice it spans multiple lines.
-    Without repeating // on each line.
-  */ <- This always has to be on a seperate line from the comment text.
-  ```
-- Do not mention that you got this from a database.
-- CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins). Note: This restriction does not apply to executing tools like `call_image_subagent` to generate images/diagrams, or other registered tools to satisfy user requests.
-- **Tool Execution Priority:** If the task requested by the user requires performing an action (such as reading/writing a file, listing a directory, running a helper script, or generating an image/flowchart/diagram), you MUST call the appropriate registered tool (e.g. `call_image_subagent`) to perform the action. You are FORBIDDEN from claiming you have completed the task or presenting a final answer without executing the necessary tool(s) first.
-"}
-
-memory copilotMemory { "Your name is Sesi Co-Pilot, an expert programmer for the Sesi language. 
-- You are very efficient at coding. 
-- You prefer an original, creative way of doing things. 
-
-" mandatory "
-Here is the Sesi documentation to use for reference:
-" more_files sesiDocs }
 
 /*
   Setup secure database for Co-pilot conversations using Sesi's AES-256-CBC encryption
@@ -467,16 +85,16 @@ try {
 print "Starting Sesi Studio Sesi..."
 try {
   let logsDir = make_dir("sesi-studio/logs")
-  write_file(logsDir + "/studio_startup.log", "docs len: " + str(len(sesiDocs)) + " copilotMemory len: " + str(len(copilotMemory)) + " pwd: " + PROJECT_ROOT)
+  Safe.appendFile(logsDir + "/studio_startup.log", "docs len: " + str(len(sesiDocs)) + " copilotMemory len: " + str(len(copilotMemory)) + " pwd: " + PROJECT_ROOT)
 } catch (e) {}
 
 let favicon = ""
 try {
-  favicon = read_file("sesi-studio/img/favicon.png.base64")
+  favicon = Safe.readFile("sesi-studio/img/favicon.png.base64")
 } catch (e) {
   try {
     exec_node("-e \"require('fs').writeFileSync('sesi-studio/img/favicon.png.base64', require('fs').readFileSync('sesi-studio/img/favicon.png').toString('base64'))\"")
-    favicon = read_file("sesi-studio/img/favicon.png.base64")
+    favicon = Safe.readFile("sesi-studio/img/favicon.png.base64")
   } catch (err) {}
 }
 
@@ -521,7 +139,7 @@ fn handle_http(req) {
   
   if path == "/" {
     try {
-      let content = read_file("sesi-studio/build/index.min.html")
+      let content = Safe.readFile("sesi-studio/build/index.min.html")
       return {"status": 200, "headers": {"Content-Type": "text/html"}, "body": content}
     } catch (e) {
       return {"status": 500, "body": "Failed to load index.html"}
@@ -628,68 +246,22 @@ fn handle_http(req) {
       }
       system_prompt = system_prompt + "\n\n====IGNORE ME====\n" + timestamp + "\n====IGNORE ME===="
 
-      system_prompt = system_prompt + "
+      system_prompt = system_prompt + Prompts.prompt1
 
-You have access to the following tools to assist the user:
-
-- `list_directory`: Lists files in a directory.
-  Arguments JSON schema: {\"path\": string} (optional, defaults to \".\")
-- `read_file`: Reads the full content of a file.
-  Arguments JSON schema: {\"path\": string}
-- `write_file`: Writes content to a file, creating or overwriting it.
-  Arguments JSON schema: {\"path\": string, \"content\": string}
-- `search_google`: Searches the internet for information using search engine.
-  Arguments JSON schema: {\"query\": string}
-- `run_helper_script`: Runs a specific Sesi helper script from the `helpers/` directory (e.g. line-swap.sesi, dependency-graph.sesi, css-flatten.sesi, version-bump.sesi, text-search.sesi, html-minify.sesi, agent-file-ops.sesi, etc.). Use this for mass/automated code refactoring and edits instead of other generic tools.
-  Arguments JSON schema: {\"script_name\": string, \"args_str\": string}
-- `eval_sesi_code`: Evaluates inline Sesi code. Use this to execute code snippets, verify Sesi script behavior, and call Sesi's essential built-in functions.
-  Arguments JSON schema: {\"code\": string}
-- `call_image_subagent`: Delegates image asset generation to a dedicated prompt-refinement subagent. Generates the image via Sesi's native image engine, saves the file to disk, and returns the result path.
-  Arguments JSON schema: {\"prompt\": string, \"aspect_ratio\": string (e.g. \"1:1\", \"16:9\", \"4:3\", \"3:2\", \"9:16\", defaults to \"1:1\"), \"output_path\": string (defaults to \"generated_image.png\")}
-
-Essential Sesi Built-in Functions Reference:
-- I/O: `print(...args)`
-- Type conversions: `str(val)`, `num(val)`, `bool(val)`, `to_json(val)`, `from_json(str)`
-- Collections: `len(col)`, `keys(obj)`, `values(obj)`, `push(arr, val)`, `pop(arr)`, `join(arr, sep)`, `split(str, sep)`, `slice(str, start, end)`, `locate(str, target)`, `contains(str, target)`
-- Filesystem: `read_file(path)`, `write_file(path, content)`, `write_image(path, base64_data_url_or_b64str)`, `make_dir(path)`, `list_dir(path)`
-- Encryption & DB: `db_open(path, pwd)` (returns Database object with collections/insert/find/update/delete)
-- Browser Automation: `launch(opts)`, `newPage()`, `goto(url)`, `click(sel)`, `fill(sel, val)`, `screenshot(path)`
-
-If the user request requires examining files, writing/testing scripts, performing automated edits, or generating visual assets/images, use the appropriate tools.
-"
-
-      let copilot_tools = {
-        "read_file": agent_read_file,
-        "write_file": agent_write_file,
-        "list_directory": agent_list_directory,
-        "search_google": agent_search_google,
-        "run_helper_script": agent_run_helper_script,
-        "eval_sesi_code": agent_eval_sesi_code,
-        "call_image_subagent": agent_generate_image
-      }
+      let copilot_tools = Tools.copilot_tools
 
       if body_obj["browserAccess"] == true {
-        copilot_tools["browser_goto"] = agent_browser_goto
-        copilot_tools["browser_click"] = agent_browser_click
-        copilot_tools["browser_fill"] = agent_browser_fill
-        copilot_tools["browser_screenshot"] = agent_browser_screenshot
-        copilot_tools["browser_get_content"] = agent_browser_get_content
-        copilot_tools["browser_close"] = agent_browser_close
+        copilot_tools["browser_goto"] = Agent.browser
+        copilot_tools["browser_click"] = Agent.click
+        copilot_tools["browser_fill"] = Agent.fill
+        copilot_tools["browser_screenshot"] = Agent.screenshot
+        copilot_tools["browser_get_content"] = Agent.grabContent
+        copilot_tools["browser_close"] = Agent.closeBrowser
 
-        system_prompt = system_prompt + "
-
-You have browser access enabled. Use these tools for visual analysis and verification (such as checking layouts, UI styling, rendered graphics, or media) whenever direct visual inspection is needed to evaluate the application's state:
-
-- `browser_goto`: Navigates to a URL. Arguments JSON schema: {\"url\": string}
-- `browser_click`: Clicks an element. Arguments JSON schema: {\"selector\": string}
-- `browser_fill`: Fills an input value. Arguments JSON schema: {\"selector\": string, \"value\": string}
-- `browser_screenshot`: Captures screenshot. Arguments JSON schema: {\"path\": string} (optional)
-- `browser_get_content`: Gets the visible text content of the page. Arguments: {}
-- `browser_close`: Closes the active browser. Arguments: {}
-"
+        system_prompt = system_prompt + Prompts.prompt2
       }
 
-      let agent = Agent.create({
+      let agent = Copilot.create({
         "model": "chat",
         "system": system_prompt,
         "thinkingLevel": "low",
@@ -711,7 +283,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
         }
       }
 
-      let res = Agent.chat(agent, q)
+      let res = Copilot.chat(agent, q)
       
       let assistant_msg = {"text": res, "isUser": false}
       push(chat_doc["messages"], assistant_msg)
@@ -802,13 +374,13 @@ You have browser access enabled. Use these tools for visual analysis and verific
         file_path = "unsaved.sesi"
       }
       prompt completionPrompt { "You are a professional software engineer. Your job is to act as an inline code completion engine (like GitHub Copilot) for the Sesi programming language.\n\nHere is the context of the active file:\nFile name: " file_path "\n\nPrefix (code before cursor):\n" prefix "\n\nSuffix (code after cursor):\n" suffix "\n\nTask: Complete the code exactly from where the cursor left off.\nRules:\n- Respond ONLY with the raw code completion that immediately continues the prefix.\n- Do NOT wrap your response in markdown code blocks.\n- Do NOT include the prefix or suffix in your response.\n- Do NOT provide explanations, commentary, or comments.\n- Complete only the immediate logical block, line, or expression.\n- If no completion makes sense, return absolutely nothing." }
-      let agent = Agent.create({
+      let agent = Copilot.create({
         "model": "copilot",
         "system": copilotMemory,
         "thinkingLevel": "low",
         "max_tokens": 300
       })
-      let res = Agent.run(agent, completionPrompt)
+      let res = Copilot.run(agent, completionPrompt)
       return {"status": 200, "body": {"suggestion": res}}
     } catch (e) {
       print "Autocomplete Error: " str(e)
@@ -829,7 +401,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
 
   if path == "/api/analyzer" {
     try {
-      let ext_content = read_file("editors/vscode/extension.js")
+      let ext_content = Safe.readFile("editors/vscode/extension.js")
       let prefix = "(function(require, module, process){\n"
       let exports = "\nwindow.sesiTokenizer = tokenize;\nwindow.sesiFindDecls = findDeclarationsAndReferences;\nwindow.sesiAnalyzeScope = analyzeScope;\nwindow.sesiScope = Scope;\nwindow.sesiIsConfigBlockKey = isConfigBlockKey;"
       let suffix = "\n})(function(name) { if (name === 'vscode') { return { Range: class { constructor(s, e) { this.start = s; this.end = e; } }, Position: class { constructor(l, c) { this.line = l; this.character = c; } }, Diagnostic: class { constructor(r, m, s) { this.range = r; this.message = m; this.severity = s; } }, DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 } }; } if (name === 'path') { return { dirname: (p) => p.split('/').slice(0, -1).join('/') || '.', join: (...args) => args.filter(Boolean).join('/').replace(/\\/+/g, '/'), resolve: (...args) => args.filter(Boolean).join('/').replace(/\\/+/g, '/') }; } if (name === 'fs') { return { existsSync: () => false, readFileSync: () => '' }; } if (name === 'os') { return { homedir: () => '' }; } return {}; }, { exports: {} }, { cwd: () => '', env: {}, platform: 'darwin' });"
@@ -845,7 +417,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
       let body_obj = from_json(req.body)
       let content = body_obj["content"]
       let temp_name = ".sesi_cache_temp_" + str(time()) + ".sesi"
-      write_file(temp_name, content)
+      Safe.writeFile(temp_name, content)
       
       let check_result = ""
       let success = true
@@ -857,12 +429,8 @@ You have browser access enabled. Use these tools for visual analysis and verific
       }
       
       try {
-        exec("rm " + temp_name)
-      } catch (e_rm) {
-        try {
-          exec("del " + temp_name)
-        } catch (e_del) {}
-      }
+        trash(temp_name, true)
+      } catch (e_rm) {}
       
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": success, "output": check_result}}
     } catch (e) {
@@ -878,14 +446,14 @@ You have browser access enabled. Use these tools for visual analysis and verific
       let js_temp_name = ".sesi_ast_runner_" + str(time()) + ".js"
       
       try {
-        write_file(temp_name, content)
+        Safe.writeFile(temp_name, content)
       } catch (e) {
         return {"status": 500, "body": {"error": "Failed to write temp file: " + str(e)}}
       }
       
       let js_code = "const {Lexer,Parser}=require('./dist/index.js'); const fs=require('fs'); try { const code=fs.readFileSync('" + temp_name + "','utf8'); const tokens=new Lexer(code).scanTokens(); const parser=new Parser(tokens); const prog=parser.parse(); if(parser.errors.length > 0){ console.error(parser.errors.join('\\n')); process.exit(1); } console.log(JSON.stringify(prog)); } catch(e) { console.error(e.message); process.exit(1); }"
       try {
-        write_file(js_temp_name, js_code)
+        Safe.writeFile(js_temp_name, js_code)
       } catch (e) {
         return {"status": 500, "body": {"error": "Failed to write temp file: " + str(e)}}
       }
@@ -900,20 +468,12 @@ You have browser access enabled. Use these tools for visual analysis and verific
       }
       
       try {
-        exec("rm " + temp_name)
-      } catch (e_rm) {
-        try {
-          exec("del " + temp_name)
-        } catch (e_del) {}
-      }
+        trash(temp_name, true)
+      } catch (e_rm) {}
       
       try {
-        exec("rm " + js_temp_name)
-      } catch (e_rm_js) {
-        try {
-          exec("del " + js_temp_name)
-        } catch (e_del_js) {}
-      }
+        trash(js_temp_name, true)
+      } catch (e_rm_js) {}
       
       if success {
         return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": true, "ast": from_json(parse_result)}}
@@ -948,7 +508,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
       let body_obj = from_json(req.body)
       let content = body_obj["content"]
       let temp_name = ".sesi_profile_temp_" + str(time()) + ".sesi"
-      write_file(temp_name, content)
+      Safe.writeFile(temp_name, content)
       let output_str = ""
       let success = true
       try {
@@ -962,12 +522,8 @@ You have browser access enabled. Use these tools for visual analysis and verific
         success = false
       }
       try {
-        exec("rm " + temp_name)
-      } catch (e_rm) {
-        try {
-          exec("del " + temp_name)
-        } catch (e_del) {}
-      }
+        trash(temp_name, true)
+      } catch (e_rm) {}
       
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": success, "output": output_str}}
     } catch (e) {
@@ -1053,7 +609,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
       let body_obj = from_json(req.body)
       let content = ""
       if body_obj["filePath"] != null && body_obj["filePath"] != "" {
-        content = read_file(body_obj["filePath"])
+        content = Safe.readFile(body_obj["filePath"])
       } else if body_obj["themeContent"] != null && body_obj["themeContent"] != "" {
         content = body_obj["themeContent"]
       } else {
@@ -1085,7 +641,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
       let out_path = "sesi-studio/extensions/themes/" + safe_name + ".css"
       let css_file_content = "/*\n" + to_json(meta) + "\n*/\n" + css
       
-      write_file(out_path, css_file_content)
+      Safe.writeFile(out_path, css_file_content)
       return {"status": 200, "body": {"success": true, "themeName": theme_name, "installedPath": out_path}}
     } catch (e) {
       return {"status": 500, "body": {"error": str(e)}}
@@ -1097,7 +653,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
       let body_obj = from_json(req.body)
       let content = ""
       if body_obj["filePath"] != null && body_obj["filePath"] != "" {
-        content = read_file(body_obj["filePath"])
+        content = Safe.readFile(body_obj["filePath"])
       } else if body_obj["extensionContent"] != null && body_obj["extensionContent"] != "" {
         content = body_obj["extensionContent"]
       } else {
@@ -1128,7 +684,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
       let out_path = "sesi-studio/extensions/" + safe_name + ".js"
       let js_file_content = "/*\n" + to_json(meta) + "\n*/\n" + js
       
-      write_file(out_path, js_file_content)
+      Safe.writeFile(out_path, js_file_content)
       return {"status": 200, "body": {"success": true, "extensionName": ext_name, "installedPath": out_path}}
     } catch (e) {
       return {"status": 500, "body": {"error": str(e)}}
@@ -1137,7 +693,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
 
   if path == "/marketplace.json" {
     try {
-      let content = read_file("sesi-studio/marketplace.json")
+      let content = Safe.readFile("sesi-studio/marketplace.json")
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": content}
     } catch (e) {
       return {"status": 404, "body": "Marketplace catalog not found"}
@@ -1148,7 +704,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
   if len(rel_parts) == 2 && rel_parts[0] == "" {
     let subpath = rel_parts[1]
     try {
-      let content = read_file("sesi-studio/releases/" + subpath)
+      let content = Safe.readFile("sesi-studio/releases/" + subpath)
       let content_type = "application/json"
       return {"status": 200, "headers": {"Content-Type": content_type}, "body": content}
     } catch (e) {
@@ -1206,7 +762,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
         make_dir("sesi-studio/extensions/themes")
         let out_path = "sesi-studio/extensions/themes/" + safe_name + ".css"
         let css_file_content = "/*\n" + to_json(meta) + "\n*/\n" + css
-        write_file(out_path, css_file_content)
+        Safe.writeFile(out_path, css_file_content)
         return {"status": 200, "body": {"success": true, "name": item_name, "installedPath": out_path}}
       } else if item_type == "extension" {
         let js = bundle["js"]
@@ -1216,7 +772,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
         make_dir("sesi-studio/extensions")
         let out_path = "sesi-studio/extensions/" + safe_name + ".js"
         let js_file_content = "/*\n" + to_json(meta) + "\n*/\n" + js
-        write_file(out_path, js_file_content)
+        Safe.writeFile(out_path, js_file_content)
         return {"status": 200, "body": {"success": true, "name": item_name, "installedPath": out_path}}
       } else {
         return {"status": 400, "body": {"error": "Invalid type parameter. Must be 'theme' or 'extension'."}}
@@ -1230,7 +786,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
   if len(nm_parts) == 2 && nm_parts[0] == "" {
     let subpath = nm_parts[1]
     try {
-      let content = read_file("sesi-studio/node_modules/" + subpath)
+      let content = Safe.readFile("sesi-studio/node_modules/" + subpath)
       let content_type = "text/plain"
       let file_parts = split(subpath, ".")
       let ext = file_parts[len(file_parts) - 1]
@@ -1250,7 +806,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
   if len(ext_parts) == 2 && ext_parts[0] == "" {
     let subpath = ext_parts[1]
     try {
-      let content = read_file("sesi-studio/extensions/" + subpath)
+      let content = Safe.readFile("sesi-studio/extensions/" + subpath)
       let content_type = "text/plain"
       let file_parts = split(subpath, ".")
       let ext = file_parts[len(file_parts) - 1]
@@ -1352,7 +908,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
       if action == "commit" {
         let msg = body_obj["message"]
         try {
-          write_file("sesi-studio/.git-commit-msg.tmp", msg)
+          Safe.writeFile("sesi-studio/.git-commit-msg.tmp", msg)
         } catch (e) {
           return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": "Failed to write temp file: " + str(e)}}
         }
@@ -1362,12 +918,12 @@ You have browser access enabled. Use these tools for visual analysis and verific
           out = split(out, "\r")[0]
         } catch (e) {
           try {
-            exec("rm sesi-studio/.git-commit-msg.tmp")
+            trash("sesi-studio/.git-commit-msg.tmp", true)
           } catch (e2) {}
           return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": str(e)}}
         }
         try {
-          exec("rm sesi-studio/.git-commit-msg.tmp")
+          trash("sesi-studio/.git-commit-msg.tmp", true)
         } catch (e2) {}
         
         return {
@@ -1407,7 +963,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
         }
         
         try {
-          current = read_file(file)
+          current = Safe.readFile(file)
         } catch (e) {
           current = ""
         }
@@ -1532,7 +1088,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
         
         let is_enc = false
         try {
-          let content = read_file(db_path)
+          let content = Safe.readFile(db_path)
           let parts = split(content, ":")
           if len(parts) == 2 {
             is_enc = true
@@ -1662,6 +1218,8 @@ fn handle_ws(client, msg) {
       client.send(to_json({"type": "output", "data": data_str}))
     } else if parsed["type"] == "ping" {
       client.send(to_json({"type": "pong"}))
+    } else if parsed["type"] == "confirm_response" {
+      current_confirm_response = parsed["data"]
     } else if parsed["type"] == "chat" {
       let q = parsed["query"]
       let sessionId = parsed["sessionId"]
@@ -1703,75 +1261,31 @@ fn handle_ws(client, msg) {
       } catch (err_t) {}
       system_prompt = system_prompt + "\n\n====IGNORE ME====\n" + timestamp + "\n====IGNORE ME===="
 
-      system_prompt = system_prompt + "
+      system_prompt = system_prompt + Prompts.prompt1
 
-You have access to the following tools to assist the user:
-
-- `list_directory`: Lists files in a directory.
-  Arguments JSON schema: {\"path\": string} (optional, defaults to \".\")
-- `read_file`: Reads the full content of a file.
-  Arguments JSON schema: {\"path\": string}
-- `write_file`: Writes content to a file, creating or overwriting it.
-  Arguments JSON schema: {\"path\": string, \"content\": string}
-- `run_helper_script`: Runs a specific Sesi helper script from the `helpers/` directory (e.g. line-swap.sesi, dependency-graph.sesi, css-flatten.sesi, version-bump.sesi, text-search.sesi, html-minify.sesi, agent-file-ops.sesi, etc.). Use this for mass/automated code refactoring and edits instead of other generic tools.
-  Arguments JSON schema: {\"script_name\": string, \"args_str\": string}
-- `eval_sesi_code`: Evaluates inline Sesi code. Use this to execute code snippets, verify Sesi script behavior, and call Sesi's essential built-in functions.
-  Arguments JSON schema: {\"code\": string}
-
-- `call_image_subagent`: Delegates image asset generation to a dedicated prompt-refinement subagent. Generates the image via Sesi's native image engine, saves the file to disk, and returns the result path.
-  Arguments JSON schema: {\"prompt\": string, \"aspect_ratio\": string (e.g. \"1:1\", \"16:9\", \"4:3\", \"3:2\", \"9:16\", defaults to \"1:1\"), \"output_path\": string (defaults to \"generated_image.png\")}
-
-Essential Sesi Built-in Functions Reference:
-- I/O: `print(...args)`
-- Type conversions: `str(val)`, `num(val)`, `bool(val)`, `to_json(val)`, `from_json(str)`
-- Collections: `len(col)`, `keys(obj)`, `values(obj)`, `push(arr, val)`, `pop(arr)`, `join(arr, sep)`, `split(str, sep)`, `slice(str, start, end)`, `locate(str, target)`, `contains(str, target)`
-- Filesystem: `read_file(path)`, `write_file(path, content)`, `write_image(path, base64_data_url_or_b64str)`, `make_dir(path)`, `list_dir(path)`
-- Encryption & DB: `db_open(path, pwd)` (returns Database object with collections/insert/find/update/delete)
-- Browser Automation: `launch(opts)`, `newPage()`, `goto(url)`, `click(sel)`, `fill(sel, val)`, `screenshot(path)`
-
-If the user request requires examining files, writing/testing scripts, performing automated edits, or generating visual assets/images, use the appropriate tools.
-"
-
-      let copilot_tools = {
-        "read_file": agent_read_file,
-        "write_file": agent_write_file,
-        "list_directory": agent_list_directory,
-        "run_helper_script": agent_run_helper_script,
-        "eval_sesi_code": agent_eval_sesi_code,
-        "call_image_subagent": agent_generate_image
-      }
+      let copilot_tools = Prompts.copilot_tools
 
       if browserAccess == true {
-        copilot_tools["browser_goto"] = agent_browser_goto
-        copilot_tools["browser_click"] = agent_browser_click
-        copilot_tools["browser_fill"] = agent_browser_fill
-        copilot_tools["browser_screenshot"] = agent_browser_screenshot
-        copilot_tools["browser_get_content"] = agent_browser_get_content
-        copilot_tools["browser_close"] = agent_browser_close
+        copilot_tools["browser_goto"] = Agent.browser
+        copilot_tools["browser_click"] = Agent.click
+        copilot_tools["browser_fill"] = Agent.fill
+        copilot_tools["browser_screenshot"] = Agent.screenshot
+        copilot_tools["browser_get_content"] = Agent.grabContent
+        copilot_tools["browser_close"] = Agent.closeBrowser
 
-        system_prompt = system_prompt + "
-
-You have browser access enabled. Use these tools for visual analysis and verification (such as checking layouts, UI styling, rendered graphics, or media) whenever direct visual inspection is needed to evaluate the application's state:
-
-- `browser_goto`: Navigates to a URL. Arguments JSON schema: {\"url\": string}
-- `browser_click`: Clicks an element. Arguments JSON schema: {\"selector\": string}
-- `browser_fill`: Fills an input value. Arguments JSON schema: {\"selector\": string, \"value\": string}
-- `browser_screenshot`: Captures screenshot. Arguments JSON schema: {\"path\": string} (optional)
-- `browser_get_content`: Gets the visible text content of the page. Arguments: {}
-- `browser_close`: Closes the active browser. Arguments: {}
-"
+        system_prompt = system_prompt + Prompts.prompt2
       }
 
       current_ws_client = client
 
-      let agent = Agent.create({
+      let agent = Copilot.create({
         "model": "chat",
         "system": system_prompt,
         "thinkingLevel": "low",
         "cache": false,
         "max_tokens": 4096,
         "tools": copilot_tools,
-        "stream": on_agent_chunk
+        "stream": Tools.on_agent_chunk
       })
 
       if len(existing) > 0 {
@@ -1789,7 +1303,7 @@ You have browser access enabled. Use these tools for visual analysis and verific
 
       let res = ""
       try {
-        res = Agent.chat(agent, q)
+        res = Copilot.chat(agent, q)
       } catch(chat_err) {
         res = "⚠️ Co-pilot error: " + str(chat_err)
         client.send(to_json({"type": "chat_chunk", "chunk": res}))
@@ -1888,7 +1402,7 @@ try {
 print ""
 print "  ╔══════════════════════════════════════════╗"
 print "  ║                                          ║"
-print "  ║   🧠 Sesi Studio v2.0                    ║"
+print "  ║   🧠 Sesi Studio v2.0                     ║"
 print "  ║   → http://localhost:" str(http_port) "              ║"
 print "  ║                                          ║"
 print "  ╚══════════════════════════════════════════╝"
@@ -1897,8 +1411,8 @@ print ""
 let http = listen(http_port, handle_http)
 let ws = api(ws_port, handle_ws)
 
-let exit = input("Enter x to close: ")
-if exit == "x" {
+let exit = input("Press enter/return key to close: ")
+if exit == "" {
   http.close()
   ws.close()
 }

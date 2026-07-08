@@ -50,7 +50,7 @@ export fn join_paths(dir: string, file: string) -> string {
 export fn normalize_path(path: string) -> string {
   let is_absolute = false
   if len(path) > 0 {
-    if slice(path, 0, 1) == "/" {
+    if starts_with(path, "/") {
       is_absolute = true
     }
   }
@@ -125,7 +125,7 @@ fn resolve_path(source: string, importing_file: string) -> string {
   let len_name = len(filename)
   let has_ext = false
   if len_name >= 5 {
-    if slice(filename, len_name - 5) == ".sesi" {
+    if ends_with(filename, ".sesi") {
       has_ext = true
     }
   }
@@ -245,7 +245,7 @@ fn scan_recursive(file_path: string, parent_file: string, options) {
     if mod != null {
       let is_std = false
       if len(mod) >= 4 {
-        if slice(mod, 0, 4) == "std/" {
+        if starts_with(mod, "std/") {
           is_std = true
         }
       }
@@ -256,13 +256,7 @@ fn scan_recursive(file_path: string, parent_file: string, options) {
       }
       
       if is_std == false || options["all"] == true {
-        let found = false
-        for existing in deps {
-          if existing == resolved {
-            found = true
-          }
-        }
-        if found == false {
+        if !includes(deps, resolved) {
           push(deps, resolved)
         }
       }
@@ -274,7 +268,7 @@ fn scan_recursive(file_path: string, parent_file: string, options) {
   for dep in deps {
     let is_dep_std = false
     if len(dep) >= 4 {
-      if slice(dep, 0, 4) == "std/" {
+      if starts_with(dep, "std/") {
         is_dep_std = true
       }
     }
@@ -505,7 +499,7 @@ if len(args) == 0 {
         
         let is_std = false
         if len(u) >= 4 {
-          if slice(u, 0, 4) == "std/" {
+          if starts_with(u, "std/") {
             is_std = true
           }
         }

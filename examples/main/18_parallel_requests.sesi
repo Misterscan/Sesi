@@ -7,8 +7,9 @@
 */
 
 allow "std/time" in with Time
+allow "std/terminal" in with { color }
 
-print "=== 1. Defining Concurrently Run Closures ==="
+print color("=== 1. Defining Concurrently Run Closures ===", "magenta")
 fn slowTask1() {
   print "Starting Task 1 (sleeping 150ms)..."
   Time.sleep(150)

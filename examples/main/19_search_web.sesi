@@ -2,16 +2,17 @@
   Example 19: Search the Web with Sesi
     Use web_get()
 */
+allow "std/terminal" in with { color }
 
 try {
     let q = "Coding"
     prompt url {"http://api.duckduckgo.com/?q=" q "&format=json"}
     let content = web_get(url)
     let data = from_json(content)
-    print "Downloaded: " url
-    print "Saving results to search_results.json"
+    print color("Downloaded: ", "cyan") url
+    print color("Saving results to search_results.json", "yellow")
     write_file("search_results.json", to_json(data))
-    print "Saved result to search_results.json"
+    print color("Saved result to search_results.json", "green", "bold")
 } catch (err) {
     print "Error: " err
 }

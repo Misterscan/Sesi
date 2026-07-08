@@ -2631,6 +2631,58 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         }
       });
       return exports;
+    } else if (source === 'std/terminal') {
+      exports.set('clear', {
+        type: 'function',
+        name: 'clear',
+        params: [],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (): RuntimeValue => {
+          process.stdout.write('\x1b[2J\x1b[0f');
+          return null;
+        }
+      });
+      exports.set('color', {
+        type: 'function',
+        name: 'color',
+        params: [{ name: 'text' }, { name: 'colorName' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (textVal: RuntimeValue, colorNameVal: RuntimeValue): RuntimeValue => {
+          const text = String(textVal);
+          const colorName = typeof colorNameVal === 'string' ? colorNameVal : '';
+          let ansiCode = '\x1b[0m';
+          switch(colorName.toLowerCase()) {
+            case 'red': ansiCode = '\x1b[31m'; break;
+            case 'green': ansiCode = '\x1b[32m'; break;
+            case 'yellow': ansiCode = '\x1b[33m'; break;
+            case 'blue': ansiCode = '\x1b[34m'; break;
+            case 'magenta': ansiCode = '\x1b[35m'; break;
+            case 'cyan': ansiCode = '\x1b[36m'; break;
+            case 'white': ansiCode = '\x1b[37m'; break;
+            case 'bold': ansiCode = '\x1b[1m'; break;
+          }
+          return `${ansiCode}${text}\x1b[0m`;
+        }
+      });
+      exports.set('cursor', {
+        type: 'function',
+        name: 'cursor',
+        params: [{ name: 'x' }, { name: 'y' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (xVal: RuntimeValue, yVal: RuntimeValue): RuntimeValue => {
+          const x = typeof xVal === 'number' ? Math.floor(xVal) : 1;
+          const y = typeof yVal === 'number' ? Math.floor(yVal) : 1;
+          process.stdout.write(`\x1b[${y};${x}H`);
+          return null;
+        }
+      });
+      return exports;
     } else if (source === 'std/browser') {
       if (this.safeMode) {
         throw new Error('Security Violation: std/browser is disabled in Sesi safe mode.');

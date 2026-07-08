@@ -1,4 +1,5 @@
 // Data classification 
+allow "std/terminal" in with { color }
 
 let items = ["A quick brown fox", "123 Main Street", "user@example.com", "New York City"]
 
@@ -42,14 +43,14 @@ fn isAddress(item: string) -> bool {
   return hasNumber && hasWord && len(parts) >= 2
 }
 
-print "Classifying items natively:"
+print color("Classifying items natively:", "magenta")
 for item in items {
   if isEmail(item) {
-    print item "-> EMAIL"
+    print color(item, "cyan") "->" color("EMAIL", "green")
   } else if isAddress(item) {
-    print item "-> ADDRESS"
+    print color(item, "cyan") "->" color("ADDRESS", "yellow")
   } else {
-    print item "-> TEXT/LOCATION"
+    print color(item, "cyan") "->" color("TEXT/LOCATION", "white")
   }
 }
 

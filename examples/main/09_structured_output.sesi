@@ -2,17 +2,19 @@
     Structured output 
     For example, if you have an API endpoint that returns JSON data, you can use structured_output to parse it. 
 */
+allow "std/terminal" in with { color }
 
+print color("Fetching data...", "magenta")
 let json_data = web_get("https://jsonplaceholder.typicode.com/todos/1")
 let structured_data = structured_output({title: string, completed: bool})(json_data)
-print "Title:" structured_data["title"]
-print "Completed:" structured_data["completed"]
+print color("Title:", "green") color(structured_data["title"], "cyan")
+print color("Completed:", "green") color(str(structured_data["completed"]), "cyan")
 
 // You can even pass raw text to structured_output if you want, it just needs to be in JSON format. For example:
 let raw_text = "{\"title\": \"Buy milk\", \"completed\": false}"
 let structured_data = structured_output({title: string, completed: bool})(raw_text)
-print "Title:" structured_data["title"]
-print "Completed:" structured_data["completed"]
+print color("Title:", "yellow") color(structured_data["title"], "cyan")
+print color("Completed:", "yellow") color(str(structured_data["completed"]), "cyan")
 
 /* Sentiment analysis with structured output
 THIS IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
