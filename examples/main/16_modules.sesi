@@ -26,7 +26,7 @@ print "Area of circle with radius 5 (using Math lib namespace):" str(Math.PI * M
 print "=== 3. Standard JSON Module ==="
 allow "std/json" in with Json
 
-let original = {"project": "Sesi Language", "version": "1.6.1", "features": ["modules", "http", "parallel"]}
+let original = {"project": "Sesi Language", "version": "1.6.2", "features": ["modules", "http", "parallel"]}
 let json_str = Json.stringify(original)
 print "Serialized JSON string:"
 print json_str
