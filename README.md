@@ -372,7 +372,7 @@ Sesi/
     └── workflow.test.ts             # Complex sequence workflows tests
 ```
 
-## Version 1.5 Features (In Progress)
+## Features
 
 ### Core Language ✅
 

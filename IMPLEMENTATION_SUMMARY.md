@@ -419,13 +419,6 @@ npm test
 
 ## 🔮 Future Directions
 
-### V2: Async & Advanced Logic
-
-- Async/await
-- Streaming responses
-- Advanced memory with embeddings
-- finally blocks, custom error types, retry policies, timeout handling
-
 ### V3: Systems Framework
 
 - System state machines
@@ -435,7 +428,6 @@ npm test
 
 ### V4+: Scale & Optimization
 
-- Bytecode compilation
 - JIT compilation
 - Distributed execution
 - Cross-model orchestration
