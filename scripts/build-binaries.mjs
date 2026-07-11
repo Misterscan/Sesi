@@ -10,7 +10,7 @@ const releasesDir = path.join(repoRoot, 'releases');
 console.log('=== Step 1: Bundling Sesi with esbuild ===');
 try {
   execSync(
-    'npx esbuild bin/sesi.js --bundle --platform=node --alias:node:sqlite=./mock-sqlite.js --outfile=dist/sesi.bundled.js',
+    'npx esbuild bin/sesi.js --bundle --platform=node --alias:node:sqlite=./mock-sqlite.js --external:blessed --external:playwright --external:playwright-core --external:chromium-bidi --external:term.js --external:pty.js --outfile=dist/sesi.bundled.js',
     { stdio: 'inherit', cwd: repoRoot }
   );
   

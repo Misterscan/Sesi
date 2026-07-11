@@ -27,7 +27,7 @@ calculate("multiply", 5, 3)
 
 // Define your functions and call it using a custom tool
 fn getSesi() {
-    return "1.5.9"
+    return "1.6.3"
 }
 
 define_tool("get-sesi", getSesi, "Get the current Sesi version")
