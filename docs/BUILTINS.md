@@ -1668,7 +1668,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.6.2"
+  "version": "1.6.3"
 }
 print Json.stringify(original)
 ```

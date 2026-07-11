@@ -111,6 +111,7 @@ fn lex(content) {
     if c == ";" { push(tokens, {"type": "SEMICOLON", "lexeme": ";", "line": line}); i = i + 1; continue }
     if c == ":" { push(tokens, {"type": "COLON", "lexeme": ":", "line": line}); i = i + 1; continue }
     if c == "." { push(tokens, {"type": "DOT", "lexeme": ".", "line": line}); i = i + 1; continue }
+    if c == "?" { push(tokens, {"type": "QUESTION", "lexeme": "?", "line": line}); i = i + 1; continue }
     
     // Multi/Single char operators
     if c == "=" {
@@ -144,6 +145,11 @@ fn lex(content) {
           i = i + 2
           continue
         }
+        if chars[i+1] == ">" {
+          push(tokens, {"type": "LESS_GREATER", "lexeme": "<>", "line": line})
+          i = i + 2
+          continue
+        }
       }
       push(tokens, {"type": "LESS", "lexeme": "<", "line": line})
       i = i + 1
@@ -162,7 +168,18 @@ fn lex(content) {
       continue
     }
     if c == "+" { push(tokens, {"type": "PLUS", "lexeme": "+", "line": line}); i = i + 1; continue }
-    if c == "-" { push(tokens, {"type": "MINUS", "lexeme": "-", "line": line}); i = i + 1; continue }
+    if c == "-" {
+      if i + 1 < n {
+        if chars[i+1] == ">" {
+          push(tokens, {"type": "ARROW", "lexeme": "->", "line": line})
+          i = i + 2
+          continue
+        }
+      }
+      push(tokens, {"type": "MINUS", "lexeme": "-", "line": line})
+      i = i + 1
+      continue
+    }
     if c == "*" { push(tokens, {"type": "STAR", "lexeme": "*", "line": line}); i = i + 1; continue }
     if c == "/" { push(tokens, {"type": "SLASH", "lexeme": "/", "line": line}); i = i + 1; continue }
     if c == "%" { push(tokens, {"type": "PERCENT", "lexeme": "%", "line": line}); i = i + 1; continue }
@@ -314,7 +331,19 @@ fn audit_syntax(tokens) {
     let line = tok.line
     
     if type == "PRINT" { inPrint = true; printParenDepth = parenDepth }
-    if type == "NEWLINE" { inPrint = false }
+    if type == "NEWLINE" {
+      inPrint = false
+      if inPromptBraceDepth != -1 {
+        let msg = "Syntax Error: Raw newlines are strictly forbidden outside of string literals inside prompt blocks."
+        let found = false
+        for e in errors {
+          if e.line == line { if e.message == msg { found = true } }
+        }
+        if found == false {
+          push(errors, {"line": line, "message": msg})
+        }
+      }
+    }
     if type == "SEMICOLON" { inPrint = false }
     if type == "EOF" { inPrint = false }
     

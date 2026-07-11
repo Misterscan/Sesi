@@ -15,21 +15,68 @@ Usage:
     Enter old version when prompted, then new version when prompted)
 */
 
+allow "safe" in with Safe
+allow "std/terminal" in with {color}
+
+fn isFile(fileName) {
+    let hasExt = includes(fileName, ".")
+    let isBinJS = ends_with(fileName, ".js")
+    let isDocsMD = ends_with(fileName, ".md")
+    let isRootMDOrSesi = ends_with(fileName, ".md") || ends_with(fileName, ".sesi")
+    if hasExt && (isBinJS || isDocsMD || isRootMDOrSesi) {
+        return true
+    } else {
+        return false
+    }
+}
+
 let srcDir1 = list_dir("bin")
+let binFiles = []
+for file in srcDir1 {
+    if isFile(file) {
+        push(binFiles, file)
+    }
+}
+
 let srcDir2 = list_dir("docs")
+let docsFiles = []
+for file in srcDir2 {
+    if isFile(file) {
+        push(docsFiles, file)
+    }
+}
+
 let rootDir = list_dir(".")
+let rootFiles = []
+for file in rootDir {
+    if isFile(file) {
+        push(rootFiles, file)
+    }
+}
+
+let exampleDir = list_dir("examples/main")
+let exampleFiles = []
+for file in exampleDir {
+    if isFile(file) {
+        push(exampleFiles, file)
+    }
+}
+
 print "srcDir1:
-" srcDir1 "
+" color(binFiles, "cyan") "
 "
 print "srcDir2:
-" srcDir2 "
+" color(docsFiles, "cyan") "
 "
 print "rootDir:
-" rootDir "
+" color(rootFiles, "cyan") "
+"
+print "exampleFiles:
+" color(exampleFiles, "cyan") "
 "
 
 fn getVersionFromFile(fileName) {
-    let fileContents = read_file(fileName)
+    let fileContents = Safe.readFile(fileName)
     let lines = split(fileContents, "\n")
     let version = ""
     for line in lines {
@@ -48,16 +95,22 @@ fn getVersionFromFile(fileName) {
     return version
 }
 
-let v = getVersionFromFile("package.json")
+let pkgJSON = "package.json"
+let v = getVersionFromFile(pkgJSON)
 
-print "Current version:" v
-
+print "Current version:" color(v, "green")
 print ""
 let fromVar = input("Enter version to swap from: ")
 let toVar = input("Enter version to swap to: ")
 print "================"
-print "Starting swap..."
+print color("Starting swap...", "green")
 print "================"
+print ""
+
+let getPkgJSON = Safe.readFile(pkgJSON)
+let newPkgJSON = swap(getPkgJSON, v, toVar)
+Safe.writeFile(pkgJSON, newPkgJSON)
+print "Swapped" v "to" toVar "in" pkgJSON
 print ""
 
 for file in srcDir1 {
@@ -65,7 +118,7 @@ for file in srcDir1 {
         let contents = ""
         if ends_with(file, ".js") {
             file = "bin/" + file
-            contents = read_file(file)
+            contents = Safe.readFile(file)
             print "Successfully loaded" file
         } else {
             continue
@@ -73,16 +126,16 @@ for file in srcDir1 {
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
-            write_file(file, newContents)
-            print "Swapped " fromVar " to " toVar " in " file
+            Safe.writeFile(file, newContents)
+            print "Swapped" fromVar "to" toVar "in" file
             print ""
         } else {
-            print "Skipping file:" file
-            print "Reason: " file " already up to date."
+            print color("Skipping file:", "yellow") file
+            print "Reason:" file "already up to date."
             print ""
         }
     } catch(e) {
-        print "An error occured:" e
+        print "An error occured:" color(e, "red")
     }
 }
 
@@ -91,7 +144,7 @@ for file in srcDir2 {
         file = "docs/" + file
         let contents = ""
         if ends_with(file, ".md") {
-            contents = read_file(file)
+            contents = Safe.readFile(file)
             print "Successfully loaded" file
         } else {
             continue
@@ -99,16 +152,16 @@ for file in srcDir2 {
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
-            write_file(file, newContents)
-            print "Swapped " fromVar " to " toVar " in " file
+            Safe.writeFile(file, newContents)
+            print "Swapped" fromVar "to" toVar "in" file
             print ""
         } else {
-            print "Skipping file:" file
-            print "Reason: " file " already up to date."
+            print color("Skipping file:", "yellow") file
+            print "Reason:" file "already up to date."
             print ""
         }
     } catch(e) {
-        print "An error occured:" e
+        print "An error occured:" color(e, "red")
     }
 }
 
@@ -117,7 +170,7 @@ for file in rootDir {
         let contents = ""
         if ends_with(file, ".md") || ends_with(file, ".sesi") {
             file = "./" + file
-            contents = read_file(file)
+            contents = Safe.readFile(file)
             print "Successfully loaded" file
         } else {
             continue
@@ -125,15 +178,42 @@ for file in rootDir {
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
-            write_file(file, newContents)
-            print "Swapped " fromVar " to " toVar " in " file
+            Safe.writeFile(file, newContents)
+            print "Swapped" fromVar "to" toVar "in" file
             print ""
         } else {
-            print "Skipping file:" file
-            print "Reason: " file " already up to date or doesn't contain " fromVar " at all."
+            print color("Skipping file:", "yellow") file
+            print "Reason:" file "already up to date or doesn't contain" fromVar "at all."
             print ""
         }
     } catch(e) {
-        print "An error occured:" e
+        print "An error occured:" color(e, "red")
     }
 }
+
+for file in exampleFiles {
+    try {
+        let contents = ""
+        if ends_with(file, ".sesi") {
+            file = "examples/main/" + file
+            contents = Safe.readFile(file)
+            print "Successfully loaded" file
+        } else {
+            continue
+        }
+        let newContents = ""
+        if contains(contents, fromVar) {
+            newContents = swap(contents, fromVar, toVar)
+            Safe.writeFile(file, newContents)
+            print "Swapped" fromVar "to" toVar "in" file
+            print ""
+        } else {
+            print color("Skipping file:", "yellow") file
+            print "Reason:" file "already up to date or doesn't contain" fromVar "at all."
+            print ""
+        }
+    } catch(e) {
+        print "An error occured:" color(e, "red")
+    }
+}
+

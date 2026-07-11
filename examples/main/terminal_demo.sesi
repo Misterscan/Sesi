@@ -1,3 +1,11 @@
+/*
+  A visually rich terminal UI demo using Sesi and Term module.
+  Demonstrates: styling, cursor movement, and timed events.
+  
+  Usage:
+    sesi examples/main/terminal_demo.sesi
+*/
+
 allow "std/terminal" in with Term
 allow "std/time" in with Time
 

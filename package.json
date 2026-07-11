@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -63,7 +63,8 @@
     "example:all": "sesi -l examples.sesi",
     "tutorial": "sesi -l tutorial/interactive_web_tutorial.sesi",
     "tutorial:cli": "sesi -l tutorial/tutorial.sesi",
-    "upload": "npm run build && npm publish --access public"
+    "upload": "npm run build && npm publish --access public",
+    "version:bump": "sesi -l helpers/version-bump.sesi"
   },
   "keywords": [
     "sesi",

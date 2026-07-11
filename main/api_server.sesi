@@ -1,8 +1,8 @@
-/* main/api_server.sesi
-A production-ready RESTful JSON API server in Sesi.
-Supports GET, POST, PUT, DELETE operations on tasks collection.
-Usage:
- node bin/sesi.js main/api_server.sesi -l
+/*
+  A production-ready RESTful JSON API server in Sesi.
+  Supports GET, POST, PUT, DELETE operations on tasks collection.
+  Usage:
+    node bin/sesi.js main/api_server.sesi -l
 */
 
 allow "std/db" in with {db_open}

@@ -1,0 +1,23 @@
+allow "helpers/safe" in with Safe
+allow "std/terminal" in with {color}
+
+let env = ""
+try {
+    env = Safe.env
+    print color(".env successfully loaded", "green") "
+    "
+
+    let geminiKey = env.GEMINI_API_KEY
+    let isSafeMode = env.SESI_SAFE_MODE
+    let sesiPass = env.SESI_PASSWORD
+
+    print color("[Gemini API Key (encrypted)]:
+", "cyan") color(geminiKey, "magenta")
+    print color("[Sesi Safe Mode ?]:
+", "cyan") color(isSafeMode, "magenta")
+    print color("[Sesi Password]:
+", "cyan") color(sesiPass, "magenta")
+} catch (e) {
+    print color("Warning: .env file could not be read or is not present. Please create one at the root of the project directory.", "yellow")
+    print color(e, "red")
+}

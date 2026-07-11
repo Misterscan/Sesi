@@ -162,10 +162,7 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
       return;
     }
 
-    if (options?.dry) {
-      console.log('✓ Syntax is valid');
-      return;
-    }
+
 
     // Bytecode path (default)
     if (!options?.treeWalker && (options?.bytecode !== false || options?.bytecodeDump)) {
@@ -177,6 +174,11 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
         process.exit(1);
       }
 
+      if (options?.dry) {
+        console.log('✓ Syntax and Compilation valid');
+        return;
+      }
+
       if (options?.bytecodeDump) {
         console.log(disassemble(chunk, scriptDir ? path.basename(scriptDir) : '<script>'));
         return;
@@ -184,6 +186,11 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
 
       const vm = new VM(scriptDir, options);
       await vm.run(chunk);
+      return;
+    }
+
+    if (options?.dry) {
+      console.log('✓ Syntax is valid');
       return;
     }
 

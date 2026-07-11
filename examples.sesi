@@ -82,7 +82,7 @@ try {
     If you have the reasoning capabilites commented out, this should be quick.
     If you have the reasoning capabilites uncommented, this could take a while...", "magenta")
 
-    for i = 0 to len(all_examples) - 1 {
+    for i = 0 to len(all_examples) {
         let ex = all_examples[i]
         let step = str(i + 1) + "/32"
         let title_tag = "[" + step + "] [" + ex["title"] + "]"
@@ -109,10 +109,13 @@ try {
         }
 
         let run_cmd = ex["cmd"]
-        if !contains(run_cmd, "--cli") {
-            run_cmd = swap(run_cmd, "sesi ", "node bin/sesi.js --cli ")
-        } else {
-            run_cmd = swap(run_cmd, "sesi ", "node bin/sesi.js ")
+        if starts_with(run_cmd, "sesi ") {
+            let rest = slice(run_cmd, 5)
+            if !contains(run_cmd, "--cli") {
+                run_cmd = "node bin/sesi.js --cli " + rest
+            } else {
+                run_cmd = "node bin/sesi.js " + rest
+            }
         }
         
         print exec(run_cmd)
