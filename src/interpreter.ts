@@ -2640,7 +2640,11 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         closure: {} as any,
         isBuiltin: true,
         builtin: (): RuntimeValue => {
-          process.stdout.write('\x1b[2J\x1b[0f');
+          if ((globalThis as any).sesiTerminalClearHandler) {
+            (globalThis as any).sesiTerminalClearHandler();
+          } else {
+            process.stdout.write('\x1b[2J\x1b[0f');
+          }
           return null;
         }
       });
@@ -2678,7 +2682,11 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         builtin: (xVal: RuntimeValue, yVal: RuntimeValue): RuntimeValue => {
           const x = typeof xVal === 'number' ? Math.floor(xVal) : 1;
           const y = typeof yVal === 'number' ? Math.floor(yVal) : 1;
-          process.stdout.write(`\x1b[${y};${x}H`);
+          if ((globalThis as any).sesiTerminalCursorHandler) {
+            (globalThis as any).sesiTerminalCursorHandler(x, y);
+          } else {
+            process.stdout.write(`\x1b[${y};${x}H`);
+          }
           return null;
         }
       });

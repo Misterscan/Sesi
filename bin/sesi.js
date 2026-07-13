@@ -246,6 +246,15 @@ async function startRepl() {
     screen.render();
   };
 
+  globalThis.sesiTerminalClearHandler = () => {
+    outputBox.setContent('');
+    screen.render();
+  };
+
+  globalThis.sesiTerminalCursorHandler = (x, y) => {
+    // For TUI log box, cursor movement is ignored safely
+  };
+
   inputBox.on('submit', async (text) => {
     const trimmed = text.trim();
     if (trimmed === '.exit') {
@@ -512,6 +521,15 @@ async function main() {
     console.error = (...args) => {
       outputBox.log(`{red-fg}${args.join(' ')}{/red-fg}`);
       screen.render();
+    };
+
+    globalThis.sesiTerminalClearHandler = () => {
+      outputBox.setContent('');
+      screen.render();
+    };
+
+    globalThis.sesiTerminalCursorHandler = (x, y) => {
+      // For TUI log box, cursor movement is ignored safely
     };
 
     screen.render();
