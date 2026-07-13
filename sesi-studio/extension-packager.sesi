@@ -3,6 +3,8 @@
   A native tool to pack, unpack, and validate Sesi Studio JS extensions.
 */
 
+allow "helpers/safe" in with Safe
+
 // --- Helper: Clean Comment Asterisks ---
 fn clean_manifest_json(raw) {
   let lines = split(raw, "\n")
@@ -82,7 +84,7 @@ fn find_svg_content(icon_path, file_path) {
   
   for candidate in candidates {
     try {
-      let content = read_file(candidate)
+      let content = Safe.readFile(candidate)
       if content != "" && content != null {
         return { "content": content, "path": candidate }
       }
@@ -161,7 +163,7 @@ fn pack_extension(args_list) {
   print "Packing extension:" file_path
   let content = ""
   try {
-    content = read_file(file_path)
+    content = Safe.readFile(file_path)
   } catch (e) {
     print "Error: Failed to read extension JS file:" file_path
     return false
@@ -231,7 +233,7 @@ fn pack_extension(args_list) {
   let out_path = out_dir + "/" + safe_name + ".sesiext"
 
   try {
-    write_file(out_path, to_json(bundle))
+    Safe.writeFile(out_path, to_json(bundle))
     print "✓ Packed extension successfully!"
     print "  Bundle saved to:" out_path
     return true
@@ -256,7 +258,7 @@ fn unpack_extension(args_list) {
   print "Unpacking extension:" ext_path
   let content = ""
   try {
-    content = read_file(ext_path)
+    content = Safe.readFile(ext_path)
   } catch (e) {
     print "Error: Failed to read extension bundle file:" ext_path
     return false
@@ -294,7 +296,7 @@ fn unpack_extension(args_list) {
   let js_file_content = "/*\n" + to_json(meta) + "\n*/\n" + js
 
   try {
-    write_file(out_path, js_file_content)
+    Safe.writeFile(out_path, js_file_content)
     print "✓ Unpacked extension successfully!"
     print "  Installed JS extension to:" out_path
     return true
@@ -312,7 +314,7 @@ fn validate_extension(args_list) {
   let file_path = args_list[0]
   let content = ""
   try {
-    content = read_file(file_path)
+    content = Safe.readFile(file_path)
   } catch (e) {
     print "Error: Failed to read JS file:" file_path
     return false

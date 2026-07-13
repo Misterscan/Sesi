@@ -174,7 +174,9 @@ async function startRepl() {
   
   const screen = blessed.screen({
     smartCSR: true,
-    title: 'Sesi'
+    title: 'Sesi',
+    autoPadding: true,
+    resizeTimeout: 100
   });
 
   const outputBox = blessed.log({
@@ -228,6 +230,10 @@ async function startRepl() {
 
   screen.key(['pagedown'], () => {
     outputBox.scroll(10);
+    screen.render();
+  });
+
+  screen.on('resize', () => {
     screen.render();
   });
 
@@ -399,7 +405,7 @@ async function main() {
       console.error(`Error: File not found: ${parsed.file}`);
       process.exit(1);
     }
-    if (parsed.sesiOptions.cli) {
+    if (parsed.sesiOptions.cli || parsed.sesiOptions.dry) {
       // Execute without blessed TUI (raw terminal CLI mode)
       await runSesiFile(parsed.file, parsed.sesiOptions).catch((error) => {
         console.error('Fatal error:', error.message);
@@ -412,7 +418,9 @@ async function main() {
     const blessed = require('blessed');
     const screen = blessed.screen({
       smartCSR: true,
-      title: `Sesi Execution: ${parsed.file}`
+      title: `Sesi Execution: ${parsed.file}`,
+      autoPadding: true,
+      resizeTimeout: 100
     });
 
     const outputBox = blessed.log({
@@ -466,6 +474,10 @@ async function main() {
 
     screen.key(['pagedown'], () => {
       outputBox.scroll(10);
+      screen.render();
+    });
+
+    screen.on('resize', () => {
       screen.render();
     });
 

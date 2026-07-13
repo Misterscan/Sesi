@@ -4,6 +4,9 @@ allow "std/browser" in with {launch}
 allow "helpers/safe" in with Safe
 allow "tools" in with Tools
 
+set_alias("copilot", "gemini-3.1-flash-lite")
+set_alias("search", "gemini-3-flash-preview")
+
 let active_browser = null
 let active_page = null
 let current_ws_client = Tools.current_ws_client

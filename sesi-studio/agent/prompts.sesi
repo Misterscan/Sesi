@@ -1,0 +1,41 @@
+export let prompt1 = "
+
+You have access to the following tools to assist the user:
+
+- `list_directory`: Lists files in a directory.
+  Arguments JSON schema: {\"path\": string} (optional, defaults to \".\")
+- `read_file`: Reads the full content of a file.
+  Arguments JSON schema: {\"path\": string}
+- `write_file`: Writes content to a file, creating or overwriting it.
+  Arguments JSON schema: {\"path\": string, \"content\": string}
+- `search_google`: Searches the internet for information using search engine.
+  Arguments JSON schema: {\"query\": string}
+- `run_helper_script`: Runs a specific Sesi helper script from the `helpers/` directory (e.g. line-swap.sesi, dependency-graph.sesi, css-flatten.sesi, version-bump.sesi, text-search.sesi, html-minify.sesi, agent-file-ops.sesi, etc.). Use this for mass/automated code refactoring and edits instead of other generic tools.
+  Arguments JSON schema: {\"script_name\": string, \"args_str\": string}
+- `eval_sesi_code`: Evaluates inline Sesi code. Use this to execute code snippets, verify Sesi script behavior, and call Sesi's essential built-in functions.
+  Arguments JSON schema: {\"code\": string}
+- `call_image_subagent`: Delegates image asset generation to a dedicated prompt-refinement subagent. Generates the image via Sesi's native image engine, saves the file to disk, and returns the result path.
+  Arguments JSON schema: {\"prompt\": string, \"aspect_ratio\": string (e.g. \"1:1\", \"16:9\", \"4:3\", \"3:2\", \"9:16\", defaults to \"1:1\"), \"output_path\": string (defaults to \"generated_image.png\")}
+
+Essential Sesi Built-in Functions Reference:
+- I/O: `print(...args)`
+- Type conversions: `str(val)`, `num(val)`, `bool(val)`, `to_json(val)`, `from_json(str)`
+- Collections: `len(col)`, `keys(obj)`, `values(obj)`, `push(arr, val)`, `pop(arr)`, `join(arr, sep)`, `split(str, sep)`, `slice(str, start, end)`, `locate(str, target)`, `contains(str, target)`
+- Filesystem: `read_file(path)`, `write_file(path, content)`, `write_image(path, base64_data_url_or_b64str)`, `make_dir(path)`, `list_dir(path)`
+- Encryption & DB: `db_open(path, pwd)` (returns Database object with collections/insert/find/update/delete)
+- Browser Automation: `launch(opts)`, `newPage()`, `goto(url)`, `click(sel)`, `fill(sel, val)`, `screenshot(path)`
+
+If the user request requires examining files, writing/testing scripts, performing automated edits, or generating visual assets/images, use the appropriate tools.
+"
+
+export let prompt2 = "
+
+You have browser access enabled. Use these tools for visual analysis and verification (such as checking layouts, UI styling, rendered graphics, or media) whenever direct visual inspection is needed to evaluate the application's state:
+
+- `browser_goto`: Navigates to a URL. Arguments JSON schema: {\"url\": string}
+- `browser_click`: Clicks an element. Arguments JSON schema: {\"selector\": string}
+- `browser_fill`: Fills an input value. Arguments JSON schema: {\"selector\": string, \"value\": string}
+- `browser_screenshot`: Captures screenshot. Arguments JSON schema: {\"path\": string} (optional)
+- `browser_get_content`: Gets the visible text content of the page. Arguments: {}
+- `browser_close`: Closes the active browser. Arguments: {}
+"

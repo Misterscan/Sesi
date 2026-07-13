@@ -67,7 +67,6 @@ SesiStudio.command
 NEW-GEMINI-MODEL.md
 guides.sesi
 profiles.sesi
-prompts.sesi
 retrorender.sesi
 docs/SKILLS.md
 .sesi_cache.json
@@ -102,3 +101,6 @@ pics/
 sesi-studio/extensions/themes/assets/
 timestamp.sesi
 super-ai/
+.archive/
+.trash/
+playground

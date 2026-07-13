@@ -3,6 +3,8 @@
   A native tool to pack, unpack, and validate Sesi Studio CSS themes.
 */
 
+allow "helpers/safe" in with Safe
+
 // --- Helper: Clean Comment Asterisks ---
 fn clean_manifest_json(raw) {
   let lines = split(raw, "\n")
@@ -83,7 +85,7 @@ fn find_svg_content(icon_path, file_path) {
   
   for candidate in candidates {
     try {
-      let content = read_file(candidate)
+      let content = Safe.readFile(candidate)
       if content != "" && content != null {
         return { "content": content, "path": candidate }
       }
@@ -162,7 +164,7 @@ fn pack_theme(args_list) {
   print "Packing theme:" file_path
   let content = ""
   try {
-    content = read_file(file_path)
+    content = Safe.readFile(file_path)
   } catch (e) {
     print "Error: Failed to read theme CSS file:" file_path
     return false
@@ -234,7 +236,7 @@ fn pack_theme(args_list) {
   let out_path = out_dir + "/" + safe_name + ".sesitheme"
 
   try {
-    write_file(out_path, to_json(bundle))
+    Safe.writeFile(out_path, to_json(bundle))
     print "✓ Packed theme successfully!"
     print "  Bundle saved to:" out_path
     return true
@@ -259,7 +261,7 @@ fn unpack_theme(args_list) {
   print "Unpacking theme:" theme_path
   let content = ""
   try {
-    content = read_file(theme_path)
+    content = Safe.readFile(theme_path)
   } catch (e) {
     print "Error: Failed to read theme bundle file:" theme_path
     return false
@@ -297,7 +299,7 @@ fn unpack_theme(args_list) {
   let css_file_content = "/*\n" + to_json(meta) + "\n*/\n" + css
 
   try {
-    write_file(out_path, css_file_content)
+    Safe.writeFile(out_path, css_file_content)
     print "✓ Unpacked theme successfully!"
     print "  Installed theme CSS to:" out_path
     return true
@@ -317,7 +319,7 @@ fn validate_theme(args_list) {
   print "Validating theme:" file_path
   let content = ""
   try {
-    content = read_file(file_path)
+    content = Safe.readFile(file_path)
   } catch (e) {
     print "Error: Failed to read theme CSS file:" file_path
     return false

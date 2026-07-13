@@ -10,11 +10,13 @@
     npm run css "Beautiful, premium modern UX design. Dynamic sky blues"  # custom style description
 */
 
-print "Sesi Studio Theme Generator — creating a custom IDE theme"
-print ""
+allow "helpers/safe" in with Safe
 
-let studioReadme = read_file("README.md")
-let studioHtml = read_file("index.html")
+print "Sesi Studio Theme Generator — creating a custom IDE theme
+"
+
+let studioReadme = Safe.readFile("README.md")
+let studioHtml = Safe.readFile("index.html")
 
 // Pass your style description as the first CLI argument.
 let style = ""
@@ -25,8 +27,8 @@ if len(args) > 0 {
 }
 
 if len(style) > 0 {
-  print ""
-  print "Generating a custom theme for Sesi Studio based on (" style ")"
+  print "
+  Generating a custom theme for Sesi Studio based on (" style ")"
 } else {
 
   // If no argument is provided the model uses its own defaults.
@@ -74,8 +76,8 @@ prompt required {"At the very top, you **MUST** include this schema:
 
 "}
 
-print "Retrieving CSS..."
-print ""
+print "Retrieving CSS...
+"
 
 /* Change the model and parameters as needed. 
   - gemini-3-flash-preview is a good choice for code generation tasks, but feel free to experiment with other models or settings.
@@ -99,13 +101,11 @@ try {
 let filename = model("gemini-3.1-flash-lite") {temperature: 0} {"Return a filename for the theme from the name in the following CSS stylesheet: " css "
 
 If the name is two words use a hyphen to separate the two words. Only return the filename in the response without .css extension."}
-print ""
-print "Writing sesi-studio/extensions/themes/" filename ".css..."
-try {
-  write_file("extensions/themes/" + filename + ".css", css)
-  print "  ✓ sesi-studio/extensions/themes/" filename ".css written"
-} catch (err) {
-  print "  ✗ Failed to write theme file:" err
-}
 
+print "
+Writing sesi-studio/extensions/themes/" filename ".css..."
+try {
+  Safe.writeFile("extensions/themes/" + filename + ".css", css)
+  print "  ✓ sesi-studio/extensions/themes/" filename ".css written"
+} catch (err) {}
 print "Done. You can now select " filename " in Sesi Studio's theme settings."

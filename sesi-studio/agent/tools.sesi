@@ -70,3 +70,27 @@ export fn on_agent_chunk(chunk) {
   }
 }
 export let current_confirm_response = "pending"
+
+// Passphrase generation and retrieval
+fn randomPass() {
+  let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+  let pass = ""
+  let count = 0
+  let chars_len = len(chars)
+  while count < 16 {
+    let rand_val = random() * chars_len
+    let parts = split(str(rand_val), ".")
+    let idx = num(parts[0])
+    pass = pass + slice(chars, idx, idx + 1)
+    count = count + 1
+  }
+  Safe.writeFile("sesi-studio/.sesi_studio_password.txt", pass)
+  return pass
+}
+
+let pass = Safe.readFile("sesi-studio/.sesi_studio_password.txt")
+if pass == null || pass == "" || pass == "nullnullnullnullnullnullnullnullnullnullnullnullnullnullnullnull" {
+  pass = randomPass()
+}
+
+export let pass = pass
