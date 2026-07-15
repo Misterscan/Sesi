@@ -9,7 +9,7 @@ export fn appendFile(path: str, content: str) {try {let existing = ""; try {exis
 export fn moveFile(path: str, dest: str) {try {rename(path, dest)} catch (err) {print "Failed to move file at:" path; print "Details:" err}}
 
 // Get working directory
-let pwd = ""; try {pwd = exec("pwd")}catch (e) {} if pwd == null {try{pwd = exec("cd")} catch (e) {}}
+let pwd = ""; try {pwd = exec("cd")} catch (e) {} if pwd == null || trim(pwd) == "" {try {pwd = exec("pwd")} catch (e) {}}
 export let wsRoot = trim(pwd)
 let envText = readFile(wsRoot + "/.env")
 

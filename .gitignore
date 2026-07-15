@@ -104,3 +104,13 @@ super-ai/
 .archive/
 .trash/
 playground
+SESI_CORPUS.md
+docs/favicon.ico
+convert-to-md.sesi
+main/tests/test_cover_art.sesi
+sesi-studio/extensions/Git-Connector.js
+sesi-studio/build-app.bat
+sesi-studio/app.cs
+sesi-studio/extensions/themes/Frutiger-Aero.css
+sesi-studio/extensions/themes/Liquid-Glass.css
+tests/temp.md
