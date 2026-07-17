@@ -9,13 +9,13 @@ import { SesiRuntimeError } from '../src/types';
 
 declare var process: any;
 
-async function runTest(name: string, source: string, expected?: any): Promise<void> {
+async function runTest(name: string, source: string, expected?: any, options?: { safeMode?: boolean; allowLocalFs?: boolean }): Promise<void> {
   try {
     const lexer = new Lexer(source);
     const tokens = lexer.scanTokens();
     const parser = new Parser(tokens);
     const program = parser.parse();
-    const interpreter = new Interpreter();
+    const interpreter = new Interpreter(undefined, options);
     await interpreter.interpret(program);
     console.log(`✓ ${name}`);
   } catch (error: any) {
@@ -148,6 +148,24 @@ async function main() {
   await runTest('Return without value', 'fn test() { return }');
   await runTest('Audio std library keys check', 'allow "std/audio" in with Audio\nlet found = false\nfor k in keys(Audio) {\n  if k == "midi" { found = true }\n}\nif !found { raise_error("AssertionError", "midi missing") }');
   await runTest('Draw std library keys check', 'allow "std/draw" in with Draw\nlet found = false\nfor k in keys(Draw) {\n  if k == "save_svg" { found = true }\n}\nif !found { raise_error("AssertionError", "save_svg missing") }');
+  await runTest(
+    'Python builtin execution and return value',
+    'let out = python("print(\'hello\')")\nif out != "hello\\n" { raise_error("AssertionError", "expected hello\\\\n") }',
+    undefined,
+    { safeMode: false }
+  );
+  await runTest(
+    'Python builtin argument passing (SESI_ARGS)',
+    'let out = python("import os, json; args = json.loads(os.environ[\'SESI_ARGS\']); print(args[0])", [42])\nif out != "42\\n" { raise_error("AssertionError", "expected 42\\\\n") }',
+    undefined,
+    { safeMode: false }
+  );
+  await runTest(
+    'Python builtin argument passing (sys.argv)',
+    'let out = python("import sys; print(sys.argv[1])", ["hello"])\nif out != "hello\\n" { raise_error("AssertionError", "expected hello\\\\n") }',
+    undefined,
+    { safeMode: false }
+  );
 
   console.log('\n=== Summary ===');
   console.log('All basic tests completed!');

@@ -705,6 +705,9 @@ These are always available — no imports needed:
 | `swap(str, a, b)`    | String swap/replacement utility        |
 | `define_tool(n,f,d)` | Register a function as a named AI tool |
 | `list_tools()`       | List all registered tools              |
+| `exec(cmd)`          | Run a system shell command (blocked in Safe Mode) |
+| `spawn(path)`        | Run a background Sesi script (blocked in Safe Mode) |
+| `python(code, args)` | Run inline Python code (blocked in Safe Mode) |
 
 ## FOR MORE PLEASE VISIT "BUILTINS.md" EITHER IN docs/ OR IF NOT PRESENT, THEN IN node_modules/@misterscan/sesi/docs/BUILTINS.md
 

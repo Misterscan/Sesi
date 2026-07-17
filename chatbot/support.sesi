@@ -3,6 +3,8 @@
   Handles visual dashboard requests and executes pure Sesi model queries offline! 
 */
 
+allow "helpers/safe" in with {readFile}
+
 // Global session store
 let sessions = {}
 
@@ -24,7 +26,7 @@ while d < len(docs_list) {
   if ext == "md" {
     let doc_content = ""
     try {
-      doc_content = read_file("docs/" + f_name)
+      doc_content = readFile("docs/" + f_name)
     } catch (e2) {}
     sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
   }
@@ -40,7 +42,7 @@ while g < len(getting_started_list) {
   if ext == "md" {
     let doc_content = ""
     try {
-      doc_content = read_file("getting-started/" + f_name)
+      doc_content = readFile("getting-started/" + f_name)
     } catch (e2) {}
     sesiDocs = sesiDocs + "\n\n=== GETTING STARTED: " + f_name + " ===\n" + doc_content
   }
@@ -164,14 +166,14 @@ async fn handleRequest(req) {
 
   if req.path == "/" {
     try {
-      body = read_file("chatbot/index.html")
+      body = readFile("chatbot/index.html")
     } catch (e) {
       status = 404
       body = "File not found"
     }
   } else if req.path == "/index.html" {
     try {
-      body = read_file("chatbot/index.html")
+      body = readFile("chatbot/index.html")
     } catch (e) {
       status = 404
       body = "File not found"
@@ -187,11 +189,11 @@ async fn handleRequest(req) {
     let read_success = false
 
     try {
-      body = read_file("chatbot/" + filename)
+      body = readFile("chatbot/" + filename)
       read_success = true
     } catch (e) {
       try {
-        body = read_file(filename)
+        body = readFile(filename)
         read_success = true
       } catch (e2) {}
     }
@@ -202,7 +204,9 @@ async fn handleRequest(req) {
       if ext == "html" { contentType = "text/html" }
       if ext == "js" { contentType = "application/javascript" }
       if ext == "css" { contentType = "text/css" }
+      if ext == "png" { contentType = "image/png" }
       if ext == "ico" { contentType = "image/x-icon" }
+      if ext == "svg" { contentType = "image/svg+xml" }
     } else {
       status = 404
       body = "File not found"
@@ -227,5 +231,20 @@ print "[URL] Serving at: http://localhost:8000/index.html"
 print "=================================================="
 
 let server = listen(port, handleRequest)
+try {
+  let cmd = exec("uname")
+  if contains(cmd, "Linux") {
+    print "[SERVER] Linux OS Detected - Using 'xdg-open'"
+    exec("xdg-open http://localhost:8000/index.html")
+  } else if contains(cmd, "Darwin") {
+    print "[SERVER] macOS Detected - Using 'open'"
+    exec("open http://localhost:8000/index.html")
+  } else {
+    print "[SERVER] Windows Detected - Using 'start'"
+    exec("start http://localhost:8000/index.html")
+  }
+} catch (e) {
+  print "[SERVER] Could not open browser - navigate to http://localhost:8000/index.html manually"
+}
 let end = input("Press Enter to stop server...")
 server.close(end)

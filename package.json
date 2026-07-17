@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -27,7 +27,7 @@
     "sf2"
   ],
   "scripts": {
-    "lint": "sesi --cli -l bin/lint.sesi",
+    "lint": "sesi --cli bin/lint.sesi",
     "build": "tsc",
     "commit:message": "sesi --cli -l helpers/commit-message.sesi --staged",
     "debug": "SESI_DEBUG=1 sesi --cli",

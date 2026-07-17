@@ -1,0 +1,55 @@
+// 1. Define structured data in Sesi
+let reviews = [
+  {"id": 1, "text": "This product is absolutely amazing! Saved me hours.", "rating": 5},
+  {"id": 2, "text": "It was ok, but a bit slow to load initially.", "rating": 3},
+  {"id": 3, "text": "Terrible customer service and the app crashed instantly.", "rating": 1}
+]
+
+print "--- Sesi: Sending data to Python ---"
+
+// 2. Define the Python data-processing script
+let pythonCode = "
+import os, json
+
+# Load structured data sent from Sesi
+data = json.loads(os.environ['SESI_ARGS'])
+
+# Calculate numerical statistics
+ratings = [item['rating'] for item in data]
+avg_rating = sum(ratings) / len(ratings)
+
+# Perform basic sentiment keyword categorization
+results = []
+for item in data:
+    text = item['text'].lower()
+    sentiment = 'Neutral'
+    if 'amazing' in text or 'saved' in text:
+        sentiment = 'Positive'
+    elif 'terrible' in text or 'crashed' in text:
+        sentiment = 'Negative'
+        
+    results.append({
+        'id': item['id'],
+        'sentiment': sentiment,
+        'rating': item['rating']
+    })
+
+# Output results as a single structured JSON string to stdout
+print(json.dumps({
+    'average_rating': avg_rating,
+    'analysis': results
+}))
+"
+
+// Execute Python with the reviews array as environment argument
+let rawResult = python(pythonCode, reviews)
+
+// 3. Sesi parses the JSON string back into a native Sesi object
+let processed = from_json(rawResult)
+
+print "--- Sesi: Received Results from Python ---"
+print "Average Rating:" processed["average_rating"]
+
+for analysis in processed["analysis"] {
+  print "Review ID:" analysis["id"] "Rating:" analysis["rating"] "Sentiment:" analysis["sentiment"]
+}

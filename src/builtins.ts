@@ -2,7 +2,7 @@
 import { RuntimeValue, RuntimeFunction, SesiRuntimeError } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
-import { spawn, execSync } from 'child_process';
+import { spawn, execSync, execFileSync } from 'child_process';
 import { aiRuntime } from './ai-runtime';
 import * as http from 'http';
 
@@ -808,6 +808,65 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         return execSync(command, { encoding: 'utf-8' });
       } catch (e: any) {
         throw new Error(`Failed to execute command: ${command}. Reason: ${e.message}`);
+      }
+    },
+  });
+
+  builtins.set('python', {
+    type: 'function',
+    name: 'python',
+    params: [{ name: 'code' }, { name: 'args', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (code: RuntimeValue, args: RuntimeValue = null): RuntimeValue => {
+      const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
+      if (safeMode) {
+        throw new Error('Security Violation: python is disabled in Sesi safe mode.');
+      }
+      if (typeof code !== 'string') {
+        throw new Error('python expects a string containing Python code as the first argument');
+      }
+
+      const envArgs = args !== null && args !== undefined ? JSON.stringify(args) : '';
+      const childEnv = {
+        ...process.env,
+        ...(envArgs ? { SESI_ARGS: envArgs } : {})
+      };
+
+      const passArgs = ['-'];
+      if (args !== null && args !== undefined) {
+        if (Array.isArray(args)) {
+          for (const arg of args) {
+            passArgs.push(typeof arg === 'string' ? arg : JSON.stringify(arg));
+          }
+        } else {
+          passArgs.push(typeof args === 'string' ? args : JSON.stringify(args));
+        }
+      }
+
+      try {
+        return execFileSync('python3', passArgs, {
+          input: code,
+          env: childEnv,
+          encoding: 'utf-8',
+        });
+      } catch (e: any) {
+        if (e.code === 'ENOENT') {
+          try {
+            return execFileSync('python', passArgs, {
+              input: code,
+              env: childEnv,
+              encoding: 'utf-8',
+            });
+          } catch (e2: any) {
+            if (e2.code === 'ENOENT') {
+              throw new Error('Python executable (python3 or python) not found in PATH.');
+            }
+            throw new Error(`Python execution failed: ${e2.stderr || e2.message}`);
+          }
+        }
+        throw new Error(`Python execution failed: ${e.stderr || e.message}`);
       }
     },
   });

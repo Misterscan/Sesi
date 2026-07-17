@@ -765,7 +765,7 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
+        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'python', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
         'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float',
         'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null', 'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
         // Audio & Theory
@@ -1120,6 +1120,12 @@ function activate(context) {
             source: 'Process Orchestration Standard Library',
             description: 'Spawns a shell environment command synchronously. Returns the full stdout response of the executed process.',
             example: 'let git_log = exec("git log -n 1 --oneline")\nprint "Latest commit: " git_log'
+        },
+        'python': {
+            signature: 'python(code, args)',
+            source: 'Process Orchestration Standard Library',
+            description: 'Executes arbitrary Python code synchronously via stdin and returns its standard output. The optional second parameter `args` is serialized to JSON and stored in the environment variable `SESI_ARGS`. If `args` is an array, elements are also passed as command line arguments (via sys.argv).',
+            example: 'let result = python("print(\'Hello from Python!\')")\nprint result'
         },
         'web_get': {
             signature: 'web_get(url)',

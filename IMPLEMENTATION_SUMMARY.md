@@ -105,7 +105,7 @@ prompt greeting {"Hello, " name "!"}
 **Structured Output**
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.3\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.4\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 

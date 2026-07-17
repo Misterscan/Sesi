@@ -10,8 +10,8 @@ export fn moveFile(path: str, dest: str) {try {rename(path, dest)} catch (err) {
 
 // Get working directory
 let pwd = ""; try {pwd = exec("cd")} catch (e) {} if pwd == null || trim(pwd) == "" {try {pwd = exec("pwd")} catch (e) {}}
-export let wsRoot = trim(pwd)
-let envText = readFile(wsRoot + "/.env")
+export let wsRoot = trim(pwd) + "/"
+let envText = readFile(wsRoot + ".env")
 
 // Parser to convert raw env string to a key-value object
 fn parseEnv(envText: string) -> object {let lines = split(envText, "\n"); let envMap = {}for line in lines {let trimmed = trim(line); if len(trimmed) > 0 {/* Skip comments*/if slice(trimmed, 0, 1) != "#" {let eqIdx = locate(trimmed, "="); if eqIdx > 0 {let key = trim(slice(trimmed, 0, eqIdx)); let value = trim(slice(trimmed, eqIdx + 1, len(trimmed))); /* Strip wrapping single or double quotes*/if len(value) > 1 {let first = slice(value, 0, 1); let last = slice(value, len(value) - 1, len(value)); if (first == "\"" && last == "\"") || (first == "'" && last == "'") {value = slice(value, 1, len(value) - 1)}}envMap[key] = value}}}}return envMap}

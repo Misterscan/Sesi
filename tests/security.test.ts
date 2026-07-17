@@ -117,6 +117,11 @@ async function main() {
       'fn handler(req) {}\nlisten(8080, handler)',
       'Security Violation: Native HTTP Server is disabled in safe mode.'
     );
+    await runExpectError(
+      'Block python run in safe mode',
+      'python("print(1)")',
+      'Security Violation: python is disabled in Sesi safe mode.'
+    );
   } finally {
     process.env.SESI_SAFE_MODE = 'false';
   }
@@ -141,6 +146,12 @@ async function main() {
     'Security Violation: Native HTTP Server is disabled in safe mode.',
     { safeMode: true }
   );
+  await runExpectError(
+    'Block python via static safeMode option (independent of env)',
+    'python("print(1)")',
+    'Security Violation: python is disabled in Sesi safe mode.',
+    { safeMode: true }
+  );
 
   // Test 6: Automated Tool Call Protection
   console.log('\n6. Testing LLM Automated Tool Call Safeguards');
@@ -154,6 +165,12 @@ async function main() {
     'Block automated LLM tool calls targeting spawn',
     'tool_call(spawn)("malicious.sesi")',
     'Security Violation: Automated execution of sensitive tool "spawn" is forbidden.',
+    { safeMode: false } // Even if safeMode is explicitly disabled!
+  );
+  await runExpectError(
+    'Block automated LLM tool calls targeting python',
+    'tool_call(python)("print(1)")',
+    'Security Violation: Automated execution of sensitive tool "python" is forbidden.',
     { safeMode: false } // Even if safeMode is explicitly disabled!
   );
   await runExpectError(

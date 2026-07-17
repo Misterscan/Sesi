@@ -139,7 +139,7 @@ prompt packageJson {"{
     \"decrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -dec\"
   },
   \"dependencies\": {
-    \"@misterscan/sesi\": \"1.6.3\"
+    \"@misterscan/sesi\": \"1.6.4\"
   },
     \"allowScripts\": {
     \"fsevents@2.3.2\": true,

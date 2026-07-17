@@ -1009,6 +1009,38 @@ print files
 
 ---
 
+### python(code, args) -> string
+
+Execute arbitrary Python code using python3 or python on the host system, and return its standard output. This function is disabled in Sesi safe mode.
+
+```sesi
+// Execute simple Python code:
+let output = python("print('Hello from Python!')")
+print output
+
+// Pass arguments to the Python environment:
+let customArgs = { "name": "Alice", "score": 98 }
+let out = python("
+import os, json
+# Retrieve structured variables from environment
+data = json.loads(os.environ['SESI_ARGS'])
+print('Hello, ' + data['name'] + '! Score is ' + str(data['score']))
+", customArgs)
+print out
+```
+
+**Parameters**:
+
+- `code` (`string`): The Python source code to execute.
+- `args` (`any`, optional): Optional argument data. If provided:
+  - It is serialized to JSON and stored in the child process environment variable `SESI_ARGS`.
+  - If `args` is an array, individual elements are stringified and passed as positional command-line arguments to the python script (available via `sys.argv[1:]`).
+  - Otherwise, the argument itself is stringified and passed as a single command-line argument.
+
+**Returns**: `string` (stdout of the Python process)
+
+---
+
 ### time() -> number
 
 Returns the current Unix timestamp in milliseconds.
@@ -1668,7 +1700,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.6.3"
+  "version": "1.6.4"
 }
 print Json.stringify(original)
 ```
