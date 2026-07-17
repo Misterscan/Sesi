@@ -845,29 +845,22 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         }
       }
 
-      try {
-        return execFileSync('python3', passArgs, {
-          input: code,
-          env: childEnv,
-          encoding: 'utf-8',
-        });
-      } catch (e: any) {
-        if (e.code === 'ENOENT') {
-          try {
-            return execFileSync('python', passArgs, {
-              input: code,
-              env: childEnv,
-              encoding: 'utf-8',
-            });
-          } catch (e2: any) {
-            if (e2.code === 'ENOENT') {
-              throw new Error('Python executable (python3 or python) not found in PATH.');
-            }
-            throw new Error(`Python execution failed: ${e2.stderr || e2.message}`);
-          }
+      const bins = ['python3', 'python', 'py'];
+      for (const bin of bins) {
+        try {
+          return execFileSync(bin, passArgs, {
+            input: code,
+            env: childEnv,
+            encoding: 'utf-8',
+          });
+        } catch (e: any) {
+          if (e.code === 'ENOENT') continue;
+          const output = (e.stderr || e.message || '').toString();
+          if (output.includes('Python was not found')) continue;
+          throw new Error(`Python execution failed: ${output}`);
         }
-        throw new Error(`Python execution failed: ${e.stderr || e.message}`);
       }
+      throw new Error('Python executable (python3, python, or py) not found or not installed.');
     },
   });
 
