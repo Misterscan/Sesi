@@ -62,12 +62,12 @@ export fn appendFile(path: str, content: str) -> bool {
     try {
       let existing = ""
       try {
-        existing = read_file(path)
+        existing = readFile(path)
       } catch (e) {}
       if len(existing) > 0 && !ends_with(existing, "\n") {
         existing = existing + "\n"
       }
-      write_file(path, existing + content)
+      writeFile(path, existing + content)
       success = true
     } catch (err) {
       attempts = attempts + 1

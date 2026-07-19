@@ -7,6 +7,8 @@
     npm run lint <filename>
 */
 
+allow "helpers/safe" in with Safe
+
 fn lex(content) {
   let tokens = []
   let chars = split(content, "")
@@ -718,6 +720,54 @@ fn audit_syntax(tokens) {
             }
           }
         }
+        if tok.lexeme == "python" {
+          let isDeclarationName = false
+          if i > 0 {
+            let prev = tokens[i-1]
+            if prev.type == "LET" { isDeclarationName = true }
+            if prev.type == "CONST" { isDeclarationName = true }
+          }
+          if isDeclarationName == false {
+            if i + 1 < n {
+              let next = tokens[i+1]
+              let looksLikeBareCall = false
+              if next.type == "STRING" { looksLikeBareCall = true }
+              if next.type == "NUMBER" { looksLikeBareCall = true }
+              if next.type == "IDENTIFIER" { looksLikeBareCall = true }
+              if next.type == "LEFT_BRACE" { looksLikeBareCall = true }
+              if next.type == "LEFT_BRACKET" { looksLikeBareCall = true }
+              if looksLikeBareCall {
+                if next.type != "LEFT_PAREN" {
+                  push(errors, {"line": line, "message": "Syntax Error: `python` is a builtin function, expected `(` instead of whitespace"})
+                }
+              }
+            }
+          }
+        }
+        if tok.lexeme == "js" {
+          let isDeclarationName = false
+          if i > 0 {
+            let prev = tokens[i-1]
+            if prev.type == "LET" { isDeclarationName = true }
+            if prev.type == "CONST" { isDeclarationName = true }
+          }
+          if isDeclarationName == false {
+            if i + 1 < n {
+              let next = tokens[i+1]
+              let looksLikeBareCall = false
+              if next.type == "STRING" { looksLikeBareCall = true }
+              if next.type == "NUMBER" { looksLikeBareCall = true }
+              if next.type == "IDENTIFIER" { looksLikeBareCall = true }
+              if next.type == "LEFT_BRACE" { looksLikeBareCall = true }
+              if next.type == "LEFT_BRACKET" { looksLikeBareCall = true }
+              if looksLikeBareCall {
+                if next.type != "LEFT_PAREN" {
+                  push(errors, {"line": line, "message": "Syntax Error: `js` is a builtin function, expected `(` instead of whitespace"})
+                }
+              }
+            }
+          }
+        }
         
         // Look for statement termination violations (let x = 1 let y = 2)
         if i + 1 < n {
@@ -741,6 +791,8 @@ fn audit_syntax(tokens) {
             if tok.lexeme == "trash" { isKeywordCall = true }
             if tok.lexeme == "rename" { isKeywordCall = true }
             if tok.lexeme == "archive" { isKeywordCall = true }
+            if tok.lexeme == "python" { isKeywordCall = true }
+            if tok.lexeme == "js" { isKeywordCall = true }
             
             if isKeywordCall == false {
               push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got '" + next.lexeme + "'"})
@@ -752,33 +804,31 @@ fn audit_syntax(tokens) {
 
     // Foreign language syntax detection in let-assigned string literals
     if type == "STRING" {
+      let isBuiltinCodeArg = false
+      if i >= 2 {
+        let callName = tokens[i-2]
+        let callParen = tokens[i-1]
+        if callName.type == "IDENTIFIER" {
+          if callParen.type == "LEFT_PAREN" {
+            if callName.lexeme == "python" { isBuiltinCodeArg = true }
+            if callName.lexeme == "js" { isBuiltinCodeArg = true }
+          }
+        }
+      }
       if i >= 3 {
-        let p1 = tokens[i-1]
-        let p2 = tokens[i-2]
-        let p3 = tokens[i-3]
-        if p1.type == "EQUAL" {
-          if p2.type == "IDENTIFIER" {
-            if p3.type == "LET" {
+        if isBuiltinCodeArg == false {
+          let p1 = tokens[i-1]
+          let p2 = tokens[i-2]
+          let p3 = tokens[i-3]
+          if p1.type == "EQUAL" {
+            if p2.type == "IDENTIFIER" {
+              if p3.type == "LET" {
               let val = tok.lexeme
               let foreignFound = false
               let foreignLang = ""
               let foreignPat = ""
 
-              // JavaScript / TypeScript
-              if foreignFound == false { let s = split(val, "console.log("); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript"; foreignPat = "console.log(" } }
-              if foreignFound == false { let s = split(val, "console.error("); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript"; foreignPat = "console.error(" } }
-              if foreignFound == false { let s = split(val, "console.warn("); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript"; foreignPat = "console.warn(" } }
-              if foreignFound == false { let s = split(val, "==="); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript"; foreignPat = "===" } }
-              if foreignFound == false { let s = split(val, "!=="); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript"; foreignPat = "!==" } }
-              if foreignFound == false { let s = split(val, "require("); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript/Node.js"; foreignPat = "require(" } }
-              if foreignFound == false { let s = split(val, "=> {"); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript/TypeScript"; foreignPat = "=>" } }
-              if foreignFound == false { let s = split(val, "=> ("); if len(s) > 1 { foreignFound = true; foreignLang = "JavaScript/TypeScript"; foreignPat = "=>" } }
-
-              // Python
-              if foreignFound == false { let s = split(val, "def "); if len(s) > 1 { foreignFound = true; foreignLang = "Python"; foreignPat = "def " } }
-              if foreignFound == false { let s = split(val, "elif "); if len(s) > 1 { foreignFound = true; foreignLang = "Python"; foreignPat = "elif " } }
-              if foreignFound == false { let s = split(val, "lambda "); if len(s) > 1 { foreignFound = true; foreignLang = "Python"; foreignPat = "lambda " } }
-              if foreignFound == false {let s = split(val, "print("); if len(s) > 1 { foreignFound = true; foreignLang = "Python"; foreignPat = "print()" } }
+              // JavaScript and Python are supported intentionally through js() and python().
 
               // Java / C#
               if foreignFound == false { let s = split(val, "public static"); if len(s) > 1 { foreignFound = true; foreignLang = "Java/C#"; foreignPat = "public static" } }
@@ -803,6 +853,7 @@ fn audit_syntax(tokens) {
               if foreignFound {
                 push(errors, {"line": line, "message": "Possible " + foreignLang + " syntax in string literal (`" + foreignPat + "`). Verify this is intentional — Sesi is not " + foreignLang + ".", "isWarning": true})
               }
+              }
             }
           }
         }
@@ -817,6 +868,61 @@ fn audit_syntax(tokens) {
   if braceDepth > 0 { push(errors, {"line": lastOpenBrace, "message": "Parser Mismatch: Unbalanced curly braces '{}'"}) }
   
   return errors
+}
+
+fn mask_string_segments(line, startInString) {
+  let chars = split(line, "")
+  let n = len(chars)
+  let i = 0
+  let inString = startInString
+  let quote = '"'
+  let masked = ""
+  
+  while i < n {
+    let c = chars[i]
+    
+    if inString {
+      if c == "\\" {
+        masked = masked + " "
+        i = i + 1
+        if i < n {
+          masked = masked + " "
+          i = i + 1
+        }
+        continue
+      }
+      if c == quote {
+        inString = false
+        masked = masked + " "
+        i = i + 1
+        continue
+      }
+      masked = masked + " "
+      i = i + 1
+      continue
+    }
+    
+    if c == '"' {
+      inString = true
+      quote = '"'
+      masked = masked + " "
+      i = i + 1
+      continue
+    }
+    
+    if c == "'" {
+      inString = true
+      quote = "'"
+      masked = masked + " "
+      i = i + 1
+      continue
+    }
+    
+    masked = masked + c
+    i = i + 1
+  }
+  
+  return {"line": masked, "inString": inString}
 }
 
 let targetFiles = []
@@ -891,7 +997,7 @@ for filePath in targetFiles {
   }
   
   try {
-    let content = read_file(filePath)
+    let content = Safe.readFile(filePath)
     let fileErrors = 0
     let fileWarnings = 0
     
@@ -916,34 +1022,58 @@ for filePath in targetFiles {
     let tryStartDepth = -1
     let fnStartDepth = -1
     let braceDepth = 0
+    let inSemanticString = false
     
     for line in lines {
       idx = idx + 1
+      let maskedLine = mask_string_segments(line, inSemanticString)
+      let auditLine = maskedLine["line"]
+      inSemanticString = maskedLine["inString"]
+      let doubleQuoteParts = split(auditLine, '"')
+      if len(doubleQuoteParts) > 1 {
+        auditLine = doubleQuoteParts[0]
+      }
+      let singleQuoteParts = split(auditLine, "'")
+      if len(singleQuoteParts) > 1 {
+        auditLine = singleQuoteParts[0]
+      }
+      let jsCodeCallParts = split(line, "js(")
+      if len(jsCodeCallParts) > 1 {
+        auditLine = ""
+      }
+      let pythonCodeCallParts = split(line, "python(")
+      if len(pythonCodeCallParts) > 1 {
+        auditLine = ""
+      }
+      let jsSuffixParts = split(line, "let suffix =")
+      if len(jsSuffixParts) > 1 {
+        auditLine = ""
+      }
       
       // Calculate scopes
       let openCount = len(split(line, "{")) - 1
       let closeCount = len(split(line, "}")) - 1
       
-      let fnSegs = split(line, "fn ")
+      let fnSegs = split(auditLine, "fn ")
       if len(fnSegs) > 1 { fnStartDepth = braceDepth }
       
-      let trySegs = split(line, "try ")
+      let trySegs = split(auditLine, "try ")
       if len(trySegs) > 1 { tryStartDepth = braceDepth }
       
       braceDepth = braceDepth + openCount - closeCount
       
       // Forbidden const
-      let constSegs = split(line, "const ")
+      let constSegs = split(auditLine, "const ")
       if len(constSegs) > 1 {
         report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Forbidden `const` keyword detected. Use `let` instead.\n"
         fileErrors = fileErrors + 1
       }
       
       // Unwrapped I/O
-      let writeSegs = split(line, "write_file(")
-      let readSegs = split(line, "read_file(")
-      let webGetSegs = split(line, "web_get(")
-      let webSendSegs = split(line, "web_send(")
+      let writeSegs = split(auditLine, "write_file(")
+      let readSegs = split(auditLine, "read_file(")
+      let webGetSegs = split(auditLine, "web_get(")
+      let webSendSegs = split(auditLine, "web_send(")
       if len(writeSegs) > 1 {
         if tryStartDepth == -1 {
           report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Unwrapped `write_file` call. Enclose in a try/catch block to prevent filesystem contention crashes.\n"
@@ -970,10 +1100,10 @@ for filePath in targetFiles {
       }
 
       // Risky / destructive operations
-      let trashSegs = split(line, "trash(")
-      let execSegs = split(line, "exec(")
-      let renameSegs = split(line, "rename(")
-      let archiveSegs = split(line, "archive(")
+      let trashSegs = split(auditLine, "trash(")
+      let execSegs = split(auditLine, "exec(")
+      let renameSegs = split(auditLine, "rename(")
+      let archiveSegs = split(auditLine, "archive(")
       if len(trashSegs) > 1 {
         if tryStartDepth == -1 {
           report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Unwrapped `trash()` call. This permanently deletes files/directories — always wrap in try/catch.\n"
@@ -1000,15 +1130,15 @@ for filePath in targetFiles {
       }
       
       // JSON Serialization
-      let stringifySegs = split(line, "stringify(")
+      let stringifySegs = split(auditLine, "stringify(")
       if len(stringifySegs) > 1 {
         report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Avoid `stringify()` for JSON. Use native `to_json()` instead.\n"
         fileWarnings = fileWarnings + 1
       }
       
       // Forbid main() wrappers
-      let mainSegs = split(line, "fn main(")
-      let mainCallSegs = split(line, "main()")
+      let mainSegs = split(auditLine, "fn main(")
+      let mainCallSegs = split(auditLine, "main()")
       if len(mainSegs) > 1 {
         report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Forbid `main()` wrappers. Sesi executes at top-level.\n"
         fileErrors = fileErrors + 1
@@ -1019,7 +1149,7 @@ for filePath in targetFiles {
       }
       
       // Top-level return
-      let returnSegs = split(line, "return ")
+      let returnSegs = split(auditLine, "return ")
       if len(returnSegs) > 1 {
         if fnStartDepth == -1 {
           report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Avoid top-level `return` statement; Sesi scripts execute at the top level.\n"
@@ -1044,10 +1174,10 @@ for filePath in targetFiles {
     }
     
     if fileErrors > 0 {
-      report = report + "* **Errors:** " + str(fileErrors) + " 🔴\n"
+      report = report + "* **Errors:** " + str(fileErrors) + "\n"
     }
     if fileWarnings > 0 {
-      report = report + "* **Warnings:** " + str(fileWarnings) + " ⚠️\n"
+      report = report + "* **Warnings:** " + str(fileWarnings) + "\n"
     }
     report = report + "\n"
     
@@ -1058,11 +1188,13 @@ for filePath in targetFiles {
   }
 }
 
+allow "std/terminal" in with {color}
+
 if isSingleFile {
   print report
   print "Summary:"
-  print "  Errors: " totalErrors " 🔴"
-  print "  Warnings: " totalWarnings " ⚠️"
+  print color("  Errors: ", "red") + color(str(totalErrors), "red")
+  print color("  Warnings: ", "yellow") + color(str(totalWarnings), "yellow")
 } else {
   report = report + "### Workspace Summary\n\n"
   report = report + "* **Total Sesi Files Audited:** " + str(len(targetFiles)) + "\n"
@@ -1070,12 +1202,13 @@ if isSingleFile {
   report = report + "* **Total Warnings:** " + str(totalWarnings) + " ⚠️\n"
   
   try {
-    let success = write_file("lint_report.md", report)
+    let success = Safe.writeFile("lint_report.md", report)
     if success {
-      print "✓ Workspace audit completed."
-      print "✓ Report compiled programmatically to lint_report.md"
+      print color("✓ Workspace audit completed.", "green")
+      print color("✓ Report compiled.", "green") 
+      print color("\n⚠ Please open", "yellow") color("'lint_report.md'", "cyan") color("to review.", "yellow")
     }
   } catch (e) {
-    print "Failed to compile report:" e
+    print color("Failed to compile report:" + str(e), "red")
   }
 }
