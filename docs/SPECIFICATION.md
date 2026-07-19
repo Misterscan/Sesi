@@ -1,4 +1,4 @@
-# Sesi Language Specification (v1.5)
+# Sesi Language Specification
 
 ## 1. Philosophy & Design Principles
 
@@ -27,7 +27,7 @@ Sesi is built on these core principles:
 - Quickly orchestrating shell commands
 - Rapid prototyping and scripting
 
-## 3. V1.5 Feature Set (Current)
+## 3. Feature Set
 
 ### Core Language Features
 
@@ -316,7 +316,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.4\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.5\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 

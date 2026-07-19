@@ -765,7 +765,7 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'python', 'time', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
+        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'python', 'time', 'env', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
         'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float',
         'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null', 'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
         // Audio & Theory
@@ -1029,7 +1029,7 @@ function activate(context) {
             signature: 'structured_output(schema)(expression)',
             source: 'Serialization Standard Library',
             description: 'Creates strongly typed, schema-validated structured data from the result of any Sesi expression.',
-            example: 'let rawJson = "{\\"projectName\\": \\"Sesi\\", \\"version\\": \\"1.3.0\\"}"\nlet parsed = structured_output({projectName: string, version: string})(rawJson)'
+            example: 'let rawJson = "{\\"projectName\\": \\"Sesi\\", \\"version\\": \\"1.6.5\\"}"\nlet parsed = structured_output({projectName: string, version: string})(rawJson)'
         },
         'prompt': {
             signature: 'prompt { ... }',
@@ -1684,6 +1684,12 @@ function activate(context) {
             source: 'Array Functions',
             description: 'Returns a new array with all sub-array elements concatenated into it recursively up to one level.',
             example: 'print flatten([[1, 2], [3, 4]])'
+        },
+        'env': {
+            signature: 'env(key = null, defaultValue = null)',
+            source: 'System Functions Standard Library',
+            description: 'Retrieve the value of an environment variable, or retrieve all environment variables as an object.',
+            example: 'let apiKey = env("GEMINI_API_KEY")\nlet port = env("PORT", "8080")\nlet allEnvs = env()'
         }
     };
 

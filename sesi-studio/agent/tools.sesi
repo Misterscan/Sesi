@@ -9,8 +9,7 @@ SESI_ROOT = split(SESI_ROOT, "\n")[0]
 
 if SESI_ROOT == "" {
   try {
-    SESI_ROOT = Safe.wsRoot
-    SESI_ROOT = split(SESI_ROOT, "\n")[0]
+    SESI_ROOT = env("PWD")
   } catch (e) {}
 }
 

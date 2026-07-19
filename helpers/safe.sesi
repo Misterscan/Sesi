@@ -1,18 +1,95 @@
 /*
     Safe File Access
-    File operations wrapped in try-catch blocks to prevent crashes and global variables.
+   Resilient file operations wrapped in try-catch blocks with retry logic to prevent crashes.
 */
-export fn readFile(path: str) -> str? {try {let content = read_file(path); return content} catch (err) {print "Failed to read file at:" path; print "Details:" err; return null}}
-export fn writeFile(path: str, content: str) {try {write_file(path, content)} catch (err) {print "Failed to write to file at:" path; print "Details:" err}}
-export fn writeImage(path: str, content: str) {try {write_image(path, content)} catch (err) {print "Failed to write image to file at:" path; print "Details:" err}}
-export fn appendFile(path: str, content: str) {try {let existing = ""; try {existing = read_file(path)} catch (e) {}if len(existing) > 0 {if !ends_with(existing, "\n") {existing = existing + "\n"}}write_file(path, existing + content)} catch (err) {}}
-export fn moveFile(path: str, dest: str) {try {rename(path, dest)} catch (err) {print "Failed to move file at:" path; print "Details:" err}}
 
-// Get working directory
-let pwd = ""; try {pwd = exec("cd")} catch (e) {} if pwd == null || trim(pwd) == "" {try {pwd = exec("pwd")} catch (e) {}}
-export let wsRoot = trim(pwd) + "/"
-let envText = readFile(wsRoot + ".env")
+allow "std/time" in with Time
 
-// Parser to convert raw env string to a key-value object
-fn parseEnv(envText: string) -> object {let lines = split(envText, "\n"); let envMap = {}for line in lines {let trimmed = trim(line); if len(trimmed) > 0 {/* Skip comments*/if slice(trimmed, 0, 1) != "#" {let eqIdx = locate(trimmed, "="); if eqIdx > 0 {let key = trim(slice(trimmed, 0, eqIdx)); let value = trim(slice(trimmed, eqIdx + 1, len(trimmed))); /* Strip wrapping single or double quotes*/if len(value) > 1 {let first = slice(value, 0, 1); let last = slice(value, len(value) - 1, len(value)); if (first == "\"" && last == "\"") || (first == "'" && last == "'") {value = slice(value, 1, len(value) - 1)}}envMap[key] = value}}}}return envMap}
-export let env = parseEnv(envText)
+// Resilience Helper: Safe file read with retry logic
+export fn readFile(path: string) -> string {
+  let result = ""
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      result = read_file(path)
+      success = true
+    } catch (err) {
+      attempts = attempts + 1
+      Time.sleep(100)
+    }
+  }
+  return result
+}
+
+// Resilience Helper: Safe file write with retry logic
+export fn writeFile(path: string, content: string) -> bool {
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      write_file(path, content)
+      success = true
+    } catch (err) {
+      attempts = attempts + 1
+      Time.sleep(100)
+    }
+  }
+  return success
+}
+
+// Resilience Helper: Safe file write with retry logic
+export fn writeImage(path: str, content: str) -> bool {
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      write_image(path, content)
+      success = true
+    } catch (err) {
+      attempts = attempts + 1
+      Time.sleep(100)
+    }
+  }
+  return success
+}
+
+// Resilience Helper: Safe file append with retry logic
+export fn appendFile(path: str, content: str) -> bool {
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      let existing = ""
+      try {
+        existing = read_file(path)
+      } catch (e) {}
+      if len(existing) > 0 && !ends_with(existing, "\n") {
+        existing = existing + "\n"
+      }
+      write_file(path, existing + content)
+      success = true
+    } catch (err) {
+      attempts = attempts + 1
+      Time.sleep(100)
+    }
+  }
+  return success
+}
+
+// Resilience Helper: Safe file move with retry logic
+export fn moveFile(path: str, dest: str) -> bool {
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      rename(path, dest)
+      success = true
+    } catch (err) {
+      attempts = attempts + 1
+      Time.sleep(100)
+    }
+  }
+  return success
+}
+

@@ -21,9 +21,9 @@ allow "std/terminal" in with {color}
 fn isFile(fileName) {
     let hasExt = includes(fileName, ".")
     let isBinJS = ends_with(fileName, ".js")
-    let isDocsMD = ends_with(fileName, ".md")
-    let isRootMDOrSesi = ends_with(fileName, ".md") || ends_with(fileName, ".sesi")
-    if hasExt && (isBinJS || isDocsMD || isRootMDOrSesi) {
+    let isMD = ends_with(fileName, ".md")
+    let isSesi = ends_with(fileName, ".sesi")
+    if hasExt && (isBinJS || isMD || isSesi) {
         return true
     } else {
         return false
@@ -34,6 +34,7 @@ let srcDir1 = list_dir("bin")
 let binFiles = []
 for file in srcDir1 {
     if isFile(file) {
+        file = "bin/" + file
         push(binFiles, file)
     }
 }
@@ -42,6 +43,7 @@ let srcDir2 = list_dir("docs")
 let docsFiles = []
 for file in srcDir2 {
     if isFile(file) {
+        file = "docs/" + file
         push(docsFiles, file)
     }
 }
@@ -58,17 +60,18 @@ let exampleDir = list_dir("examples/main")
 let exampleFiles = []
 for file in exampleDir {
     if isFile(file) {
+        file = "examples/main/" + file
         push(exampleFiles, file)
     }
 }
 
-print "srcDir1:
+print "binFiles:
 " color(binFiles, "cyan") "
 "
-print "srcDir2:
+print "docsFiles:
 " color(docsFiles, "cyan") "
 "
-print "rootDir:
+print "rootFiles:
 " color(rootFiles, "cyan") "
 "
 print "exampleFiles:
@@ -100,8 +103,15 @@ let v = getVersionFromFile(pkgJSON)
 
 print "Current version:" color(v, "green")
 print ""
-let fromVar = input("Enter version to swap from: ")
-let toVar = input("Enter version to swap to: ")
+let fromVar = v
+let toVar = ""
+let customSwap = args[0]
+if customSwap == "--custom" {
+    fromVar = input("Enter version/text to swap from: ")
+    toVar = input("Enter version/text to swap to: ")
+} else {
+    toVar = input("Enter version to swap to: ")
+}
 print "================"
 print color("Starting swap...", "green")
 print "================"
@@ -113,16 +123,10 @@ Safe.writeFile(pkgJSON, newPkgJSON)
 print "Swapped" v "to" toVar "in" pkgJSON
 print ""
 
-for file in srcDir1 {
+for file in binFiles {
     try {
-        let contents = ""
-        if ends_with(file, ".js") {
-            file = "bin/" + file
-            contents = Safe.readFile(file)
-            print "Successfully loaded" file
-        } else {
-            continue
-        }
+        let contents = Safe.readFile(file)
+        print "Successfully loaded" file
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
@@ -135,20 +139,14 @@ for file in srcDir1 {
             print ""
         }
     } catch(e) {
-        print "An error occured:" color(e, "red")
+        print "An error occured:" color(str(e), "red")
     }
 }
 
-for file in srcDir2 {
+for file in docsFiles {
     try {
-        file = "docs/" + file
-        let contents = ""
-        if ends_with(file, ".md") {
-            contents = Safe.readFile(file)
-            print "Successfully loaded" file
-        } else {
-            continue
-        }
+        let contents = Safe.readFile(file)
+        print "Successfully loaded" file
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
@@ -161,20 +159,14 @@ for file in srcDir2 {
             print ""
         }
     } catch(e) {
-        print "An error occured:" color(e, "red")
+        print "An error occured:" color(str(e), "red")
     }
 }
 
-for file in rootDir {
+for file in rootFiles {
     try {
-        let contents = ""
-        if ends_with(file, ".md") || ends_with(file, ".sesi") {
-            file = "./" + file
-            contents = Safe.readFile(file)
-            print "Successfully loaded" file
-        } else {
-            continue
-        }
+        let contents = Safe.readFile(file)
+        print "Successfully loaded" file
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
@@ -187,20 +179,14 @@ for file in rootDir {
             print ""
         }
     } catch(e) {
-        print "An error occured:" color(e, "red")
+        print "An error occured:" color(str(e), "red")
     }
 }
 
 for file in exampleFiles {
     try {
-        let contents = ""
-        if ends_with(file, ".sesi") {
-            file = "examples/main/" + file
-            contents = Safe.readFile(file)
-            print "Successfully loaded" file
-        } else {
-            continue
-        }
+        let contents = Safe.readFile(file)
+        print "Successfully loaded" file
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
@@ -213,7 +199,7 @@ for file in exampleFiles {
             print ""
         }
     } catch(e) {
-        print "An error occured:" color(e, "red")
+        print "An error occured:" color(str(e), "red")
     }
 }
 

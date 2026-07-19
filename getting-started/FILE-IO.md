@@ -146,6 +146,17 @@ try {
 }
 ```
 
+### Environment-based Paths
+
+You can use the `env()` function to retrieve environment variables (like `HOME` or `USERPROFILE`) to dynamicize path selection. Note that if these paths lie outside the project sandbox directory, they will still trigger security violations unless Sesi is run in local filesystem mode (e.g. `sesi -l`) or if the `SESI_SAFE_MODE` environment variable is set to `false`:
+
+```sesi
+let homeDir = env("HOME", env("USERPROFILE"))
+if homeDir != null {
+  print "User home directory: " homeDir
+}
+```
+
 ---
 
 ## Quick Reference

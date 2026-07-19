@@ -884,6 +884,38 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (): RuntimeValue => Math.random(),
   });
 
+  builtins.set('env', {
+    type: 'function',
+    name: 'env',
+    params: [
+      { name: 'key', defaultValue: null as any },
+      { name: 'defaultValue', defaultValue: null as any }
+    ],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (...args: RuntimeValue[]): RuntimeValue => {
+      const [key, defaultValue] = args;
+      if (key === undefined || key === null) {
+        const cleanObj = Object.create(null);
+        for (const [k, v] of Object.entries(process.env)) {
+          if (v !== undefined) {
+            cleanObj[k] = v;
+          }
+        }
+        return cleanObj;
+      }
+      if (typeof key !== 'string') {
+        throw new Error('env expects a string key as the first argument: env(key, defaultValue?)');
+      }
+      const val = process.env[key];
+      if (val === undefined) {
+        return defaultValue !== undefined && defaultValue !== null ? defaultValue : null;
+      }
+      return val;
+    },
+  });
+
   builtins.set('memory_search', {
     type: 'function',
     name: 'memory_search',

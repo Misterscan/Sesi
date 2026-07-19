@@ -3,6 +3,8 @@
   Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries! 
 */
 
+allow "helpers/safe" in with Safe
+
 /* 
   ==================================================
   💬 1. CHOOSE YOUR ADVANCED TECHNICAL QUERY HERE!
@@ -15,7 +17,7 @@ if len(args) > 0 {
   queryText = args[0]
   if len(args) > 1 {
     try {
-      fileContext = "File: " + args[1] + "\n\n" + read_file(args[1])
+      fileContext = "File: " + args[1] + "\n\n" + Safe.readFile(args[1])
     } catch (e) {}
   }
 } else {
@@ -207,7 +209,7 @@ let database = []
 let num_classes = 0
 
 try {
-  let raw = read_file(trained_model_path)
+  let raw = Safe.readFile(trained_model_path)
   let brain = from_json(raw)
   weights = brain["weights"]
   biases = brain["biases"]
@@ -258,21 +260,18 @@ try {
     let sesiDocs = ""
     for f_name in docs_list {
       try {
-        let doc_content = read_file("getting-started/" + f_name)
+        let doc_content = Safe.readFile("getting-started/" + f_name)
         sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
       } catch (e) {}
     }
     
     let skills = ""
     try {
-      skills = read_file(".agents/skills/SKILLS.md")
-    } catch (e) {
-      try {
-        skills = read_file("docs/SKILLS.md")
-      } catch (e) {
-        print "Error reading SKILLS.md:" e
-      }
-    }
+      skills = Safe.readFile(".agents/skills/SKILLS.md")
+    } catch (e) {}
+    try {
+      skills = Safe.readFile("docs/SKILLS.md")
+    } catch (e) {}
 
     prompt instructions {"Instructions: 
     "  skills " 
@@ -335,9 +334,7 @@ try {
     
     let helpResponse = false
     try {
-      helpResponse = write_file("help_response.md", "# Help Response:\n\n" + generated_response)
-    } catch (e) {
-      print "Error writing help_response.md:" e
-    }
+      helpResponse = Safe.writeFile("help_response.md", "# Help Response:\n\n" + generated_response)
+    } catch (e) {}
     print "The Sesi Co-Pilot has provided a response to your question. Check help_response.md"
   }

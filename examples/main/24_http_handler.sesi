@@ -23,7 +23,7 @@ export fn handleRequest(req) {
       "status": 200,
       "body": {
         "language": "Sesi",
-        "version": "1.6.4",
+        "version": "1.6.5",
         "features": ["async/await", "native HTTP server", "structured output", "tool calls", "live reload"]
       }
     }

@@ -12,39 +12,7 @@
 */
 
 allow "std/time" in with Time
-
-// Resilience Helper: Safe file write with retry logic
-fn safe_write(path: string, content: string) -> bool {
-  let success = false
-  let attempts = 0
-  while !success && attempts < 3 {
-    try {
-      write_file(path, content)
-      success = true
-    } catch (err) {
-      attempts = attempts + 1
-      Time.sleep(100)
-    }
-  }
-  return success
-}
-
-// Resilience Helper: Safe file read with retry logic
-fn safe_read(path: string) -> string {
-  let result = ""
-  let success = false
-  let attempts = 0
-  while !success && attempts < 3 {
-    try {
-      result = read_file(path)
-      success = true
-    } catch (err) {
-      attempts = attempts + 1
-      Time.sleep(100)
-    }
-  }
-  return result
-}
+allow "helpers/safe" in with Safe
 
 // Parse target folder name
 let target = "my-sesi-app"
@@ -139,7 +107,7 @@ prompt packageJson {"{
     \"decrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -dec\"
   },
   \"dependencies\": {
-    \"@misterscan/sesi\": \"1.6.4\"
+    \"@misterscan/sesi\": \"1.6.5\"
   },
     \"allowScripts\": {
     \"fsevents@2.3.2\": true,
@@ -148,7 +116,7 @@ prompt packageJson {"{
   }
 }"}
 
-if safe_write(target + "/package.json", packageJson) {
+if Safe.writeFile(target + "/package.json", packageJson) {
   print "✓ Generated package.json"
 } else {
   print "⚠️ Failed to generate package.json"
@@ -162,7 +130,7 @@ dist/
 .sesi_cache.json
 "}
 
-if safe_write(target + "/.gitignore", gitIgnore) {
+if Safe.writeFile(target + "/.gitignore", gitIgnore) {
   print "✓ Generated .gitignore"
 } else {
   print "⚠️ Failed to generate .gitignore"
@@ -179,7 +147,7 @@ prompt mainSesi {'/*
 
 // 1. Variables and Types
 let language = "Sesi"
-let version = "1.6"
+let version = "1.6.5"
 let features = ["Reasoning", "Embedded DB", "SVG Drawing", "Audio Synthesis", "Browser Integration"]
 
 print "Welcome to" language "version" version "!"
@@ -240,7 +208,7 @@ page.pdf({"path": "output.pdf", "format": "A4"})
 
 browser.close()'}
 
-if safe_write(target + "/main.sesi", mainSesi) {
+if Safe.writeFile(target + "/main.sesi", mainSesi) {
   print "✓ Generated main.sesi"
 } else {
   print "⚠️ Failed to generate main.sesi"
@@ -292,16 +260,16 @@ npm run decrypt <filename>
 ```
 "}
 
-if safe_write(target + "/README.md", readMe) {
+if Safe.writeFile(target + "/README.md", readMe) {
   print "✓ Generated README.md"
 } else {
   print "⚠️ Failed to generate README.md"
 }
 
 // Copy GUIDE.md to target/GUIDE.md
-let guideContent = safe_read("GUIDE.md")
+let guideContent = Safe.readFile("GUIDE.md")
 if len(guideContent) > 0 {
-  if safe_write(target + "/GUIDE.md", guideContent) {
+  if Safe.writeFile(target + "/GUIDE.md", guideContent) {
     print "✓ Copied GUIDE.md"
   } else {
     print "⚠️ Failed to copy GUIDE.md"
@@ -388,7 +356,7 @@ For all quirks and specific syntaxing, visit GUIDE.md/, dist/, node_modules/@mis
 - `*.log`
 - `.sesi_cache.json`'}
 
-if safe_write(rulesDir + "/sesi-must-read.md", sesiMustReadRules) {
+if Safe.writeFile(rulesDir + "/sesi-must-read.md", sesiMustReadRules) {
   print "✓ Generated .agents/rules/sesi-must-read.md"
 } else {
   print "⚠️ Failed to generate .agents/rules/sesi-must-read.md"
@@ -454,7 +422,7 @@ When AI agents write or edit `.sesi` scripts, they must use this debugging loop:
 
 8. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run eval ""sesi code""` or `node node_modules/@misterscan/sesi/bin/sesi.js -e ""...""`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.'}
 
-if safe_write(workflowsDir + "/create-sesi-script.md", createSesiScript) {
+if Safe.writeFile(workflowsDir + "/create-sesi-script.md", createSesiScript) {
   print "✓ Generated .agents/workflows/create-sesi-script.md"
 } else {
   print "⚠️ Failed to generate .agents/workflows/create-sesi-script.md"
@@ -487,7 +455,7 @@ description: Debugging and validation of error prone sesi scripts.
 
 _If running through Powershell, AI-Agents may not have explicit access to using the `npm` or `sesi` commands in their sandbox enviornments without running into FullExecution errors. In this case, use `node node_modules/@misterscan/sesi/bin/sesi.js <file> <option>` in replacement of `npm run sesi`._'}
 
-if safe_write(workflowsDir + "/fix-sesi-script.md", fixSesiScript) {
+if Safe.writeFile(workflowsDir + "/fix-sesi-script.md", fixSesiScript) {
   print "✓ Generated .agents/workflows/fix-sesi-script.md"
 } else {
   print "⚠️ Failed to generate .agents/workflows/fix-sesi-script.md"
@@ -500,7 +468,7 @@ prompt envExample {"# Copy this file into your own .env file and then run `doten
 GEMINI_API_KEY=your-api-key-here
 SESI_PASSWORD=your-password-here"}
 
-if safe_write(target + "/env.example", envExample) {
+if Safe.writeFile(target + "/env.example", envExample) {
   print "✓ Generated env.example"
 } else {
   print "⚠️ Failed to generate env.example"
@@ -508,10 +476,10 @@ if safe_write(target + "/env.example", envExample) {
 
 // Copy sesi-db-chatbot and all its .json files from sesi-db directory into the target folder.
 
-let dbChatbotContent = safe_read("chatbot/sesi_db_chatbot.sesi")
+let dbChatbotContent = Safe.readFile("chatbot/sesi_db_chatbot.sesi")
 if len(dbChatbotContent) > 0 {
   let dbChatbotDest = target + "/chatbot/sesi_db_chatbot.sesi"
-  if safe_write(dbChatbotDest, dbChatbotContent) {
+  if Safe.writeFile(dbChatbotDest, dbChatbotContent) {
     print "✓ Copied sesi-db-chatbot to chatbot/sesi_db_chatbot.sesi"
   } else {
     print "⚠️ Failed to write sesi-db-chatbot"
@@ -522,10 +490,10 @@ if len(dbChatbotContent) > 0 {
 
 let dbFiles = ["trained_brain.json"]
 for file in dbFiles {
-  let fileContent = safe_read("sesi-db/" + file)
+  let fileContent = Safe.readFile("sesi-db/" + file)
   if len(fileContent) > 0 {
     let fileDest = target + "/sesi-db/" + file
-    if safe_write(fileDest, fileContent) {
+    if Safe.writeFile(fileDest, fileContent) {
       print "✓ Copied" file "to sesi-db/" file
     } else {
       print "⚠️ Failed to write" file
@@ -536,10 +504,10 @@ for file in dbFiles {
 }
 
 // Copy lint.sesi into target/lint.sesi
-let lintContent = safe_read("bin/lint.sesi")
+let lintContent = Safe.readFile("bin/lint.sesi")
 if len(lintContent) > 0 {
   let lintDest = target + "/bin/lint.sesi"
-  if safe_write(lintDest, lintContent) {
+  if Safe.writeFile(lintDest, lintContent) {
     print "✓ Copied bin/lint.sesi to:" target "/bin/lint.sesi"
   } else {
     print "⚠️ Failed to write bin/lint.sesi"
@@ -552,10 +520,10 @@ if len(lintContent) > 0 {
 try {
   let examplesMainContent = list_dir(srcExamplesMainDir)
   for file in examplesMainContent {
-    let fileContent = safe_read(srcExamplesMainDir + "/" + file)
+    let fileContent = Safe.readFile(srcExamplesMainDir + "/" + file)
     if len(fileContent) > 0 {
       let fileDest = examplesMainDir + "/" + file
-      if safe_write(fileDest, fileContent) {
+      if Safe.writeFile(fileDest, fileContent) {
         print "✓ Copied" file "to" examplesMainDir "/" file
       } else {
         print "⚠️ Failed to write" file
@@ -571,10 +539,10 @@ try {
 try {
   let examplesOptionalContent = list_dir(srcExamplesOptionalDir)
   for file in examplesOptionalContent {
-    let fileContent = safe_read(srcExamplesOptionalDir + "/" + file)
+    let fileContent = Safe.readFile(srcExamplesOptionalDir + "/" + file)
     if len(fileContent) > 0 {
       let fileDest = examplesOptionalDir + "/" + file
-      if safe_write(fileDest, fileContent) {
+      if Safe.writeFile(fileDest, fileContent) {
         print "✓ Copied" file "to" examplesOptionalDir "/" file
       } else {
         print "⚠️ Failed to write" file
@@ -588,10 +556,10 @@ try {
 }
 
 // Copy test-runner.sesi to target/test-runner.sesi
-let testRunnerContent = safe_read("bin/test-runner.sesi")
+let testRunnerContent = Safe.readFile("bin/test-runner.sesi")
 if len(testRunnerContent) > 0 {
   let testRunnerDest = target + "/bin/test-runner.sesi"
-  if safe_write(testRunnerDest, testRunnerContent) {
+  if Safe.writeFile(testRunnerDest, testRunnerContent) {
     print "✓ Copied bin/test-runner.sesi to:" target "/bin/test-runner.sesi"
   } else {
     print "⚠️ Failed to write bin/test-runner.sesi"
@@ -604,10 +572,10 @@ if len(testRunnerContent) > 0 {
 try {
   let gettingStartedContent = list_dir(srcGettingStartedDir)
   for file in gettingStartedContent {
-    let fileContent = safe_read(srcGettingStartedDir + "/" + file)
+    let fileContent = Safe.readFile(srcGettingStartedDir + "/" + file)
     if len(fileContent) > 0 {
       let fileDest = gettingStartedDir + "/" + file
-      if safe_write(fileDest, fileContent) {
+      if Safe.writeFile(fileDest, fileContent) {
         print "✓ Copied" file "to getting-started/" file
       } else {
         print "⚠️ Failed to write" file
@@ -624,10 +592,10 @@ try {
 try {
   let gettingStartedOptionalContent = list_dir(srcGettingStartedOptionalDir)
   for file in gettingStartedOptionalContent {
-    let fileContent = safe_read(srcGettingStartedOptionalDir + "/" + file)
+    let fileContent = Safe.readFile(srcGettingStartedOptionalDir + "/" + file)
     if len(fileContent) > 0 {
       let fileDest = gettingStartedOptionalDir + "/" + file
-      if safe_write(fileDest, fileContent) {
+      if Safe.writeFile(fileDest, fileContent) {
         print "✓ Copied" file "to" gettingStartedOptionalDir "/" file
       } else {
         print "⚠️ Failed to write" file
@@ -644,10 +612,10 @@ try {
 try {
   let helpersContent = list_dir(srcHelpersDir)
   for file in helpersContent {
-    let fileContent = safe_read(srcHelpersDir + "/" + file)
+    let fileContent = Safe.readFile(srcHelpersDir + "/" + file)
     if len(fileContent) > 0 {
       let fileDest = helpersDir + "/" + file
-      if safe_write(fileDest, fileContent) {
+      if Safe.writeFile(fileDest, fileContent) {
         print "✓ Copied" file "to" helpersDir "/" file
       } else {
         print "⚠️ Failed to write" file
@@ -671,12 +639,12 @@ if len(args) > 1 {
 }
 
 if len(specifiedFile) > 0 {
-  let specifiedFileContent = safe_read(specifiedFile)
+  let specifiedFileContent = Safe.readFile(specifiedFile)
   if len(specifiedFileContent) > 0 {
     let fileParts = split(specifiedFile, "/")
     let filename = fileParts[len(fileParts) - 1]
     let specifiedFileDest = target + "/" + filename
-    if safe_write(specifiedFileDest, specifiedFileContent) {
+    if Safe.writeFile(specifiedFileDest, specifiedFileContent) {
       print "✓ Copied" filename "to" specifiedFileDest
     } else {
       print "⚠️ Failed to write" filename

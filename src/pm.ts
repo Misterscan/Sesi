@@ -10,7 +10,7 @@ function downloadFile(url: string, dest: string): Promise<void> {
     function get(targetUrl: string) {
       const options = {
         headers: {
-          'User-Agent': 'Sesi-PackageManager/1.6.2'
+          'User-Agent': 'Sesi-PackageManager/1.6.5'
         }
       };
 

@@ -15,7 +15,7 @@ Place string literals and variable names sequentially inside the braces. Sesi jo
 
 ```sesi
 let name    = "Ada"
-let version = "2.0"
+let version = "1.6.5"
 
 prompt header {"Welcome to Sesi" version ". Hello," name}
 ```

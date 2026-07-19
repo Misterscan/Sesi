@@ -345,7 +345,7 @@ Objects are useful for configuration and structured records.
 ```sesi
 let app = {
   "name": "Sesi",
-  "version": "1.6.4"
+  "version": "1.6.5"
 }
 
 for key in keys(app) {
@@ -549,7 +549,33 @@ Treat `-l` as an explicit trust boundary. Use it for your own scripts, not for c
 
 ---
 
-## 15. Parallel Work
+## 15. Working with Environment Variables
+
+Use `env()` to retrieve the value of system environment variables. This is particularly useful for loading dynamic settings, credentials, or custom runtime flags.
+
+- Calling `env()` with no arguments returns an object containing all process environment variables.
+- Calling `env(key)` returns the value of a specific environment variable, or `null` if it is not defined.
+- Calling `env(key, defaultValue)` returns the value of the environment variable if it exists, or `defaultValue` if it is not defined.
+
+```sesi
+// Load a configuration or API key with a fallback
+let apiKey = env("GEMINI_API_KEY")
+let serverPort = env("PORT", "3000")
+
+if apiKey == null {
+  print "Warning: GEMINI_API_KEY is not set"
+}
+
+print "Server starting on port:" serverPort
+
+// Retrieve all environment variables
+let allVars = env()
+print "USER environment variable:" allVars["USER"]
+```
+
+---
+
+## 16. Parallel Work
 
 Use `multi_req` to run multiple Sesi functions at the same time and collect their results.
 
@@ -571,7 +597,7 @@ This pattern is useful for independent API calls, independent checks, or work th
 
 ---
 
-## 16. Optional Reasoning in Scripts
+## 17. Optional Reasoning in Scripts
 
 Reasoning is optional. Use it when a task benefits from classification, summarization, extraction, or generation.
 
@@ -654,7 +680,7 @@ Reasoning calls require a configured provider key, such as `GEMINI_API_KEY`, whe
 
 ---
 
-## 17. Modules and Reuse
+## 18. Modules and Reuse
 
 Split larger scripts into modules with `export` and `allow ... in with ...`.
 
@@ -712,7 +738,7 @@ allow "std/json" in with {
 }
 let original = {
   "project": "Sesi",
-  "version": "1.6.4"
+  "version": "1.6.5"
 }
 print stringify(original)
 ```
@@ -721,7 +747,7 @@ Module resolution also supports configured library paths through `SESI_PATH` and
 
 ---
 
-## 18. Debugging Scripts
+## 19. Debugging Scripts
 
 Start with a dry run when you only want to check syntax.
 
@@ -763,7 +789,7 @@ print "value length:" len(value)
 
 ---
 
-## 19. Encrypting Scripts
+## 20. Encrypting Scripts
 
 For encrypted private scripts, use the CLI encryption commands documented in the CLI reference.
 
@@ -776,7 +802,7 @@ You can set `SESI_PASSWORD` in your environment to avoid passing a password dire
 
 ---
 
-## 20. Interactive Input
+## 21. Interactive Input
 
 Sesi provides the `input(prompt)` built-in function to query the user for data sequentially from standard input. This is useful for interactive command-line utilities.
 
@@ -801,7 +827,7 @@ print "Processing query:" queryText
 
 ---
 
-## 21. Complete Example: Daily Folder Report
+## 22. Complete Example: Daily Folder Report
 
 This script accepts a folder path (falling back to interactive input if omitted), lists the files robustly using retries, writes a JSON report, and streams a summary using the AI model.
 
@@ -861,7 +887,7 @@ try {
 
 ---
 
-## 22. Practical Checklist
+## 23. Practical Checklist
 
 When writing a Sesi script, check these points before you call it done:
 

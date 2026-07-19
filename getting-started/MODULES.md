@@ -123,9 +123,11 @@ To track dependencies, Sesi uses a simple `sesi.json` file in the root of your p
 ### Installation Commands
 
 - **Install a specific package**:
+
   ```bash
   sesi install github:owner/repo[#ref]
   ```
+
   This downloads the package from GitHub, extracts it to `sesi_modules/repo`, and registers it inside `sesi.json`. You can specify branch names, tag names, or commit hashes using `#ref`.
 
 - **Restore all dependencies**:
@@ -137,6 +139,7 @@ To track dependencies, Sesi uses a simple `sesi.json` file in the root of your p
 ### Directory Modules & Entry Points
 
 When you import a third-party package folder (e.g. `allow "repo" in with Repo`), Sesi automatically resolves the module's entry point. It checks the directory for:
+
 1. `sesi_modules/<package-name>/index.sesi`
 2. `sesi_modules/<package-name>/main.sesi`
 
@@ -184,7 +187,7 @@ $env:SESI_PATH = "C:\MyLibs\shared;C:\Projects\common"
 ```sesi
 // Export
 export fn greet(name) { print "Hello," name }
-export let VERSION = "2.0"
+export let VERSION = "1.6.5"
 
 // import (named)
 import { greet, VERSION } from "mymodule"

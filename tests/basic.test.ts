@@ -92,6 +92,9 @@ async function main() {
   await runTest('String function', 'let s = str(42)');
   await runTest('Number function', 'let n = num("42")');
   await runTest('Range function', 'let arr = range(5)');
+  await runTest('Env function retrieve all', 'let envs = env()\nif type(envs) != "object" { let err = missing_var }');
+  await runTest('Env function retrieve specific', 'let val = env("PATH")\nif type(val) != "string" { let err = missing_var }');
+  await runTest('Env function default value', 'let val = env("NON_EXISTENT_VAR", "default_val")\nif val != "default_val" { let err = missing_var }');
   await runTest('Push function', 'let arr = [1, 2]\npush(arr, 3)');
   await runTest('Pop function', 'let arr = [1, 2, 3]\nlet x = pop(arr)');
   await runTest('Join function', 'let s = join([1, 2, 3], "-")');

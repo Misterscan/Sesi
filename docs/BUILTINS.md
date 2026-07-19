@@ -1041,6 +1041,33 @@ print out
 
 ---
 
+### env(key = null, defaultValue = null) -> string | object
+
+Retrieve the value of an environment variable, or retrieve all environment variables as an object.
+
+```sesi
+// Get a specific environment variable
+let apiKey = env("GEMINI_API_KEY")
+print apiKey
+
+// Get with a fallback default value
+let port = env("PORT", "8080")
+print port
+
+// Get all environment variables as an object
+let allEnvs = env()
+print allEnvs["HOME"]
+```
+
+**Parameters**:
+
+- `key` (`string`, optional): The name of the environment variable. If omitted or null, the entire environment is returned as an object.
+- `defaultValue` (`any`, optional): The fallback value to return if the environment variable is not defined. Defaults to `null`.
+
+**Returns**: `string` (value of the env var), `object` (all env vars if key is omitted), or the `defaultValue` if not found.
+
+---
+
 ### time() -> number
 
 Returns the current Unix timestamp in milliseconds.
@@ -1700,7 +1727,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.6.4"
+  "version": "1.6.5"
 }
 print Json.stringify(original)
 ```

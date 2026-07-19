@@ -118,7 +118,7 @@ print smart
 print cheap
 ```
 
-### Available Models (v1.5)
+### Available Models
 
 - `gemini-2.5-flash-image` - Standard image model. (No `512` image size support for this model. Only `1K` is supported.)
 - `gemini-3-flash-preview` - Fast, most balanced model for coding and minimal tasks.
