@@ -50,8 +50,7 @@ fn get_db_collections(db_path, password) {
       let safe_path = join(split(db_path, "\\"), "/")
       let safe_pass = join(split(password, "\\"), "/")
       safe_pass = join(split(safe_pass, "\""), "\\\"")
-      let node_script = "const fs=require('fs'); let c=fs.readFileSync('" + safe_path + "','utf8'); const crypto=require('crypto'); const p=c.split(':'); const key=crypto.createHash('sha256').update('" + safe_pass + "').digest(); const iv=Buffer.from(p[0],'hex'); const decipher=crypto.createDecipheriv('aes-256-cbc',key,iv); let dec=decipher.update(p[1],'hex','utf8'); dec+=decipher.final('utf8'); console.log(dec);"
-      db_json = exec_node("-e \"" + node_script + "\"")
+      db_json = js("const fs=require('fs'); let c=fs.readFileSync('" + safe_path + "','utf8'); const crypto=require('crypto'); const p=c.split(':'); const key=crypto.createHash('sha256').update('" + safe_pass + "').digest(); const iv=Buffer.from(p[0],'hex'); const decipher=crypto.createDecipheriv('aes-256-cbc',key,iv); let dec=decipher.update(p[1],'hex','utf8'); dec+=decipher.final('utf8'); console.log(dec);")
     } else {
       db_json = content
     }
@@ -93,7 +92,7 @@ try {
   favicon = Safe.readFile("sesi-studio/img/favicon.png.base64")
 } catch (e) {
   try {
-    exec_node("-e \"require('fs').writeFileSync('sesi-studio/img/favicon.png.base64', require('fs').readFileSync('sesi-studio/img/favicon.png').toString('base64'))\"")
+    js("require('fs').writeFileSync('sesi-studio/img/favicon.png.base64', require('fs').readFileSync('sesi-studio/img/favicon.png').toString('base64'))")
     favicon = Safe.readFile("sesi-studio/img/favicon.png.base64")
   } catch (err) {}
 }
@@ -391,8 +390,7 @@ fn handle_http(req) {
   if path == "/api/syntax" {
     try {
       // Use a brief Node script to leverage RegEx for extracting TextMate syntax safely
-      let script = "const fs=require('fs');const t=JSON.parse(fs.readFileSync('editors/vscode/syntaxes/sesi.tmLanguage.json'));const e=fs.readFileSync('editors/vscode/extension.js','utf8');const x=p=>{let m=[];if(p)p.forEach(r=>{if(r.match)m=m.concat(r.match.replace(/\\\\\\\\b/g,'').replace(/\\\\b/g,'').replace(/^\\(\\?\\:/,'(').replace(/^\\(/,'').replace(/\\)$/,'').split('|'))});return m};let dm=e.match(/const docs = ({[\\s\\S]*?});\\s*(?:let|const) hoverProvider/);console.log(JSON['stringify']({keywords:x(t.repository?.keywords?.patterns),typeKeywords:x(t.repository?.types?.patterns),constants:x(t.repository?.constants?.patterns),builtins:x(t.repository?.builtins?.patterns),docs:dm?eval('('+dm[1]+')'):{}}));"
-      let result = exec_node("-e \"" + script + "\"")
+      let result = js("const fs=require('fs');const t=JSON.parse(fs.readFileSync('editors/vscode/syntaxes/sesi.tmLanguage.json'));const e=fs.readFileSync('editors/vscode/extension.js','utf8');const x=p=>{let m=[];if(p)p.forEach(r=>{if(r.match)m=m.concat(r.match.replace(/\\\\\\\\b/g,'').replace(/\\\\b/g,'').replace(/^\\(\\?\\:/,'(').replace(/^\\(/,'').replace(/\\)$/,'').split('|'))});return m};let dm=e.match(/const docs = ({[\\s\\S]*?});\\s*(?:let|const) hoverProvider/);console.log(JSON['stringify']({keywords:x(t.repository?.keywords?.patterns),typeKeywords:x(t.repository?.types?.patterns),constants:x(t.repository?.constants?.patterns),builtins:x(t.repository?.builtins?.patterns),docs:dm?eval('('+dm[1]+')'):{}}));")
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": result}
     } catch (e) {
       return {"status": 500, "body": {"error": "Failed to load syntax config"}}
@@ -443,7 +441,6 @@ fn handle_http(req) {
       let body_obj = from_json(req.body)
       let content = body_obj["content"]
       let temp_name = ".sesi_ast_temp_" + str(time()) + ".sesi"
-      let js_temp_name = ".sesi_ast_runner_" + str(time()) + ".js"
       
       try {
         Safe.writeFile(temp_name, content)
@@ -451,17 +448,10 @@ fn handle_http(req) {
         return {"status": 500, "body": {"error": "Failed to write temp file: " + str(e)}}
       }
       
-      let js_code = "const {Lexer,Parser}=require('./dist/index.js'); const fs=require('fs'); try { const code=fs.readFileSync('" + temp_name + "','utf8'); const tokens=new Lexer(code).scanTokens(); const parser=new Parser(tokens); const prog=parser.parse(); if(parser.errors.length > 0){ console.error(parser.errors.join('\\n')); process.exit(1); } console.log(JSON.stringify(prog)); } catch(e) { console.error(e.message); process.exit(1); }"
-      try {
-        Safe.writeFile(js_temp_name, js_code)
-      } catch (e) {
-        return {"status": 500, "body": {"error": "Failed to write temp file: " + str(e)}}
-      }
-      
       let parse_result = ""
       let success = true
       try {
-        parse_result = exec_node(js_temp_name)
+        parse_result = js("const {Lexer,Parser}=require('./dist/index.js'); const fs=require('fs'); try { const code=fs.readFileSync('" + temp_name + "','utf8'); const tokens=new Lexer(code).scanTokens(); const parser=new Parser(tokens); const prog=parser.parse(); if(parser.errors.length > 0){ console.error(parser.errors.join('\\n')); process.exit(1); } console.log(JSON.stringify(prog)); } catch(e) { console.error(e.message); process.exit(1); }")
       } catch (e) {
         parse_result = str(e)
         success = false
@@ -470,10 +460,6 @@ fn handle_http(req) {
       try {
         trash(temp_name, true)
       } catch (e_rm) {}
-      
-      try {
-        trash(js_temp_name, true)
-      } catch (e_rm_js) {}
       
       if success {
         return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": true, "ast": from_json(parse_result)}}
@@ -547,8 +533,7 @@ fn handle_http(req) {
             Use Node to safely extract the first comment block as JSON
             Using indexOf to avoid complex Regex escaping issues in Sesi/Shell strings 
           */
-          let script = "const fs=require('fs');const c=fs.readFileSync('" + full_path + "','utf8');const s=c.indexOf('/*');const e=c.indexOf('*/');if(s===-1||e===-1)process.stdout.write('null');else process.stdout.write(c.slice(s+2,e).trim())"
-          let json_str = exec_node('-e "' + script + '"')
+          let json_str = js("const fs=require('fs');const c=fs.readFileSync('" + full_path + "','utf8');const s=c.indexOf('/*');const e=c.indexOf('*/');if(s===-1||e===-1)process.stdout.write('null');else process.stdout.write(c.slice(s+2,e).trim())")
           if json_str == "null" || json_str == "" {
             return null
           }
@@ -828,8 +813,7 @@ fn handle_http(req) {
           to tell the client to decode it. For simplicity, let's assume we can serve text-based icons (SVG/Emoji)
           and for binary we'll rely on the static server in server.js if it exists. 
         */
-        let script = "console.log(require('fs').readFileSync('sesi-studio/extensions/" + subpath + "').toString('base64'))"
-        exec_node("-e \"" + script + "\"")
+        js("console.log(require('fs').readFileSync('sesi-studio/extensions/" + subpath + "').toString('base64'))")
       }
       return {"status": 200, "headers": {"Content-Type": content_type}, "body": content}
     } catch (e) {
