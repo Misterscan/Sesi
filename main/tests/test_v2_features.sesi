@@ -42,7 +42,7 @@ print "\n=== 5. Testing Executable Sesi Module Import/Export ==="
 // Note: Since importing relative path loads and interprets that module,
 // we will import our helper module "tests/temp_math_mod".
 // First, the host test runner will write the temp module file, or we can write a let binding check.
-import { magic_number } from "tests/temp_math_mod"
+import { magic_number } from "temp_math_mod"
 print "Imported magic number from local module:" + str(magic_number)
 
 print "\n=== All Native Sesi Tests Completed Successfully! ==="

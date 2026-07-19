@@ -103,6 +103,39 @@ export class VM {
         return await aiRuntime.parseStructuredOutput(input as string, schemaObj);
       },
     } as RuntimeFunction);
+
+    this.globals.set('__tool_call__', {
+      type: 'function',
+      name: '__tool_call__',
+      params: [],
+      body: {} as any,
+      closure: {} as any,
+      isBuiltin: true,
+      builtin: async (nameVal: RuntimeValue, ...args: RuntimeValue[]): Promise<RuntimeValue> => {
+        if (typeof nameVal !== 'string') {
+          throw new Error('Tool name must be a string');
+        }
+
+        const sensitiveBuiltins = ['exec', 'spawn', 'python', 'js'];
+        if (sensitiveBuiltins.includes(nameVal)) {
+          throw new Error(`Security Violation: Automated execution of sensitive tool "${nameVal}" is forbidden.`);
+        }
+
+        const fn = this.globals.get(nameVal) ?? (this.interpreter?.getCustomTool?.(nameVal));
+        if (!fn || typeof fn !== 'object' || (fn as any).type !== 'function') {
+          throw new Error(`Tool or built-in not found: ${nameVal}`);
+        }
+
+        const fnName = (fn as any).name;
+        if (sensitiveBuiltins.includes(fnName) || ((fn as any).isBuiltin && sensitiveBuiltins.includes(fnName))) {
+          throw new Error(`Security Violation: Automated execution of sensitive tool "${fnName || nameVal}" is forbidden.`);
+        }
+
+        this.stack.push(fn as RuntimeFunction, ...args);
+        await this.performCall(fn as RuntimeFunction, args.length);
+        return this.pop();
+      },
+    } as RuntimeFunction);
   }
 
   // -------------------------------------------------------------------------

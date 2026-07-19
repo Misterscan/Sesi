@@ -19,7 +19,7 @@ Sesi is a **clean, minimal, side-effect-oriented** scripting language. It is:
 
 ```sesi
 let name    = "Sesi"
-let version = 1.6.5
+let version = 1.6.6
 let active  = true
 let missing         // null (uninitialized)
 ```
@@ -284,10 +284,10 @@ Sesi's unique string-composition primitive. Replaces template literals.
 
 ```sesi
 let name = "Ada"
-let ver  = "2.0"
+let ver  = "1.6.6"
 
 prompt header {"Welcome to Sesi" ver ". Hello," name}
-// header = "Welcome to Sesi 2.0. Hello, Ada"
+// header = "Welcome to Sesi 1.6.6. Hello, Ada"
 
 print header
 write_file("out.txt", header)
@@ -332,7 +332,7 @@ print "Hello, " + name + " version " + str(version)
 
 ```sesi
 export fn add(a, b) { return a + b }
-export let VERSION = "1.6.5"
+export let VERSION = "1.6.6"
 ```
 
 ### Importing — `import` (named)
@@ -708,6 +708,8 @@ These are always available — no imports needed:
 | `exec(cmd)`          | Run a system shell command (blocked in Safe Mode)   |
 | `spawn(path)`        | Run a background Sesi script (blocked in Safe Mode) |
 | `python(code, args)` | Run inline Python code (blocked in Safe Mode)       |
+| `js(code, args)`     | Run inline JavaScript code (blocked in Safe Mode)   |
+| `html(body, opts)`   | Build a complete HTML document string               |
 
 ## FOR MORE PLEASE VISIT "BUILTINS.md" EITHER IN docs/ OR IF NOT PRESENT, THEN IN node_modules/@misterscan/sesi/docs/BUILTINS.md
 

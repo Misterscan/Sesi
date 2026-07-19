@@ -74,7 +74,7 @@ const BUILTINS = new Set([
   'to_upper','to_lower','trim','slice','swap','contains','locate',
   'map','filter','reduce','find','retry',
   'read_file','write_file','write_image','list_dir','make_dir','rename','archive','trash',
-  'spawn','exec','time','random',
+  'spawn','exec','python','js','html','time','random',
   'to_json','from_json',
   'input','debug',
 ]);
@@ -824,11 +824,13 @@ export class Compiler {
 
   private compileToolCall(expr: ToolCallExpression): void {
     const line = expr.line;
+    const toolNameIdx = addConstant(this.chunk, expr.functionName);
+    emitBytes(this.chunk, OpCode.CONSTANT, toolNameIdx, line);
     for (const arg of expr.arguments) this.compileExpression(arg);
-    const nameIdx = addConstant(this.chunk, expr.functionName);
+    const nameIdx = addConstant(this.chunk, '__tool_call__');
     emitByte(this.chunk, OpCode.CALL_BUILTIN, line);
     emitByte(this.chunk, nameIdx, line);
-    emitByte(this.chunk, expr.arguments.length, line);
+    emitByte(this.chunk, expr.arguments.length + 1, line);
   }
 
   private compileImageCall(expr: ImageCallExpression): void {

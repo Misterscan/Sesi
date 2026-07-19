@@ -219,7 +219,7 @@ function tokenize(text) {
     const keywords = new Set([
         'let', 'fn', 'if', 'else', 'while', 'for', 'in', 'return',
         'break', 'continue', 'try', 'catch', 'finally', 'true', 'false', 'null',
-        'print', 'prompt', 'model', 'image', 'async', 'await', 'import', 'from',
+        'print', 'prompt', 'model', 'image', 'js', 'html', 'async', 'await', 'import', 'from',
         'export', 'to', 'allow', 'with', 'convert', 'memory', 'structured_output',
         'tool_call', 'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 
         'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi', 'clear',
@@ -765,7 +765,7 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'structured_output', 'tool_call', 'spawn', 'exec', 'python', 'time', 'env', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
+        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call', 'spawn', 'exec', 'python', 'time', 'env', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
         'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float',
         'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null', 'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
         // Audio & Theory
@@ -1126,6 +1126,18 @@ function activate(context) {
             source: 'Process Orchestration Standard Library',
             description: 'Executes arbitrary Python code synchronously via stdin and returns its standard output. The optional second parameter `args` is serialized to JSON and stored in the environment variable `SESI_ARGS`. If `args` is an array, elements are also passed as command line arguments (via sys.argv).',
             example: 'let result = python("print(\'Hello from Python!\')")\nprint result'
+        },
+        'js': {
+            signature: 'js(code, args)',
+            source: 'Process Orchestration Standard Library',
+            description: 'Executes arbitrary JavaScript code synchronously with the current Node.js runtime and returns its standard output. The optional second parameter `args` is serialized to JSON and stored in the environment variable `SESI_ARGS`. If `args` is an array, elements are also passed as command line arguments.',
+            example: 'let result = js("console.log(\'Hello from JavaScript!\')")\nprint result'
+        },
+        'html': {
+            signature: 'html(body, options)',
+            source: 'HTML Document Standard Library',
+            description: 'Wraps body markup in a complete HTML document string. Optional `options` may include `title`, `head`, and `lang`.',
+            example: 'let page = html("<main>Hello</main>", {"title": "Demo"})\nwrite_file("index.html", page)'
         },
         'web_get': {
             signature: 'web_get(url)',

@@ -864,6 +864,92 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
+  builtins.set('js', {
+    type: 'function',
+    name: 'js',
+    params: [{ name: 'code' }, { name: 'args', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (code: RuntimeValue, args: RuntimeValue = null): RuntimeValue => {
+      const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
+      if (safeMode) {
+        throw new Error('Security Violation: js is disabled in Sesi safe mode.');
+      }
+      if (typeof code !== 'string') {
+        throw new Error('js expects a string containing JavaScript code as the first argument');
+      }
+
+      const envArgs = args !== null && args !== undefined ? JSON.stringify(args) : '';
+      const childEnv = {
+        ...process.env,
+        ...(envArgs ? { SESI_ARGS: envArgs } : {})
+      };
+
+      const passArgs = ['-'];
+      if (args !== null && args !== undefined) {
+        if (Array.isArray(args)) {
+          for (const arg of args) {
+            passArgs.push(typeof arg === 'string' ? arg : JSON.stringify(arg));
+          }
+        } else {
+          passArgs.push(typeof args === 'string' ? args : JSON.stringify(args));
+        }
+      }
+
+      try {
+        return execFileSync(process.execPath, passArgs, {
+          input: code,
+          env: childEnv,
+          encoding: 'utf-8',
+        });
+      } catch (e: any) {
+        const output = (e.stderr || e.message || '').toString();
+        throw new Error(`JavaScript execution failed: ${output}`);
+      }
+    },
+  });
+
+  builtins.set('html', {
+    type: 'function',
+    name: 'html',
+    params: [{ name: 'body' }, { name: 'options', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (body: RuntimeValue = '', options: RuntimeValue = null): RuntimeValue => {
+      const bodyText = typeof body === 'string' ? body : stringify(body);
+      let title = 'Sesi';
+      let head = '';
+      let lang = 'en';
+
+      if (options && typeof options === 'object' && !Array.isArray(options)) {
+        const opts = options as Record<string, RuntimeValue>;
+        if (typeof opts.title === 'string') title = opts.title;
+        if (typeof opts.head === 'string') head = opts.head;
+        if (typeof opts.lang === 'string') lang = opts.lang;
+      }
+
+      const titleTag = title ? `<title>${escapeHtml(title)}</title>` : '';
+      const headParts = [
+        '<meta charset="utf-8">',
+        '<meta name="viewport" content="width=device-width, initial-scale=1">',
+        titleTag,
+        head,
+      ].filter(Boolean).join('\n  ');
+
+      return `<!DOCTYPE html>
+<html lang="${escapeHtml(lang)}">
+<head>
+  ${headParts}
+</head>
+<body>
+${bodyText}
+</body>
+</html>`;
+    },
+  });
+
   builtins.set('time', {
     type: 'function',
     name: 'time',
@@ -1977,6 +2063,15 @@ function resolveWorkflowReference(
     throw new Error(`workflow reference ${key} is out of range`);
   }
   throw new Error(`workflow reference ${key} is invalid`);
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export function isTruthy(value: RuntimeValue): boolean {

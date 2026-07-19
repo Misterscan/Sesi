@@ -122,6 +122,11 @@ async function main() {
       'python("print(1)")',
       'Security Violation: python is disabled in Sesi safe mode.'
     );
+    await runExpectError(
+      'Block js run in safe mode',
+      'js("console.log(1)")',
+      'Security Violation: js is disabled in Sesi safe mode.'
+    );
   } finally {
     process.env.SESI_SAFE_MODE = 'false';
   }
@@ -152,6 +157,12 @@ async function main() {
     'Security Violation: python is disabled in Sesi safe mode.',
     { safeMode: true }
   );
+  await runExpectError(
+    'Block js via static safeMode option (independent of env)',
+    'js("console.log(1)")',
+    'Security Violation: js is disabled in Sesi safe mode.',
+    { safeMode: true }
+  );
 
   // Test 6: Automated Tool Call Protection
   console.log('\n6. Testing LLM Automated Tool Call Safeguards');
@@ -171,6 +182,12 @@ async function main() {
     'Block automated LLM tool calls targeting python',
     'tool_call(python)("print(1)")',
     'Security Violation: Automated execution of sensitive tool "python" is forbidden.',
+    { safeMode: false } // Even if safeMode is explicitly disabled!
+  );
+  await runExpectError(
+    'Block automated LLM tool calls targeting js',
+    'tool_call(js)("console.log(1)")',
+    'Security Violation: Automated execution of sensitive tool "js" is forbidden.',
     { safeMode: false } // Even if safeMode is explicitly disabled!
   );
   await runExpectError(

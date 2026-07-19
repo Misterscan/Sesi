@@ -26,7 +26,7 @@ let siteData = {
   "stats": [
     {
       "label": "Language Version",
-      "value": "v1.6.5"
+      "value": "v1.6.6"
     },
     {
       "label": "Test Coverage",
@@ -80,15 +80,7 @@ async fn handleRequest(req) {
     let featuresHtml = renderFeatures(siteData.features)
     let statsHtml = renderStats(siteData.stats)
     
-    let html = "<!DOCTYPE html>
-<html>
-<head>
-  <meta charset='utf-8'>
-  <title>" + siteData.title + "</title>
-  <link rel='preconnect' href='https://fonts.googleapis.com'>
-  <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
-  <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap' rel='stylesheet'>
-  <style>
+    let css = "<style>
     * {
       box-sizing: border-box;
       margin: 0;
@@ -239,9 +231,9 @@ async fn handleRequest(req) {
       color: #71717a;
       font-size: 14px;
     }
-  </style>
-</head>
-<body>
+  </style>"
+  
+    let html = html("
   <header>
     <div class='container nav-wrapper'>
       <div class='logo'>" + siteData.title + "</div>
@@ -272,8 +264,13 @@ async fn handleRequest(req) {
       <p>&copy; 2026 Sesi Project. Running on native Sesi HTTP Server.</p>
     </div>
   </footer>
-</body>
-</html>"
+", {
+    "title": siteData.title,
+    "head": "<link rel='preconnect' href='https://fonts.googleapis.com'>
+  <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
+  <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap' rel='stylesheet'>
+  " + css
+})
 
     return {
       "status": 200,

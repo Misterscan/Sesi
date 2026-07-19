@@ -169,6 +169,28 @@ async function main() {
     undefined,
     { safeMode: false }
   );
+  await runTest(
+    'JavaScript builtin execution and return value',
+    'let out = js("console.log(\'hello\')")\nif out != "hello\\n" { raise_error("AssertionError", "expected hello\\\\n") }',
+    undefined,
+    { safeMode: false }
+  );
+  await runTest(
+    'JavaScript builtin argument passing (SESI_ARGS)',
+    'let out = js("const args = JSON.parse(process.env.SESI_ARGS); console.log(args[0])", [42])\nif out != "42\\n" { raise_error("AssertionError", "expected 42\\\\n") }',
+    undefined,
+    { safeMode: false }
+  );
+  await runTest(
+    'JavaScript builtin argument passing (process.argv)',
+    'let out = js("console.log(process.argv[2])", ["hello"])\nif out != "hello\\n" { raise_error("AssertionError", "expected hello\\\\n") }',
+    undefined,
+    { safeMode: false }
+  );
+  await runTest(
+    'HTML builtin wraps body content',
+    'let page = html("<main>Hello</main>", {"title": "Demo"})\nif !contains(page, "<!DOCTYPE html>") { raise_error("AssertionError", "missing doctype") }\nif !contains(page, "<title>Demo</title>") { raise_error("AssertionError", "missing title") }\nif !contains(page, "<main>Hello</main>") { raise_error("AssertionError", "missing body") }',
+  );
 
   console.log('\n=== Summary ===');
   console.log('All basic tests completed!');

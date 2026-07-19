@@ -856,7 +856,7 @@ export class Interpreter {
   }
 
 private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> {
-    const sensitiveBuiltins = ['exec', 'spawn', 'python'];
+    const sensitiveBuiltins = ['exec', 'spawn', 'python', 'js'];
     if (sensitiveBuiltins.includes(expr.functionName)) {
       throw new Error(`Security Violation: Automated execution of sensitive tool "${expr.functionName}" is forbidden.`);
     }
@@ -876,7 +876,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       throw new Error(`Tool not found: ${expr.functionName}`);
     }
 
-    if ((fn as any).name === 'exec' || (fn as any).name === 'spawn' || (fn as any).name === 'python' || ((fn as any).isBuiltin && sensitiveBuiltins.includes((fn as any).name))) {
+    if ((fn as any).name === 'exec' || (fn as any).name === 'spawn' || (fn as any).name === 'python' || (fn as any).name === 'js' || ((fn as any).isBuiltin && sensitiveBuiltins.includes((fn as any).name))) {
       throw new Error(`Security Violation: Automated execution of sensitive tool "${(fn as any).name || expr.functionName}" is forbidden.`);
     }
 

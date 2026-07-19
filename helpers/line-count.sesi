@@ -1,0 +1,36 @@
+/*
+  Sesi Line Count
+
+  Counts the number of lines in a file.
+  
+  Usage:
+    sesi line-count.sesi [file]
+
+  Example:
+    sesi line-count.sesi README.md
+*/
+
+allow "safe" in with Safe
+allow "std/terminal" in with {color}
+
+// Check if file is provided as an argument, else prompt user for filename
+let file = ""
+try {
+    file = args[0]
+    if file == null {
+        file = trim(input("Enter filename: "))
+    } else {
+        file = trim(file)
+    }
+} catch (e) {}
+
+// Returns the number of lines in a file
+export fn getLineCount(file) {
+    let content = Safe.readFile(file)
+    let lines = split(content, "\n")
+    return len(lines)
+}
+
+// Print the number of lines in the file
+let lineCount = getLineCount(file)
+print "# of lines in" color(file, "yellow") ":\n" color(lineCount, "green")

@@ -185,7 +185,7 @@ Structured output allows you to extract structured data natively or via Reasonin
 ### Basic Structured Output
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.5\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.6\", \"status\": \"active\"}"
 let analysis = structured_output({projectName: string, version: string, status: string})(rawJson)
 print "Project: " analysis["projectName"]
 print "Version: " analysis["version"]
@@ -281,6 +281,8 @@ exec(command)      // Synchronous shell execution
 time()             // Unix timestamp (ms)
 random()           // Random number (0-1)
 python(code, args)  // Execute Python code
+js(code, args)      // Execute JavaScript code
+html(body, options) // Build a complete HTML page string
 env(key, default)  // Get environment variable(s)
 ```
 

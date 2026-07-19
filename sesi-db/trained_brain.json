@@ -1273,7 +1273,7 @@
         "allow \"math\" in with {\n  add, multiply\n}\n\nprint add(3, 4)   // 7",
         "allow \"math\" in with Math\n\nprint Math.add(3, 4)      // 7\nprint Math.multiply(2, 5) // 10",
         "allow \"std/math\" in with Math\nallow \"std/time\" in with Time\nallow \"std/json\" in with JSON\n\nprint Math.PI\nprint Time.now()\nprint JSON.parse(\"[1,2,3]\")",
-        "// Export\nexport fn greet(name) { print \"Hello,\" name }\nexport let VERSION = \"2.0\"\n\n// import (named)\nimport { greet, VERSION } from \"mymodule\"\n\n// allow (named bindings)\nallow \"mymodule\" in with { greet, VERSION }\n\n// allow (namespace)\nallow \"mymodule\" in with Mod\nMod.greet(\"Ada\")"
+        "// Export\nexport fn greet(name) { print \"Hello,\" name }\nexport let VERSION = \"1.6.5\"\n\n// import (named)\nimport { greet, VERSION } from \"mymodule\"\n\n// allow (named bindings)\nallow \"mymodule\" in with { greet, VERSION }\n\n// allow (namespace)\nallow \"mymodule\" in with Mod\nMod.greet(\"Ada\")"
       ],
       "key_rules": [
         "Use 'export' to expose 'let' bindings or 'fn' declarations to other files.",
@@ -1317,8 +1317,8 @@
       "description": "A `prompt` block is Sesi's string composition primitive. It lets you assemble a named string from literals and variables — similar to template literals in other languages — without concatenation operators.",
       "summary": "Prompt blocks provide a clean, idiomatic way to assemble strings by placing literals and variables sequentially within braces.\nThey resolve to standard string values, allowing them to be printed, passed to functions, or composed into larger, more complex prompt structures.\nBy avoiding concatenation operators, this syntax improves readability and simplifies the management of multi-line string content.",
       "code_examples": [
-        "let name    = \"Ada\"\nlet version = \"2.0\"\n\nprompt header {\"Welcome to Sesi\" version \". Hello,\" name}",
-        "let lang = \"Sesi\"\nlet ver  = \"2.0\"\n\nprompt title {\"Welcome to\" lang ver}\n\nprint title",
+        "let name    = \"Ada\"\nlet version = \"1.6.5\"\n\nprompt header {\"Welcome to Sesi\" version \". Hello,\" name}",
+        "let lang = \"Sesi\"\nlet ver  = \"1.6.5\"\n\nprompt title {\"Welcome to\" lang ver}\n\nprint title",
         "let user = \"Ada\"\n\nprompt greeting {\"Hello,\" user \". Glad you're here.\"}\n\nwrite_file(\"welcome.txt\", greeting)",
         "let name  = \"Ada\"\nlet score = 98\n\nprompt report {\"Student: \" name \"\nScore: \" score \"\nGrade: A\"}\n\nprint report",
         "let first = \"Ada \"\nlet last  = \"Lovelace\"\n\nprompt fullName {first last}\nprompt badge {\"[Developer]\" fullName}\n\nprint badge",

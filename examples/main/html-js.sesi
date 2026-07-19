@@ -1,0 +1,320 @@
+/*
+  Sesi server using html() and js()
+
+  Run from the Sesi project with local/safe mode disabled:
+    sesi -l html-js.sesi
+
+  Then open:
+    http://localhost:8080/
+
+  What this demonstrates:
+    - html() builds the complete HTTP page response.
+    - js() runs server-side JavaScript before the response is sent.
+    - The <script> tag inside html() is browser-side JavaScript.
+*/
+
+allow "std/time" in with {sleep}
+
+let port = 8080
+
+let tasks = [
+  {
+    "title": "Wire html() into the response",
+    "status": "done",
+    "owner": "Sesi"
+  },
+  {
+    "title": "Use js() to render server-side markup",
+    "status": "active",
+    "owner": "Node via Sesi"
+  },
+  {
+    "title": "Let browser JavaScript update the page",
+    "status": "queued",
+    "owner": "Client"
+  }
+]
+
+fn renderTaskCards(taskList) {
+  /*
+    This js() call runs on the server.
+    Sesi passes taskList into Node as JSON through SESI_ARGS.
+    The returned stdout becomes HTML inserted into the page body.
+  */
+  return js("
+const tasks = JSON.parse(process.env.SESI_ARGS)
+const escapeHtml = (value) => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/\"/g, '&quot;')
+  .replace(/'/g, '&#39;')
+
+const cards = tasks.map((task, index) => {
+  const statusClass = escapeHtml(task.status)
+  const title = escapeHtml(task.title)
+  const owner = escapeHtml(task.owner)
+  const status = escapeHtml(task.status)
+
+  return '<article class=\"task-card\" data-status=\"' + statusClass + '\">' +
+    '<div class=\"task-topline\">' +
+      '<span class=\"status-pill\">' + status + '</span>' +
+      '<span class=\"task-number\">#' + (index + 1) + '</span>' +
+    '</div>' +
+    '<h2>' + title + '</h2>' +
+    '<p>Owner: ' + owner + '</p>' +
+  '</article>'
+})
+
+console.log(cards.join('\\n'))
+", taskList)
+}
+
+fn renderPage(req) {
+  let taskCards = renderTaskCards(tasks)
+  let generatedAt = js("console.log(new Date().toLocaleString())")
+  let css = "
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f7fa;
+    color: #1d2733;
+  }
+
+  .site-header {
+    padding: 56px 24px 36px;
+    background: #15202b;
+    color: white;
+  }
+
+  .site-header > div,
+  main {
+    width: min(960px, calc(100% - 32px));
+    margin: 0 auto;
+  }
+
+  .eyebrow {
+    margin: 0 0 8px;
+    color: #9fd3c7;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(32px, 6vw, 64px);
+    line-height: 1;
+  }
+
+  .lede {
+    max-width: 720px;
+    margin: 18px 0 0;
+    color: #d6e2ea;
+    font-size: 18px;
+    line-height: 1.6;
+  }
+
+  main {
+    padding: 28px 0 48px;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  button {
+    border: 1px solid #bac6d3;
+    background: white;
+    color: #1d2733;
+    padding: 9px 12px;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button.active {
+    border-color: #246bfe;
+    background: #246bfe;
+    color: white;
+  }
+
+  .task-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+
+  .task-card,
+  .request-panel {
+    border: 1px solid #d7dee8;
+    background: white;
+    padding: 18px;
+  }
+
+  .task-topline {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .status-pill {
+    border: 1px solid #d7dee8;
+    padding: 4px 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+  }
+
+  .task-number {
+    color: #64748b;
+    font-size: 13px;
+  }
+
+  .task-card h2,
+  .request-panel h2 {
+    margin: 0 0 8px;
+    font-size: 19px;
+  }
+
+  .task-card p {
+    margin: 0;
+    color: #596777;
+  }
+
+  .request-panel {
+    margin-top: 18px;
+  }
+
+  dl {
+    margin: 0;
+    display: grid;
+    gap: 8px;
+  }
+
+  dl div {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 12px;
+  }
+
+  dt {
+    font-weight: 700;
+  }
+
+  dd {
+    margin: 0;
+    color: #596777;
+  }
+</style>
+"
+
+  prompt body {"
+<header class='site-header'>
+  <div>
+    <p class='eyebrow'>Sesi HTTP Server</p>
+    <h1>html() + js() Server Demo</h1>
+    <p class='lede'>
+      This page is served from Sesi. The document shell comes from html(),
+      the cards are rendered with server-side js(), and the filter buttons run in the browser.
+    </p>
+  </div>
+</header>
+
+<main>
+  <section class='toolbar' aria-label='Task filters'>
+    <button data-filter='all' class='active'>All</button>
+    <button data-filter='done'>Done</button>
+    <button data-filter='active'>Active</button>
+    <button data-filter='queued'>Queued</button>
+  </section>
+
+  <section id='taskGrid' class='task-grid'>
+" taskCards "
+  </section>
+
+  <section class='request-panel'>
+    <h2>Request</h2>
+    <dl>
+      <div>
+        <dt>Path</dt>
+        <dd>" req.path "</dd>
+      </div>
+      <div>
+        <dt>Method</dt>
+        <dd>" req.method "</dd>
+      </div>
+      <div>
+        <dt>Generated</dt>
+        <dd>" generatedAt "</dd>
+      </div>
+    </dl>
+  </section>
+</main>
+
+<script>
+const buttons = document.querySelectorAll('[data-filter]')
+const cards = document.querySelectorAll('.task-card')
+
+buttons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const filter = button.dataset.filter
+
+    buttons.forEach((item) => item.classList.remove('active'))
+    button.classList.add('active')
+
+    cards.forEach((card) => {
+      const shouldShow = filter === 'all' || card.dataset.status === filter
+      card.hidden = !shouldShow
+    })
+  })
+})
+</script>
+"}
+
+  return html(body, {
+    "title": "Sesi html() + js() Server",
+    "lang": "en",
+    "head": css
+  })
+}
+
+async fn handleRequest(req) {
+  print req.method req.path
+
+  if req.path == "/" {
+    return {
+      "status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=utf-8"
+      },
+      "body": renderPage(req)
+    }
+  }
+
+  return {
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "body": html("<main><h1>404</h1><p>Page not found.</p><p><a href='/'>Back home</a></p></main>", {
+      "title": "Not Found"
+    })
+  }
+}
+
+print "Starting Sesi server on http://localhost:" port
+
+let server = listen(port, handleRequest)
+let end = input("Press Enter to stop the server...")
+
+server.close(end)

@@ -107,7 +107,7 @@ prompt packageJson {"{
     \"decrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -dec\"
   },
   \"dependencies\": {
-    \"@misterscan/sesi\": \"1.6.5\"
+    \"@misterscan/sesi\": \"1.6.6\"
   },
     \"allowScripts\": {
     \"fsevents@2.3.2\": true,
@@ -147,7 +147,7 @@ prompt mainSesi {'/*
 
 // 1. Variables and Types
 let language = "Sesi"
-let version = "1.6.5"
+let version = "1.6.6"
 let features = ["Reasoning", "Embedded DB", "SVG Drawing", "Audio Synthesis", "Browser Integration"]
 
 print "Welcome to" language "version" version "!"
