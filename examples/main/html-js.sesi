@@ -321,24 +321,28 @@ print "Starting Sesi server on http://localhost:" port
 let server = listen(port, handleRequest)
 let OS = getSys()
 
-if OS != "Windows" {
-  if OS == "Darwin" {
-    try {
-      exec("open http://localhost:" + port)
-    } catch (e) {
-      print "Failed to open browser automatically"
-    }
+
+if contains(OS, "Darwin") {
+  try {
+    exec("open http://localhost:" + port)
+    print "Opened browser automatically!
+    "
+  } catch (e) {
+    print "Failed to open browser automatically"
   }
-  if OS == "Linux" {
-    try {
-      exec("xdg-open http://localhost:" + port)
-    } catch (e) {
-      print "Failed to open browser automatically"
-    }
+} else if contains(OS, "Linux") {
+  try {
+    exec("xdg-open http://localhost:" + port)
+    print "Opened browser automatically!
+    "
+  } catch (e) {
+    print "Failed to open browser automatically"
   }
-} else {
+} else if contains(OS, "Windows") {
   try {
     exec("start http://localhost:" + port)
+    print "Opened browser automatically!
+    "
   } catch (e) {
     print "Failed to open browser automatically"
   }
