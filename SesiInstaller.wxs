@@ -32,6 +32,13 @@
 
     <Feature Id="MainFeature" Title="Sesi" Level="1">
       <ComponentRef Id="SesiExeComponent" />
+      <ComponentGroupRef Id="SesiStudioRuntime" />
     </Feature>
   </Package>
+
+  <Fragment>
+    <ComponentGroup Id="SesiStudioRuntime" Directory="INSTALLFOLDER">
+      <Files Include="releases\studio-runtime\**" />
+    </ComponentGroup>
+  </Fragment>
 </Wix>

@@ -2,10 +2,7 @@
   Sesi server using html() and js()
 
   Run from the Sesi project with local/safe mode disabled:
-    sesi -l html-js.sesi
-
-  Then open:
-    http://localhost:8080/
+    sesi -l examples\main\html-js.sesi
 
   What this demonstrates:
     - html() builds the complete HTTP page response.
@@ -13,9 +10,7 @@
     - The <script> tag inside html() is browser-side JavaScript.
 */
 
-allow "std/time" in with {sleep}
-
-let port = 8080
+allow "std/time" in with {format, now}
 
 let tasks = [
   {
@@ -71,8 +66,10 @@ console.log(cards.join('\\n'))
 }
 
 fn renderPage(req) {
+  let title = "Sesi html() + js() Server"
+  let lang = "en"
   let taskCards = renderTaskCards(tasks)
-  let generatedAt = js("console.log(new Date().toLocaleString())")
+  let generatedAt = format(now())
   let css = "
 <style>
   * {
@@ -281,11 +278,7 @@ buttons.forEach((button) => {
 </script>
 "}
 
-  return html(body, {
-    "title": "Sesi html() + js() Server",
-    "lang": "en",
-    "head": css
-  })
+  return html(body, {"title": title, "lang": lang, "head": css})
 }
 
 async fn handleRequest(req) {
@@ -301,20 +294,55 @@ async fn handleRequest(req) {
     }
   }
 
+  let body = "<main><h1>404</h1><p>Page not found.</p><p><a href='/'>Back home</a></p></main>"
+  let title = "Not Found"
+
   return {
     "status": 404,
     "headers": {
       "Content-Type": "text/html; charset=utf-8"
     },
-    "body": html("<main><h1>404</h1><p>Page not found.</p><p><a href='/'>Back home</a></p></main>", {
-      "title": "Not Found"
-    })
+    "body": html(body, {"title": title})
   }
 }
 
+fn getSys() {
+  let OS = ""
+  try {
+    OS = exec("uname")
+  } catch (e) {
+    OS = "Windows"
+  }
+  return OS
+}
+
+let port = 8080
 print "Starting Sesi server on http://localhost:" port
-
 let server = listen(port, handleRequest)
-let end = input("Press Enter to stop the server...")
+let OS = getSys()
 
+if OS != "Windows" {
+  if OS == "Darwin" {
+    try {
+      exec("open http://localhost:" + port)
+    } catch (e) {
+      print "Failed to open browser automatically"
+    }
+  }
+  if OS == "Linux" {
+    try {
+      exec("xdg-open http://localhost:" + port)
+    } catch (e) {
+      print "Failed to open browser automatically"
+    }
+  }
+} else {
+  try {
+    exec("start http://localhost:" + port)
+  } catch (e) {
+    print "Failed to open browser automatically"
+  }
+}
+
+let end = input("Press Enter to stop the server...\n")
 server.close(end)

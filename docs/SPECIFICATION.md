@@ -413,7 +413,7 @@ optional_type := type '?'
 - `read_file()`, `write_file()`, and `list_dir()` throw on filesystem failure
 - `structured_output()` currently logs parsing failures and returns `{}` if recovery fails
 
-## 8. Built-in Functions (V1.x)
+## 8. Built-in Functions
 
 ```
 print(any)                    // Output to stdout
@@ -449,6 +449,9 @@ list_dir(string) -> array<string> // List directory contents
 make_dir(string) -> bool          // Create directory (recursive)
 spawn(string) -> number           // Concurrent process creation
 exec(string) -> string            // Synchronous shell execution
+sesi(string, bool?, bool?) -> string // Synchronous in-process Sesi execution or compile check
+python(string, args) -> string    // Inline Python code execution
+js(strings, args) -> string       // In-proccess Javascript execution
 time() -> number                  // Current Unix timestamp
 random() -> number                // Random float (0.0 to 1.0)
 convert() -> bool                 // Convert between formats

@@ -7,6 +7,30 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
 const releasesDir = path.join(repoRoot, 'releases');
 
+function stageStudioRuntime() {
+  const runtimeDir = path.join(releasesDir, 'studio-runtime');
+  const copyItems = [
+    'ai_agent.sesi',
+    'README.md',
+    'docs',
+    'getting-started',
+    'helpers',
+    'sesi-studio/agent',
+    'sesi-studio/build',
+    'sesi-studio/extensions',
+    'sesi-studio/img',
+    'sesi-studio/studio.sesi',
+  ];
+
+  fs.rmSync(runtimeDir, { recursive: true, force: true });
+  for (const item of copyItems) {
+    const source = path.join(repoRoot, item);
+    const destination = path.join(runtimeDir, item);
+    fs.cpSync(source, destination, { recursive: true });
+  }
+  console.log(`Staged Sesi Studio runtime: ${runtimeDir}`);
+}
+
 console.log('=== Step 1: Bundling Sesi with esbuild ===');
 try {
   execSync(
@@ -149,3 +173,4 @@ if (process.platform === 'win32') {
 }
 
 console.log('\n=== Sesi Build Process Complete! ===');
+stageStudioRuntime();

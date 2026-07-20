@@ -1009,6 +1009,30 @@ print files
 
 ---
 
+### sesi(filePath, local = false, checkOnly = false) -> string
+
+Parse, compile, and run a Sesi file synchronously in the current Sesi process. Unlike `exec()` or `spawn()`, this does not create a child process. Use it when one Sesi script needs to run another script and wait for it to finish.
+
+```sesi
+sesi("examples/main/01_hello.sesi")
+
+// Allow local file access for the invoked script.
+sesi("examples/main/25_webpage_server.sesi", true)
+
+// Check syntax and compilation without running the file.
+sesi("examples/main/01_hello.sesi", false, true)
+```
+
+**Parameters**:
+
+- `filePath` (`string`): Path to the Sesi file to run.
+- `local` (`bool`, optional): Enables local file access for the invoked script. Defaults to `false`.
+- `checkOnly` (`bool`, optional): Checks syntax and compilation without running the file. Defaults to `false`.
+
+**Returns**: `string` - An empty string after execution, or `"✓ Syntax and Compilation valid"` when `checkOnly` is `true`.
+
+---
+
 ### python(code, args) -> string
 
 Execute arbitrary Python code using python3 or python on the host system, and return its standard output. This function is disabled in Sesi safe mode.

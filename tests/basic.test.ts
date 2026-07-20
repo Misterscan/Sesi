@@ -4,6 +4,8 @@
 import { Lexer } from '../src/lexer';
 import { Parser } from '../src/parser';
 import { Interpreter } from '../src/interpreter';
+import * as fs from 'fs';
+import * as path from 'path';
 import type { ModelCallExpression, ImageCallExpression, ExpressionStatement, ArrayLiteral, Literal, Identifier } from '../src/types';
 import { SesiRuntimeError } from '../src/types';
 
@@ -151,6 +153,18 @@ async function main() {
   await runTest('Return without value', 'fn test() { return }');
   await runTest('Audio std library keys check', 'allow "std/audio" in with Audio\nlet found = false\nfor k in keys(Audio) {\n  if k == "midi" { found = true }\n}\nif !found { raise_error("AssertionError", "midi missing") }');
   await runTest('Draw std library keys check', 'allow "std/draw" in with Draw\nlet found = false\nfor k in keys(Draw) {\n  if k == "save_svg" { found = true }\n}\nif !found { raise_error("AssertionError", "save_svg missing") }');
+  const checkOnlyFixture = path.join(process.cwd(), 'tests', '.sesi_check_only_fixture.sesi');
+  fs.writeFileSync(checkOnlyFixture, 'raise_error("AssertionError", "checkOnly must not execute this file")');
+  try {
+    await runTest(
+      'Sesi builtin compile-only mode',
+      'let result = sesi("tests/.sesi_check_only_fixture.sesi", true, true)\nif result != "✓ Syntax and Compilation valid" { raise_error("AssertionError", "unexpected check-only result") }',
+      undefined,
+      { safeMode: false, allowLocalFs: true }
+    );
+  } finally {
+    fs.rmSync(checkOnlyFixture, { force: true });
+  }
   await runTest(
     'Python builtin execution and return value',
     'let out = python("print(\'hello\')")\nif out != "hello\\n" { raise_error("AssertionError", "expected hello\\\\n") }',
@@ -184,6 +198,12 @@ async function main() {
   await runTest(
     'JavaScript builtin argument passing (process.argv)',
     'let out = js("console.log(process.argv[2])", ["hello"])\nif out != "hello\\n" { raise_error("AssertionError", "expected hello\\\\n") }',
+    undefined,
+    { safeMode: false }
+  );
+  await runTest(
+    'JavaScript builtin process.stdout.write output',
+    'let out = js("process.stdout.write(\'metadata\')")\nif out != "metadata" { raise_error("AssertionError", "expected raw stdout output") }',
     undefined,
     { safeMode: false }
   );

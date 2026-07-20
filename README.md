@@ -42,7 +42,7 @@ To launch Sesi Studio, you can:
 
 - Open **Sesi Studio.app** (macOS)
 - Run `./SesiStudio.command` from the root directory
-- Use the CLI: `sesi -s` (after installing Sesi)
+- Use the CLI: `sesi -s` from any project directory after installing Sesi. The installer includes the Studio runtime and opens that directory as the initial workspace.
 
 ## Installation
 
@@ -398,6 +398,7 @@ Sesi/
 - **Memory**: Basic memory for multi-turn reasoning
 - **Filesystem I/O**: `read_file()`, `write_file()`, `to_json()`, `write_image()`, `list_dir()`, and `convert()` for local file I/O and format transformations
 - **Native Concurrency**: `spawn()` and `exec()` for concurrent process management, and `multi_req(array<function>)` for physical parallel request execution.
+- **In-Process Script Execution**: `sesi(path, local?, checkOnly?)` executes or compile-checks a Sesi file synchronously without launching a child process.
 - **Inline Runtime Helpers**: `python(code, args)` and `js(code, args)` for host-language scripting, plus `html(body, options)` for generating complete webpages.
 - **Logic Caching**: High-efficiency Sesi Logic Caching (`.sesi_cache.json`) for local call caching.
 - **HTTP Client**: Built-in, native HTTP client support using `web_get(url)` and `web_send(url, body, headers)` with zero external dependencies.

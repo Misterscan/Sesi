@@ -108,17 +108,9 @@ try {
             print "Only relevant for users who have the capability to generate images uncommented out: Image generation example may take a while..." 
         }
 
-        let run_cmd = ex["cmd"]
-        if starts_with(run_cmd, "sesi ") {
-            let rest = slice(run_cmd, 5)
-            if !contains(run_cmd, "--cli") {
-                run_cmd = "node bin/sesi.js --cli " + rest
-            } else {
-                run_cmd = "node bin/sesi.js " + rest
-            }
-        }
-        
-        print exec(run_cmd)
+        let parts = split(ex["cmd"], " ")
+        let local = contains(ex["cmd"], " -l")
+        print sesi(parts[1], local)
     }
     print color("All done! No errors means Sesi is ready!", "green", "bold")
 } catch (error) {

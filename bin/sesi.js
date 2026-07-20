@@ -310,9 +310,18 @@ async function main() {
   }
 
   if (parsed.studio) {
-    const studioServerPath = path.join(__dirname, '..', 'sesi-studio', 'studio.sesi');
-    if (fs.existsSync(studioServerPath)) {
+    const studioServerPaths = [
+      path.join(path.dirname(process.execPath), 'sesi-studio', 'studio.sesi'),
+      path.join(__dirname, '..', 'sesi-studio', 'studio.sesi'),
+    ];
+    const studioServerPath = studioServerPaths.find(candidate => fs.existsSync(candidate));
+    if (studioServerPath) {
       console.log('Launching Sesi Studio...');
+      const installedStudioPath = studioServerPaths[0];
+      if (studioServerPath === installedStudioPath) {
+        process.env.SESI_STUDIO_PROJECT_ROOT = process.cwd();
+        process.chdir(path.dirname(process.execPath));
+      }
       const studioOptions = {
         ...parsed.sesiOptions,
         safeMode: false,
@@ -324,7 +333,7 @@ async function main() {
         process.exit(1);
       });
     } else {
-      console.error('Error: Sesi Studio backend not found at ' + studioServerPath);
+      console.error('Error: Sesi Studio backend not found. Checked: ' + studioServerPaths.join(', '));
       process.exit(1);
     }
     return;

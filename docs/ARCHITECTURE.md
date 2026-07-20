@@ -45,6 +45,7 @@
 │ - write_file()      │  │ - Tool calling      │
 │ - spawn()           │  │                     │
 │ - exec()            │  │                     │
+│ - sesi()            │  │                     │
 │ - time()            │  │                     │
 │ - random()          │  │                     │
 │ - etc.              │  │                     │

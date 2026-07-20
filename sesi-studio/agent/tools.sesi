@@ -13,6 +13,13 @@ if SESI_ROOT == "" {
   } catch (e) {}
 }
 
+try {
+  let requested_project_root = env("SESI_STUDIO_PROJECT_ROOT")
+  if requested_project_root != null && requested_project_root != "" {
+    SESI_ROOT = requested_project_root
+  }
+} catch (e) {}
+
 export let PROJECT_ROOT = SESI_ROOT
 
 export let IS_WINDOWS = false

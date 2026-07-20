@@ -76,18 +76,13 @@ npm test
 
 ## Your First Program
 
-Create a file called `hello.sesi`:
+Create a file called `hello.sesi` and run it:
 
 ```bash
-sesi -e 'let txt = "Hello, world!"
-prompt file {"print \"" txt "\""}
-write_file("hello.sesi", file)'
-```
-
-Run it:
-
-```bash
-sesi hello.sesi
+sesi -e 'let filename = "hello.sesi"
+prompt file {"print \"Hello, Sesi!\""}
+write_file(filename, file)
+sesi(filename)'
 ```
 
 ## Basic Syntax
@@ -280,6 +275,7 @@ spawn(path)        // Launch concurrent background process
 exec(command)      // Synchronous shell execution
 time()             // Unix timestamp (ms)
 random()           // Random number (0-1)
+sesi(path, local) // Run a Sesi file synchronously in-process
 python(code, args)  // Execute Python code
 js(code, args)      // Execute JavaScript code
 html(body, options) // Build a complete HTML page string

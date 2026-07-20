@@ -59,11 +59,11 @@ Sesi Studio is a premium, high-density development environment built specificall
   ```bash
   ./SesiStudio.command
   ```
-- **Manual CLI Launch**: Start the backend server manually from the repository root:
+- **Installed CLI Launch**: After installing Sesi, run this from any project directory:
   ```bash
   sesi -s
   ```
-  Then navigate to `http://localhost:3050` in your browser.
+  The installer provides the Studio runtime, while the directory where you invoke the command becomes the initial workspace. Then navigate to `http://localhost:3050` in your browser.
 
 ## Documentation
 

@@ -3,6 +3,7 @@ import { RuntimeValue, RuntimeFunction, SesiRuntimeError } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, execSync, execFileSync } from 'child_process';
+import * as vm from 'vm';
 import { aiRuntime } from './ai-runtime';
 import * as http from 'http';
 
@@ -812,6 +813,52 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
+  builtins.set('sesi', {
+    type: 'function',
+    name: 'sesi',
+    params: [{ name: 'filePath' }, { name: 'local', defaultValue: false as any }, { name: 'checkOnly', defaultValue: false as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (filePath: RuntimeValue, local: RuntimeValue = false, checkOnly: RuntimeValue = false): Promise<RuntimeValue> => {
+      if (typeof filePath !== 'string') {
+        throw new Error('sesi expects a Sesi file path');
+      }
+
+      const absolutePath = ensureSafePath(filePath, interpreter);
+      const source = fs.readFileSync(absolutePath, 'utf-8');
+      const { Lexer } = require('./lexer');
+      const { Parser } = require('./parser');
+      const { Compiler } = require('./compiler');
+      const { VM } = require('./vm');
+      const parser = new Parser(new Lexer(source).scanTokens());
+      const program = parser.parse();
+
+      if (parser.errors.length > 0) {
+        throw new Error(parser.errors.map((error: any) => error.message || String(error)).join('\n'));
+      }
+
+      const compiler = new Compiler();
+      const chunk = compiler.compileProgram(program);
+      if (compiler.errors.length > 0) {
+        throw new Error(compiler.errors.join('\n'));
+      }
+
+      if (isTruthy(checkOnly)) {
+        return '✓ Syntax and Compilation valid';
+      }
+
+      const allowLocalFs = isTruthy(local) || interpreter?.allowLocalFs === true;
+      const vm = new VM(path.dirname(absolutePath), {
+        safeMode: !allowLocalFs,
+        allowLocalFs,
+        allowedPaths: interpreter?.allowedPaths || [],
+      });
+      await vm.run(chunk);
+      return '';
+    },
+  });
+
   builtins.set('python', {
     type: 'function',
     name: 'python',
@@ -845,14 +892,17 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         }
       }
 
-      const bins = ['python3', 'python', 'py'];
+      const bins = process.platform === 'win32'
+        ? ['python', 'py', 'python3']
+        : ['python3', 'python', 'py'];
       for (const bin of bins) {
         try {
-          return execFileSync(bin, passArgs, {
+          const output = execFileSync(bin, passArgs, {
             input: code,
             env: childEnv,
             encoding: 'utf-8',
           });
+          return output.replace(/\r\n/g, '\n');
         } catch (e: any) {
           if (e.code === 'ENOENT') continue;
           const output = (e.stderr || e.message || '').toString();
@@ -881,31 +931,41 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       }
 
       const envArgs = args !== null && args !== undefined ? JSON.stringify(args) : '';
-      const childEnv = {
-        ...process.env,
-        ...(envArgs ? { SESI_ARGS: envArgs } : {})
-      };
-
-      const passArgs = ['-'];
-      if (args !== null && args !== undefined) {
-        if (Array.isArray(args)) {
-          for (const arg of args) {
-            passArgs.push(typeof arg === 'string' ? arg : JSON.stringify(arg));
-          }
-        } else {
-          passArgs.push(typeof args === 'string' ? args : JSON.stringify(args));
-        }
-      }
-
+      const capturedOutput: string[] = [];
+      const stringifyOutput = (value: any): string => typeof value === 'string' ? value : JSON.stringify(value);
+      const sandboxEnv = { ...process.env, ...(envArgs ? { SESI_ARGS: envArgs } : {}) };
+      const sandboxArgs = args === null || args === undefined
+        ? []
+        : (Array.isArray(args) ? args : [args]).map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg));
+      const sandbox = vm.createContext({
+        process: {
+          env: sandboxEnv,
+          argv: [process.execPath, '-', ...sandboxArgs],
+          exit: () => {},
+          stdout: { write: (value: any) => capturedOutput.push(stringifyOutput(value)) },
+          stderr: { write: (value: any) => capturedOutput.push(stringifyOutput(value)) },
+        },
+        console: {
+          log: (...a: any[]) => capturedOutput.push(a.map(stringifyOutput).join(' ') + '\n'),
+          error: (...a: any[]) => capturedOutput.push(a.map(stringifyOutput).join(' ') + '\n'),
+          warn: (...a: any[]) => capturedOutput.push(a.map(stringifyOutput).join(' ') + '\n'),
+        },
+        require,
+        Buffer,
+        JSON,
+        Math,
+        setTimeout,
+        clearTimeout,
+        setInterval,
+        clearInterval,
+        URL,
+        URLSearchParams,
+      });
       try {
-        return execFileSync(process.execPath, passArgs, {
-          input: code,
-          env: childEnv,
-          encoding: 'utf-8',
-        });
+        vm.runInContext(code, sandbox, { timeout: 30000 });
+        return capturedOutput.join('');
       } catch (e: any) {
-        const output = (e.stderr || e.message || '').toString();
-        throw new Error(`JavaScript execution failed: ${output}`);
+        throw new Error(`JavaScript execution failed: ${e.message}`);
       }
     },
   });

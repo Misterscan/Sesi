@@ -1,3 +1,4 @@
 .vscodeignore
 .DS_Store
 .git
+*.vsix

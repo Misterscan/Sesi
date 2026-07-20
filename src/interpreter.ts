@@ -2695,7 +2695,6 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       if (this.safeMode) {
         throw new Error('Security Violation: std/browser is disabled in Sesi safe mode.');
       }
-      const { chromium } = require('playwright');
       
       exports.set('launch', {
         type: 'function',
@@ -2712,6 +2711,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
               launchOptions.headless = isTruthy(rawOpts.headless);
             }
           }
+          const { chromium } = require('playwright');
           const browser = await chromium.launch(launchOptions);
           const browserObj: Record<string, RuntimeValue> = Object.create(null);
           

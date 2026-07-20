@@ -83,8 +83,9 @@ try {
 
 print "Starting Sesi Studio Sesi..."
 try {
-  let logsDir = make_dir("sesi-studio/logs")
-  Safe.appendFile(logsDir + "/studio_startup.log", "docs len: " + str(len(sesiDocs)) + " copilotMemory len: " + str(len(copilotMemory)) + " pwd: " + PROJECT_ROOT)
+  let logsDir = "sesi-studio/logs/"
+  make_dir(logsDir)
+  Safe.appendFile(logsDir + "studio_startup.log", "docs len: " + str(len(sesiDocs)) + " copilotMemory len: " + str(len(copilotMemory)) + " pwd: " + PROJECT_ROOT)
 } catch (e) {}
 
 let favicon = ""
@@ -415,19 +416,20 @@ fn handle_http(req) {
       let body_obj = from_json(req.body)
       let content = body_obj["content"]
       let temp_name = ".sesi_cache_temp_" + str(time()) + ".sesi"
-      Safe.writeFile(temp_name, content)
+      let temp_path = PROJECT_ROOT + "/" + temp_name
+      Safe.writeFile(temp_path, content)
       
       let check_result = ""
       let success = true
       try {
-        check_result = exec_node("\"" + SESI_ROOT + "/bin/sesi.js\" -c \"" + temp_name + "\"")
+        check_result = sesi(temp_path, true, true)
       } catch (e) {
         check_result = str(e)
         success = false
       }
       
       try {
-        trash(temp_name, true)
+        trash(temp_path, true)
       } catch (e_rm) {}
       
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": success, "output": check_result}}
@@ -1395,8 +1397,10 @@ print ""
 let http = listen(http_port, handle_http)
 let ws = api(ws_port, handle_ws)
 
-let exit = input("Press enter/return key to close: ")
-if exit == "" {
-  http.close()
-  ws.close()
+if env("SESI_STUDIO_APP") != "true" {
+  let exit = input("Press enter/return key to close: ")
+  if exit == "" {
+    http.close()
+    ws.close()
+  }
 }
