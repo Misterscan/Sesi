@@ -1,0 +1,120 @@
+allow "std/time" in with {
+  now, format
+}
+
+/*
+  Convert the current date into a local readable format.
+  Supports friendly aliases ("number", "name") or standard styles ("short", "medium", "long", "full").
+  Also supports locale-specific formatting (e.g., "en-US", "fr-FR", "ja-JP").
+*/
+export fn getDate(locale: string, dateStyle: string = "name") -> string {
+  let numerical = "short"
+  let with_letters = "medium"
+
+  let resolvedStyle = dateStyle
+  if dateStyle == "number" {
+    resolvedStyle = numerical
+  } else if dateStyle == "name" {
+    resolvedStyle = with_letters
+  }
+
+  let timestamp = format(now(), {"locale": locale, "dateStyle": resolvedStyle})
+  return timestamp
+}
+
+/*
+  Convert the current time into a local readable format.
+  Supports friendly aliases ("basic", "in_ms", "detailed") or standard styles.
+  Also supports locale-specific formatting (e.g., "en-US", "fr-FR", "ja-JP") and time zone specification (e.g., "America/New_York", "Europe/London").
+*/
+export fn localTime(timeZone: string, locale: string, timeStyle: string) -> string {
+  let compacted = "short"
+  let milliseconds = "medium"
+  let verbose = "full"
+
+  if timeZone == null || timeZone == "" {
+    timeZone = "America/New_York" // Default to Eastern Time if no time zone is specified
+  }
+
+  if locale == null || locale == "" {
+    locale = "en-US" // Default to US English if no locale is specified
+  }
+  let resolvedStyle = timeStyle
+  if timeStyle == "basic" || timeStyle == null || timeStyle == "" {
+    resolvedStyle = compacted
+  } else if timeStyle == "in_ms" {
+    resolvedStyle = milliseconds
+  } else if timeStyle == "detailed" {
+    resolvedStyle = verbose
+  }
+
+  let timestamp = format(now(), {"timeZone": timeZone, "locale": locale, "timeStyle": resolvedStyle})
+  return timestamp
+}
+
+/* 
+  Convert the current time into a universal readable format (UTC).
+*/
+export fn universalTime() -> string {
+  let timestamp = format(now(), {"timeZone": "UTC", "timeStyle": "medium"})
+  return timestamp + " UTC"
+}
+
+/* 
+  Format the time specifically for safe use in filenames.
+  Replaces spaces, colons, and AM/PM markers to prevent filesystem errors.
+  Supports locale-specific formatting and time zone specification.
+*/
+export fn formattedTime(timeZone, locale) -> string {
+  let timeRef = localTime(timeZone, locale, "in_ms") // e.g., "12:04:32 PM"
+  
+  // Sequentially sanitize the string for cross-platform filesystem safety
+  let safe = swap(timeRef, " ", "-")
+  safe = swap(safe, ":", "-")
+  
+  return safe // e.g., "12-04-32-PM"
+}
+
+/*
+  Register the functions as Sesi-native AI tools.
+  This allows any reasoning model in your parent script to dynamically query the system clock.
+*/
+export fn time_tools() {
+  let tool_refs = {}
+
+  // Scoped helper function to register and track tools
+  fn register_tool(name: string, func, desc: string) {
+    define_tool(name, func, desc)
+    tool_refs[name] = desc
+  }
+
+/*
+  Register the tools for easy calls within your scripts
+*/
+  register_tool("getDate",       getDate,       "Retrieve the current date. Accepts 'number', 'name', or standard styles.")
+  register_tool("localTime",     localTime,     "Retrieve the local time. Accepts 'basic', 'in_ms', 'detailed', or standard styles.")
+  register_tool("universalTime", universalTime, "Retrieve the current universal time (UTC) in short format.")
+  register_tool("formattedTime", formattedTime, "Retrieve a filesystem-safe timestamp (e.g., '12-04-32-PM') for file naming.")
+
+  let _registry = list_tools()
+  print "⏱️ timestamp tool registry loaded —" str(len(_registry)) "tools available"
+  print to_json(tool_refs)
+}
+
+/*
+  Example usage:
+    You can use these in your script easily.
+    Just allow "timestamp" in with {getDate, localTime, universalTime, or formattedTime}, or simply as TS
+    - `basic` reads out `12:00 PM`
+    - `in_ms` reads out `12:00:00 PM`
+    - `detailed` reads out `12:00:00 PM Eastern Daylight Time`
+
+    time_tools()
+    let local = TS.localTime("detailed")
+    let universal = TS.universalTime()
+    let formatted = TS.formattedTime()
+
+    print "Current time:" local
+    print "Current time (UTC):" universal
+    print "Formatted time:" formatted
+*/

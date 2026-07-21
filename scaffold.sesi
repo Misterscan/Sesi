@@ -99,10 +99,12 @@ prompt packageJson {"{
   \"private\": true,
   \"scripts\": {
     \"sesi\": \"node node_modules/@misterscan/sesi/bin/sesi.js\",
-    \"start\": \"node node_modules/@misterscan/sesi/bin/sesi.js -l main.sesi\",
-    \"eval\": \"node node_modules/@misterscan/sesi/bin/sesi.js -e\",
+    \"local\": \"node node_modules/@misterscan/sesi/bin/sesi.js -l\",
+    \"cli\": \"node node_modules/@misterscan/sesi/bin/sesi.js --cli\",
+    \"start\": \"node node_modules/@misterscan/sesi/bin/sesi.js --cli -l main.sesi\",
+    \"eval\": \"node node_modules/@misterscan/sesi/bin/sesi.js -cli -e\",
     \"help\": \"node node_modules/@misterscan/sesi/bin/sesi.js -h\",
-    \"lint\": \"node node_modules/@misterscan/sesi/bin/sesi.js bin/lint.sesi\",
+    \"lint\": \"node node_modules/@misterscan/sesi/bin/sesi.js -cli bin/lint.sesi\",
     \"encrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -enc\",
     \"decrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -dec\"
   },
@@ -120,6 +122,16 @@ if Safe.writeFile(target + "/package.json", packageJson) {
   print "✓ Generated package.json"
 } else {
   print "⚠️ Failed to generate package.json"
+}
+
+// Add theory.sesi to the target folder
+let theoryContent = Safe.readFile("theory.sesi")
+if len(theoryContent) > 0 {
+  if Safe.writeFile(target + "/theory.sesi", theoryContent) {
+    print "✓ Copied theory.sesi"
+  } else {
+    print "⚠️ Failed to copy theory.sesi"
+  }
 }
 
 // Generate .gitignore
@@ -206,7 +218,10 @@ browser.goto("https://wikipedia.org")
 page.screenshot({"path": "screenshot.png"})
 page.pdf({"path": "output.pdf", "format": "A4"})
 
-browser.close()'}
+browser.close()
+
+// 8. Sesi Theory
+sesi("theory.sesi")'}
 
 if Safe.writeFile(target + "/main.sesi", mainSesi) {
   print "✓ Generated main.sesi"

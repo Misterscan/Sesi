@@ -1,0 +1,56 @@
+/*
+    Theory of Sesi Programming Language
+*/
+allow "std/terminal" in with {color}
+
+fn theory() {
+    let message = color("
+    /*
+        Welcome to the Sesi Programming Language!
+        We are excited to introduce you to Sesi, a programming language designed with simplicity and ease of use in mind. 
+        In this document, we will explore the key features and benefits of Sesi, as well as its intended use cases and target audience.
+    */
+
+    I. Introduction
+    * Sesi is a programming language designed for simplicity and ease of use. It is intended to be a beginner-friendly language that allows users to quickly learn programming concepts and create applications without the complexity of traditional programming languages.
+
+    II. Key Features and Benefits
+    * Simple Syntax: Sesi has a simple and intuitive syntax that is easy to read and write. This makes it accessible to users of all skill levels, including beginners who are just starting to learn programming.
+
+    * Cross-Platform: Sesi is designed to be cross-platform and can be run on a variety of operating systems, including Windows, macOS, and Linux. This allows users to develop applications that can run on multiple platforms without the need for additional development work.
+
+    * Object-Oriented Programming: Sesi supports object-oriented programming, allowing users to create classes and objects that encapsulate data and behavior. This makes it easier to organize code and create reusable components.
+
+    * Functional Programming: Sesi also supports functional programming, allowing users to write code that is more concise and expressive. This can lead to more efficient and maintainable code.
+
+    * Procedural Programming: Sesi supports procedural programming, allowing users to write code that is organized into functions and procedures. This can make it easier to understand and maintain code, especially for larger applications.
+
+    * Built-in Package Manager: Sesi has a built-in package manager that allows users to easily install and manage third-party libraries and dependencies. This can save time and effort when developing applications, as users can quickly add functionality without having to write everything from scratch.
+
+    * Open-Source: Sesi is an open-source language, and its development is driven by a community of contributors who are passionate about creating a language that is both powerful and easy to use. This allows users to contribute to the development of the language and help shape its future.
+
+    III. Intended Use Cases and Target Audience
+    * Sesi is intended to be a beginner-friendly programming language ideal for users who are new to programming and want to get started quickly, as well as for experienced programmers who want to develop applications in a simple and efficient way.
+
+    * Sesi is also suitable for educational purposes, as it can be used to teach programming concepts in a clear and concise manner. Its simple syntax and ease of use make it an ideal choice for classroom settings, where students can quickly grasp programming concepts and start building applications.
+
+    * Overall, Sesi is a programming language that is designed to be accessible to everyone, regardless of their experience level. Its simplicity, ease of use, and cross-platform capabilities make it an ideal choice for beginners and experienced programmers alike.
+
+    IV. Coming From Python/JS
+
+    * If you are coming from Python or JavaScript, you will find Sesi to be a familiar and easy-to-learn language. Sesi's syntax is similar to that of Python and JavaScript, making it easy for users to transition to Sesi without having to learn a completely new language.
+
+    * Sesi also supports many of the same programming concepts and paradigms as Python and JavaScript, including object-oriented programming, functional programming, and procedural programming. This means that users who are familiar with these languages will be able to apply their existing knowledge and skills when working with Sesi.
+
+    * If you still want the familiarity of Python or JavaScript, Sesi also allows you to use Python and JavaScript code directly within your Sesi programs. This means that you can leverage existing libraries and frameworks from these languages, making it easier to develop applications in Sesi.
+
+    * Simply using python() or js() functions in Sesi will allow you to run Python or JavaScript code seamlessly within your Sesi programs. This feature provides flexibility and allows users to take advantage of the strengths of multiple programming languages in a single application.
+
+    V. Conclusion
+    * In conclusion, Sesi is a programming language that is designed to be simple, easy to use, and accessible to everyone. Its key features and benefits, including its simple syntax, cross-platform capabilities, support for multiple programming paradigms, built-in package manager, and open-source nature, make it an ideal choice for beginners and experienced programmers alike. 
+    Whether you are new to programming or an experienced developer, Sesi provides a powerful and efficient platform for creating applications and learning programming concepts. We hope you enjoy using Sesi and exploring its capabilities.
+", "green")
+    return message
+}
+
+print theory()

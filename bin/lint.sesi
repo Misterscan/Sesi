@@ -8,6 +8,8 @@
 */
 
 allow "helpers/safe" in with Safe
+allow "std/terminal" in with {color}
+allow "std/time" in with {now, format}
 
 fn lex(content) {
   let tokens = []
@@ -986,7 +988,7 @@ let report = ""
 
 if isSingleFile == false {
   report = "# Sesi Workspace Syntax Audit\n\n"
-  report = report + "Generated on: " + str(time()) + "\n\n"
+  report = report + color("Generated on: " + str(format(now(), {"timeZone": "America/New_York"})), "yellow") + "\n\n"
 }
 
 for filePath in targetFiles {
@@ -1008,10 +1010,10 @@ for filePath in targetFiles {
     let syntaxErrors = audit_syntax(fileTokens)
     for sErr in syntaxErrors {
       if sErr.isWarning {
-        report = report + "* **Line " + str(sErr.line) + ":** ⚠️ [WARN] " + sErr.message + "\n"
+        report = report + "* **Line " + str(sErr.line) + color(":** ⚠️ [WARN] " + sErr.message, "yellow") + "\n"
         fileWarnings = fileWarnings + 1
       } else {
-        report = report + "* **Line " + str(sErr.line) + ":** 🔴 [ERROR] " + sErr.message + "\n"
+        report = report + "* **Line " + str(sErr.line) + color(":** 🔴 [ERROR] " + sErr.message, "red") + "\n"
         fileErrors = fileErrors + 1
       }
     }
@@ -1065,7 +1067,7 @@ for filePath in targetFiles {
       // Forbidden const
       let constSegs = split(auditLine, "const ")
       if len(constSegs) > 1 {
-        report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Forbidden `const` keyword detected. Use `let` instead.\n"
+        report = report + "* **Line " + str(idx) + color(":** 🔴 [ERROR] Forbidden `const` keyword detected. Use `let` instead.", "red") + "\n"
         fileErrors = fileErrors + 1
       }
       
@@ -1076,25 +1078,25 @@ for filePath in targetFiles {
       let webSendSegs = split(auditLine, "web_send(")
       if len(writeSegs) > 1 {
         if tryStartDepth == -1 {
-          report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Unwrapped `write_file` call. Enclose in a try/catch block to prevent filesystem contention crashes.\n"
+          report = report + "* **Line " + str(idx) + color(":** 🔴 [ERROR] Unwrapped `write_file` call. Enclose in a try/catch block to prevent filesystem contention crashes.", "red") + "\n"
           fileErrors = fileErrors + 1
         }
       }
       if len(readSegs) > 1 {
         if tryStartDepth == -1 {
-          report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Unwrapped `read_file` call. Enclose in a try/catch block to prevent filesystem contention crashes.\n"
+          report = report + "* **Line " + str(idx) + color(":** 🔴 [ERROR] Unwrapped `read_file` call. Enclose in a try/catch block to prevent filesystem contention crashes.", "red") + "\n"
           fileErrors = fileErrors + 1
         }
       }
       if len(webGetSegs) > 1 {
         if tryStartDepth == -1 {
-          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Unwrapped `web_get` call. Wrap in try/catch to handle network failures gracefully.\n"
+          report = report + "* **Line " + str(idx) + color(":** ⚠️ [WARN] Unwrapped `web_get` call. Wrap in try/catch to handle network failures gracefully.", "yellow") + "\n"
           fileWarnings = fileWarnings + 1
         }
       }
       if len(webSendSegs) > 1 {
         if tryStartDepth == -1 {
-          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Unwrapped `web_send` call. Wrap in try/catch to handle network failures gracefully.\n"
+          report = report + "* **Line " + str(idx) + color(":** ⚠️ [WARN] Unwrapped `web_send` call. Wrap in try/catch to handle network failures gracefully.", "yellow") + "\n"
           fileWarnings = fileWarnings + 1
         }
       }
@@ -1106,25 +1108,25 @@ for filePath in targetFiles {
       let archiveSegs = split(auditLine, "archive(")
       if len(trashSegs) > 1 {
         if tryStartDepth == -1 {
-          report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Unwrapped `trash()` call. This permanently deletes files/directories — always wrap in try/catch.\n"
+          report = report + "* **Line " + str(idx) + color(":** 🔴 [ERROR] Unwrapped `trash()` call. This permanently deletes files/directories — always wrap in try/catch.", "red") + "\n"
           fileErrors = fileErrors + 1
         }
       }
       if len(execSegs) > 1 {
         if tryStartDepth == -1 {
-          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Unwrapped `exec()` call. Shell commands can fail or have destructive side effects — wrap in try/catch.\n"
+          report = report + "* **Line " + str(idx) + color(":** ⚠️ [WARN] Unwrapped `exec()` call. Shell commands can fail or have destructive side effects — wrap in try/catch.", "yellow") + "\n"
           fileWarnings = fileWarnings + 1
         }
       }
       if len(renameSegs) > 1 {
         if tryStartDepth == -1 {
-          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Unwrapped `rename()` call. Filesystem mutations can throw on invalid paths or permissions — wrap in try/catch.\n"
+          report = report + "* **Line " + str(idx) + color(":** ⚠️ [WARN] Unwrapped `rename()` call. Filesystem mutations can throw on invalid paths or permissions — wrap in try/catch.", "yellow") + "\n"
           fileWarnings = fileWarnings + 1
         }
       }
       if len(archiveSegs) > 1 {
         if tryStartDepth == -1 {
-          report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Unwrapped `archive()` call. File copy operations can throw on permission or path errors — wrap in try/catch.\n"
+          report = report + "* **Line " + str(idx) + color(":** ⚠️ [WARN] Unwrapped `archive()` call. File copy operations can throw on permission or path errors — wrap in try/catch.", "yellow") + "\n"
           fileWarnings = fileWarnings + 1
         }
       }
@@ -1132,32 +1134,22 @@ for filePath in targetFiles {
       // JSON Serialization
       let stringifySegs = split(auditLine, "stringify(")
       if len(stringifySegs) > 1 {
-        report = report + "* **Line " + str(idx) + ":** ⚠️ [WARN] Avoid `stringify()` for JSON. Use native `to_json()` instead.\n"
+        report = report + "* **Line " + str(idx) + color(":** ⚠️ [WARN] Avoid `stringify()` for JSON. Use native `to_json()` instead.", "yellow") + "\n"
         fileWarnings = fileWarnings + 1
       }
       
-      // Forbid main() wrappers
+      // Forbid fn main wrappers
       let mainSegs = split(auditLine, "fn main(")
       let mainCallSegs = split(auditLine, "main()")
       if len(mainSegs) > 1 {
-        report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Forbid `main()` wrappers. Sesi executes at top-level.\n"
+        report = report + "* **Line " + str(idx) + color(":** 🔴 [ERROR] Forbid `main()` wrappers. Sesi executes at top-level.", "red") + "\n"
         fileErrors = fileErrors + 1
       }
       if len(mainCallSegs) > 1 {
-        report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Forbid `main()` wrappers. Sesi executes at top-level.\n"
+        report = report + "* **Line " + str(idx) + color(":** 🔴 [ERROR] Forbid `main()` wrappers. Sesi executes at top-level.", "red") + "\n"
         fileErrors = fileErrors + 1
       }
-      
-      // Top-level return
-      let returnSegs = split(auditLine, "return ")
-      if len(returnSegs) > 1 {
-        if fnStartDepth == -1 {
-          report = report + "* **Line " + str(idx) + ":** 🔴 [ERROR] Avoid top-level `return` statement; Sesi scripts execute at the top level.\n"
-          fileErrors = fileErrors + 1
-        }
-      }
 
-      
       // Scope resolution
       if tryStartDepth != -1 {
         if braceDepth <= tryStartDepth { tryStartDepth = -1 }
@@ -1169,15 +1161,15 @@ for filePath in targetFiles {
     
     if fileErrors == 0 {
       if fileWarnings == 0 {
-        report = report + "✓ No issues detected.\n\n"
+        report = report + color("✓ No issues detected.\n\n", "green")
       }
     }
     
     if fileErrors > 0 {
-      report = report + "* **Errors:** " + str(fileErrors) + "\n"
+      report = report + color("* **Errors:** " + str(fileErrors), "red") + "\n"
     }
     if fileWarnings > 0 {
-      report = report + "* **Warnings:** " + str(fileWarnings) + "\n"
+      report = report + color("* **Warnings:** " + str(fileWarnings), "yellow") + "\n"
     }
     report = report + "\n"
     
@@ -1188,18 +1180,16 @@ for filePath in targetFiles {
   }
 }
 
-allow "std/terminal" in with {color}
-
 if isSingleFile {
   print report
   print "Summary:"
-  print color("  Errors: ", "red") + color(str(totalErrors), "red")
-  print color("  Warnings: ", "yellow") + color(str(totalWarnings), "yellow")
+  print color("  Errors: ", "red") color(str(totalErrors), "red")
+  print color("  Warnings: ", "yellow") color(str(totalWarnings), "yellow")
 } else {
   report = report + "### Workspace Summary\n\n"
-  report = report + "* **Total Sesi Files Audited:** " + str(len(targetFiles)) + "\n"
-  report = report + "* **Total Errors:** " + str(totalErrors) + " 🔴\n"
-  report = report + "* **Total Warnings:** " + str(totalWarnings) + " ⚠️\n"
+  report = report + color("* **Total Sesi Files Audited:** " + str(len(targetFiles)) + "\n", "cyan")
+  report = report + color("* **Total Errors:** " + str(totalErrors) + " 🔴\n", "red")
+  report = report + color("* **Total Warnings:** " + str(totalWarnings) + " ⚠️\n", "yellow")
   
   try {
     let success = Safe.writeFile("lint_report.md", report)

@@ -219,12 +219,9 @@ function tokenize(text) {
     const keywords = new Set([
         'let', 'fn', 'if', 'else', 'while', 'for', 'in', 'return',
         'break', 'continue', 'try', 'catch', 'finally', 'true', 'false', 'null',
-        'print', 'prompt', 'model', 'image', 'js', 'html', 'async', 'await', 'import', 'from',
+        'print', 'prompt', 'model', 'image', 'async', 'await', 'import', 'from',
         'export', 'to', 'allow', 'with', 'convert', 'memory', 'structured_output',
-        'tool_call', 'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 
-        'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi', 'clear',
-        'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path',
-        'gradient', 'style', 'raw', 'live'
+        'tool_call'
     ]);
 
     const stripped = stripComments(text);
@@ -1739,10 +1736,13 @@ function activate(context) {
                                 'stringify(val)', 'parse(str)'
                             ],
                             'std/db': [
-                                'db_open(filename, password)'
+                                'db_open(filename, password)', '.collection(name)', '.find(query)', '.insert(doc)', '.update(query, update)', '.delete(query)'
                             ],
                             'std/browser': [
-                                'launch(options)'
+                                'launch(options)',
+                                '.newPage()', '.goto(url)', '.page.title()', '.click(selector)', '.inner_text(selector)',
+                                '.attribute(selector, attr)', '.evaluate(jsCode)', '.screenshot(path, options)',
+                                '.pdf(path, options)', '.close()'
                             ],
                             'std/audio': [
                                 'sf2(path, options)', 'mix(path, tracks, type, options)', 
@@ -1760,6 +1760,9 @@ function activate(context) {
                                 'path(d, fill, options?)', 'gradient(type, id, stops, options?)',
                                 'style(cssText)', 'raw(svgCode)',
                                 'render(w, h)', 'save_svg(path, w, h)'
+                            ],
+                            'std/terminal': [
+                                'clear()', 'color(text, color)', 'cursor(x,y)'
                             ]
                         };
 
