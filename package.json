@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -79,16 +79,23 @@
   "author": "Misterscan",
   "license": "MIT",
   "dependencies": {
-    "@dotenvx/dotenvx": "2.14.0",
+    "@dotenvx/dotenvx": "2.17.1",
     "@dotenvx/dotenvx-armor": "0.56.1",
     "@dotenvx/dotenvx-ops": "0.56.1",
-    "@google/genai": "2.12.0",
+    "@google/genai": "2.13.0",
     "blessed": "^0.1.81",
+    "html-to-text": "10.0.0",
+    "image-size": "^2.0.2",
+    "js-yaml": "5.2.1",
+    "marked": "18.0.7",
     "playwright": "^1.61.1",
+    "turndown": "7.2.4",
     "ws": "8.21.1"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "26.1.1",
+    "@types/turndown": "^5.0.6",
     "globals": "^17.7.0",
     "rcedit": "^5.0.2",
     "tsx": "4.23.1",
@@ -97,6 +104,6 @@
   "allowScripts": {
     "fsevents@2.3.2": true,
     "protobufjs@7.6.4": true,
-    "@google/genai@2.12.0": true
+    "@google/genai@2.13.0": true
   }
 }

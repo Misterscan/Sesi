@@ -36,7 +36,7 @@ COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
 memory conversation {"You are a helpful programming assistant. Respond concisely."}
 memory conversationfn askBot(question: string) -> string {
 let message = conversation + "User:" + question
-let response = model("gemini-3.1-flash-lite") {message}
+let response = model("gemini-3.5-flash-lite") {message}
 conversation = message + "Assistant:" + response
 return response
 }

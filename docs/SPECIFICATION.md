@@ -262,8 +262,8 @@ config_entry := (STRING | identifier) ':' expression
 Example:
 
 ```sesi
-let result = model("gemini-3.5-flash") {images: "scan.png", thinkingLevel: "low"} {"Transcribe all visible text."}
-let output = model("gemini-3.5-flash") {thinkingLevel: "medium"} {prompt}
+let result = model("gemini-3.6-flash") {images: "scan.png", thinkingLevel: "low"} {"Transcribe all visible text."}
+let output = model("gemini-3.6-flash") {thinkingLevel: "medium"} {prompt}
 ```
 
 #### Convert Expression
@@ -279,12 +279,19 @@ The `convert` expression transforms documents or media files between different f
 - `file_type`: The input format extension (e.g. `"md"`, `"csv"`, `"png"`, `"wav"`). If the input is a local file path, this key is optional and can be inferred from the file extension.
 - `output_type`: The target format extension (e.g. `"html"`, `"json"`, `"jpg"`, `"mp3"`). This key is required.
 
+Native document conversion pairs include `md -> html`, `html -> md`, `html -> txt`, `csv -> json`, `tsv -> json`, `json -> csv`, `json -> tsv`, `json -> yaml`, `yaml -> json`, `svg -> html`, `html -> svg`, and `svg -> txt`.
+
+For image conversion, `convert(media)` also supports rasterizing `svg` file inputs to `png`, `jpg`, and `jpeg`, and wrapping raster image files such as `png`, `jpg`, `jpeg`, `gif`, `webp`, `bmp`, `tiff`, and `avif` into SVG output.
+
 Example:
 
 ```sesi
 let html = convert(doc) {file_type: "md", output_type: "html"} {"# Heading\nHello world"}
 let json = convert(doc) {file_type: "csv", output_type: "json"} {"name,age\nAlice,30"}
+let yaml = convert(doc) {file_type: "json", output_type: "yaml"} {"[{\"name\":\"Alice\"}]"}
+let markdown = convert(doc) {file_type: "html", output_type: "md"} {"<h1>Heading</h1><p>Hello world</p>"}
 let converted_file = convert(doc) {file_type: "md", output_type: "html"} {"input.md"}
+let rasterized_svg = convert(media) {output_type: "png"} {"logo.svg"}
 ```
 
 #### Await Expression
@@ -316,7 +323,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.6\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.7\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -583,7 +590,7 @@ Model calls can take optional configuration parameters (written on a single line
 
 ```sesi
 // Model call with native thinking effort level
-let response = model("gemini-3.5-flash") {thinkingLevel: "low"} {"Say hello"}
+let response = model("gemini-3.6-flash") {thinkingLevel: "low"} {"Say hello"}
 print response  // Returns string
 
 let logo = image("gemini-3.1-flash-image") {ratio: "1:1", size: "512"} {"A vector logo"}
@@ -604,7 +611,7 @@ print "Image written to logo.png"
 ### Reasoning with Structured Output
 
 ```sesi
-let result = structured_output({title: string, category: string, confidence: number})(model("gemini-3.1-flash-lite") {"Extract metadata from this text:" text})
+let result = structured_output({title: string, category: string, confidence: number})(model("gemini-3.5-flash-lite") {"Extract metadata from this text:" text})
 print result["title"]       // Access fields
 print result["confidence"]  // Type-safe access
 ```
@@ -613,7 +620,7 @@ print result["confidence"]  // Type-safe access
 
 ```sesi
 fn calculateTax(amount: number, rate: number) {print amount * rate}
-let taxAmount = tool_call(calculateTax)(model("gemini-3.1-flash-lite") {"Calculate 8% tax on $100"})
+let taxAmount = tool_call(calculateTax)(model("gemini-3.5-flash-lite") {"Calculate 8% tax on $100"})
 taxAmount
 ```
 
@@ -639,7 +646,7 @@ print x + y  // Output: 30
 ### Example 2: Function with Reasoning
 
 ```sesi
-fn analyzeText(text: string) -> string {return model("gemini-3.5-flash") {thinkingLevel: "low"} {"Analyze this text and return key insights:" text}}
+fn analyzeText(text: string) -> string {return model("gemini-3.6-flash") {thinkingLevel: "low"} {"Analyze this text and return key insights:" text}}
 print analyzeText("Reasoning is transforming industries")
 ```
 

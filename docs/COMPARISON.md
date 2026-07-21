@@ -62,10 +62,10 @@ let rawFeedback = ["My account was charged twice for the pro plan! Fix this now!
 for feedback in rawFeedback
 {processingLog = processingLog + "Processing:" + feedback
 let analysis = structured_output({sentiment: string, category: string, isUrgent: bool, summary: string})
-(model("gemini-3.1-flash-lite") {"Analyze the customer feedback. Category should be Billing, UI, or Technical. Feedback:" feedback})
+(model("gemini-3.5-flash-lite") {"Analyze the customer feedback. Category should be Billing, UI, or Technical. Feedback:" feedback})
 print "Result for:" analysis["summary"]
 if analysis["isUrgent"]
-{let resolution = tool_call(escalateTicket)(model("gemini-3.1-flash-lite") {"Call escalateTicket for customer '1234' with an exact reason based on:" feedback})
+{let resolution = tool_call(escalateTicket)(model("gemini-3.5-flash-lite") {"Call escalateTicket for customer '1234' with an exact reason based on:" feedback})
 processingLog = processingLog + "Urgent action taken:" + resolution} else {processingLog = processingLog + "Logged routinely."}}
 print "--- Final Processing Log ---"
 print processingLog
@@ -132,7 +132,7 @@ async function processFeedback() {
     };
 
     const analysisResponse = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-3.5-flash-lite",
       contents: `Analyze the customer feedback. Category should be Billing, UI, or Technical.\nFeedback: ${feedback}`,
       config: {
         responseMimeType: "application/json",
@@ -154,7 +154,7 @@ async function processFeedback() {
     // 4. Conditional Tool Calling & Response Handling
     if (analysis.isUrgent) {
       const escalationResponse = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        model: "gemini-3.5-flash-lite",
         contents: `Call escalateTicket for customer '1234' with an exact reason based on:\n${feedback}`,
         config: {
           tools: [escalateToolDeclaration],
@@ -216,7 +216,7 @@ def process_feedback():
 
     for feedback in raw_feedback:
         response = client.models.generate_content(
-            model='gemini-3.1-flash-lite',
+            model='gemini-3.5-flash-lite',
             contents=f'Analyze the customer feedback.\nFeedback: {feedback}',
             config={'response_mime_type': 'application/json', 'response_schema': FeedbackAnalysis}
         )
@@ -226,7 +226,7 @@ def process_feedback():
 
         if analysis.is_urgent:
             escalation_response = client.models.generate_content(
-                model='gemini-3.1-flash-lite',
+                model='gemini-3.5-flash-lite',
                 contents=f"Call escalate_ticket for customer '1234' based on:\n{feedback}",
                 config={'tools': [escalate_ticket]}
             )
@@ -298,7 +298,7 @@ while research == "" {
     let i = 0 while i < 1000 { i = i + 1 }
   }
 }
-print model("gemini-3.1-flash-lite") {"Synthesize: " research}
+print model("gemini-3.5-flash-lite") {"Synthesize: " research}
 ```
 
 **Analysis**:

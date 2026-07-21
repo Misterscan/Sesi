@@ -6,6 +6,7 @@ import { Parser } from '../src/parser';
 import { Interpreter } from '../src/interpreter';
 import * as fs from 'fs';
 import * as path from 'path';
+import { inflateSync } from 'zlib';
 import type { ModelCallExpression, ImageCallExpression, ExpressionStatement, ArrayLiteral, Literal, Identifier } from '../src/types';
 import { SesiRuntimeError } from '../src/types';
 
@@ -153,6 +154,30 @@ async function main() {
   await runTest('Return without value', 'fn test() { return }');
   await runTest('Audio std library keys check', 'allow "std/audio" in with Audio\nlet found = false\nfor k in keys(Audio) {\n  if k == "midi" { found = true }\n}\nif !found { raise_error("AssertionError", "midi missing") }');
   await runTest('Draw std library keys check', 'allow "std/draw" in with Draw\nlet found = false\nfor k in keys(Draw) {\n  if k == "save_svg" { found = true }\n}\nif !found { raise_error("AssertionError", "save_svg missing") }');
+  const pngFixture = path.join(process.cwd(), 'tests', '.draw_pixel_fixture.png');
+  try {
+    const pixelSource = 'allow "std/draw" in with Draw\nDraw.pixel_grid(["AB", "BA"], {"A": "#ff00aa", "B": "#00ff00"}, 2, 1, 0)\nDraw.save_png("tests/.draw_pixel_fixture.png", 5, 4)';
+    const pixelProgram = new Parser(new Lexer(pixelSource).scanTokens()).parse();
+    await new Interpreter(undefined, { safeMode: false, allowLocalFs: true }).interpret(pixelProgram);
+    const png = fs.readFileSync(pngFixture);
+    if (!png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error('invalid PNG signature');
+    if (png.readUInt32BE(16) !== 5 || png.readUInt32BE(20) !== 4) throw new Error('invalid PNG dimensions');
+    const idat: Buffer[] = [];
+    for (let offset = 8; offset < png.length;) {
+      const length = png.readUInt32BE(offset);
+      if (png.toString('ascii', offset + 4, offset + 8) === 'IDAT') idat.push(png.subarray(offset + 8, offset + 8 + length));
+      offset += length + 12;
+    }
+    const raster = inflateSync(Buffer.concat(idat));
+    if (!raster.subarray(5, 9).equals(Buffer.from([255, 0, 170, 255]))) throw new Error('scaled palette pixel missing');
+    if (!raster.subarray(13, 17).equals(Buffer.from([0, 255, 0, 255]))) throw new Error('grid palette mapping missing');
+    console.log('✓ Draw raster pixel-grid PNG rendering');
+  } catch (error: any) {
+    console.error(`✗ Draw raster pixel-grid PNG rendering: ${error.stack || error.message}`);
+    process.exitCode = 1;
+  } finally {
+    fs.rmSync(pngFixture, { force: true });
+  }
   const checkOnlyFixture = path.join(process.cwd(), 'tests', '.sesi_check_only_fixture.sesi');
   fs.writeFileSync(checkOnlyFixture, 'raise_error("AssertionError", "checkOnly must not execute this file")');
   try {
@@ -275,7 +300,7 @@ async function main() {
   // 4. model() with images + other config keys
   console.log('\n4. model() — images mixed with temperature and max_tokens');
   try {
-    const expr = parseFirstExpr(`model("gemini-3.1-flash-lite") {images: "ref.jpg", temperature: 0, max_tokens: 256} {"analyze"}`) as ModelCallExpression;
+    const expr = parseFirstExpr(`model("gemini-3.5-flash-lite") {images: "ref.jpg", temperature: 0, max_tokens: 256} {"analyze"}`) as ModelCallExpression;
     assert('type is ModelCallExpression', expr.type === 'ModelCallExpression');
     assert('images field is present', expr.images !== undefined);
     assert('config.temperature is present', expr.config?.temperature !== undefined);
@@ -287,7 +312,7 @@ async function main() {
   // 5. image() with a literal images key
   console.log('\n5. image() — literal reference path');
   try {
-    const expr = parseFirstExpr(`image("gemini-3.1-flash-image") {images: "ref.jpg", ratio: "16:9"} {"render in same style"}`) as ImageCallExpression;
+    const expr = parseFirstExpr(`image("gemini-3.1-flash-image-lite") {images: "ref.jpg", ratio: "16:9"} {"render in same style"}`) as ImageCallExpression;
     assert('type is ImageCallExpression', expr.type === 'ImageCallExpression');
     assert('images field is present', expr.images !== undefined);
     assert('config.ratio is present', expr.config?.ratio !== undefined);

@@ -3,15 +3,60 @@ let html = convert(doc) {file_type: "md", output_type: "html"} {markdown}
 print "=== Markdown to HTML ==="
 print html
 
+let markdownAdvanced = "# Guide\n\n- one\n- two\n\n```js\nconst x = 1\n```"
+let htmlAdvanced = convert(doc) {file_type: "md", output_type: "html"} {markdownAdvanced}
+print "=== Advanced Markdown to HTML ==="
+print htmlAdvanced
+
+let htmlDoc = "<article><h1>Guide</h1><p>Hello <strong>world</strong>.</p><ul><li>one</li><li>two</li></ul></article>"
+let markdownOut = convert(doc) {file_type: "html", output_type: "md"} {htmlDoc}
+print "=== HTML to Markdown ==="
+print markdownOut
+
+let textOut = convert(doc) {file_type: "html", output_type: "txt"} {htmlDoc}
+print "=== HTML to Text ==="
+print textOut
+
 let csv = "name,age\nAlice,30\nBob,25"
 let json = convert(doc) {file_type: "csv", output_type: "json"} {csv}
 print "=== CSV to JSON ==="
 print json
 
+let tsv = "name\tage\nAlice\t30\nBob\t25"
+let tsvJson = convert(doc) {file_type: "tsv", output_type: "json"} {tsv}
+print "=== TSV to JSON ==="
+print tsvJson
+
 let jsonStr = "[{\"name\":\"Alice\",\"age\":\"30\"},{\"name\":\"Bob\",\"age\":\"25\"}]"
 let csvOut = convert(doc) {file_type: "json", output_type: "csv"} {jsonStr}
 print "=== JSON to CSV ==="
 print csvOut
+
+let tsvOut = convert(doc) {file_type: "json", output_type: "tsv"} {jsonStr}
+print "=== JSON to TSV ==="
+print tsvOut
+
+let yamlOut = convert(doc) {file_type: "json", output_type: "yaml"} {jsonStr}
+print "=== JSON to YAML ==="
+print yamlOut
+
+let yamlStr = "people:\n  - name: Alice\n    age: 30\n  - name: Bob\n    age: 25"
+let yamlJson = convert(doc) {file_type: "yaml", output_type: "json"} {yamlStr}
+print "=== YAML to JSON ==="
+print yamlJson
+
+let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"40\"><text x=\"10\" y=\"25\">Sesi SVG</text></svg>"
+let svgHtml = convert(doc) {file_type: "svg", output_type: "html"} {svg}
+print "=== SVG to HTML ==="
+print svgHtml
+
+let svgOnly = convert(doc) {file_type: "html", output_type: "svg"} {svgHtml}
+print "=== HTML to SVG ==="
+print svgOnly
+
+let svgText = convert(doc) {file_type: "svg", output_type: "txt"} {svg}
+print "=== SVG to Text ==="
+print svgText
 
 print "=== File conversion ==="
 write_file("test_in.md", "# Heading\nParagraph")
@@ -21,3 +66,12 @@ print out_path
 let converted_html = read_file(out_path)
 print "HTML file content:"
 print converted_html
+
+write_file("test_svg.svg", svg)
+let svg_png = convert(media) {output_type: "png"} {"test_svg.svg"}
+print "=== SVG to PNG File ==="
+print svg_png
+
+let png_svg = convert(media) {output_type: "svg"} {svg_png}
+print "=== PNG to SVG File ==="
+print png_svg

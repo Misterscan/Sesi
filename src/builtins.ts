@@ -1367,7 +1367,7 @@ ${bodyText}
 
         const modelName = typeof stepObj.model === 'string' && stepObj.model.trim() !== ''
           ? stepObj.model
-          : 'gemini-3.1-flash-lite';
+          : 'gemini-3.5-flash-lite';
         const model = interpreter && typeof (interpreter as any).resolveModelName === 'function'
           ? (interpreter as any).resolveModelName(modelName)
           : modelName;

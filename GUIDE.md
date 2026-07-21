@@ -19,7 +19,7 @@ Sesi is a **clean, minimal, side-effect-oriented** scripting language. It is:
 
 ```sesi
 let name    = "Sesi"
-let version = 1.6.6
+let version = 1.6.7
 let active  = true
 let missing         // null (uninitialized)
 ```
@@ -284,10 +284,10 @@ Sesi's unique string-composition primitive. Replaces template literals.
 
 ```sesi
 let name = "Ada"
-let ver  = "1.6.6"
+let ver  = "1.6.7"
 
 prompt header {"Welcome to Sesi" ver ". Hello," name}
-// header = "Welcome to Sesi 1.6.6. Hello, Ada"
+// header = "Welcome to Sesi 1.6.7. Hello, Ada"
 
 print header
 write_file("out.txt", header)
@@ -332,7 +332,7 @@ print "Hello, " + name + " version " + str(version)
 
 ```sesi
 export fn add(a, b) { return a + b }
-export let VERSION = "1.6.6"
+export let VERSION = "1.6.7"
 ```
 
 ### Importing — `import` (named)
@@ -390,7 +390,7 @@ try {
 
 ---
 
-## 9. std/draw — SVG Drawing
+## 9. std/draw — SVG and Pixel Drawing
 
 ```sesi
 allow "std/draw" in with Draw
@@ -457,6 +457,16 @@ Draw.save_svg("output.svg", 400, 300)
 Draw.clear()                       // reset buffer
 ```
 
+### Raster Pixels
+
+```sesi
+Draw.pixel(x, y, color)
+Draw.pixel_grid(grid, palette, scale?, x?, y?)
+Draw.save_png(path, width, height, background?)
+```
+
+Pixel calls write to a raster buffer, not the SVG. `pixel_grid` accepts array rows or compact string rows and expands each cell by `scale`. `save_png` encodes the buffer as a true RGBA PNG; the background defaults to transparent.
+
 ### Layer Order
 
 Shapes are rendered in draw-call order — **earlier calls appear behind later ones**.
@@ -468,7 +478,7 @@ Shapes are rendered in draw-call order — **earlier calls appear behind later o
 ### Basic call
 
 ```sesi
-let response = model("gemini-3.5-flash") {"Summarize this:" text}
+let response = model("gemini-3.6-flash") {"Summarize this:" text}
 print response
 ```
 
@@ -478,7 +488,7 @@ print response
 
 ```sesi
 // Config block comes between model name and prompt block
-let result = model("gemini-3.5-flash") {thinkingLevel: "medium", max_tokens: 500} {"Analyze this:" doc}
+let result = model("gemini-3.6-flash") {thinkingLevel: "medium", max_tokens: 500} {"Analyze this:" doc}
 ```
 
 > Config keys are **unquoted identifiers** (schema objects).
@@ -496,19 +506,19 @@ let result = model("gemini-3.5-flash") {thinkingLevel: "medium", max_tokens: 500
 
 ```sesi
 // Vision
-let desc = model("gemini-3.5-flash") {images: "photo.png"} {"Describe this image."}
+let desc = model("gemini-3.6-flash") {images: "photo.png"} {"Describe this image."}
 
 // Streaming
-let r = model("gemini-3.1-flash-lite") {stream: true} {"Write a poem."}
+let r = model("gemini-3.5-flash-lite") {stream: true} {"Write a poem."}
 
 // No cache + search
-let news = model("gemini-3.1-flash-lite") {search, cache: false} {"Latest AI news."}
+let news = model("gemini-3.5-flash-lite") {search, cache: false} {"Latest AI news."}
 ```
 
 ### Image Generation
 
 ```sesi
-let img = image("gemini-2.5-flash-image") {ratio: "16:9", size: "1K"} {"A cyberpunk city at night"}
+let img = image("gemini-3.1-flash-image-lite") {ratio: "16:9", size: "1K"} {"A cyberpunk city at night"}
 write_image("banner.png", img)
 ```
 
@@ -742,7 +752,7 @@ prompt title {
 let obj = {"name": "Ada", "age": 42}
 
 // Config/schema blocks: unquoted identifiers
-let r = model("gemini-3.5-flash") {thinkingLevel: "low", max_tokens: 100} {"Hello"}
+let r = model("gemini-3.6-flash") {thinkingLevel: "low", max_tokens: 100} {"Hello"}
 ```
 
 ### 3. No `const`, no `var`, no `return` at top level
@@ -916,8 +926,8 @@ import { fn1, fn2 } from "mymodule"
 try { let data = read_file("f.json") } catch (err) { print "Error:" err }
 
 // AI
-let r = model("gemini-3.5-flash") {thinkingLevel: "low"} {"Question:" q}
-let img = image("gemini-2.5-flash-image") {ratio: "1:1"} {"A forest"}
+let r = model("gemini-3.6-flash") {thinkingLevel: "low"} {"Question:" q}
+let img = image("gemini-3.1-flash-image-lite") {ratio: "1:1"} {"A forest"}
 write_image("out.png", img)
 
 // Network

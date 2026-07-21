@@ -1,0 +1,55 @@
+/*
+  Large Grid-Based Placeholder Icon
+
+  Generates a full-resolution 512x512 RGBA PNG. The 16x16 design grid is
+  expanded to 32x32 real raster pixels per cell by Draw.pixel_grid().
+*/
+allow "std/draw" in with Draw
+
+let palette = {
+    ".": "#202957",
+    "/": "#344a88",
+    "F": "#56d9e9",
+    "H": "#a7f3ff",
+    "I": "#111a38",
+    "s": "#ffe6a3",
+    "S": "#ffd166",
+    "R": "#5966c2",
+    "M": "#6fe7c8",
+    "N": "#e8fbff",
+    "G": "#0b1230"
+}
+
+let icon_grid = [
+    "......//........",
+    ".....//.........",
+    "..FFFFFFFFFFFF..",
+    "..FHHHHHHHHHHF..",
+    "..FHIIIIIIssIF..",
+    "..FHIIIIIssssF..",
+    "..FHIIIIIIssRF..",
+    "..FHIIINIIIRRF..",
+    "..FHIINMNIRRRF..",
+    "..FHINMMMNRRRF..",
+    "..FHNMMMMMNRRF..",
+    "..FHMMMMMMMNRF..",
+    "..FHMMMMMMMMNF..",
+    "..FGGGGGGGGGGF..",
+    "..FFFFFFFFFFFF..",
+    "........//......"
+]
+
+print "Rendering a 512x512 placeholder icon from a palette grid..."
+Draw.clear()
+
+// 16 logical cells x 32 real pixels = 512 pixels on each side.
+Draw.pixel_grid(icon_grid, palette, 32)
+
+let outputDir = "generated_images/"
+if list_dir(outputDir) == null {
+    make_dir(outputDir)
+}
+let outputPath = outputDir + "placeholder_icon_512.png"
+Draw.save_png(outputPath, 512, 512)
+
+print "Saved" outputPath "(512x512, true raster PNG)"

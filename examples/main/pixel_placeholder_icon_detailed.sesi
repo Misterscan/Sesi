@@ -1,0 +1,102 @@
+/*
+  Large Raster Placeholder Icon
+
+  Generates a full-resolution 512x512 RGBA PNG using Draw.pixel().
+  Every visible output pixel is calculated individually; this is not a
+  tiny sprite enlarged with SVG geometry or image scaling.
+*/
+allow "std/draw" in with Draw
+
+let canvas_size = 512
+let last_pixel = canvas_size - 1
+
+print "Rendering a 512x512 placeholder icon pixel by pixel..."
+Draw.clear()
+
+let y = 0
+while y < canvas_size {
+    let x = 0
+    while x < canvas_size {
+        // Deep blue diagonal background gradient.
+        let red = 22 + ((x / last_pixel) * 24)
+        let green = 30 + ((y / last_pixel) * 38)
+        let blue = 68 + (((x + y) / (last_pixel * 2)) * 58)
+        let pixel_color = "rgb(" + str(red) + ", " + str(green) + ", " + str(blue) + ")"
+
+        // Soft diagonal accent bands in the background.
+        let band = x + y
+        if (band > 260 && band < 276) || (band > 730 && band < 746) {
+            pixel_color = "#334a88"
+        }
+
+        // Main image-placeholder card.
+        let in_card = x >= 72 && x <= 439 && y >= 82 && y <= 429
+        if in_card {
+            pixel_color = "#111a38"
+
+            // Bright frame around the card.
+            let on_frame = x < 84 || x > 427 || y < 94 || y > 417
+            if on_frame {
+                pixel_color = "#56d9e9"
+            }
+
+            // Inner frame highlight.
+            let on_inner_highlight = (x >= 84 && x <= 427 && y >= 94 && y <= 99) || (x >= 84 && x <= 89 && y >= 94 && y <= 417)
+            if on_inner_highlight {
+                pixel_color = "#a7f3ff"
+            }
+
+            // Pixel-rendered sun.
+            let sun_dx = x - 342
+            let sun_dy = y - 177
+            let sun_distance = (sun_dx * sun_dx) + (sun_dy * sun_dy)
+            if sun_distance <= 2304 {
+                pixel_color = "#ffd166"
+            }
+            if sun_distance <= 1444 {
+                pixel_color = "#ffe6a3"
+            }
+
+            // Rear mountain silhouette.
+            let rear_dx = x - 329
+            if rear_dx < 0 {
+                rear_dx = -rear_dx
+            }
+            let rear_mountain_edge = 282 + (rear_dx * 0.78)
+            if y >= rear_mountain_edge && y <= 417 {
+                pixel_color = "#5966c2"
+            }
+
+            // Front mountain silhouette.
+            let front_dx = x - 205
+            if front_dx < 0 {
+                front_dx = -front_dx
+            }
+            let front_mountain_edge = 218 + (front_dx * 0.88)
+            if y >= front_mountain_edge && y <= 417 {
+                pixel_color = "#6fe7c8"
+            }
+
+            // Snow cap on the front mountain.
+            if y >= front_mountain_edge && y < front_mountain_edge + 24 && front_dx < 52 {
+                pixel_color = "#e8fbff"
+            }
+
+            // Dark ground strip keeps the glyph visually anchored.
+            if y >= 398 && y <= 417 {
+                pixel_color = "#0b1230"
+            }
+        }
+
+        Draw.pixel(x, y, pixel_color)
+        x = x + 1
+    }
+    y = y + 1
+}
+let outputDir = "generated_images/"
+if list_dir(outputDir) == null {
+    make_dir(outputDir)
+}
+let outputPath = outputDir + "placeholder_icon_512_detailed.png"
+Draw.save_png(outputPath, canvas_size, canvas_size)
+print "Saved" outputPath "(512x512, true raster PNG)"

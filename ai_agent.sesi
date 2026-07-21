@@ -37,8 +37,8 @@ fn call_model_helper(model_name: string, temp: number, thinking: string, search_
   if model_name == "copilot" {
     return model("copilot") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
   }
-  if model_name == "gemini-3.5-flash" {
-    return model("gemini-3.5-flash") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  if model_name == "gemini-3.6-flash" {
+    return model("gemini-3.6-flash") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
   }
   if model_name == "gemini-3.1-pro-preview" {
     return model("gemini-3.1-pro-preview") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
@@ -46,11 +46,11 @@ fn call_model_helper(model_name: string, temp: number, thinking: string, search_
   if model_name == "gemini-3-flash-preview" {
     return model("gemini-3-flash-preview") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
   }
-  return model("gemini-3.1-flash-lite") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  return model("gemini-3.5-flash-lite") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
 }
 
 export fn create(config) {
-  let model_name = "gemini-3.5-flash"
+  let model_name = "gemini-3.6-flash"
   if config["model"] != null {
     model_name = config["model"]
   }

@@ -22,7 +22,7 @@ COMMENTED OUT BECAUSE AI WITH FORCE THEMSELVES TO RUN IT.
 
 Structured output with model()
 let review = "This product is amazing! I love how it works. Highly recommended!"
-let sentiment = structured_output({sentiment: string, confidence: number, keywords: string})(model("gemini-3.1-flash-lite") {"Analyze the sentiment of this review and extract key information. Return JSON with: sentiment (positive/negative/neutral), confidence (0-1), keywords (comma-separated) " review})
+let sentiment = structured_output({sentiment: string, confidence: number, keywords: string})(model("gemini-3.5-flash-lite") {"Analyze the sentiment of this review and extract key information. Return JSON with: sentiment (positive/negative/neutral), confidence (0-1), keywords (comma-separated) " review})
 print "Sentiment:" sentiment["sentiment"]
 print "Confidence:" sentiment["confidence"]
 print "Keywords:" sentiment["keywords"] */

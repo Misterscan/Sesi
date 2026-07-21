@@ -105,7 +105,7 @@ prompt greeting {"Hello, " name "!"}
 **Structured Output**
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.6\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.7\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -120,7 +120,7 @@ let response = model("gemini-3-flash-preview") {temperature: 0.7, max_tokens: 10
 **Web Search Grounding**
 
 ```sesi
-let response = model("gemini-3.1-flash-lite") {search, max_tokens: 1000} {"What is the weather in Tokyo?"}
+let response = model("gemini-3.5-flash-lite") {search, max_tokens: 1000} {"What is the weather in Tokyo?"}
 ```
 
 **Image Generation**
@@ -145,7 +145,7 @@ The runtime natively polls the model if it hits a `MAX_TOKENS` finish status dur
 **Tool Calling**
 
 ```sesi
-let result = tool_call(functionName)(model(gemini-3.1-flash-lite) {"Your prompt here"})
+let result = tool_call(functionName)(model(gemini-3.5-flash-lite) {"Your prompt here"})
 ```
 
 **Memory**

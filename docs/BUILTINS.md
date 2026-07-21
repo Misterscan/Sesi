@@ -240,7 +240,7 @@ Converts all alphabetic characters in a string to uppercase.
 
 ```sesi
 to_upper("hello")      // "HELLO"
-to_upper("Sesi V1.6.6")  // "SESI V1.6.6"
+to_upper("Sesi V1.6.7")  // "SESI V1.6.7"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -253,7 +253,7 @@ Converts all alphabetic characters in a string to lowercase.
 
 ```sesi
 to_lower("WORLD")      // "world"
-to_lower("Sesi V1.6.6")  // "sesi v1.6.6"
+to_lower("Sesi V1.6.7")  // "sesi v1.6.7"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -612,14 +612,61 @@ Convert file or document content between formats.
 
 If the input is a local file path, the converted content is saved to a file of the same name and directory with the target extension, and the path to the output file is returned. If the input is raw string content, the converted content is returned directly.
 
+Native document conversions currently include:
+
+- `md -> html`
+- `html -> md`
+- `html -> txt`
+- `csv -> json`
+- `tsv -> json`
+- `json -> csv`
+- `json -> tsv`
+- `json -> yaml` / `json -> yml`
+- `yaml -> json` / `yml -> json`
+- `svg -> html`
+- `html -> svg`
+- `svg -> txt`
+
+For other `doc` conversions, Sesi falls back to `pandoc` for local files when available, then to the AI conversion fallback if no native or local converter exists.
+
+For `media`, Sesi still prefers external tools such as ImageMagick or `ffmpeg`, but it also has a native fallback for rasterizing `svg` files into `png`, `jpg`, or `jpeg`.
+
+SVG image conversion is available through `convert(media)` for file-path inputs:
+
+- `svg -> png`
+- `svg -> jpg`
+- `svg -> jpeg`
+- `png -> svg`
+- `jpg -> svg`
+- `jpeg -> svg`
+- `gif -> svg`
+- `webp -> svg`
+- `bmp -> svg`
+- `tiff -> svg`
+- `avif -> svg`
+
+Raster image to SVG conversion creates an SVG wrapper with the original image embedded as a data URI. It is intended to make SVG output work reliably for image workflows; it does not perform vector tracing.
+
 ```sesi
 // Raw content conversion
 let html = convert(doc) {file_type: "md", output_type: "html"} {"# Hello"}
 print html // "<h1>Hello</h1>"
 
+let yaml = convert(doc) {file_type: "json", output_type: "yaml"} {"[{\"name\":\"Alice\"}]"}
+print yaml
+
+let markdown = convert(doc) {file_type: "html", output_type: "md"} {"<h1>Hello</h1><p>World</p>"}
+print markdown
+
 // File path conversion
 let out_path = convert(doc) {output_type: "html"} {"document.md"}
 print out_path // "document.html"
+
+let image_path = convert(media) {output_type: "png"} {"diagram.svg"}
+print image_path // "diagram.png"
+
+let svg_path = convert(media) {output_type: "svg"} {"photo.png"}
+print svg_path // "photo.svg"
 ```
 
 **Returns**: `string` (converted content or path to the converted file)
@@ -852,7 +899,7 @@ Converts a number of musical bars into milliseconds based on BPM and time signat
 
 ## Drawing Functions (std/draw)
 
-The `std/draw` module provides a comprehensive API for creating static or animated SVG graphics.
+The `std/draw` module provides APIs for SVG graphics and raster pixel drawing.
 
 ```sesi
 allow "std/draw" in with Draw
@@ -957,6 +1004,27 @@ Returns the complete, formatted SVG string.
 ### save_svg(path, width, height) -> bool
 
 Saves the formatted SVG drawing to the specified path. Return `true` on success.
+
+### pixel(x, y, color)
+
+Sets one pixel in the raster buffer. Later calls at the same integer coordinate replace the earlier color. Colors may be common names, `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb(...)`, or `rgba(...)`.
+
+### pixel_grid(grid, palette, scale = 1, x = 0, y = 0)
+
+Draws a palette-indexed grid into the raster buffer. Rows may be arrays of palette indexes or strings whose characters are palette keys. `scale` expands every logical cell to a square of real pixels; `x` and `y` offset the grid on the output canvas.
+
+```sesi
+Draw.pixel_grid([
+  "0110",
+  "1001",
+  "1001",
+  "0110"
+], {"0": "transparent", "1": "#56d9e9"}, 32)
+```
+
+### save_png(path, width, height, background = "transparent") -> bool
+
+Encodes the raster buffer as a true-color RGBA PNG and saves it to `path`. Pixels outside the requested dimensions are omitted. The optional background accepts the same color formats as `pixel`.
 
 ---
 
@@ -1303,7 +1371,7 @@ Default behavior is automatic and requires no special syntax:
 
 Each step is an object with at minimum a `"prompt"` string. Optional keys include:
 
-- `"model"` (default: `"gemini-3.1-flash-lite"`)
+- `"model"` (default: `"gemini-3.5-flash-lite"`)
 - `"temperature"`, `"max_tokens"`, `"top_k"`, `"top_p"`
 - `"thinkingLevel"`, `"cache"`, `"search"`
 
@@ -1322,7 +1390,7 @@ print result["final"]
 Register a custom local name for a model string. Aliases are resolved automatically by `model()`, `image()`, and `workflow()`.
 
 ```sesi
-set_alias("fast", "gemini-3.1-flash-lite")
+set_alias("fast", "gemini-3.5-flash-lite")
 let answer = model("fast") {"Summarize this paragraph."}
 ```
 
@@ -1473,7 +1541,7 @@ for item in results {
 
 ### memory_trim(name, max_tokens = 900000) -> string
 
-Manage the context window of a `memory` binding. If the total token count (estimated at ~4 characters per token) exceeds `max_tokens`, the older half of the memory entries are automatically summarized into a single paragraph using `gemini-3.1-flash-lite`, preserving all key facts and context while reducing token usage.
+Manage the context window of a `memory` binding. If the total token count (estimated at ~4 characters per token) exceeds `max_tokens`, the older half of the memory entries are automatically summarized into a single paragraph using `gemini-3.5-flash-lite`, preserving all key facts and context while reducing token usage.
 
 If the memory is already within the budget, the full memory text is returned unchanged.
 
@@ -1904,7 +1972,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.6.6"
+  "version": "1.6.7"
 }
 print Json.stringify(original)
 ```

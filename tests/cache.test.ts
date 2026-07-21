@@ -44,7 +44,7 @@ async function main() {
   }
 
   const req: AIRequest = {
-    model: 'gemini-3.1-flash-lite',
+    model: 'gemini-3.5-flash-lite',
     prompt: 'What is 2 + 2?',
     temperature: 0.1,
   };

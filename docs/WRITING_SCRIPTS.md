@@ -345,7 +345,7 @@ Objects are useful for configuration and structured records.
 ```sesi
 let app = {
   "name": "Sesi",
-  "version": "1.6.6"
+  "version": "1.6.7"
 }
 
 for key in keys(app) {
@@ -378,12 +378,12 @@ Sesi provides native string utilities to format, transform, and slice text:
 - **`locate(string, sub)`**: Returns the zero-based index of the first occurrence of a substring, or `-1` if not found.
 
 ```sesi
-let original = "  Hello, Sesi V1.6.6!  "
+let original = "  Hello, Sesi V1.6.7!  "
 
-let cleaned = trim(original)                   // "Hello, Sesi V1.6.6!"
-let shouted = to_upper(cleaned)                // "HELLO, SESI V1.6.6!"
+let cleaned = trim(original)                   // "Hello, Sesi V1.6.7!"
+let shouted = to_upper(cleaned)                // "HELLO, SESI V1.6.7!"
 let part = slice(cleaned, 7, 11)               // "Sesi"
-let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V1.6.6!"
+let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V1.6.7!"
 let found = contains(cleaned, "Sesi")          // true
 let idx = locate(cleaned, "Sesi")             // 7
 ```
@@ -635,7 +635,7 @@ Use `model` for direct model calls:
 
 ```sesi
 let text = read_file("notes.txt")
-let summary = model("gemini-3.1-flash-lite") {"Summarize this in 3 bullets:" text}
+let summary = model("gemini-3.5-flash-lite") {"Summarize this in 3 bullets:" text}
 
 print summary
 ```
@@ -649,13 +649,13 @@ You can stream model responses chunk-by-chunk in real-time by adding a `stream` 
 
 ```sesi
 // Option 1: Stream directly to stdout
-let resp1 = model("gemini-3.1-flash-lite") {stream: true} {"Write a short poem about antigravity."}
+let resp1 = model("gemini-3.5-flash-lite") {stream: true} {"Write a short poem about antigravity."}
 
 // Option 2: Handle chunks using a callback function
 fn onChunk(chunk) {
   print "Chunk received:" chunk
 }
-let resp2 = model("gemini-3.1-flash-lite") {stream: onChunk} {"Explain quantum mechanics."}
+let resp2 = model("gemini-3.5-flash-lite") {stream: onChunk} {"Explain quantum mechanics."}
 ```
 
 Use `prompt` blocks to compose readable prompts from strings and variables.
@@ -669,7 +669,7 @@ prompt request {"Classify this file as TECHNICAL, LEGAL, MARKETING, or OTHER.
   File: " file_name "
   Content: " content}
 
-let category = model("gemini-3.1-flash-lite") {request}
+let category = model("gemini-3.5-flash-lite") {request}
 print file_name ":" category
 ```
 
@@ -687,7 +687,7 @@ You can combine `model` and `structured_output`:
 
 ```sesi
 let review = "The tool is fast, but the setup was confusing."
-let result = structured_output({sentiment: string, summary: string})(model("gemini-3.1-flash-lite") {"Analyze this review and return JSON with sentiment and summary: " review})
+let result = structured_output({sentiment: string, summary: string})(model("gemini-3.5-flash-lite") {"Analyze this review and return JSON with sentiment and summary: " review})
 
 print result["sentiment"]
 print result["summary"]
@@ -768,7 +768,7 @@ allow "std/json" in with {
 }
 let original = {
   "project": "Sesi",
-  "version": "1.6.6"
+  "version": "1.6.7"
 }
 print stringify(original)
 ```
@@ -905,7 +905,7 @@ Add reasoning only when needed:
 ```sesi
 // Read report path and stream the summary directly to terminal stdout
 let report_text = read_file(report_path)
-let summary = model("gemini-3.1-flash-lite") {stream: true} {"Summarize this folder report:
+let summary = model("gemini-3.5-flash-lite") {stream: true} {"Summarize this folder report:
   " report_text}
 try {
   write_file("reports/daily_report_summary.txt", summary)

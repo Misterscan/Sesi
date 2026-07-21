@@ -1418,6 +1418,18 @@ function activate(context) {
             description: 'Draws a rectangle on the SVG canvas.',
             example: 'rect(0, 0, 500, 500, "#1a1a1a")'
         },
+        'pixel': {
+            signature: 'pixel(x, y, color)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Sets one color value in the raster pixel buffer.',
+            example: 'pixel(4, 4, "#ff00aa")'
+        },
+        'pixel_grid': {
+            signature: 'pixel_grid(grid, palette, scale = 1, x = 0, y = 0)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a palette-indexed grid into the raster pixel buffer.',
+            example: 'pixel_grid(["01", "10"], {"0": "black", "1": "white"}, 16)'
+        },
         'line': {
             signature: 'line(x1, y1, x2, y2, color)',
             source: 'Drawing Standard Library (std/draw)',
@@ -1435,6 +1447,12 @@ function activate(context) {
             source: 'Drawing Standard Library (std/draw)',
             description: 'Saves the current drawing buffer to an SVG file on disk.',
             example: 'save_svg("art.svg", 500, 500)'
+        },
+        'save_png': {
+            signature: 'save_png(path, width, height, background = "transparent")',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Encodes the raster pixel buffer and saves it as a PNG file.',
+            example: 'save_png("pixels.png", 64, 64)'
         },
         'ellipse': {
             signature: 'ellipse(cx, cy, rx, ry, color, options = {})',
@@ -1755,11 +1773,12 @@ function activate(context) {
                             ],
                             'std/draw': [
                                 'clear()', 'circle(x, y, r, fill, options?)', 'rect(x, y, w, h, fill, options?)',
+                                'pixel(x, y, color)', 'pixel_grid(grid, palette, scale?, x?, y?)',
                                 'line(x1, y1, x2, y2, color, options?)', 'text(x, y, text, size, color, options?)',
                                 'ellipse(cx, cy, rx, ry, fill, options?)', 'polygon(points, fill, options?)',
                                 'path(d, fill, options?)', 'gradient(type, id, stops, options?)',
                                 'style(cssText)', 'raw(svgCode)',
-                                'render(w, h)', 'save_svg(path, w, h)'
+                                'render(w, h)', 'save_svg(path, w, h)', 'save_png(path, w, h, background?)'
                             ],
                             'std/terminal': [
                                 'clear()', 'color(text, color)', 'cursor(x,y)'

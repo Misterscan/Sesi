@@ -51,7 +51,7 @@ async function processFeedback() {
     };
 
     const analysisResponse = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-3.5-flash-lite",
       contents: `Analyze the customer feedback. Category should be Billing, UI, or Technical.\nFeedback: ${feedback}`,
       config: {
         responseMimeType: "application/json",
@@ -73,7 +73,7 @@ async function processFeedback() {
     // 4. Conditional Tool Calling & Response Handling
     if (analysis.isUrgent) {
       const escalationResponse = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        model: "gemini-3.5-flash-lite",
         contents: `Call escalateTicket for customer '1234' with an exact reason based on:\n${feedback}`,
         config: {
           tools: [escalateToolDeclaration]

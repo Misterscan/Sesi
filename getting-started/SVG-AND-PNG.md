@@ -1,6 +1,6 @@
-# SVG Drawing in Sesi
+# Drawing in Sesi
 
-`std/draw` is Sesi's built-in module for creating SVG graphics. You add shapes and text to a drawing buffer, then either get the SVG as a string or save it directly to a file — no external libraries needed.
+`std/draw` is Sesi's built-in module for creating SVG graphics and raster pixel art — no external libraries needed.
 
 ---
 
@@ -188,6 +188,52 @@ print "Saved poster.svg"
 
 ---
 
+## Raster Pixel Drawing
+
+`Draw.pixel` writes to a raster buffer that is separate from the SVG shape buffer. `Draw.save_png` encodes those pixels as an RGBA PNG file.
+
+```sesi
+allow "std/draw" in with Draw
+
+Draw.pixel(0, 0, "#ff4d6d")
+Draw.pixel(1, 0, "#ffd166")
+Draw.pixel(0, 1, "rgba(6, 214, 160, 0.5)")
+Draw.pixel(1, 1, "#118ab2")
+
+Draw.save_png("pixels.png", 2, 2)
+```
+
+For pixel art, a palette-indexed grid is much more compact. String rows use each character as a palette key, and `scale` expands every grid cell into real output pixels:
+
+```sesi
+let palette = {
+  ".": "#111a38",
+  "X": "#56d9e9"
+}
+
+let grid = [
+  ".XX.",
+  "X..X",
+  "X..X",
+  ".XX."
+]
+
+Draw.pixel_grid(grid, palette, 128)
+Draw.save_png("grid.png", 512, 512)
+```
+
+The signatures are:
+
+```
+Draw.pixel(x, y, color)
+Draw.pixel_grid(grid, palette, scale = 1, x = 0, y = 0)
+Draw.save_png(path, width, height, background = "transparent")
+```
+
+Coordinates are floored to integers. A later call at the same coordinate replaces the earlier pixel. Supported colors include common names, hex colors with optional alpha, and `rgb(...)`/`rgba(...)`. `Draw.clear()` resets both the raster and SVG buffers.
+
+---
+
 ## Composing Multiple Shapes
 
 Shapes are layered in the order they are added, so earlier calls appear behind later ones:
@@ -303,6 +349,11 @@ Draw.path(d, fill, options = {})
 Draw.clear()
 let svg = Draw.render(width, height)
 Draw.save_svg("output.svg", width, height)
+
+// Raster pixels
+Draw.pixel(x, y, color)
+Draw.pixel_grid(grid, palette, scale = 1, x = 0, y = 0)
+Draw.save_png("output.png", width, height, background = "transparent")
 ```
 
 ---

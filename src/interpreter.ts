@@ -43,6 +43,12 @@ import { aiRuntime } from './ai-runtime';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
+import { deflateSync } from 'zlib';
+import { convert as htmlToPlainText } from 'html-to-text';
+import { imageSize } from 'image-size';
+import yaml from 'js-yaml';
+import { marked } from 'marked';
+import TurndownService from 'turndown';
 
 export class Interpreter {
   private globalEnv: Environment;
@@ -1119,9 +1125,6 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     // Determine if fileInput is a valid local file path
     let isFilePath = false;
     let absoluteInputPath = '';
-    const fs = require('fs');
-    const path = require('path');
-    const { execSync } = require('child_process');
 
     try {
       absoluteInputPath = ensureSafePath(fileInput, this);
@@ -1218,11 +1221,29 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       const oType = outputType.trim();
 
       if (fType === 'md' && oType === 'html') {
-        converted = simpleMdToHtml(content);
+        converted = markdownToHtml(content);
+      } else if (fType === 'html' && oType === 'md') {
+        converted = htmlToMarkdown(content);
+      } else if (fType === 'html' && oType === 'txt') {
+        converted = htmlToText(content);
+      } else if (fType === 'svg' && oType === 'html') {
+        converted = svgToHtml(content);
+      } else if (fType === 'html' && oType === 'svg') {
+        converted = htmlToSvg(content);
+      } else if (fType === 'svg' && oType === 'txt') {
+        converted = xmlLikeToText(content);
       } else if (fType === 'csv' && oType === 'json') {
-        converted = csvToJson(content);
+        converted = delimitedToJson(content, ',');
+      } else if (fType === 'tsv' && oType === 'json') {
+        converted = delimitedToJson(content, '\t');
       } else if (fType === 'json' && oType === 'csv') {
-        converted = jsonToCsv(content);
+        converted = jsonToDelimited(content, ',');
+      } else if (fType === 'json' && oType === 'tsv') {
+        converted = jsonToDelimited(content, '\t');
+      } else if (fType === 'json' && (oType === 'yaml' || oType === 'yml')) {
+        converted = jsonToYaml(content);
+      } else if ((fType === 'yaml' || fType === 'yml') && oType === 'json') {
+        converted = yamlToJson(content);
       }
 
       if (converted === null) {
@@ -1230,7 +1251,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         const promptText = `Convert the following document content from ${fType} format to ${oType} format. Return ONLY the raw converted content. Do NOT include markdown code blocks (e.g. \`\`\`xml or \`\`\`json) or any explanations or extra characters.\n\nContent:\n${content}`;
         try {
           const response = await aiRuntime.callModel({
-            model: 'gemini-3.1-pro-preview',
+            model: 'gemini-3.6-flash',
             prompt: promptText
           });
           converted = response.text.trim();
@@ -1278,6 +1299,17 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         // Image/Video media conversion
         let convertedWithImageMagick = false;
         let lastError = '';
+
+        if (outputType === 'svg') {
+          try {
+            const svgContent = rasterImageFileToSvg(absoluteInputPath, fileType);
+            fs.writeFileSync(absoluteOutputPath, svgContent, 'utf8');
+            return relativeOutputPath;
+          } catch (e: any) {
+            lastError = e?.message || String(e);
+          }
+        }
+
         if (hasCommand('magick')) {
           try {
             const magickPath = getCommandPath('magick');
@@ -1294,6 +1326,15 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
 
         if (convertedWithImageMagick) {
           return relativeOutputPath;
+        }
+
+        if (fileType === 'svg' && (outputType === 'png' || outputType === 'jpg' || outputType === 'jpeg')) {
+          try {
+            await rasterizeSvgWithPlaywright(absoluteInputPath, absoluteOutputPath, outputType);
+            return relativeOutputPath;
+          } catch (e: any) {
+            lastError = e?.message || String(e);
+          }
         }
 
         // Check if ffmpeg can do it (e.g. for image sequences or videos)
@@ -2452,6 +2493,96 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     } else if (source === 'std/draw') {
       let elements: string[] = [];
       let defs: string[] = [];
+      let pixels = new Map<string, [number, number, number, number]>();
+
+      const parsePixelColor = (value: RuntimeValue): [number, number, number, number] => {
+        const color = stringify(value).trim().toLowerCase();
+        const named: Record<string, [number, number, number, number]> = {
+          transparent: [0, 0, 0, 0], black: [0, 0, 0, 255], white: [255, 255, 255, 255],
+          red: [255, 0, 0, 255], green: [0, 128, 0, 255], blue: [0, 0, 255, 255],
+          yellow: [255, 255, 0, 255], cyan: [0, 255, 255, 255], magenta: [255, 0, 255, 255],
+          gray: [128, 128, 128, 255], grey: [128, 128, 128, 255], orange: [255, 165, 0, 255],
+          purple: [128, 0, 128, 255],
+        };
+        if (named[color]) return named[color];
+
+        const hex = color.match(/^#([0-9a-f]{3,8})$/i)?.[1];
+        if (hex && [3, 4, 6, 8].includes(hex.length)) {
+          const expanded = hex.length <= 4 ? hex.split('').map(char => char + char).join('') : hex;
+          return [
+            parseInt(expanded.slice(0, 2), 16),
+            parseInt(expanded.slice(2, 4), 16),
+            parseInt(expanded.slice(4, 6), 16),
+            expanded.length === 8 ? parseInt(expanded.slice(6, 8), 16) : 255,
+          ];
+        }
+
+        const rgb = color.match(/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*,\s*(\d+(?:\.\d+)?%?))?\s*\)$/);
+        if (rgb) {
+          const byte = (component: string) => Math.max(0, Math.min(255, Math.round(Number(component))));
+          const alpha = rgb[4] === undefined
+            ? 255
+            : rgb[4].endsWith('%')
+              ? Math.max(0, Math.min(255, Math.round(Number(rgb[4].slice(0, -1)) * 2.55)))
+              : Math.max(0, Math.min(255, Math.round(Number(rgb[4]) * 255)));
+          return [byte(rgb[1]), byte(rgb[2]), byte(rgb[3]), alpha];
+        }
+
+        throw new Error(`Unsupported pixel color: ${color}`);
+      };
+
+      const pngChunk = (type: string, data: Buffer): Buffer => {
+        const typeBuffer = Buffer.from(type, 'ascii');
+        const crcInput = Buffer.concat([typeBuffer, data]);
+        let crc = 0xffffffff;
+        for (const byte of crcInput) {
+          crc ^= byte;
+          for (let bit = 0; bit < 8; bit++) {
+            crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+          }
+        }
+        const chunk = Buffer.alloc(12 + data.length);
+        chunk.writeUInt32BE(data.length, 0);
+        typeBuffer.copy(chunk, 4);
+        data.copy(chunk, 8);
+        chunk.writeUInt32BE((crc ^ 0xffffffff) >>> 0, 8 + data.length);
+        return chunk;
+      };
+
+      const renderPng = (widthValue: RuntimeValue, heightValue: RuntimeValue, backgroundValue: RuntimeValue): Buffer => {
+        const width = Math.floor(Number(widthValue));
+        const height = Math.floor(Number(heightValue));
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+          throw new Error('save_png expects positive numeric width and height');
+        }
+
+        const background = parsePixelColor(backgroundValue ?? 'transparent');
+        const scanlines = Buffer.alloc((width * 4 + 1) * height);
+        for (let y = 0; y < height; y++) {
+          const rowStart = y * (width * 4 + 1);
+          scanlines[rowStart] = 0;
+          for (let x = 0; x < width; x++) {
+            const rgba = pixels.get(`${x},${y}`) ?? background;
+            const offset = rowStart + 1 + x * 4;
+            scanlines[offset] = rgba[0];
+            scanlines[offset + 1] = rgba[1];
+            scanlines[offset + 2] = rgba[2];
+            scanlines[offset + 3] = rgba[3];
+          }
+        }
+
+        const header = Buffer.alloc(13);
+        header.writeUInt32BE(width, 0);
+        header.writeUInt32BE(height, 4);
+        header[8] = 8;
+        header[9] = 6;
+        return Buffer.concat([
+          Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+          pngChunk('IHDR', header),
+          pngChunk('IDAT', deflateSync(scanlines)),
+          pngChunk('IEND', Buffer.alloc(0)),
+        ]);
+      };
 
       const formatOptions = (opts: any): string => {
         if (!opts || typeof opts !== 'object') return '';
@@ -2470,6 +2601,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         builtin: (): RuntimeValue => {
           elements = [];
           defs = [];
+          pixels = new Map();
           return null;
         }
       });
@@ -2494,6 +2626,74 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         isBuiltin: true,
         builtin: (x, y, w, h, fill, opts): RuntimeValue => {
           elements.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${stringify(fill) || 'black'}"${formatOptions(opts)} />`);
+          return null;
+        }
+      });
+      exports.set('pixel', {
+        type: 'function',
+        name: 'pixel',
+        params: [{ name: 'x' }, { name: 'y' }, { name: 'color' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (x, y, color): RuntimeValue => {
+          const pixelX = Math.floor(Number(x));
+          const pixelY = Math.floor(Number(y));
+          if (!Number.isFinite(pixelX) || !Number.isFinite(pixelY)) {
+            throw new Error('pixel expects numeric x and y coordinates');
+          }
+          pixels.set(`${pixelX},${pixelY}`, parsePixelColor(color));
+          return null;
+        }
+      });
+      exports.set('pixel_grid', {
+        type: 'function',
+        name: 'pixel_grid',
+        params: [
+          { name: 'grid' },
+          { name: 'palette' },
+          { name: 'scale', defaultValue: 1 as any },
+          { name: 'x', defaultValue: 0 as any },
+          { name: 'y', defaultValue: 0 as any },
+        ],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (grid, palette, scaleValue, xValue, yValue): RuntimeValue => {
+          if (!Array.isArray(grid)) throw new Error('pixel_grid expects grid to be an array of rows');
+          if (!Array.isArray(palette) && (typeof palette !== 'object' || palette === null)) {
+            throw new Error('pixel_grid expects palette to be an array or object');
+          }
+
+          const scale = Math.floor(Number(scaleValue ?? 1));
+          const offsetX = Math.floor(Number(xValue ?? 0));
+          const offsetY = Math.floor(Number(yValue ?? 0));
+          if (!Number.isFinite(scale) || scale <= 0) throw new Error('pixel_grid expects scale to be a positive number');
+          if (!Number.isFinite(offsetX) || !Number.isFinite(offsetY)) throw new Error('pixel_grid expects numeric x and y offsets');
+
+          for (let gridY = 0; gridY < grid.length; gridY++) {
+            const row = grid[gridY];
+            if (!Array.isArray(row) && typeof row !== 'string') {
+              throw new Error(`pixel_grid row ${gridY} is not an array or string`);
+            }
+            for (let gridX = 0; gridX < row.length; gridX++) {
+              const paletteKey = row[gridX];
+              const colorValue = Array.isArray(palette)
+                ? palette[Number(paletteKey)]
+                : (palette as Record<string, RuntimeValue>)[stringify(paletteKey)];
+              if (colorValue === undefined || colorValue === null) {
+                throw new Error(`pixel_grid palette has no color for ${stringify(paletteKey)}`);
+              }
+              const rgba = parsePixelColor(colorValue);
+              const startX = offsetX + gridX * scale;
+              const startY = offsetY + gridY * scale;
+              for (let pixelY = 0; pixelY < scale; pixelY++) {
+                for (let pixelX = 0; pixelX < scale; pixelX++) {
+                  pixels.set(`${startX + pixelX},${startY + pixelY}`, rgba);
+                }
+              }
+            }
+          }
           return null;
         }
       });
@@ -2627,6 +2827,19 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           const svg = `<svg width="${w || 500}" height="${h || 500}" xmlns="http://www.w3.org/2000/svg">\n${defsStr}${elements.map(e => '  ' + e).join('\n')}\n</svg>`;
           const absPath = ensureSafePath(stringify(filePath), this);
           fs.writeFileSync(absPath, svg);
+          return true;
+        }
+      });
+      exports.set('save_png', {
+        type: 'function',
+        name: 'save_png',
+        params: [{ name: 'path' }, { name: 'width' }, { name: 'height' }, { name: 'background', defaultValue: 'transparent' as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (filePath, w, h, background): RuntimeValue => {
+          const absPath = ensureSafePath(stringify(filePath), this);
+          fs.writeFileSync(absPath, renderPng(w, h, background ?? 'transparent'));
           return true;
         }
       });
@@ -3193,59 +3406,229 @@ function generateWav(frequency: number, durationMs: number, type: string = 'sine
   return buffer;
 }
 
-function simpleMdToHtml(md: string): string {
-  return md
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-    .replace(/\*(.*)\*/gim, '<em>$1</em>')
-    .replace(/\[(.*?)\]\((.*?)\)/gim, "<a href='$2'>$1</a>")
-    .split('\n')
-    .map(line => {
-      const trimmed = line.trim();
-      if (!trimmed) return '';
-      if (trimmed.startsWith('<h') || trimmed.startsWith('<a')) {
-        return line;
-      }
-      return `<p>${line}</p>`;
-    })
-    .filter(Boolean)
-    .join('\n');
+const turndownService = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+});
+
+function markdownToHtml(md: string): string {
+  return marked.parse(md, {
+    async: false,
+    gfm: true,
+    breaks: false,
+  }) as string;
 }
 
-function csvToJson(csv: string): string {
-  const lines = csv.split('\n').map(l => l.trim()).filter(Boolean);
-  if (lines.length === 0) return '[]';
-  const headers = lines[0].split(',').map(h => h.replace(/^["']|["']$/g, '').trim());
-  const result = [];
-  for (let i = 1; i < lines.length; i++) {
-    const obj: any = {};
-    const currentline = lines[i].split(',').map(v => v.replace(/^["']|["']$/g, '').trim());
-    for (let j = 0; j < headers.length; j++) {
-      obj[headers[j]] = currentline[j] || '';
-    }
-    result.push(obj);
+function htmlToMarkdown(html: string): string {
+  return turndownService.turndown(html).trim();
+}
+
+function htmlToText(html: string): string {
+  return htmlToPlainText(html, {
+    wordwrap: false,
+    selectors: [
+      { selector: 'a', options: { ignoreHref: true } },
+      { selector: 'img', format: 'skip' },
+      { selector: 'script', format: 'skip' },
+      { selector: 'style', format: 'skip' },
+    ],
+  }).trim();
+}
+
+function svgToHtml(svg: string): string {
+  const trimmed = svg.trim();
+  return [
+    '<!DOCTYPE html>',
+    '<html lang="en">',
+    '<head>',
+    '  <meta charset="utf-8">',
+    '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+    '  <title>Converted SVG</title>',
+    '  <style>body{margin:0;display:grid;place-items:center;min-height:100vh;background:#fff;}svg{max-width:100%;height:auto;}</style>',
+    '</head>',
+    '<body>',
+    trimmed,
+    '</body>',
+    '</html>'
+  ].join('\n');
+}
+
+function htmlToSvg(html: string): string {
+  const match = html.match(/<svg\b[^>]*>[\s\S]*?<\/svg>/i);
+  if (!match) {
+    throw new Error('HTML to SVG conversion requires an <svg> element in the input.');
   }
-  return JSON.stringify(result, null, 2);
+  return match[0].trim();
 }
 
-function jsonToCsv(jsonStr: string): string {
+function xmlLikeToText(content: string): string {
+  return content
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function delimitedToJson(content: string, delimiter: ',' | '\t'): string {
+  const rows = parseDelimitedText(content, delimiter);
+  return JSON.stringify(rows, null, 2);
+}
+
+function jsonToYaml(jsonStr: string): string {
+  const parsed = JSON.parse(jsonStr);
+  return yaml.dump(parsed, {
+    noRefs: true,
+    lineWidth: -1,
+    sortKeys: false,
+  }).trim();
+}
+
+function yamlToJson(yamlStr: string): string {
+  const parsed = yaml.load(yamlStr);
+  return JSON.stringify(parsed ?? null, null, 2);
+}
+
+function parseDelimitedText(content: string, delimiter: ',' | '\t'): Array<Record<string, string>> {
+  const rows = content
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .filter(line => line.trim().length > 0)
+    .map(line => parseDelimitedLine(line, delimiter));
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const headers = rows[0].map(value => value.trim());
+  return rows.slice(1).map((row) => {
+    const entry: Record<string, string> = {};
+    for (let i = 0; i < headers.length; i++) {
+      entry[headers[i]] = row[i] ?? '';
+    }
+    return entry;
+  });
+}
+
+function parseDelimitedLine(line: string, delimiter: ',' | '\t'): string[] {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === delimiter && !inQuotes) {
+      values.push(current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current);
+  return values.map(value => value.trim());
+}
+
+function jsonToDelimited(jsonStr: string, delimiter: ',' | '\t'): string {
   try {
     const data = JSON.parse(jsonStr);
     if (!Array.isArray(data) || data.length === 0) return '';
     const headers = Object.keys(data[0]);
-    const csvRows = [headers.join(',')];
+    const rows = [headers.map(header => serializeDelimitedValue(header, delimiter)).join(delimiter)];
     for (const row of data) {
       const values = headers.map(header => {
         const val = row[header] === undefined || row[header] === null ? '' : String(row[header]);
-        const escaped = val.replace(/"/g, '\\"');
-        return `"${escaped}"`;
+        return serializeDelimitedValue(val, delimiter);
       });
-      csvRows.push(values.join(','));
+      rows.push(values.join(delimiter));
     }
-    return csvRows.join('\n');
+    return rows.join('\n');
   } catch {
     return '';
+  }
+}
+
+function serializeDelimitedValue(value: string, delimiter: ',' | '\t'): string {
+  const needsQuotes = value.includes('"') || value.includes('\n') || value.includes('\r') || value.includes(delimiter);
+  const escaped = value.replace(/"/g, '""');
+  return needsQuotes ? `"${escaped}"` : escaped;
+}
+
+async function rasterizeSvgWithPlaywright(inputPath: string, outputPath: string, outputType: string): Promise<void> {
+  const { chromium } = await import('playwright');
+  const svg = fs.readFileSync(inputPath, 'utf8');
+  const browser = await chromium.launch({ headless: true });
+
+  try {
+    const page = await browser.newPage({ viewport: { width: 1200, height: 1200 }, deviceScaleFactor: 1 });
+    await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:transparent;display:inline-block">${svg}</body></html>`, {
+      waitUntil: 'load'
+    });
+    const locator = page.locator('svg').first();
+    await locator.waitFor();
+    await locator.screenshot({
+      path: outputPath,
+      type: outputType === 'png' ? 'png' : 'jpeg',
+      omitBackground: outputType === 'png',
+    });
+  } finally {
+    await browser.close();
+  }
+}
+
+function rasterImageFileToSvg(inputPath: string, fileType: string): string {
+  const mimeType = getImageMimeType(fileType);
+  if (!mimeType) {
+    throw new Error(`SVG image conversion does not support .${fileType} input.`);
+  }
+
+  const buffer = fs.readFileSync(inputPath);
+  const dimensions = imageSize(buffer);
+  const width = dimensions.width ?? 512;
+  const height = dimensions.height ?? 512;
+  const base64 = buffer.toString('base64');
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
+    `  <image width="${width}" height="${height}" href="data:${mimeType};base64,${base64}" xlink:href="data:${mimeType};base64,${base64}" preserveAspectRatio="none" />`,
+    '</svg>'
+  ].join('\n');
+}
+
+function getImageMimeType(fileType: string): string | null {
+  switch (fileType.toLowerCase()) {
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    case 'bmp':
+      return 'image/bmp';
+    case 'tif':
+    case 'tiff':
+      return 'image/tiff';
+    case 'avif':
+      return 'image/avif';
+    default:
+      return null;
   }
 }

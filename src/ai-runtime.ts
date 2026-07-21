@@ -432,7 +432,7 @@ export class AIRuntime {
       // If no JSON found, try to prompt model for structured output
       const structuredPrompt = `Convert this response to JSON matching this schema:\n${JSON.stringify(schema)}\n\nResponse: ${response}`;
       const structuredResponse = await this.callModel({
-        model: 'gemini-3.1-flash-lite',
+        model: 'gemini-3.5-flash-lite',
         prompt: structuredPrompt,
         temperature: 0,
       });
@@ -563,7 +563,7 @@ export class AIRuntime {
     let summary: string;
     try {
       const response = await this.callModel({
-        model: 'gemini-3.1-flash-lite',
+        model: 'gemini-3.5-flash-lite',
         prompt: `Summarize the following conversation history into a concise paragraph that preserves all key facts, decisions, and context. Do not add commentary.\n\n${oldText}`,
         temperature: 0,
         cache: false,

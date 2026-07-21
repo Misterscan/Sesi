@@ -18,6 +18,10 @@ export fn getDate(locale: string, dateStyle: string = "name") -> string {
     resolvedStyle = with_letters
   }
 
+  if locale == null || locale == "" {
+    locale = "en-US" // Default to US English if no locale is specified
+  }
+
   let timestamp = format(now(), {"locale": locale, "dateStyle": resolvedStyle})
   return timestamp
 }
@@ -65,14 +69,17 @@ export fn universalTime() -> string {
   Replaces spaces, colons, and AM/PM markers to prevent filesystem errors.
   Supports locale-specific formatting and time zone specification.
 */
-export fn formattedTime(timeZone, locale) -> string {
+export fn formattedTime(timeZone: string, locale: string) -> string {
+  let dateRef = getDate("number") // e.g., "6/4/2024"
   let timeRef = localTime(timeZone, locale, "in_ms") // e.g., "12:04:32 PM"
   
   // Sequentially sanitize the string for cross-platform filesystem safety
-  let safe = swap(timeRef, " ", "-")
-  safe = swap(safe, ":", "-")
+  let safeTime = swap(timeRef, " ", "-")
+  let safeDate = swap(dateRef, "/", "-")
+  let safeT = swap(safeTime, ":", "-")
+  let safe = safeDate + "-" + safeT
   
-  return safe // e.g., "12-04-32-PM"
+  return safe // e.g., "6-4-2024-12-04-32-PM"
 }
 
 /*

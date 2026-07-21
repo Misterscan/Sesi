@@ -180,7 +180,7 @@ Structured output allows you to extract structured data natively or via Reasonin
 ### Basic Structured Output
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.6\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.7\", \"status\": \"active\"}"
 let analysis = structured_output({projectName: string, version: string, status: string})(rawJson)
 print "Project: " analysis["projectName"]
 print "Version: " analysis["version"]
@@ -217,7 +217,7 @@ print response
 ### Reasoning with Structured Output
 
 ```sesi
-let analysis = structured_output({sentiment: string, score: number})(model("gemini-3.1-flash-lite") {"Analyze sentiment of: This product is great!"})
+let analysis = structured_output({sentiment: string, score: number})(model("gemini-3.5-flash-lite") {"Analyze sentiment of: This product is great!"})
 print "Sentiment: " analysis["sentiment"]
 print "Score: " analysis["score"]
 ```
@@ -528,7 +528,7 @@ else {print "Response: " response}
 
 - **Model calls are blocking**: Each model() call waits for the API response
 - **Token usage**: Larger prompts use more tokens and cost more
-- **Use appropriate models**: gemini-3.1-flash-lite for most tasks, gemini-3.1-pro-preview for complex reasoning
+- **Use appropriate models**: gemini-3.5-flash-lite for most tasks, gemini-3.1-pro-preview for complex reasoning, and gemini-3.6-flash for balanced use.
 - **Batch operations**: Ask Reasoning to process multiple items in one call instead of looping
 
 ## Next Steps

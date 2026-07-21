@@ -17,7 +17,7 @@ cab1.cab
 *.pkg
 
 # Sesi specific folders and files
-
+temp
 sesi_modules
 data.txt
 report.md

@@ -57,7 +57,7 @@ print response
 ### Model Configuration
 
 ```sesi
-let creative = model("gemini-3.5-flash") {thinkingLevel: "low"} {"Write a creative poem about technology."}
+let creative = model("gemini-3.6-flash") {thinkingLevel: "low"} {"Write a creative poem about technology."}
 print creative
 
 // Config options:
@@ -76,20 +76,20 @@ Stream model output chunk-by-chunk in real time using the `stream` config key.
 
 ```sesi
 // Option 1: Stream directly to stdout
-let resp = model("gemini-3.5-flash") {stream: true} {"Explain how compilers work in detail."}
+let resp = model("gemini-3.6-flash") {stream: true} {"Explain how compilers work in detail."}
 
 // Option 2: Handle chunks with a callback
 fn onChunk(chunk) {
   print "chunk:" chunk
 }
-let resp2 = model("gemini-3.5-flash") {stream: onChunk} {"Write a short story about a robot."}
+let resp2 = model("gemini-3.6-flash") {stream: onChunk} {"Write a short story about a robot."}
 ```
 
 > **Note:** Both modes return the full accumulated response string when complete, so the return value can still be used for file I/O or further processing.
 
 ```sesi
 // Stream to stdout AND use the result afterward
-let summary = model("gemini-3.1-flash-lite") {stream: true} {"Summarize this article: " text}
+let summary = model("gemini-3.5-flash-lite") {stream: true} {"Summarize this article: " text}
 write_file("summary.txt", summary)
 print "Saved to summary.txt"
 ```
@@ -99,7 +99,7 @@ print "Saved to summary.txt"
 ```sesi
 // Fast model for simple tasks
 let text = "Coding with Reasoning programming language is fun!"
-let quick = model("gemini-3.1-flash-lite") {"Summarize this in one sentence: " text}
+let quick = model("gemini-3.5-flash-lite") {"Summarize this in one sentence: " text}
 
 // Powerful model for complex reasoning
 let code = "def calculate_sum(n):
@@ -111,7 +111,7 @@ let smart = model("gemini-3.1-pro-preview") {"Analyze this code for bugs: " code
 
 // Efficient model for many calls
 let item = "Programming Languages"
-let cheap = model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Classify: " item}
+let cheap = model("gemini-3.6-flash") {thinkingLevel: "minimal"} {"Classify: " item}
 
 print quick
 print smart
@@ -120,12 +120,23 @@ print cheap
 
 ### Available Models
 
-- `gemini-2.5-flash-image` - Standard image model. (No `512` image size support for this model. Only `1K` is supported.)
+#### Flash Models
+
 - `gemini-3-flash-preview` - Fast, most balanced model for coding and minimal tasks.
-- `gemini-3.1-flash-lite` - Fastest, most cost-efficient.
-- `gemini-3.5-flash` - Newest GA model. Balanced, but token hungry (USE WISELY). Supports all native thinking effort levels (`minimal`, `low`, `medium`, `high`).
+- `gemini-3.1-flash-lite` - Fastest, most cost-efficient for lightweight tasks.
+- `gemini-3.5-flash` - Balanced, but token hungry (USE WISELY). Supports all native thinking effort levels (`minimal`, `low`, `medium`, `high`).
+- `gemini-3.5-flash-lite` - The fastest, lowest-cost 3.5 model for high-throughput execution like subagent work and document parsing.
+- `gemini-3.6-flash` - Newest model. Stronger performance on complex agentic and multimodal tasks while reducing token usage, at a lower price point than 3.5 Flash.
+
+#### Pro Models
+
 - `gemini-3.1-pro-preview` - Most powerful reasoning model, doesn't support `minimal` thinking (falls back to `low`).
+
+#### Image Models
+
+- `gemini-2.5-flash-image` - Standard image model. (No `512` image size support for this model. Only `1K` is supported.)
 - `gemini-3.1-flash-image` - Cost efficient image generation model.
+- `gemini-3.1-flash-image-lite` - Fastest and cheapest image model, engineered for velocity and scale where speed and cost are the primary operational constraints. Not optimized for multiple reference inputs or multi-turn sequential editing.
 - `gemini-3-pro-image` - High quality image generation model. (No `512` image size support for this model.)
 
 #### Planned for (v2+)
@@ -152,7 +163,7 @@ print diff
 
 // Mixed with other config keys
 let scannedDocument = "doc_scan.jpg"
-let result = model("gemini-3.5-flash") {images: scannedDocument, thinkingLevel: "low", max_tokens: 4096} {"Transcribe all text visible in this scan."}
+let result = model("gemini-3.6-flash") {images: scannedDocument, thinkingLevel: "low", max_tokens: 4096} {"Transcribe all text visible in this scan."}
 write_file("transcript.txt", result)
 ```
 
@@ -189,7 +200,7 @@ print bookInfo["title"]
 
 ```sesi
 let listText = "eggs, milk, bread, cheese, fruit, vegetables"
-let output = structured_output({items: string})(model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Return JSON with items array containing: " listText})
+let output = structured_output({items: string})(model("gemini-3.6-flash") {thinkingLevel: "minimal"} {"Return JSON with items array containing: " listText})
 
 // Validate
 if type(output["items"]) == "array" {print "Got" str(len(output["items"])) "items"} // Got 6 items
@@ -204,7 +215,7 @@ Let Reasoning call functions in your program.
 ```sesi
 let city = "New York"
 fn getWeather(city: string) -> string
-{let weather = model("gemini-3.1-flash-lite") {"What is the weather like in " city}
+{let weather = model("gemini-3.5-flash-lite") {"What is the weather like in " city}
 return weather}
 let result = getWeather(city)
 print result
@@ -221,7 +232,7 @@ print result
 ### Reasoning Makes Tool Calls
 
 ```sesi
-let tax = tool_call(calculateTax)(model("gemini-3.1-flash-lite") {"Calculate 8% sales tax on $100"})
+let tax = tool_call(calculateTax)(model("gemini-3.5-flash-lite") {"Calculate 8% sales tax on $100"})
 print tax  // 8.0
 ```
 
@@ -248,7 +259,7 @@ let response1 = model("gemini-3-flash-preview") {chat "User: Hello!"}
 chat = chat + "Assistant: " + response1
 
 // Second turn
-let response2 = model("gemini-3.1-flash-lite") {chat "User: How are you?"}
+let response2 = model("gemini-3.5-flash-lite") {chat "User: How are you?"}
 print response2  // Has context from turn 1
 ```
 
@@ -281,7 +292,7 @@ print "Updated Memory!"
 memory conversation {"User: Hello! Assistant: Hi there! User: How are you? Assistant: I'm great!"}
 fn summarizeMemory()
 {let oldConversation = conversation
-let summary = model("gemini-3.1-flash-lite") {"Summarize this conversation concisely: " oldConversation}
+let summary = model("gemini-3.5-flash-lite") {"Summarize this conversation concisely: " oldConversation}
 conversation = "Previous summary:" + summary + "Recent messages: " + oldConversation}
 print "Original Memory:" conversation
 summarizeMemory()
@@ -297,7 +308,7 @@ print conversation
 let categories = "fruit, vegetable, grain"
 let item = "banana"
 fn classify(item: string, categories: string) -> string
-{return model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Classify this item into one category. Categories: " categories " Item: " item " Return only the category name."}}
+{return model("gemini-3.6-flash") {thinkingLevel: "minimal"} {"Classify this item into one category. Categories: " categories " Item: " item " Return only the category name."}}
 print "Item: " item //banana
 print "Category: " classify(item, categories) //fruit
 ```
@@ -307,7 +318,7 @@ print "Category: " classify(item, categories) //fruit
 ```sesi
 let text = "Elon Musk is the CEO of Tesla and SpaceX."
 fn extractEntities(text: string) -> object
-{let result = structured_output({people: string, places: string, organizations: string})(model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Extract named entities from: " text})
+{let result = structured_output({people: string, places: string, organizations: string})(model("gemini-3.6-flash") {thinkingLevel: "minimal"} {"Extract named entities from: " text})
 print "Name(s) found: result"
 return result}
 print extractEntities(text)
@@ -329,7 +340,7 @@ print "Translation:" translate(text, language)
 Access real-time information by enabling the `search` shorthand configuration natively.
 
 ```sesi
-let response = model("gemini-3.1-flash-lite") {search, max_tokens: 200} {"What is the weather in Tokyo right now?"}
+let response = model("gemini-3.5-flash-lite") {search, max_tokens: 200} {"What is the weather in Tokyo right now?"}
 print response
 ```
 
@@ -350,7 +361,7 @@ print "Image generated!"
 ```sesi
 let requirement = "Write a function that reverses a string."
 fn generateCode(requirement: string) -> string
-{return model("gemini-3.5-flash") {thinkingLevel: "low"} {"Generate JavaScript code for: " requirement " Only provide code, no explanation."}}
+{return model("gemini-3.6-flash") {thinkingLevel: "low"} {"Generate JavaScript code for: " requirement " Only provide code, no explanation."}}
 print "Code generation:"
 print generateCode(requirement)
 ```
@@ -391,7 +402,7 @@ print e}
 let text = "Coding is evolving rapidly!"
 fn safeAnalyze(text: string) {
 try
-{let result = structured_output({sentiment: string, score: number})(model("gemini-3.1-flash-lite") {"Analyze sentiment, score, and return JSON for: " text})
+{let result = structured_output({sentiment: string, score: number})(model("gemini-3.5-flash-lite") {"Analyze sentiment, score, and return JSON for: " text})
 if len(keys(result)) == 0 {print "Structured parsing failed"
 return null}
 return result
@@ -407,11 +418,11 @@ print "Analysis Result:" safeAnalyze(text)
 ```sesi
 // Bad: Calls API 3 times
 for item in items
-{let analysis = model("gemini-3.1-flash-lite") {"Analyze: " item}}
+{let analysis = model("gemini-3.5-flash-lite") {"Analyze: " item}}
 print analysis
 
 // Better: Batch into one call (v2: parallel calls)
-let analyses = model("gemini-3.1-flash-lite") {"Analyze each: " join(items, " ")}
+let analyses = model("gemini-3.5-flash-lite") {"Analyze each: " join(items, " ")}
 print analyses
 ```
 
@@ -419,7 +430,7 @@ print analyses
 
 ```sesi
 // Simple classification → flash-lite
-let category = model("gemini-3.1-flash-lite") {"Classify: " item}
+let category = model("gemini-3.5-flash-lite") {"Classify: " item}
 print category
 
 // Complex reasoning → pro
@@ -445,14 +456,14 @@ print response
 ```sesi
 // Bad: Same analysis done multiple times
 for person in people
-{let assessment = model("gemini-3.1-flash-lite") {"Assess based on criteria A, B, C: "  person}}
+{let assessment = model("gemini-3.5-flash-lite") {"Assess based on criteria A, B, C: "  person}}
 print assessment
 
 
 // Better: Reuse cached prompt
 let people = ["Elon Musk", "Bill Gates", "Steve Jobs"]
 fn assessPerson(person: string) -> string
-{return model("gemini-3.1-flash-lite") {"Assess on A, B, C: "  person}}
+{return model("gemini-3.5-flash-lite") {"Assess on A, B, C: "  person}}
 for person in people
 {print assessPerson(person)}
 ```
@@ -485,7 +496,7 @@ Step 1: Extract key points */
 {let keyPoints = model("gemini-3.1-pro-preview") {thinkingLevel: "low"} {"Extract 5 key points from: " text}
 
 // Step 2: Analyze topics
-let topics = structured_output({topics: string})(model("gemini-3.5-flash") {thinkingLevel: "low"} {"Identify topics in: " keyPoints})
+let topics = structured_output({topics: string})(model("gemini-3.6-flash") {thinkingLevel: "low"} {"Identify topics in: " keyPoints})
 
 // Step 3: Generate summary
 let summary = model("gemini-3-flash-preview") {"Summarize with topics " topics ": " keyPoints}
@@ -496,7 +507,7 @@ print "Summary:" smartSummarize(text)
 ### Reasoning Pattern
 
 ```sesi
-let analysis = model("gemini-3.5-flash") {thinkingLevel: "medium", max_tokens: 8192} {"Reason carefully about: " problem}
+let analysis = model("gemini-3.6-flash") {thinkingLevel: "medium", max_tokens: 8192} {"Reason carefully about: " problem}
 print analysis
 ```
 
@@ -505,7 +516,7 @@ print analysis
 ```sesi
 let text = "banana"
 fn classifyWithExamples(text: string) -> string
-{return model("gemini-3.5-flash") {thinkingLevel: "minimal"} {"Classify as A, B, or C. Examples: 'apple' -> A , 'dog' -> B , 'happy' -> C. Classify: " text}}
+{return model("gemini-3.6-flash") {thinkingLevel: "minimal"} {"Classify as A, B, or C. Examples: 'apple' -> A , 'dog' -> B , 'happy' -> C. Classify: " text}}
 print "Classification:" classifyWithExamples(text)
 ```
 
@@ -532,7 +543,7 @@ print result["final"]
 You can define custom names for models using `set_alias`:
 
 ```sesi
-set_alias("fast", "gemini-3.1-flash-lite")
+set_alias("fast", "gemini-3.5-flash-lite")
 let answer = model("fast") {"Summarize this paragraph."}
 print answer
 ```
@@ -551,7 +562,7 @@ define_tool("weather", get_weather, "Get weather for a city")
 print list_tools()
 
 // Call the tool
-let weatherData = structured_output({city: string, conditions: string})(model("gemini-3.1-flash-lite") {search} {"What is the weather like in London? Return JSON with the exact 'conditions' and 'city' name."})
+let weatherData = structured_output({city: string, conditions: string})(model("gemini-3.5-flash-lite") {search} {"What is the weather like in London? Return JSON with the exact 'conditions' and 'city' name."})
 let result = tool_call(weather)(weatherData["city"], weatherData["conditions"])
 print result
 ```

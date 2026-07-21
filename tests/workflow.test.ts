@@ -86,8 +86,8 @@ async function main() {
       throw new Error('step model override was not forwarded');
     }
 
-    if (captured[1].model !== 'gemini-3.1-flash-lite') {
-      throw new Error('default workflow model should be gemini-3.1-flash-lite');
+    if (captured[1].model !== 'gemini-3.5-flash-lite') {
+      throw new Error('default workflow model should be gemini-3.5-flash-lite');
     }
 
     if (captured[0].temperature !== 0.4 || captured[0].maxTokens !== 12) {
@@ -102,8 +102,8 @@ async function main() {
 
     await run(
       `
-      set_alias("fast", "gemini-3.1-flash-lite")
-      set_alias("fast-img", "gemini-3.1-flash-image")
+      set_alias("fast", "gemini-3.5-flash-lite")
+      set_alias("fast-img", "gemini-3.5-flash-image-lite")
 
       let a = model("fast") {"hello"}
       let b = image("fast-img") {"render this"}
@@ -120,15 +120,15 @@ async function main() {
       throw new Error(`expected 3 alias-resolved calls, got ${captured.length}`);
     }
 
-    if (captured[0].model !== 'gemini-3.1-flash-lite') {
+    if (captured[0].model !== 'gemini-3.5-flash-lite') {
       throw new Error(`model() did not resolve alias; models=${captured.map((c) => c.model).join(',')}`);
     }
 
-    if (captured[1].model !== 'gemini-3.1-flash-image') {
+    if (captured[1].model !== 'gemini-3.5-flash-image-lite') {
       throw new Error(`image() did not resolve alias; models=${captured.map((c) => c.model).join(',')}`);
     }
 
-    if (captured[2].model !== 'gemini-3.1-flash-lite') {
+    if (captured[2].model !== 'gemini-3.5-flash-lite') {
       throw new Error(`workflow() did not resolve alias; models=${captured.map((c) => c.model).join(',')}`);
     }
 
