@@ -109,7 +109,7 @@ prompt packageJson {"{
     \"decrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -dec\"
   },
   \"dependencies\": {
-    \"@misterscan/sesi\": \"1.6.7\"
+    \"@misterscan/sesi\": \"1.7.0\"
   },
     \"allowScripts\": {
     \"fsevents@2.3.2\": true,
@@ -159,7 +159,7 @@ prompt mainSesi {'/*
 
 // 1. Variables and Types
 let language = "Sesi"
-let version = "1.6.7"
+let version = "1.7.0"
 let features = ["Reasoning", "Embedded DB", "SVG Drawing", "Audio Synthesis", "Browser Integration"]
 
 print "Welcome to" language "version" version "!"
@@ -221,7 +221,9 @@ page.pdf({"path": "output.pdf", "format": "A4"})
 browser.close()
 
 // 8. Sesi Theory
-sesi("theory.sesi")'}
+allow "theory" in with {theory}
+
+theory("text") // Set to "speak" to hear the theory read aloud, or add "true" to print and speak.'}
 
 if Safe.writeFile(target + "/main.sesi", mainSesi) {
   print "✓ Generated main.sesi"

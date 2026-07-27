@@ -72,7 +72,7 @@ fn browser_scrape(arg) -> string {
     
     // Truncate to avoid exceeding model context window limits
     if len(page_text) > 8000 {
-      page_text = slice(page_text, 0, 8000) + "\n... [Content Truncated]"
+      page_text = trunc(page_text, 8000) + "\n... [Content Truncated]"
     }
     
     page.close()

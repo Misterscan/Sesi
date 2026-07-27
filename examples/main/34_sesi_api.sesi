@@ -1,0 +1,126 @@
+/*
+  Example 34: SesiAPI — FastAPI-style HTTP framework with auto docs
+
+  Starts a REST API, fires test requests, then shuts down.
+  Routes:
+    GET  /users          → list all users
+    POST /users          → create a user
+    GET  /users/{id}     → get user by ID
+    DELETE /users/{id}   → delete user
+    GET  /health         → health check
+    GET  /docs           → Swagger UI (auto-generated)
+    GET  /openapi.json   → OpenAPI 3.1 spec (auto-generated)
+
+  Usage:
+    sesi examples/main/34_sesi_api.sesi -l
+*/
+
+allow "std/api" in with API
+
+// In-memory store (no file dependency so example is self-contained)
+let store = []
+let nextId = 1
+
+fn listUsers(req) {
+  return {"status": 200, "body": {"users": store, "total": len(store)}}
+}
+
+fn createUser(req) {
+  let data = from_json(req.body)
+  let user = {"id": str(nextId), "name": data.name, "email": data.email}
+  nextId = nextId + 1
+  push(store, user)
+  return {"status": 201, "body": user}
+}
+
+fn getUser(req) {
+  let userId = req.params.id
+  let found = null
+  for u in store {
+    if u.id == userId {
+      found = u
+    }
+  }
+  if found == null {
+    return {"status": 404, "body": {"detail": "User not found"}}
+  }
+  return {"status": 200, "body": found}
+}
+
+fn deleteUser(req) {
+  let userId = req.params.id
+  let kept = []
+  for u in store {
+    if u.id != userId {
+      push(kept, u)
+    }
+  }
+  store = kept
+  return {"status": 204, "body": null}
+}
+
+fn healthCheck(req) {
+  return {"status": 200, "body": {"status": "ok"}}
+}
+
+let app = API.create_app({
+  "title": "Users API",
+  "version": "1.0.0",
+  "description": "A simple user management API built with Sesi"
+})
+
+app.get("/users", {
+  "summary": "List users",
+  "tags": ["Users"],
+  "response": {"users": "array", "total": "number"}
+}, listUsers)
+
+app.post("/users", {
+  "summary": "Create user",
+  "tags": ["Users"],
+  "body": {"name": "string", "email": "string"},
+  "response": {"id": "string", "name": "string", "email": "string"}
+}, createUser)
+
+app.get("/users/{id}", {
+  "summary": "Get user",
+  "tags": ["Users"],
+  "response": {"id": "string", "name": "string", "email": "string"}
+}, getUser)
+
+app.delete("/users/{id}", {
+  "summary": "Delete user",
+  "tags": ["Users"]
+}, deleteUser)
+
+app.get("/health", {
+  "summary": "Health check",
+  "tags": ["System"],
+  "response": {"status": "string"}
+}, healthCheck)
+
+let server = app.listen(8080)
+
+let health = web_get("http://localhost:8080/health")
+print "Health:        " health
+
+let created = web_send("http://localhost:8080/users", {"name": "Alice", "email": "alice@example.com"})
+print "POST /users:   " created
+
+let list = web_get("http://localhost:8080/users")
+print "GET /users:    " list
+
+let specRaw = web_get("http://localhost:8080/openapi.json")
+let spec = from_json(specRaw)
+print "OpenAPI title: " spec.info.title
+print "Paths:         " join(keys(spec.paths), ", ")
+
+let docsHtml = web_get("http://localhost:8080/docs")
+print "GET /docs HTML starts with: " trunc(docsHtml, 15)
+
+// 422 on missing required field
+let badReq = web_send("http://localhost:8080/users", {"name": "Bob"})
+print "Missing email: " badReq
+
+let end = input("Press enter to close the server and exit...")
+server.close(end)

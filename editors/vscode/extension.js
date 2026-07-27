@@ -30,6 +30,89 @@ function getModuleSpecifierAtPosition(document, position) {
     return null;
 }
 
+function getStringLiteralAtPosition(document, position) {
+    const lineText = document.lineAt(position.line).text;
+    const stringRegex = /(["'])(.*?)\1/g;
+    let match;
+    while ((match = stringRegex.exec(lineText)) !== null) {
+        const start = match.index;
+        const end = match.index + match[0].length;
+        if (position.character >= start && position.character <= end) {
+            const range = new vscode.Range(
+                new vscode.Position(position.line, start + 1),
+                new vscode.Position(position.line, end - 1)
+            );
+            return {
+                value: match[2],
+                range,
+                lineText,
+                start,
+                end
+            };
+        }
+    }
+    return null;
+}
+
+function isLikelyFileSpecifier(specifier) {
+    if (!specifier || typeof specifier !== 'string') return false;
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(specifier)) return false;
+    if (/^(data|mailto):/i.test(specifier)) return false;
+
+    return (
+        specifier.startsWith('./') ||
+        specifier.startsWith('../') ||
+        specifier.startsWith('/') ||
+        specifier.startsWith('~/') ||
+        specifier.includes('/') ||
+        /\.[a-zA-Z0-9_\-]{1,8}$/.test(specifier)
+    );
+}
+
+function resolveExistingPath(specifier, documentPath, workspaceRoot) {
+    if (!isLikelyFileSpecifier(specifier)) return null;
+
+    let normalized = specifier;
+    if (normalized.startsWith('~/')) {
+        normalized = path.join(os.homedir(), normalized.slice(2));
+    }
+
+    const candidates = [];
+    if (path.isAbsolute(normalized)) {
+        candidates.push(normalized);
+    } else {
+        if (documentPath) candidates.push(path.resolve(path.dirname(documentPath), normalized));
+        if (workspaceRoot) candidates.push(path.resolve(workspaceRoot, normalized));
+        candidates.push(path.resolve(process.cwd(), normalized));
+    }
+
+    for (const candidate of candidates) {
+        try {
+            if (fs.existsSync(candidate)) {
+                return candidate;
+            }
+        } catch (e) {
+            // Ignore malformed candidate paths.
+        }
+    }
+
+    return null;
+}
+
+function getFileSpecifierAtPosition(document, position, workspaceRoot) {
+    const stringInfo = getStringLiteralAtPosition(document, position);
+    if (!stringInfo) return null;
+
+    const resolvedPath = resolveExistingPath(stringInfo.value, document.uri.fsPath, workspaceRoot);
+    if (!resolvedPath) return null;
+
+    return {
+        path: resolvedPath,
+        range: stringInfo.range,
+        specifier: stringInfo.value
+    };
+}
+
 function resolveSesiModule(specifier, documentPath, workspaceRoot) {
     if (specifier.startsWith('std/')) {
         return {
@@ -192,8 +275,9 @@ function stripComments(text) {
 }
 
 class Scope {
-    constructor(parent = null) {
+    constructor(parent = null, isMakeScope = false) {
         this.parent = parent;
+        this.isMakeScope = isMakeScope;
         this.variables = new Map();
         this.children = [];
         if (parent) parent.children.push(this);
@@ -219,7 +303,7 @@ function tokenize(text) {
     const keywords = new Set([
         'let', 'fn', 'if', 'else', 'while', 'for', 'in', 'return',
         'break', 'continue', 'try', 'catch', 'finally', 'true', 'false', 'null',
-        'print', 'prompt', 'model', 'image', 'async', 'await', 'import', 'from',
+        'print', 'prompt', 'model', 'image', 'make', 'async', 'await', 'import', 'from',
         'export', 'to', 'allow', 'with', 'convert', 'memory', 'structured_output',
         'tool_call'
     ]);
@@ -298,7 +382,7 @@ function findDeclarationsAndReferences(tokens) {
                 declaredTokenSet.add(next);
             }
         }
-        else if (tok.type === 'FN') {
+        else if (tok.type === 'FN' || tok.type === 'MAKE') {
             const next = tokens[i + 1];
             if (next && next.type === 'IDENTIFIER') {
                 decls.push({ name: next.lexeme, token: next, type: 'function' });
@@ -641,7 +725,7 @@ function analyzeScope(tokens, decls, refs) {
         
         tokenScopes.set(tok, currentScope);
         
-        if (tok.type === 'FN') {
+        if (tok.type === 'FN' || tok.type === 'MAKE') {
             const nameTok = tokens[i + 1];
             if (nameTok && nameTok.type === 'IDENTIFIER') {
                 currentScope.declare(nameTok.lexeme, {
@@ -650,7 +734,9 @@ function analyzeScope(tokens, decls, refs) {
                     readCount: 0
                 });
             }
-            currentScope = new Scope(currentScope);
+            // make block scope: members are accessed via instance dot-notation,
+            // never as bare identifiers, so mark to skip unused-symbol checks.
+            currentScope = new Scope(currentScope, tok.type === 'MAKE');
             skipNextBraceScope = true;
             
             let temp = i + 2;
@@ -762,7 +848,7 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'print', 'str', 'type', 'num', 'bool', 'from_json', 'to_json', 'len', 'read_file', 'write_file', 'write_image', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call', 'spawn', 'exec', 'sesi', 'python', 'time', 'env', 'range', 'push', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
+        'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'speech', 'from_speech', 'translate', 'len', 'read_file', 'write_file', 'append_file', 'write_image', 'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'trunc', 'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call', 'spawn', 'exec', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split', 'tokenize', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
         'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float',
         'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null', 'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
         // Audio & Theory
@@ -794,13 +880,18 @@ function analyzeScope(tokens, decls, refs) {
     
     function checkUnused(scope) {
         if (scope !== rootScope) {
-            for (const [name, decl] of scope.variables.entries()) {
-                if (decl.readCount === 0 && decl.type !== 'catch_variable') {
-                    diagnostics.push({
-                        type: 'warning',
-                        token: decl.token,
-                        message: `Unused symbol: "${name}". Declared but never read.`
-                    });
+            // Skip unused checks for make block scopes: fields and methods are
+            // accessed via instance dot-notation (e.g. ada.kind, ada.greet())
+            // and never appear as bare identifier references.
+            if (!scope.isMakeScope) {
+                for (const [name, decl] of scope.variables.entries()) {
+                    if (decl.readCount === 0 && decl.type !== 'catch_variable' && name !== 'req' && !name.startsWith('_')) {
+                        diagnostics.push({
+                            type: 'warning',
+                            token: decl.token,
+                            message: `Unused symbol: "${name}". Declared but never read.`
+                        });
+                    }
                 }
             }
         }
@@ -871,6 +962,12 @@ function activate(context) {
             source: 'Sesi Core Primitives',
             description: 'Declares a variable and binds it to a value. In Sesi, `let` is the single universal binding primitive (forbid using `const`).',
             example: 'let count = 10\ncount = count + 5\nprint count'
+        },
+        'make': {
+            signature: 'make identifier { ... }',
+            source: 'Sesi Core Primitives',
+            description: 'Declares a callable, class-like object template. Calling its name creates a fresh object.',
+            example: 'make Person {\n   let kind = "person"\n\n   fn start(self, name) {\n      self.name = name\n   }\n\n   fn greet(self) {\n      return "Hello, " + self.name\n   }\n}'
         },
         'fn': {
             signature: 'fn name(param1, param2) { ... }',
@@ -1016,6 +1113,12 @@ function activate(context) {
             description: 'Stateful conversation memory primitive that persists contextual thread arrays.',
             example: '// Memory is injected directly inside your script workflows.'
         },
+        'set_alias': {
+            signature: 'set_alias(alias, model)',
+            source: 'Sesi AI',
+            description: 'Register a custom local name for a model string.',
+            example: 'set_alias("fast", "gemini-3.5-flash-lite")\nlet answer = model("fast") {"Summarize this paragraph."}'
+        },
         'workflow': {
             signature: 'workflow name { ... }',
             source: 'Sesi AI',
@@ -1059,10 +1162,10 @@ function activate(context) {
             example: 'let results = multi_req([\n  {"model": "gemini-3-flash-preview", "prompt": "Audit index.html"},\n  {"model": "gemini-3.1-flash-lite", "prompt": "Audit server.js"}\n])'
         },
         'read_file': {
-            signature: 'read_file(path)',
+            signature: 'read_file(path, mode = "text")',
             source: 'System I/O Standard Library',
-            description: 'Synchronously reads and returns the full text content of a file located at the specified path.',
-            example: 'let source_code = read_file("main/playground.sesi")\nprint source_code'
+            description: 'Synchronously reads a file from disk. Use mode "text" for UTF-8 text (default) or mode "base64" to read binary files (such as images) as Base64.',
+            example: 'let source_code = read_file("main/playground.sesi")\nprint source_code\n\nlet image_b64 = read_file("output/banner.png", "base64")\nprint image_b64'
         },
         'write_file': {
             signature: 'write_file(path, content)',
@@ -1070,11 +1173,29 @@ function activate(context) {
             description: 'Writes a string of text content to a file at the designated path. Creates the file or overwrites it if it already exists.',
             example: 'write_file("main/logs/status.txt", "Compiler execution succeeded.")'
         },
+        'append_file': {
+            signature: 'append_file(path, content)',
+            source: 'System I/O Standard Library',
+            description: 'Appends string content to the end of a file at the designated path. Creates the file if it does not already exist.',
+            example: 'append_file("main/logs/status.txt", "\nCompiler step 2 complete.")'
+        },
         'write_image': {
             signature: 'write_image(path, img_data)',
             source: 'System I/O Standard Library',
             description: 'Saves raw image canvas data or generated image model outputs directly to a file path as an image file (e.g. PNG).',
             example: 'let banner = image("Sleek minimal blueprint logo")\nwrite_image("output/banner.png", banner)'
+        },
+        'open': {
+            signature: 'open(target, options = null)',
+            source: 'Desktop Integration Standard Library',
+            description: 'Opens an HTTP, HTTPS, FTP, file, or mailto URL, or an existing local file, with the operating system default application. Optional `browser`, `editor`, `viewer`, `image_viewer`, and `mode` settings can select an application. Disabled in safe mode; run the script with `-l` or `--local`.',
+            example: 'open("https://code-with-sesi.netlify.app")\nopen("reports/dashboard.html", {"mode": "browser", "browser": "Firefox"})'
+        },
+        'open_file': {
+            signature: 'open_file(path, options = null)',
+            source: 'Desktop Integration Standard Library',
+            description: 'Opens an existing local file with the operating system default application or a requested browser, editor, or viewer. The path is resolved through Sesi filesystem safety checks. Disabled in safe mode; run the script with `-l`, `--local`, or `SESI_SAFE_MODE` set to false.',
+            example: 'open_file("README.md", {"editor": "Visual Studio Code"})\nopen_file("favicon.png", {"viewer": "Preview"})'
         },
         'list_dir': {
             signature: 'list_dir(path)',
@@ -1172,6 +1293,36 @@ function activate(context) {
             description: 'Parses a structured JSON string and converts it directly into native, indexable Sesi objects or collections.',
             example: 'let raw = \'{"result": "success", "code": 200}\'\nlet obj = from_json(raw)\nprint obj["result"]'
         },
+        'speech': {
+            signature: 'speech(text, voice = null, gemini_model = null) -> bool|string',
+            source: 'Local Speech Standard Library',
+            description: 'Speaks text with a local system voice engine, or returns base64 audio when an optional Gemini TTS model is supplied.',
+            example: 'speech("Build complete")\nspeech("Bonjour", "Thomas")'
+        },
+        'from_speech': {
+            signature: 'from_speech(audio_path, language = null, gemini_model = null) -> string',
+            source: 'Speech Recognition Standard Library',
+            description: 'Transcribes an audio file with nodejs-whisper by default, or with an optional Gemini model. Requires a downloaded model (`npx nodejs-whisper download base.en`).',
+            example: 'let transcript = from_speech("meeting.wav", "en")\nprint transcript'
+        },
+        'translate': {
+            signature: 'translate(text, to_language, from_language = "en", gemini_model = null) -> string',
+            source: 'Language Standard Library',
+            description: 'Translates text with the translate package by default, or with an optional Gemini model.',
+            example: 'let spanish = translate("Good morning", "es", "en")\nprint spanish'
+        },
+        'encode': {
+            signature: 'encode(value, mode = "text")',
+            source: 'Encoding Standard Library (std/base64)',
+            description: 'Encodes either UTF-8 text or raw byte arrays into a Base64 string. Use mode "text" for strings and mode "bytes" for arrays of numbers (0..255).',
+            example: 'allow "std/base64" in with {encode}\nprint encode("Hello")\nprint encode([0, 255, 16], "bytes")'
+        },
+        'decode': {
+            signature: 'decode(base64_text, mode = "text")',
+            source: 'Encoding Standard Library (std/base64)',
+            description: 'Decodes Base64 input (standard or URL-safe). Returns UTF-8 text in mode "text" or a byte array in mode "bytes".',
+            example: 'allow "std/base64" in with {decode}\nprint decode("SGVsbG8=")\nprint decode("AP8Q", "bytes")'
+        },
         'time': {
             signature: 'time()',
             source: 'Utility Standard Library',
@@ -1214,6 +1365,12 @@ function activate(context) {
             description: 'Adds an element to the end of an array.',
             example: 'let items = ["apple", "banana"]\npush(items, "cherry")\nprint items'
         },
+        'append': {
+            signature: 'append(collection, value)',
+            source: 'Collection Standard Library',
+            description: 'Appends a value to an array in place, or concatenates a value to the end of a string.',
+            example: 'let items = ["apple"]\nappend(items, "banana")\nprint items\n\nlet title = append("Sesi", " Runtime")\nprint title'
+        },
         'pop': {
             signature: 'pop(array)',
             source: 'Array Standard Library',
@@ -1227,10 +1384,16 @@ function activate(context) {
             example: 'let items = ["apple", "banana", "cherry"]\nlet joined = join(items, ", ")\nprint joined'
         },
         'split': {
-            signature: 'split(string, separator',
+            signature: 'split(string, separator)',
             source: 'Array Standard Library',
             description: 'Split a string into an array by separator.',
             example: 'split("a,b,c", ",")\nsplit("hello world", " ")'
+        },
+        'tokenize': {
+            signature: 'tokenize(string, options = null)',
+            source: 'String Utility Standard Library',
+            description: 'Tokenizes text into model token IDs using OpenAI-compatible tiktoken-style encoding.',
+            example: 'let ids = tokenize("Hello world")\nprint len(ids)\n\nlet ids2 = tokenize("Hello world", {"model": "gpt-4o"})\nprint ids2\n\nlet words = tokenize("one two", "simple")\nprint words'
         },
         'keys': {
             signature: 'keys(collection)',
@@ -1274,11 +1437,23 @@ function activate(context) {
             description: 'Parses or casts the given string or boolean parameter value into its explicit numeric value form.',
             example: 'let value_num = num("1024")\nprint value_num + 1'
         },
+        'float': {
+            signature: 'float(value)',
+            source: 'Type Conversion Standard Library',
+            description: 'Parses or casts the given string, number, or boolean parameter value into a floating-point number.',
+            example: 'let ratio = float("3.14159")\nprint ratio\nprint float(true)'
+        },
         'exp': {
             signature: 'exp(value)',
             source: 'Advanced Math Functions',
             description: 'Returns Eulers number $e$ (approx. `2.71828`) raised to the power of $x$.',
             example: 'exp(0)\nexp(1)\nlet sigmoid = 1.0 / (1.0 + exp(0.0 - 0.5))\nprint sigmoid'
+        },
+        'trunc': {
+            signature: 'trunc(value, length = 0)',
+            source: 'Advanced Math & String Utility',
+            description: 'Truncates a value. If the value is a number, it returns the integer part. If the value is a string, it truncates the text to the specified `length`.',
+            example: 'trunc(10.5) // 10\ntrunc("Hello World", 5) // "Hello"'
         },
         'args': {
             signature: 'args[number]',
@@ -1723,6 +1898,12 @@ function activate(context) {
             source: 'System Functions Standard Library',
             description: 'Retrieve the value of an environment variable, or retrieve all environment variables as an object.',
             example: 'let apiKey = env("GEMINI_API_KEY")\nlet port = env("PORT", "8080")\nlet allEnvs = env()'
+        },
+        'create_app': {
+            signature: 'create_app(config = null)',
+            source: 'API Framework Standard Library (std/api)',
+            description: 'Creates an API application instance. `config` options include `title`, `version`, `description`, and `base_path`.',
+            example: 'let app = create_app({\n  "title": "Users API",\n  "version": "1.0.0",\n  "description": "A user management API"\n})'
         }
     };
 
@@ -1753,6 +1934,9 @@ function activate(context) {
                             'std/json': [
                                 'stringify(val)', 'parse(str)'
                             ],
+                            'std/base64': [
+                                'encode(value, mode?)', 'decode(base64_text, mode?)'
+                            ],
                             'std/db': [
                                 'db_open(filename, password)', '.collection(name)', '.find(query)', '.insert(doc)', '.update(query, update)', '.delete(query)'
                             ],
@@ -1782,10 +1966,19 @@ function activate(context) {
                             ],
                             'std/terminal': [
                                 'clear()', 'color(text, color)', 'cursor(x,y)'
+                            ],
+                            'std/api': [
+                                'create_app(config?)'
                             ]
                         };
 
                         const exportsList = builtinExports[moduleInfo.specifier];
+                        if (moduleInfo.specifier === 'std/base64') {
+                            markdown.appendMarkdown('**Description:** Base64 encoding/decoding for UTF-8 text and raw bytes (`mode = "text" | "bytes"`).\n\n');
+                        }
+                        if (moduleInfo.specifier === 'std/api') {
+                            markdown.appendMarkdown('**Description:** FastAPI-style HTTP API framework with auto-generated Swagger UI docs at `/docs` and OpenAPI spec at `/openapi.json`.\n\n**Returns** an app object with methods:\n* `app.get(path, schema, handler)` — register a GET route\n* `app.post(path, schema, handler)` — register a POST route\n* `app.put / patch / delete` — register other HTTP methods\n* `app.use(middleware)` — add a request middleware\n* `app.openapi()` — return the OpenAPI spec as an object\n* `app.routes()` — list registered routes\n* `app.listen(port, options?)` — start server, returns server object\n\n**Schema fields:** `summary`, `description`, `tags`, `query`, `body`, `response`, `deprecated`\n\n**listen options:** `docs_path` (default `/docs`), `openapi_path` (default `/openapi.json`), `cors` (default true), `cors_origin`\n');
+                        }
                         if (exportsList) {
                             markdown.appendMarkdown(`**Exports:**\n`);
                             for (const item of exportsList) {
@@ -1901,6 +2094,14 @@ function activate(context) {
                 }
             }
 
+            const fileInfo = getFileSpecifierAtPosition(document, position, workspaceRoot);
+            if (fileInfo) {
+                return new vscode.Location(
+                    vscode.Uri.file(fileInfo.path),
+                    new vscode.Position(0, 0)
+                );
+            }
+
             // Check local declarations for Go to Definition
             const cache = documentScopesCache.get(document.uri.toString());
             if (cache) {
@@ -1925,6 +2126,52 @@ function activate(context) {
                 }
             }
             return null;
+        }
+    });
+
+    const documentLinkProvider = vscode.languages.registerDocumentLinkProvider('sesi', {
+        provideDocumentLinks(document) {
+            const links = [];
+
+            for (let lineIdx = 0; lineIdx < document.lineCount; lineIdx++) {
+                const lineText = document.lineAt(lineIdx).text;
+                const stringRegex = /(["'])(.*?)\1/g;
+                let match;
+
+                while ((match = stringRegex.exec(lineText)) !== null) {
+                    const specifier = match[2];
+                    const start = match.index;
+                    const end = match.index + match[0].length;
+                    const linkRange = new vscode.Range(
+                        new vscode.Position(lineIdx, start + 1),
+                        new vscode.Position(lineIdx, end - 1)
+                    );
+
+                    const beforeString = lineText.substring(0, start).trim();
+                    const afterString = lineText.substring(end).trim();
+                    const isAllow = /\ballow\s*$/i.test(beforeString) || (beforeString.includes('allow') && afterString.startsWith('in'));
+                    const isImport = /\bfrom\s*$/i.test(beforeString);
+
+                    if (isAllow || isImport) {
+                        const resolvedModule = resolveSesiModule(specifier, document.uri.fsPath, workspaceRoot);
+                        if (resolvedModule && resolvedModule.type === 'local') {
+                            const link = new vscode.DocumentLink(linkRange, vscode.Uri.file(resolvedModule.path));
+                            link.tooltip = `Open module: ${specifier}`;
+                            links.push(link);
+                        }
+                        continue;
+                    }
+
+                    const resolvedPath = resolveExistingPath(specifier, document.uri.fsPath, workspaceRoot);
+                    if (resolvedPath) {
+                        const link = new vscode.DocumentLink(linkRange, vscode.Uri.file(resolvedPath));
+                        link.tooltip = `Open file: ${specifier}`;
+                        links.push(link);
+                    }
+                }
+            }
+
+            return links;
         }
     });
 
@@ -2044,6 +2291,7 @@ function activate(context) {
 
     context.subscriptions.push(hoverProvider);
     context.subscriptions.push(definitionProvider);
+    context.subscriptions.push(documentLinkProvider);
 
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument(document => {

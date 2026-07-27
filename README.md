@@ -349,7 +349,9 @@ Sesi/
 │   │   ├── 29_tool_piping.sesi      # Functional piping operator (|)
 │   │   ├── 30_error_recovery.sesi   # Error retry backoff handling
 │   │   ├── 31_synthesizer.sesi      # Sound/music synthesis & SVG drawing
-│   │   └── 32_browser_automation.sesi # Headless browser automation with Playwright
+│   │   ├── 32_browser_automation.sesi # Headless browser automation with Playwright
+│   │   ├── 33_base64.sesi           # Base64
+│   │   └── 34_sesi_api.sesi         # SwaggerUI API setup
 │   │
 │   └── optional/                    # Optional reasoning & advanced AI examples
 │       ├── 08_model_call.sesi       # Basic reasoning model calls

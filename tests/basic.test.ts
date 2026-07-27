@@ -50,6 +50,12 @@ async function main() {
     console.log('✓ Number tokenization');
   }
 
+  const makeTokens = new Lexer('make Person {}').scanTokens();
+  if (makeTokens[0].type !== 'MAKE') {
+    throw new Error('make must tokenize as a declaration keyword');
+  }
+  console.log('✓ Make keyword tokenization');
+
   // Parser tests
   console.log('\n=== Parser Tests ===');
 
@@ -94,14 +100,20 @@ async function main() {
   await runTest('Type function', 'let t = type(42)');
   await runTest('String function', 'let s = str(42)');
   await runTest('Number function', 'let n = num("42")');
+  await runTest('Float function', 'let n = float("42.5")\nif n != 42.5 { let err = missing_var }');
   await runTest('Range function', 'let arr = range(5)');
   await runTest('Env function retrieve all', 'let envs = env()\nif type(envs) != "object" { let err = missing_var }');
   await runTest('Env function retrieve specific', 'let val = env("PATH")\nif type(val) != "string" { let err = missing_var }');
   await runTest('Env function default value', 'let val = env("NON_EXISTENT_VAR", "default_val")\nif val != "default_val" { let err = missing_var }');
   await runTest('Push function', 'let arr = [1, 2]\npush(arr, 3)');
+  await runTest('Append function (array)', 'let arr = [1, 2]\nappend(arr, 3)\nif len(arr) != 3 || arr[2] != 3 { let err = missing_var }');
+  await runTest('Append function (string)', 'let s = append("Hello", " world")\nif s != "Hello world" { let err = missing_var }');
   await runTest('Pop function', 'let arr = [1, 2, 3]\nlet x = pop(arr)');
   await runTest('Join function', 'let s = join([1, 2, 3], "-")');
   await runTest('Split function', 'let arr = split("a,b,c", ",")');
+  await runTest('Tokenize function (model token IDs)', 'let t = tokenize("  SesiLanguage, and rocks!  ")\nif len(t) < 3 || type(t[0]) != "number" { let err = missing_var }');
+  await runTest('Tokenize function (simple mode)', 'let t = tokenize("  Sesi   language   rocks  ", "simple")\nif len(t) != 3 || t[0] != "Sesi" || t[2] != "rocks" { let err = missing_var }');
+  await runTest('Tokenize function (explicit model option)', 'let t = tokenize("hello world", {"model": "gpt-4o"})\nif len(t) < 2 || type(t[0]) != "number" { let err = missing_var }');
   await runTest('Upper function', 'let s = to_upper("hello")\nif s != "HELLO" { let err = missing_var }');
   await runTest('Lower function', 'let s = to_lower("WORLD")\nif s != "world" { let err = missing_var }');
   await runTest('Trim function', 'let s = trim("  spaces  ")\nif s != "spaces" { let err = missing_var }');
@@ -111,45 +123,27 @@ async function main() {
   await runTest('Keys function', 'let k = keys({ "x": 1 })');
   await runTest('Values function', 'let v = values({ "x": 1 })');
   await runTest('Prompt expression', 'prompt test { "hello" }');
+  await runTest('Make class construction and bound methods', 'make Person {\nlet kind = "person"\nfn start(self, name) { self.name = name }\nfn greet(self) { return "Hello, " + self.name }\n}\nlet ada = Person("Ada")\nif ada.kind != "person" || ada.name != "Ada" || ada.greet() != "Hello, Ada" { raise_error("AssertionError", "make instance failed") }');
+  await runTest('Make instances have independent state','make Counter {\nlet count = 0\nfn increment(self) {\nself.count = self.count + 1\nreturn self.count\n}\n}\nlet first = Counter()\nlet second = Counter()\nfirst.increment()\nif first.count != 1 || second.count != 0 { raise_error("AssertionError", "make instances share state") }');
+  await runTest('Make start constructor supports defaults','make User {\nfn start(self, name, role = "member") {\nself.name = name\nself.role = role\n}\n}\nlet user = User("Ada")\nif user.name != "Ada" || user.role != "member" { raise_error("AssertionError", "start failed") }');
   await runTest('Nested blocks', '{ { print "nested" } }');
   await runTest('Variable shadowing', 'let x = 1\n{ let x = 2 }');
   await runTest('Break statement', 'while true { break }');
   await runTest('Continue statement', 'for i = 0 to 5 { if i == 2 { continue } }');
   await runTest('Try/Catch block', 'try { let x = missing_var } catch (e) { let y = "caught" }');
-  await runTest(
-    'Try/Catch/Finally block (try path)',
-    'let x = 0\ntry { x = 1 } catch (e) { x = 2 } finally { x = 3 }\nif x != 3 { let y = missing_var }',
-  );
-  await runTest(
-    'Try/Catch/Finally block (catch path)',
-    'let x = 0\ntry { let y = missing_var } catch (e) { x = 2 } finally { x = 3 }\nif x != 3 { let z = missing_var }',
-  );
-  await runTest(
-    'Try/Catch/Finally block (return path)',
-    'let done = false\nfn f() { try { return 1 } catch (e) { return 2 } finally { done = true } }\nlet r = f()\nif r != 1 { let e = missing_var }\nif !done { let e2 = missing_var }',
-  );
-  await runTest(
-    'Custom error types via raise_error(type, message, data)',
-    'try { raise_error("ValidationError", "Invalid field", {"field": "email"}) } catch (e) { if e["type"] != "ValidationError" { let x = missing_var } if e["message"] != "Invalid field" { let y = missing_var } if e["data"]["field"] != "email" { let z = missing_var } }',
-  );
-  await runTest(
-    'Custom error types via error_type object',
-    'let err = error_type("RateLimit", "Too many requests", {"retryIn": 30})\ntry { raise_error(err) } catch (e) { if e["type"] != "RateLimit" { let a = missing_var } if e["data"]["retryIn"] != 30 { let b = missing_var } }',
-  );
+  await runTest('Try/Catch/Finally block (try path)','let x = 0\ntry { x = 1 } catch (e) { x = 2 } finally { x = 3 }\nif x != 3 { let y = missing_var }');
+  await runTest('Try/Catch/Finally block (catch path)','let x = 0\ntry { let y = missing_var } catch (e) { x = 2 } finally { x = 3 }\nif x != 3 { let z = missing_var }');
+  await runTest('Try/Catch/Finally block (return path)','let done = false\nfn f() { try { return 1 } catch (e) { return 2 } finally { done = true } }\nlet r = f()\nif r != 1 { let e = missing_var }\nif !done { let e2 = missing_var }');
+  await runTest('Custom error types via raise_error(type, message, data)','try { raise_error("ValidationError", "Invalid field", {"field": "email"}) } catch (e) { if e["type"] != "ValidationError" { let x = missing_var } if e["message"] != "Invalid field" { let y = missing_var } if e["data"]["field"] != "email" { let z = missing_var } }');
+  await runTest('Custom error types via error_type object','let err = error_type("RateLimit", "Too many requests", {"retryIn": 30})\ntry { raise_error(err) } catch (e) { if e["type"] != "RateLimit" { let a = missing_var } if e["data"]["retryIn"] != 30 { let b = missing_var } }');
   await runTest('Unary negation', 'let x = -5');
   await runTest('Logical not', 'let x = !true');
   await runTest('Short-circuit AND', 'if false && true { }');
   await runTest('Short-circuit OR', 'if true || false { }');
   await runTest('Member access', 'let obj = { "x": { "y": 1 } }\nlet val = obj["x"]["y"]');
   await runTest('Default parameters', 'fn greet(name = "World") { print name }');
-  await runTest(
-    'Custom tool definitions',
-    'fn summarize(x) { return "ok:" + x }\ndefine_tool("summarizer", summarize, "Summarize text")\nlet out = tool_call(summarizer)("hello")\nif out != "ok:hello" { let e = missing_var }',
-  );
-  await runTest(
-    'List custom tools',
-    'fn analyze(x) { return x }\ndefine_tool("analyzer", analyze)\nlet tools = list_tools()\nif len(tools) < 1 { let e = missing_var }',
-  );
+  await runTest('Custom tool definitions','fn summarize(x) { return "ok:" + x }\ndefine_tool("summarizer", summarize, "Summarize text")\nlet out = tool_call(summarizer)("hello")\nif out != "ok:hello" { let e = missing_var }');
+  await runTest('List custom tools','fn analyze(x) { return x }\ndefine_tool("analyzer", analyze)\nlet tools = list_tools()\nif len(tools) < 1 { let e = missing_var }');
   await runTest('Return with value', 'fn test() { return 42 }');
   await runTest('Return without value', 'fn test() { return }');
   await runTest('Audio std library keys check', 'allow "std/audio" in with Audio\nlet found = false\nfor k in keys(Audio) {\n  if k == "midi" { found = true }\n}\nif !found { raise_error("AssertionError", "midi missing") }');
@@ -236,6 +230,18 @@ async function main() {
     'HTML builtin wraps body content',
     'let page = html("<main>Hello</main>", {"title": "Demo"})\nif !contains(page, "<!DOCTYPE html>") { raise_error("AssertionError", "missing doctype") }\nif !contains(page, "<title>Demo</title>") { raise_error("AssertionError", "missing title") }\nif !contains(page, "<main>Hello</main>") { raise_error("AssertionError", "missing body") }',
   );
+
+  const appendFileFixture = path.join(process.cwd(), 'tests', '.append_file_fixture.txt');
+  try {
+    await runTest(
+      'append_file and read_file base64 mode',
+      'write_file("tests/.append_file_fixture.txt", "Hello")\nappend_file("tests/.append_file_fixture.txt", " world")\nlet txt = read_file("tests/.append_file_fixture.txt")\nif txt != "Hello world" { raise_error("AssertionError", "text append failed") }\nlet b64 = read_file("tests/.append_file_fixture.txt", "base64")\nif b64 != "SGVsbG8gd29ybGQ=" { raise_error("AssertionError", "base64 mode failed") }\nlet invalid = read_file("tests/.append_file_fixture.txt", "bytes")\nif invalid != null { raise_error("AssertionError", "invalid mode should return null") }',
+      undefined,
+      { safeMode: false, allowLocalFs: true }
+    );
+  } finally {
+    fs.rmSync(appendFileFixture, { force: true });
+  }
 
   console.log('\n=== Summary ===');
   console.log('All basic tests completed!');

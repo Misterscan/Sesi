@@ -4,7 +4,7 @@ allow "std/browser" in with {launch}
 allow "helpers/safe" in with Safe
 allow "tools" in with Tools
 
-set_alias("copilot", "gemini-3.1-flash-lite")
+set_alias("copilot", "gemini-3.5-flash-lite")
 set_alias("search", "gemini-3-flash-preview")
 
 let active_browser = null
@@ -104,7 +104,7 @@ export fn runScript(args) {
   try {
     let clean_script = join(split(script_name, ".."), "")
     let helper_path = "helpers/" + clean_script
-    let cmd = "node bin/sesi.js -l " + helper_path + " " + args_str
+    let cmd = "node bin/sesi.js --cli -l " + helper_path + " " + args_str
     let output = exec_in_project(cmd)
     return output
   } catch(e) {
@@ -129,12 +129,11 @@ export fn evaluate(args) {
   try {
     let temp_file = "sesi-studio/temp_eval_" + str(Time.now()) + ".sesi"
     Safe.writeFile(temp_file, final_code)
-    let cmd = "node bin/sesi.js -l " + temp_file
-    let output = exec_in_project(cmd)
+    let output = sesi(temp_file, true)
+    return output
     try {
       trash(temp_file, true)
     } catch(rm_e) {}
-    return output
   } catch(e) {
     return "Error evaluating Sesi code: " + str(e)
   }

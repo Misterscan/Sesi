@@ -15,12 +15,12 @@ Place string literals and variable names sequentially inside the braces. Sesi jo
 
 ```sesi
 let name    = "Ada"
-let version = "1.6.5"
+let version = "1.7.0"
 
-prompt header {"Welcome to Sesi" version ". Hello," name}
+prompt header {"Welcome to Sesi "version". Hello, "name}
 ```
 
-`header` now holds the composed string `"Welcome to Sesi 1.6.5. Hello, Ada"`.
+`header` now holds the composed string `"Welcome to Sesi 1.7.0. Hello, Ada"`.
 
 > **Rule:** Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error — they are treated as statement separators. Newlines that live inside a string literal are fine.
 
@@ -32,11 +32,11 @@ A prompt block is a value. Pass it to `print` like any other variable:
 
 ```sesi
 let lang = "Sesi"
-let ver  = "1.6.5"
+let ver  = "1.7.0"
 
-prompt title {"Welcome to" lang ver}
+prompt title {"Welcome to "lang ver}
 
-print title   // Welcome to Sesi 1.6.5
+print title   // Welcome to Sesi 1.7.0
 ```
 
 ---
@@ -48,7 +48,7 @@ Prompts resolve to plain strings and can be used anywhere a string is expected:
 ```sesi
 let user = "Ada"
 
-prompt greeting {"Hello," user ". Glad you're here."}
+prompt greeting {"Hello, "user". Glad you're here."}
 
 write_file("welcome.txt", greeting)
 ```
@@ -63,8 +63,8 @@ A literal newline inside a string literal spans the prompt across lines:
 let name  = "Ada"
 let score = 98
 
-prompt report {"Student: " name "
-Score: " score "
+prompt report {"Student: "name"
+Score: "score"
 Grade: A"}
 
 print report
@@ -84,7 +84,7 @@ let first = "Ada "
 let last  = "Lovelace"
 
 prompt fullName {first last}
-prompt badge {"[Developer]" fullName}
+prompt badge {"[Developer] "fullName}
 
 print badge   // [Developer] Ada Lovelace
 ```
@@ -103,7 +103,7 @@ let role = "admin"
 let line1 = "User: " + name + " | Role: " + role
 
 // Using prompt
-prompt line2 {"User:" name "| Role:" role}
+prompt line2 {"User: "name" | Role: "role}
 ```
 
 > **Preferred:** Avoid `+` inside `print` statements and prompt blocks. Sequential placement is idiomatic Sesi.
@@ -114,7 +114,7 @@ prompt line2 {"User:" name "| Role:" role}
 
 ```sesi
 // Declare
-prompt title {"Hello," name "— version" version}
+prompt title {"Hello, "name" — version "version}
 
 // Print directly
 print title
@@ -123,12 +123,12 @@ print title
 write_file("out.txt", title)
 
 // Multiline newlines inside string literals
-prompt report {"Name: " name "
-Score: " score}
+prompt report {"Name: "name"
+Score: "score}
 
 // Compose from other prompts
 prompt full  {first last}
-prompt badge {"[Admin]" full}
+prompt badge {"[Admin] "full}
 ```
 
 ---

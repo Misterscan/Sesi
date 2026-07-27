@@ -27,7 +27,7 @@ calculate("multiply", 5, 3)
 
 // Define your functions and call it using a custom tool
 fn getSesi() {
-    return "1.6.7"
+    return "1.7.0"
 }
 
 define_tool("get-sesi", getSesi, "Get the current Sesi version")
@@ -50,6 +50,7 @@ print "Current version:" v
     5. swap: Global string replacement.
     6. contains: Check if a string contains a substring.
     7. locate: Find the first index of a substring (-1 if not found).
+    8. trunc: Truncate numbers to integers or trim strings to length.
 */
 let numbers = [1, 2, 3, 4, 5, 6]
 print "Initial numbers:" numbers
@@ -103,7 +104,7 @@ print "First match > 4 (find):" match
 
 // String functions
 
-let original = "  Hello, Sesi V1.6.7!  "
+let original = "  Hello, Sesi V1.7.0!  "
 print "Original string:" original
 
 // 1. to_upper(string)
@@ -139,12 +140,16 @@ let replaced = swap(cleaned, " ", "_")
 print "Replaced spaces with underscores:" replaced
 
 // 6. contains(string, sub)
-let hasVersion = contains(cleaned, "V1.6.7")
-print "Contains 'V1.6.7':" hasVersion
+let hasVersion = contains(cleaned, "V1.7.0")
+print "Contains 'V1.7.0':" hasVersion
 
 // 7. locate(string, sub)
 let idx = locate(cleaned, "Sesi")
 print "Index of 'Sesi':" idx
+
+// 8. trunc(value, length)
+print "Truncate float (45.89):" trunc(45.89)
+print "Truncate string to length 4:" trunc(cleaned, 4)
 
 print "\n--- New String Functions ---"
 print "length('hello'):" length("hello")
@@ -161,6 +166,7 @@ print "reverse(myArr):" reverse(myArr)
 print "sort(myArr):" sort(myArr)
 print "unique(myArr):" unique(myArr)
 print "flatten([[1, 2], [3, 4]]):" flatten([[1, 2], [3, 4]])
+print "append(myArr, 2):" append(myArr, 2)
 
 print "\n--- Function Introspection ---"
 fn sample_func(a, b) { return a + b }

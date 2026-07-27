@@ -237,6 +237,74 @@ async function main() {
     assert('Array functions test failed', false, e.message);
   }
 
+  // 6. Model alias + config alias test
+  console.log('\n6. Testing model name and config aliases...');
+  const originalCallModel2 = aiRuntime.callModel.bind(aiRuntime);
+  const capturedAliasRequests: any[] = [];
+  (aiRuntime as any).callModel = async (request: any) => {
+    capturedAliasRequests.push(request);
+    return { text: 'ok' };
+  };
+
+  try {
+    const interpreter = new Interpreter();
+    await run(
+      `
+      let modelName = "modelName"
+      set_alias(modelName, "gemini-3-flash-preview")
+      let thinking = "low"
+      let temp = 0.3
+      let maxT = 1024
+      let res = model(modelName) {thinking, temp, maxT} {"hello"}
+      `,
+      interpreter
+    );
+
+    assert('model call captured', capturedAliasRequests.length === 1);
+    const req = capturedAliasRequests[0] || {};
+    assert('model alias resolves via variable', req.model === 'gemini-3-flash-preview', `got ${req.model}`);
+    assert('thinking alias maps to thinkingLevel', req.thinkingLevel === 'low', `got ${JSON.stringify(req.thinkingLevel)}`);
+    assert('temp alias maps to temperature', req.temperature === 0.3, `got ${req.temperature}`);
+    assert('maxT alias maps to maxTokens', req.maxTokens === 1024, `got ${req.maxTokens}`);
+  } catch (e: any) {
+    assert('Model/config alias test failed', false, e.message);
+  } finally {
+    (aiRuntime as any).callModel = originalCallModel2;
+  }
+
+  // 7. image() model alias + config alias test
+  console.log('\n7. Testing image() model name and config aliases...');
+  const originalCallModel3 = aiRuntime.callModel.bind(aiRuntime);
+  const capturedImageAliasRequests: any[] = [];
+  (aiRuntime as any).callModel = async (request: any) => {
+    capturedImageAliasRequests.push(request);
+    return { text: 'image-ok' };
+  };
+
+  try {
+    const interpreter = new Interpreter();
+    await run(
+      `
+      set_alias("imageAlias", "gemini-3.1-flash-image")
+      let imageAlias = "imageAlias"
+      let imgRatio = "1:1"
+      let imgSize = "1K"
+      let out = image(imageAlias) {imgRatio, imgSize} {"draw a sunset over a lake"}
+      `,
+      interpreter
+    );
+
+    assert('image call captured', capturedImageAliasRequests.length === 1);
+    const req = capturedImageAliasRequests[0] || {};
+    assert('image model alias resolves via variable', req.model === 'gemini-3.1-flash-image', `got ${req.model}`);
+    assert('image imgRatio alias maps to ratio', req.ratio === '1:1', `got ${JSON.stringify(req.ratio)}`);
+    assert('image imgSize alias maps to size', req.size === '1K', `got ${req.size}`);
+  } catch (e: any) {
+    assert('image model/config alias test failed', false, e.message);
+  } finally {
+    (aiRuntime as any).callModel = originalCallModel3;
+  }
+
   console.log(`\n=== Summary ===`);
   console.log(`Passed: ${passed}  Failed: ${failed}`);
   if (failed > 0) process.exit(1);

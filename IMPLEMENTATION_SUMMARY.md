@@ -37,15 +37,7 @@
 - **Error recovery**: Can synchronize after errors
 - **No dependencies**: No external parser generators
 
-### Why Gemini specifically?
-
-- **Instruction following**: Excellent at understanding prompts
-- **Function calling**: Built-in tool use support
-- **Context window**: 1M tokens for long documents
-- **Cost**: Competitive pricing
-- **Availability**: Easy to use via official SDK
-
-## 🌟 Language Features (V1)
+## 🌟 Language Features
 
 ### Core Language ✅
 
@@ -105,7 +97,7 @@ prompt greeting {"Hello, " name "!"}
 **Structured Output**
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.7\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.7.0\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 

@@ -258,9 +258,9 @@
 | Basic syntax    | 🔴 High   | ✅  |     |     |     |
 | Functions       | 🔴 High   | ✅  |     |     |     |
 | Reasoning calls | 🔴 High   | ✅  |     |     |     |
-| Error handling  | 🔴 High   | ✅  | ⏳  |     |     |
-| Async/await     | 🔴 High   |     | ⏳  |     |     |
-| Streaming       | 🟡 Medium |     | ⏳  |     |     |
+| Error handling  | 🔴 High   | ✅  |     |     |     |
+| Async/await     | 🔴 High   |     | ✅  |     |     |
+| Streaming       | 🟡 Medium |     | ✅  |     |     |
 | Process Logic   | 🟡 Medium |     |     | ⏳  |     |
 | Knowledge base  | 🟡 Medium |     |     | ⏳  |     |
 | Module system   | 🟡 Medium |     | ⏳  |     |     |

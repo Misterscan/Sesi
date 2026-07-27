@@ -25,6 +25,7 @@ export type TokenType =
   | 'NULL'
   | 'PRINT'
   | 'PROMPT'
+  | 'MAKE'
   | 'MODEL'
   | 'IMAGE'
   | 'STRUCTURED_OUTPUT'
@@ -343,7 +344,7 @@ export interface PromptExpression {
 
 export interface ModelCallExpression {
   type: 'ModelCallExpression';
-  modelName: string;
+  modelName: Expression;
   config?: Record<string, Expression>;
   prompt: Expression;
   images?: Expression; // string path or array of string paths
@@ -352,7 +353,7 @@ export interface ModelCallExpression {
 
 export interface ImageCallExpression {
   type: 'ImageCallExpression';
-  modelName: string;
+  modelName: Expression;
   config?: Record<string, Expression>;
   prompt: Expression;
   images?: Expression; // string path or array of string paths
@@ -528,7 +529,8 @@ export interface AIRequest {
   size?: string;
   tools?: any[];
   images?: string[]; // base64-encoded image data URIs or file paths resolved at runtime
-  thinkingLevel?: { thinking?: string; level?: string };
+  audio?: { data: string; mimeType: string }; // base64-encoded inline audio for multimodal requests
+  thinkingLevel?: { thinking?: string; level?: string } | string;
   cache?: boolean;
   search?: boolean;
   stream?: boolean | ((chunk: string) => void | Promise<void>);

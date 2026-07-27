@@ -38,7 +38,7 @@ fn minify_css(css: string) -> string {
         
         // Inspect the comment: does it start with a JSON bracket?
         let trimmed_body = trim(comment_body)
-        let first_char = slice(trimmed_body, 0, 1)
+        let first_char = trunc(trimmed_body, 1)
         
         if first_char == "{" {
           // Reconstruct the exact comment and save it securely

@@ -1,0 +1,39 @@
+/*
+  Example 33: Base64 Encoding and Decoding
+
+  Demonstrates:
+  1. Text Base64 encoding/decoding with std/base64
+  2. Byte-array Base64 encoding/decoding with std/base64
+  3. Reading a file as Base64 with read_file(path, "base64")
+*/
+
+allow "std/base64" in with Base64
+allow "std/time" in with {sleep}
+
+print "=== 1. Text to Base64 ==="
+let text = "Hello from Sesi"
+let encoded_text = Base64.encode(text)
+let decoded_text = Base64.decode(encoded_text)
+print "Original:" text
+print "Encoded: " encoded_text
+print "Decoded: " decoded_text
+print ""
+sleep(1000)
+
+print "=== 2. Bytes to Base64 ==="
+let bytes = [0, 255, 16, 32, 127]
+let encoded_bytes = Base64.encode(bytes, "bytes")
+let decoded_bytes = Base64.decode(encoded_bytes, "bytes")
+print "Input bytes:  " str(bytes)
+print "Base64 bytes: " encoded_bytes
+print "Output bytes: " str(decoded_bytes)
+print ""
+sleep(1000)
+
+print "=== 3. Image to Base64 ==="
+let file_b64 = read_file("docs/notebook.png", "base64")
+print "File as base64:" file_b64
+print "File length: " str(len(file_b64)) " characters"
+print ""
+
+print "Done."

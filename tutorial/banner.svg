@@ -1,0 +1,12 @@
+<svg width="860" height="180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" y2="0%" x2="100%" y1="0%" x1="0%">
+    <stop offset="0%" stop-color="#0f172a" />
+    <stop offset="50%" stop-color="#1e293b" />
+    <stop offset="100%" stop-color="#334155" />
+  </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="860" height="180" fill="url(#bg)" ry="14" rx="14" />
+  <text x="430" y="86" font-size="52" fill="#ffffff" font-weight="700" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle">Sesi Learning Lab</text>
+  <text x="430" y="122" font-size="18" fill="#cbd5e1" font-weight="400" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle">Learn the core language. Add reasoning when useful.</text>
+</svg>

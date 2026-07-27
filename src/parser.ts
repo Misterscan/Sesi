@@ -81,6 +81,7 @@ export class Parser {
       if (this.match('LET')) return this.letStatement(comments);
       if (this.match('CONST')) return this.constStatement(comments);
       if (this.match('FN')) return this.functionStatement(false, comments);
+      if (this.match('MAKE')) return this.makeStatement(comments);
       if (this.match('ASYNC')) {
         this.consume('FN', 'Expected fn after async');
         return this.functionStatement(true, comments);
@@ -196,6 +197,181 @@ export class Parser {
       body,
       line,
       isAsync,
+      ...(leadingComments && leadingComments.length > 0 ? { leadingComments } : {}),
+    };
+  }
+
+  /**
+   * Desugar a class-like `make` declaration into a factory function.
+   *
+   *     make Person {
+   *       let kind = "person"
+   *       fn start(self, name) { self.name = name }
+   *       fn greet(self) { return "Hello, " + self.name }
+   *     }
+   *
+   * becomes a `Person(name)` function which creates a fresh object, installs
+   * bound methods, runs `start`, and returns the instance. Keeping this as a
+   * parser desugaring gives both the tree walker and bytecode VM identical
+   * behavior without a second object model.
+   */
+  private makeStatement(leadingComments?: string[]): FunctionStatement {
+    const line = this.previous().line;
+    const name = this.consume('IDENTIFIER', 'Expected template name after make').lexeme;
+    this.skipNewlines();
+    const classBody = this.blockStatement();
+
+    const fields: LetStatement[] = [];
+    const methods: FunctionStatement[] = [];
+
+    for (const member of classBody.statements) {
+      if (member.type === 'LetStatement') {
+        fields.push(member);
+      } else if (member.type === 'FunctionStatement') {
+        if (member.parameters.length === 0 || member.parameters[0].name !== 'self') {
+          throw new Error(
+            `Method "${member.name}" in make ${name} must declare self as its first parameter`,
+          );
+        }
+        methods.push(member);
+      } else {
+        throw new Error(
+          `make ${name} may only contain let and fn declarations`,
+        );
+      }
+    }
+
+    const starter = methods.find(method => method.name === 'start');
+    const constructorParameters = starter
+      ? starter.parameters.slice(1).map(parameter => ({ ...parameter }))
+      : [];
+
+    const selfIdentifier = (): Identifier => ({
+      type: 'Identifier',
+      name: 'self',
+      line,
+    });
+    const identifier = (identifierName: string, identifierLine: number = line): Identifier => ({
+      type: 'Identifier',
+      name: identifierName,
+      line: identifierLine,
+    });
+    const nullLiteral = (literalLine: number): Literal => ({
+      type: 'Literal',
+      value: null,
+      rawType: 'null',
+      line: literalLine,
+    });
+
+    const bodyStatements: Statement[] = [{
+      type: 'LetStatement',
+      name: 'self',
+      value: {
+        type: 'ObjectLiteral',
+        properties: [],
+        line,
+      },
+      line,
+    }];
+
+    for (const field of fields) {
+      bodyStatements.push({
+        type: 'ExpressionStatement',
+        expression: {
+          type: 'Assignment',
+          left: {
+            type: 'MemberExpression',
+            object: selfIdentifier(),
+            property: field.name,
+            line: field.line,
+          },
+          right: field.value ?? nullLiteral(field.line),
+          line: field.line,
+        },
+        line: field.line,
+      });
+    }
+
+    bodyStatements.push(...methods);
+
+    for (const method of methods) {
+      const boundName = `__make_${name}_${method.name}`;
+      const boundParameters = method.parameters.slice(1).map(parameter => ({ ...parameter }));
+      const callArguments: Expression[] = [
+        selfIdentifier(),
+        ...boundParameters.map(parameter => identifier(parameter.name, method.line)),
+      ];
+      const boundMethod: FunctionStatement = {
+        type: 'FunctionStatement',
+        name: boundName,
+        parameters: boundParameters,
+        body: {
+          type: 'BlockStatement',
+          statements: [{
+            type: 'ReturnStatement',
+            value: {
+              type: 'CallExpression',
+              callee: identifier(method.name, method.line),
+              arguments: callArguments,
+              line: method.line,
+            },
+            line: method.line,
+          }],
+          line: method.line,
+        },
+        line: method.line,
+        isAsync: method.isAsync,
+      };
+
+      bodyStatements.push(boundMethod, {
+        type: 'ExpressionStatement',
+        expression: {
+          type: 'Assignment',
+          left: {
+            type: 'MemberExpression',
+            object: selfIdentifier(),
+            property: method.name,
+            line: method.line,
+          },
+          right: identifier(boundName, method.line),
+          line: method.line,
+        },
+        line: method.line,
+      });
+    }
+
+    if (starter) {
+      bodyStatements.push({
+        type: 'ExpressionStatement',
+        expression: {
+          type: 'CallExpression',
+          callee: identifier(starter.name, starter.line),
+          arguments: [
+            selfIdentifier(),
+            ...constructorParameters.map(parameter => identifier(parameter.name, starter.line)),
+          ],
+          line: starter.line,
+        },
+        line: starter.line,
+      });
+    }
+
+    bodyStatements.push({
+      type: 'ReturnStatement',
+      value: selfIdentifier(),
+      line,
+    });
+
+    return {
+      type: 'FunctionStatement',
+      name,
+      parameters: constructorParameters,
+      body: {
+        type: 'BlockStatement',
+        statements: bodyStatements,
+        line,
+      },
+      line,
       ...(leadingComments && leadingComments.length > 0 ? { leadingComments } : {}),
     };
   }
@@ -416,6 +592,8 @@ export class Parser {
 
     if (this.match('FN')) {
       statement = this.functionStatement(false);
+    } else if (this.match('MAKE')) {
+      statement = this.makeStatement();
     } else if (this.match('ASYNC')) {
       this.consume('FN', 'Expected fn after async');
       statement = this.functionStatement(true);
@@ -983,7 +1161,7 @@ export class Parser {
   private imageCall(): import('./types').ImageCallExpression {
     const line = this.previous().line;
     this.consume('LEFT_PAREN', 'Expected ( after image');
-    const modelName = this.consume('STRING', 'Expected image model name').literal;
+    const modelName = this.assignment();
     this.consume('RIGHT_PAREN', 'Expected ) after image model name');
 
     let config: Record<string, Expression> | undefined;
@@ -1009,12 +1187,20 @@ export class Parser {
             if (this.match('COLON')) {
               config[key] = this.assignment();
             } else {
-              config[key] = {
-                type: 'Literal',
-                value: true,
-                rawType: 'bool',
-                line: this.previous().line,
-              } as import('./types').Literal;
+              if (key === 'search' || key === 'cache' || key === 'stream' || key === 'onChunk' || key === 'on_chunk') {
+                config[key] = {
+                  type: 'Literal',
+                  value: true,
+                  rawType: 'bool',
+                  line: this.previous().line,
+                } as import('./types').Literal;
+              } else {
+                config[key] = {
+                  type: 'Identifier',
+                  name: key,
+                  line: this.previous().line,
+                } as import('./types').Identifier;
+              }
             }
           }
         } while (this.match('COMMA'));
@@ -1065,7 +1251,7 @@ export class Parser {
 
     return {
       type: 'ImageCallExpression',
-      modelName: modelName as string,
+      modelName,
       config,
       prompt,
       images: config?.images,
@@ -1076,7 +1262,7 @@ export class Parser {
   private modelCall(): import('./types').ModelCallExpression {
     const line = this.previous().line;
     this.consume('LEFT_PAREN', 'Expected ( after model');
-    const modelName = this.consume('STRING', 'Expected model name').literal;
+    const modelName = this.assignment();
     this.consume('RIGHT_PAREN', 'Expected ) after model name');
 
     let config: Record<string, Expression> | undefined;
@@ -1102,12 +1288,20 @@ export class Parser {
             if (this.match('COLON')) {
               config[key] = this.assignment();
             } else {
-              config[key] = {
-                type: 'Literal',
-                value: true,
-                rawType: 'bool',
-                line: this.previous().line,
-              } as import('./types').Literal;
+              if (key === 'search' || key === 'cache' || key === 'stream' || key === 'onChunk' || key === 'on_chunk') {
+                config[key] = {
+                  type: 'Literal',
+                  value: true,
+                  rawType: 'bool',
+                  line: this.previous().line,
+                } as import('./types').Literal;
+              } else {
+                config[key] = {
+                  type: 'Identifier',
+                  name: key,
+                  line: this.previous().line,
+                } as import('./types').Identifier;
+              }
             }
           }
         } while (this.match('COMMA'));
@@ -1158,7 +1352,7 @@ export class Parser {
 
     return {
       type: 'ModelCallExpression',
-      modelName: modelName as string,
+      modelName,
       config,
       prompt,
       images: config?.images,

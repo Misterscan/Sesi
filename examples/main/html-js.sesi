@@ -306,47 +306,20 @@ async fn handleRequest(req) {
   }
 }
 
-fn getSys() {
+async fn getSys() {
   let OS = ""
-  try {
-    OS = exec("uname")
-  } catch (e) {
-    OS = "Windows"
-  }
+  try {OS = exec("uname")} catch (e) {OS = "Windows"}
   return OS
 }
 
 let port = 8080
 print "Starting Sesi server on http://localhost:" port
 let server = listen(port, handleRequest)
-let OS = getSys()
+let OS = await getSys()
 
-
-if contains(OS, "Darwin") {
-  try {
-    exec("open http://localhost:" + port)
-    print "Opened browser automatically!
-    "
-  } catch (e) {
-    print "Failed to open browser automatically"
-  }
-} else if contains(OS, "Linux") {
-  try {
-    exec("xdg-open http://localhost:" + port)
-    print "Opened browser automatically!
-    "
-  } catch (e) {
-    print "Failed to open browser automatically"
-  }
-} else if contains(OS, "Windows") {
-  try {
-    exec("start http://localhost:" + port)
-    print "Opened browser automatically!
-    "
-  } catch (e) {
-    print "Failed to open browser automatically"
-  }
-}
+print "Current System:" OS ""
+await open("http://localhost:" + port)
+print "Automatically opened in browser."
 
 let end = input("Press Enter to stop the server...\n")
 server.close(end)

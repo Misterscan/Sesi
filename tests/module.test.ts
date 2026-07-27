@@ -119,6 +119,43 @@ async function main() {
     console.error(`  ✗ std/json validation failed, got: ${xVal}`);
   }
 
+  // Test 5b: Standard Base64 module (std/base64)
+  const int5b = new Interpreter();
+  await runTest('Import std/base64 module', `
+    import { encode, decode } from "std/base64"
+    let textEncoded = encode("Hello")
+    let textDecoded = decode(textEncoded)
+    let bytesEncoded = encode([0, 255, 16], "bytes")
+    let bytesDecoded = decode(bytesEncoded, "bytes")
+    let urlSafeDecoded = decode("SGVsbG8")
+  `, int5b);
+  const textEncoded = (int5b as any).currentEnv.get('textEncoded');
+  const textDecoded = (int5b as any).currentEnv.get('textDecoded');
+  const bytesEncoded = (int5b as any).currentEnv.get('bytesEncoded');
+  const bytesDecoded = (int5b as any).currentEnv.get('bytesDecoded');
+  const urlSafeDecoded = (int5b as any).currentEnv.get('urlSafeDecoded');
+  if (
+    textEncoded === 'SGVsbG8=' &&
+    textDecoded === 'Hello' &&
+    bytesEncoded === 'AP8Q' &&
+    Array.isArray(bytesDecoded) &&
+    bytesDecoded.length === 3 &&
+    bytesDecoded[0] === 0 &&
+    bytesDecoded[1] === 255 &&
+    bytesDecoded[2] === 16 &&
+    urlSafeDecoded === 'Hello'
+  ) {
+    console.log('  ✓ std/base64 text and bytes modes validated successfully');
+  } else {
+    console.error('  ✗ std/base64 validation failed:', {
+      textEncoded,
+      textDecoded,
+      bytesEncoded,
+      bytesDecoded,
+      urlSafeDecoded,
+    });
+  }
+
   // Test 6: Standard Database module (std/db)
   const tempDbPath = path.resolve(process.cwd(), 'temp_test.db');
   if (fs.existsSync(tempDbPath)) {

@@ -1,5 +1,9 @@
 allow "std/terminal" in with {color}
 
+let accessibility = input("Enable accessibility features (text-to-speech) (y/n, default: n): ")
+if is_null(accessibility) || accessibility == "" {accessibility = "n"}
+let enableAccessibility = accessibility == "y" || accessibility == "Y"
+
 let examples = {
   "main": [
     "Hello, Sesi!",
@@ -26,7 +30,10 @@ let examples = {
     "Tool Piping",
     "Error Recovery",
     "Synthesizer",
-    "Browser Automation"
+        "Browser Automation",
+        "Base64",
+        "SesiAPI Server",
+        "Speech & Language"
   ],
   "optional": [
     "Model Call",
@@ -74,17 +81,31 @@ let all_examples = [
     {"title": main[21], "cmd": "sesi examples/main/29_tool_piping.sesi"},
     {"title": main[22], "cmd": "sesi examples/main/30_error_recovery.sesi"},
     {"title": main[23], "cmd": "sesi examples/main/31_synthesizer.sesi"},
-    {"title": main[24], "cmd": "sesi examples/main/32_browser_automation.sesi -l"}
+    {"title": main[24], "cmd": "sesi examples/main/32_browser_automation.sesi -l"},
+    {"title": main[25], "cmd": "sesi examples/main/33_base64.sesi"},
+    {"title": main[26], "cmd": "sesi examples/main/34_sesi_api.sesi -l"},
+    {"title": main[27], "cmd": "sesi examples/main/35_speech_language.sesi"}
 ]
+
+let launchTag = "Launching example files. If you have the reasoning examples commented out, this should be quick. If you have the reasoning examples left in, this could take a while..."
+let enterTag = "Press enter to continue, type 'skip' to move on or type 'exit' to quit."
+let exitTag = "Ending script early."
+let skipTag = "Skipping."
+let imageTag = "Image generation example may take a while. Bear with us!"
+let doneTag = "All done!"
+let errorTag = "We're sorry but an error occurred: "
 
 try {
     print color("Launching example .sesi files...
     If you have the reasoning capabilites commented out, this should be quick.
     If you have the reasoning capabilites uncommented, this could take a while...", "magenta")
-
+    if enableAccessibility {
+        speech(launchTag)
+        speech(enterTag)
+    }
     for i = 0 to len(all_examples) {
         let ex = all_examples[i]
-        let step = str(i + 1) + "/32"
+        let step = str(i + 1) + "/35"
         let title_tag = "[" + step + "] [" + ex["title"] + "]"
         
         if i > 0 {
@@ -94,10 +115,16 @@ try {
             }
             let ans = input(prompt_text)
             if ans == "exit" {
-                print color("Exiting examples early.", "yellow")
+                print color("Ending examples early.", "yellow")
+                if enableAccessibility {
+                    speech(exitTag)
+                }
                 break
             } else if ans == "skip" {
                 print color("Skipped " + ex["title"], "yellow")
+                if enableAccessibility {
+                    speech(skipTag)
+                }
                 continue
             }
         } else {
@@ -105,7 +132,10 @@ try {
         }
 
         if ex["cmd"] == "sesi examples/optional/15_image_generation.sesi" {
-            print "Only relevant for users who have the capability to generate images uncommented out: Image generation example may take a while..." 
+            print "Only relevant for users who have the capability to generate images uncommented out: Image generation example may take a while..."
+            if enableAccessibility {
+                speech(imageTag)
+            } 
         }
 
         let parts = split(ex["cmd"], " ")
@@ -113,6 +143,12 @@ try {
         print sesi(parts[1], local)
     }
     print color("All done! No errors means Sesi is ready!", "green", "bold")
+    if enableAccessibility {
+        speech(doneTag)
+    }
 } catch (error) {
     print color("An error occurred: " + str(error), "red")
+    if enableAccessibility {
+        speech(errorTag + str(error))
+    }
 }

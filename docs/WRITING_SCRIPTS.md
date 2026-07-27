@@ -345,7 +345,7 @@ Objects are useful for configuration and structured records.
 ```sesi
 let app = {
   "name": "Sesi",
-  "version": "1.6.7"
+  "version": "1.7.0"
 }
 
 for key in keys(app) {
@@ -378,12 +378,12 @@ Sesi provides native string utilities to format, transform, and slice text:
 - **`locate(string, sub)`**: Returns the zero-based index of the first occurrence of a substring, or `-1` if not found.
 
 ```sesi
-let original = "  Hello, Sesi V1.6.7!  "
+let original = "  Hello, Sesi V1.7.0!  "
 
-let cleaned = trim(original)                   // "Hello, Sesi V1.6.7!"
-let shouted = to_upper(cleaned)                // "HELLO, SESI V1.6.7!"
+let cleaned = trim(original)                   // "Hello, Sesi V1.7.0!"
+let shouted = to_upper(cleaned)                // "HELLO, SESI V1.7.0!"
 let part = slice(cleaned, 7, 11)               // "Sesi"
-let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V1.6.7!"
+let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V1.7.0!"
 let found = contains(cleaned, "Sesi")          // true
 let idx = locate(cleaned, "Sesi")             // 7
 ```
@@ -635,7 +635,7 @@ Use `model` for direct model calls:
 
 ```sesi
 let text = read_file("notes.txt")
-let summary = model("gemini-3.5-flash-lite") {"Summarize this in 3 bullets:" text}
+let summary = model("gemini-3.5-flash-lite") {"Summarize this in 3 bullets: "text}
 
 print summary
 ```
@@ -666,8 +666,8 @@ let content = read_file(file_name)
 
 prompt request {"Classify this file as TECHNICAL, LEGAL, MARKETING, or OTHER.
   Return only the category.
-  File: " file_name "
-  Content: " content}
+  File: "file_name"
+  Content: "content}
 
 let category = model("gemini-3.5-flash-lite") {request}
 print file_name ":" category
@@ -687,7 +687,8 @@ You can combine `model` and `structured_output`:
 
 ```sesi
 let review = "The tool is fast, but the setup was confusing."
-let result = structured_output({sentiment: string, summary: string})(model("gemini-3.5-flash-lite") {"Analyze this review and return JSON with sentiment and summary: " review})
+let result = structured_output({sentiment: string, summary: string})
+  (model("gemini-3.5-flash-lite") {"Analyze this review and return JSON with sentiment and summary: "review})
 
 print result["sentiment"]
 print result["summary"]
@@ -747,10 +748,14 @@ allow "std/time" in with {
 allow "std/json" in with {
   parse, stringify
 }
+allow "std/base64" in with {
+  encode, decode
+}
 allow "std/db" in with {db_open}
 
 print "sqrt(9):" sqrt(9)
 print "Current time:" now()
+print decode(encode("Sesi"))
 ```
 
 ### Scoped Namespace Imports (`allow`)
@@ -768,7 +773,7 @@ allow "std/json" in with {
 }
 let original = {
   "project": "Sesi",
-  "version": "1.6.7"
+  "version": "1.7.0"
 }
 print stringify(original)
 ```
@@ -906,7 +911,7 @@ Add reasoning only when needed:
 // Read report path and stream the summary directly to terminal stdout
 let report_text = read_file(report_path)
 let summary = model("gemini-3.5-flash-lite") {stream: true} {"Summarize this folder report:
-  " report_text}
+  "report_text}
 try {
   write_file("reports/daily_report_summary.txt", summary)
   print "Summary saved to reports/daily_report_summary.txt"

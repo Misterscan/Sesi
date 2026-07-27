@@ -1,0 +1,10 @@
+<svg width="144" height="32" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="144" height="32" fill="#111827" ry="8" rx="8" />
+  <rect x="0" y="0" width="72" height="32" fill="#374151" ry="8" rx="8" />
+  <rect x="64" y="0" width="8" height="32" fill="#374151" />
+  <rect x="72" y="0" width="72" height="32" fill="green" ry="8" rx="8" />
+  <rect x="72" y="0" width="8" height="32" fill="green" />
+  <rect x="0" y="0" width="144" height="15" fill="#ffffff" ry="8" rx="8" opacity="0.08" />
+  <text x="12" y="21" font-size="14" fill="#ffffff" font-weight="600" font-family="system-ui, sans-serif">status</text>
+  <text x="84" y="21" font-size="14" fill="#ffffff" font-weight="700" font-family="system-ui, sans-serif">Active</text>
+</svg>

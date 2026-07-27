@@ -33,11 +33,12 @@ Sesi is built on these core principles:
 
 - ✅ Variables and bindings (`let`)
 - ✅ Functions (named, anonymous)
+- ✅ Class-like object templates (`make`)
 - ✅ Conditionals (`if/else`)
 - ✅ Loops (`while`, `for`)
 - ✅ Error Handling (`try/catch` blocks)
 - ✅ Data types (number, string, bool, array, object)
-- ✅ Process Execution (`spawn`, `exec`, `time`, `random`, `convert`, `format`)
+- ✅ Process and Desktop Integration (`spawn`, `exec`, `open`, `open_file`, `time`, `random`, `convert`, `format`)
 - ✅ Comments (`//`, `/* */`) — text is preserved in AST as `leadingComments` on declarations for doc tooling
 - ✅ Operators (arithmetic, logical, comparison)
 - ✅ Standard library (print, len, range, etc.)
@@ -77,7 +78,7 @@ Sesi is built on these core principles:
 #### Keywords
 
 ```
-let if else while for fn print import export async
+let if else while for fn make print import export async
 prompt model image convert memory structured_output tool_call break continue try catch true false null await
 ```
 
@@ -216,6 +217,36 @@ postfix := primary ('['expression']' | '.'identifier | '('args?')' | primary)*
 primary := identifier | literal | '('expression')' | prompt | model | image | convert | memory | call
 ```
 
+#### Object Templates
+
+```
+make_declaration := 'make' identifier '{' make_member* '}'
+make_member := let_declaration | function_declaration
+```
+
+`make` declares a callable, class-like object template. Calling its name
+creates a fresh object. `start(self, ...)` supplies the constructor parameters
+and initializes the instance. Every method declares `self` first; method calls
+bind it automatically.
+
+```sesi
+make Person {
+  let kind = "person"
+
+  fn start(self, name) {
+    self.name = name
+  }
+
+  fn greet(self) {
+    return "Hello, " + self.name
+  }
+}
+
+let ada = Person("Ada")
+print ada.kind
+print ada.greet()
+```
+
 #### Function Call
 
 ```
@@ -232,7 +263,7 @@ content := (string | expression | newline)
 Example:
 
 ```sesi
-prompt codeReview {"Review this code for bugs:" code "Provide specific issues found."}
+prompt codeReview {"Review this code for bugs: "code" Provide specific issues found."}
 ```
 
 #### Model & Image Calls
@@ -323,7 +354,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.7\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.7.0\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -366,9 +397,10 @@ memory := 'memory' identifier ('{'expressions'}')?
 Example:
 
 ```sesi
-memory conversation {"Previous messages here"}
-let response = model("gemini-3-flash-preview") {prompt {conversation "New question:" userInput}}
-conversation = conversation "Assistant:" response
+memory conversation {"Previous messages here..."}
+let userInput = "New message added."
+let response = model("gemini-3-flash-preview") {conversation "New question: "userInput}
+conversation = conversation + "Assistant:" + response
 ```
 
 ### 4.6 Type Annotations
@@ -417,8 +449,36 @@ optional_type := type '?'
 
 - Runtime and model errors can be caught with `try/catch`
 - Model errors throw when Gemini returns no text or a non-`STOP` finish reason
-- `read_file()`, `write_file()`, and `list_dir()` throw on filesystem failure
+- `read_file()`, `write_file()`, `list_dir()`, `open()`, and `open_file()` throw on filesystem or launch failure
 - `structured_output()` currently logs parsing failures and returns `{}` if recovery fails
+
+### Desktop Launching
+
+`open()` and `open_file()` hand a target to an external desktop application and return `true` after the operating system accepts the launch request. They do not wait for the application to exit.
+
+```sesi
+open("https://code-with-sesi.netlify.app")
+open("reports/dashboard.html", {"mode": "browser", "browser": "Firefox"})
+
+open_file("README.md", {"editor": "Visual Studio Code"})
+open_file("favicon.png", {"viewer": "Preview"})
+```
+
+Both functions are disabled in safe mode and require `sesi -l` or `sesi --local`.
+
+`open(target, options?)` accepts an `http`, `https`, `ftp`, `file`, or `mailto` URL. When its target is not a URL, it behaves like `open_file()` and resolves an existing local path through the filesystem safety checks. `open_file(path, options?)` accepts only an existing local path.
+
+The optional settings object supports:
+
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `browser` | `string` | Preferred browser application |
+| `editor` | `string` | Preferred text editor application |
+| `viewer` | `string` | Preferred viewer application |
+| `image_viewer` | `string` | Alias for `viewer` |
+| `mode` | `string` | `"auto"`, `"browser"`, `"editor"`, `"viewer"`, or `"image_viewer"` |
+
+In `"auto"` mode, Sesi uses the requested image viewer for image extensions, the requested editor for text extensions, or the requested browser for browser-friendly extensions. If no matching application is specified, the operating system default is used.
 
 ## 8. Built-in Functions
 
@@ -430,13 +490,16 @@ range(number) -> array        // [0, 1, ..., n-1]
 type(any) -> string           // Type name
 str(any) -> string            // Convert to string
 num(any) -> number            // Convert to number
+float(any) -> number          // Convert to floating-point number
 bool(any) -> bool             // Convert to bool
 keys(object) -> array         // Object keys
 values(object) -> array       // Object values
 push(array, any)              // Add element
+append(array|string, any)     // Append to array or concatenate to string
 pop(array) -> any             // Remove last
 join(array, string) -> string // Join with separator
 split(string, string) -> array // Split by separator
+tokenize(string, object?) -> array // Model tokenization (OpenAI-compatible tiktoken-style)
 to_upper(string) -> string       // Convert to uppercase
 to_lower(string) -> string       // Convert to lowercase
 trim(string) -> string        // Trim whitespace
@@ -449,9 +512,12 @@ filter(array, fn) -> array    // Filter array elements
 reduce(array, fn, any?) -> any // Accumulate array elements
 find(array, fn) -> any        // Find matching element
 retry(fn, number | object) -> any // Execute function with retry and backoff
-read_file(string) -> string    // Read file contents
+read_file(string, string?) -> string    // Read file contents (text or base64)
 write_file(string, string) -> bool // Write file contents
+append_file(string, string) -> bool // Append string content to file
 write_image(string, string) -> bool // Write base64 image data to file
+open(string, object?) -> bool    // Open URL or local file in external app; local mode only
+open_file(string, object?) -> bool // Open existing local file in external app; local mode only
 list_dir(string) -> array<string> // List directory contents
 make_dir(string) -> bool          // Create directory (recursive)
 spawn(string) -> number           // Concurrent process creation
@@ -461,6 +527,7 @@ python(string, args) -> string    // Inline Python code execution
 js(strings, args) -> string       // In-proccess Javascript execution
 time() -> number                  // Current Unix timestamp
 random() -> number                // Random float (0.0 to 1.0)
+trunc(value, number?) -> any      // Truncate number (integer part) or string (char limit)
 convert() -> bool                 // Convert between formats
 memory_search(string, string, number?) -> array // Semantic similarity search over memory entries
 memory_trim(string, number?) -> string          // Context window management with auto-summarization
@@ -513,6 +580,11 @@ let result = add(10, 20)
 allow "std/time" in with Time    // Time/date functions
 allow "std/math" in with Math    // Math operations
 allow "std/json" in with JSON    // JSON parsing
+allow "std/draw" in with Draw    // SVG/Pixel creation
+allow "std/audio" in with Audio  // Audio synthesis
+allow "std/theory" in with Music   // Music Theory
+allow "std/terminal" in with Term  // Terminal options
+allow "std/base64" in with Base64 // Base64 encode/decode
 ```
 
 ### Module Resolution Order (v1.x)
@@ -579,9 +651,9 @@ When a module is loaded from any search path, its own imports are resolved **rel
 Prompts are composable message templates:
 
 ```sesi
-prompt translate {"translate the following to Spanish:" sourceText}
-prompt summarize {"Summarize this in 3 sentences:" text}
-prompt combined {summarize " Now " translate}
+prompt generate {"Craft a full report on the following: "sourceText}
+prompt summarize {"Summarize this in 3 sentences: "sourceText}
+prompt combined {summarize" Now "generate}
 ```
 
 ### Model & Image Calls
@@ -608,10 +680,26 @@ print "Image written to logo.png"
 - **`temperature`**: _ Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
 - **`top_k` / `top_p`**: _ Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
 
+### Speech, Transcription, and Translation
+
+Sesi provides built-ins for spoken output, transcription, and translation.
+
+```sesi
+speech("Analysis complete")
+let transcript = from_speech("interview.wav", "en")
+let spanish = translate(transcript, "es", "en")
+print spanish
+```
+
+- `speech(text, voice = null, gemini_model = null)` speaks through the operating system's local voice tool, or uses the optional Gemini model.
+- `from_speech(audio_path, language = null, gemini_model = null)` transcribes with `nodejs-whisper`, or the optional Gemini model.
+- `translate(text, to_language, from_language = "en", gemini_model = null)` translates through the `translate` package, or the optional Gemini model.
+
 ### Reasoning with Structured Output
 
 ```sesi
-let result = structured_output({title: string, category: string, confidence: number})(model("gemini-3.5-flash-lite") {"Extract metadata from this text:" text})
+let result = structured_output({title: string, category: string, confidence: number})
+(model("gemini-3.5-flash-lite") {"Extract metadata from this text: "text})
 print result["title"]       // Access fields
 print result["confidence"]  // Type-safe access
 ```
@@ -628,9 +716,11 @@ taxAmount
 
 ```sesi
 memory chat {"System: You are a helpful assistant."}
-fn askQuestion(question: string)
-{let response = model("gemini-3-flash-preview") {chat "User:" question}
-chat = chat "Assistant:" response}
+fn askQuestion(question: string) {
+  let response = model("gemini-3-flash-preview") {chat "User:" question}
+  chat = chat + "Assistant:" + response
+  return chat
+}
 ```
 
 ## 11. Examples
@@ -646,31 +736,32 @@ print x + y  // Output: 30
 ### Example 2: Function with Reasoning
 
 ```sesi
-fn analyzeText(text: string) -> string {return model("gemini-3.6-flash") {thinkingLevel: "low"} {"Analyze this text and return key insights:" text}}
-print analyzeText("Reasoning is transforming industries")
+let text = "Reasoning is transforming industries!"
+fn analyzeText(text: string) -> string {return model("gemini-3.6-flash") {thinkingLevel: "low"} {"Analyze this text and return key insights: "text}}
+print analyzeText()
 ```
 
 ### Example 3: Reasoning with Structured Output
 
 ```sesi
-let sentiment = structured_output({label: string, score: number})(model("gemini-3-flash-preview") {"Analyze sentiment of:" userInput})
+let userInput = "I love working with Sesi!"
+let sentiment = structured_output({label: string, score: number})(model("gemini-3-flash-preview") {"Analyze sentiment of: "userInput})
 print sentiment.label
 print sentiment.score
 ```
 
-## 12. Undefined Behavior & Limitations (V1.x)
+## 12. Undefined Behavior & Limitations
 
-- **No async/await**: All operations within a script are blocking (including model calls). Concurrency must be achieved via `spawn()`.
 - **No custom types**: Only built-in types are supported natively.
 - **No pattern matching**: Basic if/else only.
 - **No generics**: Array and object collections are untyped at runtime.
 - **Limited introspection**: Basic type() only.
 - **No macros**: No compile-time code generation.
-- **Single-threaded runtime**: Execution per script is single-threaded. System-level concurrency is handled via multi-process `spawn()`.
+- **Single-threaded runtime**: Execution per script event loop is single-threaded. System-level concurrency is handled via multi-process `spawn()`.
 - **No garbage collection tuning**: Rely on Node.js GC.
 
 ## 13. Compatibility Notes
 
-- Sesi programs run on Node.js 18+
+- Sesi programs run on Node.js 20+
 - Requires `@google/genai` SDK v2.0.1+
 - Requires valid Gemini API key (GEMINI_API_KEY env var)

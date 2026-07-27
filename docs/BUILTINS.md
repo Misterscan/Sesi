@@ -34,6 +34,55 @@ print "Hello," name
 
 ---
 
+## Speech & Translation Functions
+
+These built-ins provide microphone transcription and text translation.
+
+### speech(text, voice = null, gemini_model = null) -> bool|string
+
+Speak text through the system's installed voice. On macOS this uses `say`, on Windows it uses `System.Speech`, and on Linux it uses `espeak-ng`.
+
+```sesi
+speech("Your local build is complete.")
+speech("Bonjour tout le monde", "Thomas")
+```
+
+**Returns**: `true` after playback finishes.
+
+Pass a Gemini text-to-speech model as the third argument to return base64-encoded audio instead of using the system voice.
+
+---
+
+### from_speech(audio_path, language = null, gemini_model = null) -> string
+
+Transcribe an audio file using `nodejs-whisper`. `language` is optional (for example, `"en"` or `"fr"`).
+
+```sesi
+let transcript = from_speech("meeting.wav", "en")
+print transcript
+```
+
+**Returns**: the transcript as text. `nodejs-whisper` and a downloaded model must be installed (`npx nodejs-whisper download base.en`).
+
+Pass a Gemini model as the third argument to transcribe through Gemini instead of Whisper.
+
+---
+
+### translate(text, to_language, from_language = "en", gemini_model = null) -> string
+
+Translate text with the [`translate`](https://www.npmjs.com/package/translate) package. Language values can use ISO language codes or English language names.
+
+```sesi
+let greeting = translate("Good morning", "es", "en")
+print greeting
+```
+
+**Returns**: translated text.
+
+Pass a Gemini model as the fourth argument to translate through Gemini instead of the `translate` package.
+
+---
+
 ## Type Functions
 
 ### type(value) -> string
@@ -117,6 +166,22 @@ num("hello")       // null (can't convert)
 
 ---
 
+### float(value) -> number
+
+Convert a value to a floating-point number.
+
+```sesi
+float("42")        // 42
+float("3.14")      // 3.14
+float(true)        // 1
+float(false)       // 0
+float("hello")     // null (can't convert)
+```
+
+**Returns**: `number` or `null` if conversion fails
+
+---
+
 ### bool(value) -> bool
 
 Convert a value to boolean.
@@ -192,6 +257,24 @@ print arr          // [1, 2, 3, 4]
 
 ---
 
+### append(collection, value) -> array | string
+
+Append to an array or concatenate to a string.
+
+```sesi
+let arr = [1, 2]
+append(arr, 3)
+print arr            // [1, 2, 3]
+
+append("Hello", " world")  // "Hello world"
+```
+
+**Note**: For arrays, this modifies in-place and returns the same array.
+
+**Returns**: `array`, `string`, or `null` for unsupported types
+
+---
+
 ### pop(array) -> any
 
 Remove and return the last element of an array.
@@ -234,13 +317,42 @@ split("hello world", " ")  // ["hello", "world"]
 
 ---
 
+### tokenize(string, options = null) -> array
+
+Tokenize text into model token IDs (OpenAI-compatible tiktoken-style encoding).
+
+```sesi
+let ids = tokenize("Hello world")
+print len(ids)
+
+let ids2 = tokenize("Hello world", "gpt-5.6-sol")
+
+let words = tokenize("  Sesi   language   rocks  ", "simple")
+// ["Sesi", "language", "rocks"]
+```
+
+**Options**:
+
+- `model` (`string`, default `"gpt-4o"`): Model name used to pick tokenizer encoding.
+- `encoding` (`string`, optional): Explicit tiktoken encoding override (for example `"o200k_base"`).
+- `mode` (`string`, optional): Set to `"simple"` for basic whitespace tokenization.
+
+You can also pass a string as the second argument directly:
+
+- `tokenize(text, "simple")` for simple word splitting
+- `tokenize(text, "gpt-4o")` to preview a specific models tokenization
+
+**Returns**: `array<number>` (model token IDs), `array<string>` in simple mode, or `null` if input/options are invalid
+
+---
+
 ### to_upper(string) -> string
 
 Converts all alphabetic characters in a string to uppercase.
 
 ```sesi
 to_upper("hello")      // "HELLO"
-to_upper("Sesi V1.6.7")  // "SESI V1.6.7"
+to_upper("Sesi V1.7.0")  // "SESI V1.7.0"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -253,7 +365,7 @@ Converts all alphabetic characters in a string to lowercase.
 
 ```sesi
 to_lower("WORLD")      // "world"
-to_lower("Sesi V1.6.7")  // "sesi v1.6.7"
+to_lower("Sesi V1.7.0")  // "sesi v1.7.0"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -467,18 +579,26 @@ let match = find(numbers, isEven) // 4
 
 ## File System Functions
 
-### read_file(path) -> string
+### read_file(path, mode = "text") -> string
 
 Read the contents of a file as a string.
+
+Modes:
+
+- `"text"` (default): Reads UTF-8 text
+- `"base64"`: Reads raw bytes and returns Base64 text
 
 ```sesi
 let text = read_file("input.txt")
 print text
+
+let image_b64 = read_file("logo.png", "base64")
+print image_b64
 ```
 
 **Note**: Paths are resolved relative to the current working directory.
 
-**Returns**: `string`
+**Returns**: `string` (or `null` for unsupported mode)
 
 ---
 
@@ -497,6 +617,21 @@ if success {print "File written successfully"}
 
 ---
 
+### append_file(path, content) -> bool
+
+Append string content to the end of a file. Creates the file if it does not exist.
+
+```sesi
+let success = append_file("log.txt", "new line\n")
+if success {print "File appended successfully"}
+```
+
+**Note**: Paths are resolved relative to the current working directory.
+
+**Returns**: `bool` (true on success, throws on error)
+
+---
+
 ### write_image(path, base64_content) -> bool
 
 Write base64 encoded string content as an image file. Overwrites the file if it exists.
@@ -504,6 +639,50 @@ Write base64 encoded string content as an image file. Overwrites the file if it 
 ```sesi
 let success = write_image("logo.png", logo_data)
 if success {print "Image safely stored"}
+```
+
+**Note**: Paths are resolved relative to the current working directory.
+
+**Returns**: `bool` (true on success, throws on error)
+
+---
+
+### open(target, options = null) -> bool
+
+Open a URL or local file using the OS default app, or a specific browser/editor/viewer.
+
+```sesi
+open("https://code-with-sesi.netlify.app")
+open("https://code-with-sesi.netlify.app", {browser: "Google Chrome"})
+
+open("reports/dashboard.html", {browser: "Firefox"})
+open("notes/todo.txt", {editor: "Visual Studio Code"})
+open("images/logo.png", {image_viewer: "Preview"})
+```
+
+**Options**:
+
+- `browser` (`string`, optional): Preferred browser app name.
+- `editor` (`string`, optional): Preferred text editor app name.
+- `viewer` (`string`, optional): Preferred image viewer app name.
+- `image_viewer` (`string`, optional): Alias for `viewer`.
+- `mode` (`string`, optional): One of `"auto"`, `"browser"`, `"editor"`, `"viewer"`, `"image_viewer"`.
+
+In `auto` mode (default), Sesi chooses based on file extension and the options you provide.
+
+**Returns**: `bool` (true on success, throws on error)
+
+---
+
+### open_file(path, options = null) -> bool
+
+Open a local file with OS default behavior, or force a preferred editor/viewer/browser.
+
+```sesi
+open_file("README.md")
+open_file("README.md", {editor: "Visual Studio Code"})
+open_file("favicon.png", {viewer: "Preview"})
+open_file("index.html", {mode: "browser", browser: "Google Chrome"})
 ```
 
 **Note**: Paths are resolved relative to the current working directory.
@@ -770,6 +949,64 @@ server.close()
 
 ---
 
+### std/api
+
+Includes Sesi's FastAPI-style HTTP API framework with auto-generated Swagger UI docs at `/docs` and OpenAPI 3.1 specification at `/openapi.json`.
+
+```sesi
+allow "std/api" in with API
+
+fn listUsers(req) {
+  return {"status": 200, "body": {"users": []}}
+}
+
+let app = API.create_app({
+  "title": "Users API",
+  "version": "1.0.0",
+  "description": "A user management API"
+})
+
+app.get("/users", {
+  "summary": "List users",
+  "tags": ["Users"]
+}, listUsers)
+
+let server = app.listen(8080)
+```
+
+#### API Reference:
+
+##### `create_app(config = null)` -> `app`
+
+Creates an API application instance. `config` options include `title`, `version`, `description`, and `base_path`.
+
+##### `app.get(path, schema, handler)` / `app.post` / `app.put` / `app.patch` / `app.delete`
+
+Registers an HTTP route. `schema` can define `summary`, `description`, `tags`, `query`, `body`, `response`, and `deprecated`.
+
+##### `app.use(middleware)`
+
+Registers a request middleware function `fn(req)`.
+
+##### `app.openapi()` -> `object`
+
+Returns the generated OpenAPI 3.1 specification object.
+
+##### `app.routes()` -> `array`
+
+Returns an array of registered route objects.
+
+##### `app.listen(port, options?)` -> `server`
+
+Starts the HTTP server listening on `port`. Options:
+
+- `docs_path` (default: `"/docs"`): Path for Swagger UI documentation.
+- `openapi_path` (default: `"/openapi.json"`): Path for OpenAPI specification JSON.
+- `cors` (default: `true`): Enable CORS headers.
+- `cors_origin` (default: `"*"`): Allowed CORS origins.
+
+---
+
 ## Audio Functions (std/audio)
 
 The `std/audio` module provides functions for sound synthesis and playback.
@@ -791,14 +1028,22 @@ let b64 = Audio.synth(440, 1000, "square")
 // Save a synthesized tone to a file
 Audio.save("tone.wav", "A4", 2000, "sine", {"attack": 50, "release": 500})
 
-// Professional Sample-Based Synthesis (SoundFonts)
-let piano = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 0, "gain": 1.5})
-let string_pad = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 49})
+// Load a WAV file into an audio_sample object
+let sample = Audio.load("drum_loop.wav")
 
-// Native Physical Modeling (Drums)
+// Generate drum hit note objects (base64 WAV)
+let k = Audio.kick(300, 1.0)   // kick drum
+let s = Audio.snare(200, 0.8)  // snare drum
+let h = Audio.hat(50, 0.6)     // hi-hat
+
+// or Native Physical Modeling (Drums)
 let kick = {"note": "C1", "ms": 500, "type": "kick"}
 let snare = {"note": "C4", "ms": 500, "type": "snare"}
 let hat = {"note": "G8", "ms": 250, "type": "hat", "pan": 0.3}
+
+// Professional Sample-Based Synthesis (SoundFonts)
+let piano = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 0, "gain": 1.5})
+let string_pad = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 49})
 
 // Save a sequence (song) of notes
 let song = [
@@ -813,7 +1058,7 @@ Audio.midi("song.mid", song)
 
 // Mix multiple tracks (Native Synthesis and SoundFonts) into a single stereo WAV
 let lead = [piano("C4", 500), piano("E4", 500)]
-let bass = [kick, snare]
+let bass = [k, s] // or let bass = [kick, snare]
 Audio.mix("mix.wav", [lead, bass], "sine", {"saturate": 1.5})
 ```
 
@@ -832,6 +1077,53 @@ Returns a base64 encoded WAV string. `type` can be `"sine"`, `"square"`, `"saw"`
 ### save(path, frequency_or_note, duration, type, options)
 
 Saves a synthesized WAV file to the specified path.
+
+### load(path) -> audio_sample
+
+Loads a WAV file from disk and returns an `audio_sample` object containing the decoded PCM data.
+
+- **`path`**: Path to a `.wav` file.
+- **Returns**: An `audio_sample` object with `samples` (array of normalized floats in `[-1, 1]`) and `sampleRate` (integer, Hz).
+
+```sesi
+allow "std/audio" in with Audio
+let sample = Audio.load("loop.wav")
+print "Sample rate:" sample.sampleRate
+print "Samples:" len(sample.samples)
+```
+
+### kick(duration, volume)
+
+Generates a kick drum hit and returns it as a base64-encoded WAV string ready for use in `mix` or `write_file`.
+
+- **`duration`** _(default: 300)_: Length in milliseconds.
+- **`volume`** _(default: 1.0)_: Amplitude scalar (`0.0`–`1.0`).
+
+```sesi
+let k = Audio.kick(300, 1.0)
+```
+
+### snare(duration, volume)
+
+Generates a snare drum hit and returns it as a base64-encoded WAV string.
+
+- **`duration`** _(default: 200)_: Length in milliseconds.
+- **`volume`** _(default: 1.0)_: Amplitude scalar.
+
+```sesi
+let s = Audio.snare(200, 0.8)
+```
+
+### hat(duration, volume)
+
+Generates a hi-hat hit and returns it as a base64-encoded WAV string.
+
+- **`duration`** _(default: 50)_: Length in milliseconds.
+- **`volume`** _(default: 1.0)_: Amplitude scalar.
+
+```sesi
+let h = Audio.hat(50, 0.6)
+```
 
 ### sequence(path, notes_array, type, options)
 
@@ -1620,6 +1912,28 @@ print sigmoid      // 0.6224593312018546
 
 ---
 
+### trunc(value, length = 0) -> number|string
+
+Truncates a value. If the value is a number, it returns the integer part by removing fractional digits. If the value is a string, it truncates the text to the specified `length`.
+
+```sesi
+// Numeric truncation
+trunc(10.5)        // 10
+trunc(-10.5)       // -10
+
+// String truncation
+trunc("Hello World", 5)  // "Hello"
+```
+
+**Parameters**:
+
+- `value` (`number`|`string`): The value to truncate.
+- `length` (`number`): The character limit for string truncation. Optional.
+
+**Returns**: `number`, `string`, or `null` if the first argument is not a number or string.
+
+---
+
 ## Math Functions (std/math)
 
 Additional math functions are available natively by importing the `"std/math"` module:
@@ -1972,9 +2286,36 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.6.7"
+  "version": "1.7.0"
 }
 print Json.stringify(original)
+```
+
+### std/base64
+
+Includes Base64 conversion helpers with optional modes:
+
+- `encode(value, mode?)`
+- `decode(base64_text, mode?)`
+
+Modes:
+
+- `"text"` (default): encode/decode UTF-8 strings
+- `"bytes"`: encode/decode raw byte arrays (`array<number>` in range 0..255)
+
+```sesi
+allow "std/base64" in with Base64
+
+let encoded = Base64.encode("Hello, Sesi!")
+print encoded
+
+let decoded = Base64.decode(encoded)
+print decoded // "Hello, Sesi!"
+
+let bin = [0, 255, 16, 32]
+let b64 = Base64.encode(bin, "bytes")
+let back = Base64.decode(b64, "bytes")
+print back // [0, 255, 16, 32]
 ```
 
 ### std/db

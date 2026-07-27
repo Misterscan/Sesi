@@ -781,8 +781,7 @@ export class Compiler {
   private compileModelCall(expr: ModelCallExpression): void {
     // Push model name, then prompt, then arg count → CALL_MODEL
     const line = expr.line;
-    const modelNameIdx = addConstant(this.chunk, expr.modelName);
-    emitBytes(this.chunk, OpCode.CONSTANT, modelNameIdx, line);
+    this.compileExpression(expr.modelName);
     this.compileExpression(expr.prompt);
     // Config is passed as an object literal if present
     if (expr.config) {
@@ -797,7 +796,7 @@ export class Compiler {
       this.emitOp(OpCode.NIL, line);
     }
     emitByte(this.chunk, OpCode.CALL_MODEL, line);
-    emitByte(this.chunk, modelNameIdx, line);
+    emitByte(this.chunk, 0, line);
     emitByte(this.chunk, 3, line); // model, prompt, config
   }
 
@@ -835,8 +834,7 @@ export class Compiler {
 
   private compileImageCall(expr: ImageCallExpression): void {
     const line = expr.line;
-    const modelNameIdx = addConstant(this.chunk, expr.modelName);
-    emitBytes(this.chunk, OpCode.CONSTANT, modelNameIdx, line);
+    this.compileExpression(expr.modelName);
     this.compileExpression(expr.prompt);
     if (expr.config) {
       const props = Object.entries(expr.config);
@@ -850,7 +848,7 @@ export class Compiler {
       this.emitOp(OpCode.NIL, line);
     }
     emitByte(this.chunk, OpCode.CALL_IMAGE, line);
-    emitByte(this.chunk, modelNameIdx, line);
+    emitByte(this.chunk, 0, line);
     emitByte(this.chunk, 3, line); // model, prompt, config
   }
 

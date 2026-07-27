@@ -12,6 +12,39 @@ let isLiveReloadEnabled = false;
 const liveReloadClients: any[] = [];
 let liveReloadWatcher: any = null;
 
+type TokenEncoder = {
+  encode: (text: string) => number[];
+};
+
+const tokenEncoderCache = new Map<string, TokenEncoder>();
+
+// Keep ESM-only optional runtime packages compatible with Sesi's CommonJS build.
+async function importEsmModule(specifier: string): Promise<any> {
+  return await (new Function('specifier', 'return import(specifier)'))(specifier);
+}
+
+function getTokenEncoder(modelName: string, encodingName?: string): TokenEncoder {
+  const cacheKey = `${modelName}::${encodingName || ''}`;
+  const cached = tokenEncoderCache.get(cacheKey);
+  if (cached) return cached;
+
+  const { encodingForModel, getEncoding } = require('js-tiktoken');
+  let encoder: TokenEncoder;
+
+  if (encodingName && encodingName.trim() !== '') {
+    encoder = getEncoding(encodingName);
+  } else {
+    try {
+      encoder = encodingForModel(modelName);
+    } catch (e) {
+      encoder = getEncoding('o200k_base');
+    }
+  }
+
+  tokenEncoderCache.set(cacheKey, encoder);
+  return encoder;
+}
+
 function shouldTriggerReload(filename: string): boolean {
   if (!filename) return false;
   const normalized = filename.replace(/\\/g, '/');
@@ -76,6 +109,105 @@ function broadcastReload() {
       } catch (err) {}
     }
   }, 100);
+}
+
+type OpenOptions = {
+  browser?: string;
+  editor?: string;
+  viewer?: string;
+  image_viewer?: string;
+  mode?: string;
+};
+
+const imageFileExtensions = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.svg', '.avif', '.ico'
+]);
+
+const textFileExtensions = new Set([
+  '.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.csv', '.tsv', '.html', '.htm', '.css', '.scss', '.sass', '.less', '.js', '.ts', '.jsx', '.tsx', '.py', '.sesi', '.sql', '.log'
+]);
+
+const browserFriendlyExtensions = new Set([
+  '.html', '.htm', '.svg', '.pdf'
+]);
+
+function parseOpenOptions(optionsVal: RuntimeValue): OpenOptions {
+  if (optionsVal === null || optionsVal === undefined) {
+    return {};
+  }
+  if (typeof optionsVal !== 'object' || Array.isArray(optionsVal)) {
+    throw new Error('open options must be an object when provided');
+  }
+  const raw = optionsVal as Record<string, RuntimeValue>;
+  const out: OpenOptions = {};
+  if (typeof raw.browser === 'string' && raw.browser.trim() !== '') out.browser = raw.browser;
+  if (typeof raw.editor === 'string' && raw.editor.trim() !== '') out.editor = raw.editor;
+  if (typeof raw.viewer === 'string' && raw.viewer.trim() !== '') out.viewer = raw.viewer;
+  if (typeof raw.image_viewer === 'string' && raw.image_viewer.trim() !== '') out.image_viewer = raw.image_viewer;
+  if (typeof raw.mode === 'string' && raw.mode.trim() !== '') out.mode = raw.mode.toLowerCase();
+  return out;
+}
+
+function looksLikeUrl(target: string): boolean {
+  return /^(https?:\/\/|ftp:\/\/|file:\/\/|mailto:)/i.test(target);
+}
+
+function launchExternalTarget(target: string, appName?: string): void {
+  let command = '';
+  let args: string[] = [];
+
+  if (process.platform === 'darwin') {
+    command = 'open';
+    args = appName ? ['-a', appName, target] : [target];
+  } else if (process.platform === 'win32') {
+    command = 'cmd';
+    args = appName
+      ? ['/c', 'start', '', appName, target]
+      : ['/c', 'start', '', target];
+  } else {
+    if (appName) {
+      command = appName;
+      args = [target];
+    } else {
+      command = 'xdg-open';
+      args = [target];
+    }
+  }
+
+  const child = spawn(command, args, {
+    detached: true,
+    stdio: 'ignore',
+    shell: process.platform === 'win32',
+  });
+  child.unref();
+}
+
+function pickAppForFile(filePath: string, options: OpenOptions): string | undefined {
+  const mode = (options.mode || 'auto').toLowerCase();
+  const imageViewer = options.image_viewer || options.viewer;
+
+  if (mode === 'browser') {
+    return options.browser;
+  }
+  if (mode === 'editor') {
+    return options.editor;
+  }
+  if (mode === 'viewer' || mode === 'image_viewer') {
+    return imageViewer;
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  if (imageFileExtensions.has(ext) && imageViewer) {
+    return imageViewer;
+  }
+  if (textFileExtensions.has(ext) && options.editor) {
+    return options.editor;
+  }
+  if (browserFriendlyExtensions.has(ext) && options.browser) {
+    return options.browser;
+  }
+
+  return undefined;
 }
 
 
@@ -308,6 +440,247 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
+  builtins.set('speech', {
+    type: 'function',
+    name: 'speech',
+    params: [{ name: 'text' }, { name: 'voice' }, { name: 'gemini_model' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (text: RuntimeValue, voice: RuntimeValue = null, geminiModel: RuntimeValue = null): Promise<RuntimeValue> => {
+      if (typeof text !== 'string' || text.trim() === '') {
+        throw new Error('speech() expects non-empty text');
+      }
+      if (voice !== null && (typeof voice !== 'string' || voice.trim() === '')) {
+        throw new Error('speech() voice must be a non-empty string or null');
+      }
+      if (geminiModel !== null && (typeof geminiModel !== 'string' || geminiModel.trim() === '')) {
+        throw new Error('speech() gemini model must be a non-empty string or null');
+      }
+      if (typeof geminiModel === 'string') {
+        return await aiRuntime.synthesizeSpeech(text, typeof voice === 'string' ? voice : 'Kore', geminiModel);
+      }
+      try {
+        if (process.platform === 'darwin') {
+          execFileSync('say', voice ? ['-v', voice, '--', text] : ['--', text], { stdio: 'ignore' });
+        } else if (process.platform === 'win32') {
+          const escapedText = text.replace(/'/g, "''");
+          const escapedVoice = typeof voice === 'string' ? voice.replace(/'/g, "''") : '';
+          const selectVoice = escapedVoice ? `$s.SelectVoice('${escapedVoice}'); ` : '';
+          execFileSync('powershell.exe', ['-NoProfile', '-Command', `Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; ${selectVoice}$s.Speak('${escapedText}')`], { stdio: 'ignore' });
+        } else {
+          execFileSync('espeak-ng', voice ? ['-v', voice, text] : [text], { stdio: 'ignore' });
+        }
+        return true;
+      } catch (error: any) {
+        const tool = process.platform === 'darwin' ? 'say' : process.platform === 'win32' ? 'PowerShell System.Speech' : 'espeak-ng';
+        throw new Error(`speech() requires the local ${tool} speech tool. ${error.message}`);
+      }
+    },
+  });
+
+  builtins.set('from_speech', {
+    type: 'function',
+    name: 'from_speech',
+    params: [{ name: 'audio_path' }, { name: 'language' }, { name: 'gemini_model' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (audio: RuntimeValue, language: RuntimeValue = null, geminiModel: RuntimeValue = null): Promise<RuntimeValue> => {
+      if (typeof audio !== 'string' || audio.trim() === '') {
+        throw new Error('from_speech() expects an audio file path');
+      }
+      if (language !== null && typeof language !== 'string') {
+        throw new Error('from_speech() language must be a string or null');
+      }
+      if (geminiModel !== null && (typeof geminiModel !== 'string' || geminiModel.trim() === '')) {
+        throw new Error('from_speech() gemini model must be a non-empty string or null');
+      }
+      const safePath = ensureSafePath(audio, interpreter);
+      if (!fs.existsSync(safePath)) {
+        throw new Error(`from_speech() audio file does not exist: ${audio}`);
+      }
+
+      if (typeof geminiModel === 'string') {
+        const extension = path.extname(safePath).toLowerCase();
+        const mimeTypes: Record<string, string> = {
+          '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4',
+          '.ogg': 'audio/ogg', '.flac': 'audio/flac', '.aac': 'audio/aac', '.webm': 'audio/webm',
+        };
+        return await aiRuntime.transcribeSpeech(
+          fs.readFileSync(safePath).toString('base64'),
+          mimeTypes[extension] || 'application/octet-stream',
+          language || undefined,
+          geminiModel
+        );
+      }
+
+      const transcribeWithSmartWhisper = async (): Promise<RuntimeValue> => {
+        const { convertToWavType } = require('nodejs-whisper/dist/utils');
+        const wav = require('node-wav');
+        const { Whisper, manager } = require('smart-whisper');
+
+        const wavPath = await convertToWavType(safePath, console);
+        const buffer = fs.readFileSync(wavPath);
+        const decoded = wav.decode(buffer);
+        if (!decoded?.channelData?.[0]) {
+          throw new Error('smart-whisper failed to decode audio into mono channel data');
+        }
+
+        const modelName = 'base.en';
+        if (!manager.check(modelName)) {
+          await manager.download(modelName);
+        }
+        const modelPath = manager.resolve(modelName);
+        const whisper = new Whisper(modelPath, { gpu: false });
+        try {
+          const task = await whisper.transcribe(decoded.channelData[0], {
+            language: typeof language === 'string' && language.trim() !== '' ? language : 'auto',
+            n_threads: 4,
+            suppress_blank: true,
+            suppress_non_speech_tokens: false,
+          });
+          const results = await task.result;
+          const text = results
+            .map((segment: any) => (segment?.text || '').trim())
+            .filter((segment: string) => segment.length > 0)
+            .join(' ')
+            .trim();
+          if (!text) throw new Error('smart-whisper produced no transcript');
+          return text;
+        } finally {
+          await whisper.free();
+        }
+      };
+
+      try {
+        // nodejs-whisper constructs a command before build; pre-create/verify executable first.
+        const { WHISPER_CPP_PATH } = require('nodejs-whisper/dist/constants');
+        const { getCmakeConfigureCommand } = require('nodejs-whisper/dist/buildConfig');
+
+        const execName = process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli';
+        const mainName = process.platform === 'win32' ? 'main.exe' : 'main';
+
+        const expectedExecPaths = [
+          path.join(WHISPER_CPP_PATH, 'build', 'bin', execName),
+          path.join(WHISPER_CPP_PATH, 'build', 'bin', 'Release', execName),
+          path.join(WHISPER_CPP_PATH, 'build', 'bin', 'Debug', execName),
+          path.join(WHISPER_CPP_PATH, 'build', execName),
+          path.join(WHISPER_CPP_PATH, execName),
+        ];
+        const possibleMainPaths = [
+          path.join(WHISPER_CPP_PATH, 'build', 'bin', mainName),
+          path.join(WHISPER_CPP_PATH, 'build', 'bin', 'Release', mainName),
+          path.join(WHISPER_CPP_PATH, 'build', 'bin', 'Debug', mainName),
+          path.join(WHISPER_CPP_PATH, 'build', mainName),
+          path.join(WHISPER_CPP_PATH, mainName),
+        ];
+
+        const findExistingExec = (): string | null => {
+          for (const p of expectedExecPaths) {
+            if (fs.existsSync(p)) return p;
+          }
+          return null;
+        };
+
+        const existingBeforeBuild = findExistingExec();
+        if (!existingBeforeBuild) {
+          try {
+            execSync(getCmakeConfigureCommand(false), { cwd: WHISPER_CPP_PATH, stdio: 'pipe' });
+          } catch {
+            // If already configured, build may still succeed.
+          }
+          execSync('cmake --build build --config Release', { cwd: WHISPER_CPP_PATH, stdio: 'pipe' });
+        }
+
+        let executablePath = findExistingExec();
+        if (!executablePath) {
+          const fallbackMain = possibleMainPaths.find((p) => fs.existsSync(p));
+          if (fallbackMain) {
+            const primaryExecPath = expectedExecPaths[0];
+            fs.mkdirSync(path.dirname(primaryExecPath), { recursive: true });
+            if (process.platform === 'win32') {
+              fs.copyFileSync(fallbackMain, primaryExecPath);
+            } else {
+              fs.writeFileSync(primaryExecPath, `#!/usr/bin/env bash\n\"${fallbackMain}\" \"$@\"\n`, 'utf8');
+              fs.chmodSync(primaryExecPath, 0o755);
+            }
+            executablePath = findExistingExec();
+          }
+        }
+
+        if (!executablePath) {
+          throw new Error(`from_speech() could not prepare whisper-cli. Checked: ${expectedExecPaths.join(', ')}`);
+        }
+
+        if (process.platform !== 'win32') {
+          try {
+            fs.chmodSync(executablePath, 0o755);
+          } catch {
+            // Best effort; if this fails nodejs-whisper will report execution details.
+          }
+        }
+
+        const { nodewhisper } = require('nodejs-whisper');
+        const transcript = await nodewhisper(safePath, {
+          modelName: 'base.en',
+          autoDownloadModelName: 'base.en',
+          whisperOptions: {
+            outputInText: true,
+            ...(typeof language === 'string' && language.trim() !== '' ? { language } : {}),
+          },
+        });
+        if (!transcript) throw new Error('Whisper produced no transcript');
+        return typeof transcript === 'string' ? transcript.trim() : String(transcript).trim();
+      } catch (error: any) {
+        const details = String(error?.message || error || '');
+        if (
+          details.includes('whisper-cli executable not found') ||
+          details.includes('could not prepare whisper-cli') ||
+          details.includes('cmake: command not found') ||
+          details.includes('requires CMake')
+        ) {
+          try {
+            return await transcribeWithSmartWhisper();
+          } catch (smartError: any) {
+            throw new Error(
+              `from_speech() local Whisper failed: ${details}. smart-whisper fallback also failed: ${smartError.message}. Install CMake to build whisper-cli (macOS: brew install cmake), or pass an explicit gemini_model to opt in to remote transcription.`
+            );
+          }
+        }
+        throw new Error(`from_speech() requires nodejs-whisper and a downloaded model. ${error.message}`);
+      }
+    },
+  });
+
+  builtins.set('translate', {
+    type: 'function',
+    name: 'translate',
+    params: [{ name: 'text' }, { name: 'to_language' }, { name: 'from_language' }, { name: 'gemini_model' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (text: RuntimeValue, toLanguage: RuntimeValue, fromLanguage: RuntimeValue = 'en', geminiModel: RuntimeValue = null): Promise<RuntimeValue> => {
+      if (typeof text !== 'string' || text.trim() === '') throw new Error('translate() expects non-empty text');
+      if (typeof toLanguage !== 'string' || toLanguage.trim() === '') throw new Error('translate() target language must be a non-empty language code');
+      if (typeof fromLanguage !== 'string' || fromLanguage.trim() === '') throw new Error('translate() source language must be a non-empty language code');
+      if (geminiModel !== null && (typeof geminiModel !== 'string' || geminiModel.trim() === '')) throw new Error('translate() gemini model must be a non-empty string or null');
+      try {
+        if (typeof geminiModel === 'string') {
+          const response = await aiRuntime.callModel({
+            model: geminiModel,
+            prompt: `Translate the following text from ${fromLanguage} to ${toLanguage}. Return only the translation and preserve its meaning, tone, and formatting.\n\n${text}`,
+          });
+          return response.text;
+        }
+        const { default: translateText } = await importEsmModule('translate');
+        return await translateText(text, { from: fromLanguage, to: toLanguage });
+      } catch (error: any) {
+        throw new Error(`translate() failed: ${error.message}`);
+      }
+    },
+  });
+
   builtins.set('exp', {
     type: 'function',
     name: 'exp',
@@ -321,9 +694,47 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
+  builtins.set('trunc', {
+    type: 'function',
+    name: 'trunc',
+    params: [{ name: 'value' }, { name: 'length' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue, length: RuntimeValue): RuntimeValue => {
+      if (typeof value === 'number') {
+        return Math.trunc(value);
+      }
+      if (typeof value === 'string') {
+        const len = typeof length === 'number' ? Math.floor(length) : 0;
+        if (len <= 0) return value;
+        return value.length > len ? value.substring(0, len) : value;
+      }
+      return null;
+    },
+  });
+
   builtins.set('num', {
     type: 'function',
     name: 'num',
+    params: [{ name: 'value' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => {
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') {
+        const num = parseFloat(value);
+        return isNaN(num) ? null : num;
+      }
+      if (typeof value === 'boolean') return value ? 1 : 0;
+      return null;
+    },
+  });
+
+  builtins.set('float', {
+    type: 'function',
+    name: 'float',
     params: [{ name: 'value' }],
     body: {} as any,
     closure: {} as any,
@@ -377,6 +788,25 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       if (!Array.isArray(array)) return null;
       array.push(value);
       return array;
+    },
+  });
+
+  builtins.set('append', {
+    type: 'function',
+    name: 'append',
+    params: [{ name: 'collection' }, { name: 'value' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (collection: RuntimeValue, value: RuntimeValue): RuntimeValue => {
+      if (Array.isArray(collection)) {
+        collection.push(value);
+        return collection;
+      }
+      if (typeof collection === 'string') {
+        return collection + stringify(value);
+      }
+      return null;
     },
   });
 
@@ -442,6 +872,58 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (str: RuntimeValue, sep: RuntimeValue): RuntimeValue => {
       if (typeof str !== 'string' || typeof sep !== 'string') return null;
       return str.split(sep);
+    },
+  });
+
+  builtins.set('tokenize', {
+    type: 'function',
+    name: 'tokenize',
+    params: [{ name: 'string' }, { name: 'options', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (str: RuntimeValue, optionsVal: RuntimeValue = null): RuntimeValue => {
+      if (typeof str !== 'string') return null;
+
+      // Backward-compatible mode: whitespace tokenization.
+      if (optionsVal === 'simple') {
+        const trimmed = str.trim();
+        if (trimmed.length === 0) return [];
+        return trimmed.split(/\s+/);
+      }
+
+      let model = 'gpt-4o';
+      let encoding: string | undefined;
+      let mode: string | undefined;
+
+      if (typeof optionsVal === 'string') {
+        model = optionsVal;
+      } else if (optionsVal !== null) {
+        if (typeof optionsVal !== 'object' || Array.isArray(optionsVal)) return null;
+        const options = optionsVal as Record<string, RuntimeValue>;
+        if (typeof options.model === 'string' && options.model.trim() !== '') {
+          model = options.model;
+        }
+        if (typeof options.encoding === 'string' && options.encoding.trim() !== '') {
+          encoding = options.encoding;
+        }
+        if (typeof options.mode === 'string') {
+          mode = options.mode.toLowerCase();
+        }
+      }
+
+      if (mode === 'simple') {
+        const trimmed = str.trim();
+        if (trimmed.length === 0) return [];
+        return trimmed.split(/\s+/);
+      }
+
+      try {
+        const encoder = getTokenEncoder(model, encoding);
+        return encoder.encode(str);
+      } catch (e) {
+        return null;
+      }
     },
   });
 
@@ -547,14 +1029,21 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
   builtins.set('read_file', {
     type: 'function',
     name: 'read_file',
-    params: [{ name: 'path' }],
+    params: [{ name: 'path' }, { name: 'mode', defaultValue: 'text' as any }],
     body: {} as any,
     closure: {} as any,
     isBuiltin: true,
-    builtin: (filePath: RuntimeValue): RuntimeValue => {
+    builtin: (filePath: RuntimeValue, mode: RuntimeValue = 'text'): RuntimeValue => {
       if (typeof filePath !== 'string') return null;
+      const readMode = typeof mode === 'string' ? mode.toLowerCase() : 'text';
       try {
         const absolutePath = ensureSafePath(filePath, interpreter);
+        if (readMode === 'base64') {
+          return fs.readFileSync(absolutePath).toString('base64');
+        }
+        if (readMode !== 'text') {
+          return null;
+        }
         return fs.readFileSync(absolutePath, 'utf-8');
       } catch (e: any) {
         throw new Error(`Failed to read file: ${filePath}. Reason: ${e.message}`);
@@ -565,6 +1054,30 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
   builtins.set('write_file', {
     type: 'function',
     name: 'write_file',
+    params: [{ name: 'path' }, { name: 'content' }, { name: 'encoding', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (filePath: RuntimeValue, content: RuntimeValue, encoding: RuntimeValue = null): RuntimeValue => {
+      if (typeof filePath !== 'string' || typeof content !== 'string') return null;
+      try {
+        const absolutePath = ensureSafePath(filePath, interpreter);
+        if (encoding === 'base64') {
+          const buffer = Buffer.from(content, 'base64');
+          fs.writeFileSync(absolutePath, buffer);
+        } else {
+          fs.writeFileSync(absolutePath, content, 'utf-8');
+        }
+        return true;
+      } catch (e: any) {
+        throw new Error(`Failed to write file: ${filePath}. Reason: ${e.message}`);
+      }
+    },
+  });
+
+  builtins.set('append_file', {
+    type: 'function',
+    name: 'append_file',
     params: [{ name: 'path' }, { name: 'content' }],
     body: {} as any,
     closure: {} as any,
@@ -573,10 +1086,10 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       if (typeof filePath !== 'string' || typeof content !== 'string') return null;
       try {
         const absolutePath = ensureSafePath(filePath, interpreter);
-        fs.writeFileSync(absolutePath, content, 'utf-8');
+        fs.appendFileSync(absolutePath, content, 'utf-8');
         return true;
       } catch (e: any) {
-        throw new Error(`Failed to write file: ${filePath}. Reason: ${e.message}`);
+        throw new Error(`Failed to append file: ${filePath}. Reason: ${e.message}`);
       }
     },
   });
@@ -597,6 +1110,75 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         return true;
       } catch (e: any) {
         throw new Error(`Failed to write image: ${filePath}. Reason: ${e.message}`);
+      }
+    },
+  });
+
+  builtins.set('open_file', {
+    type: 'function',
+    name: 'open_file',
+    params: [{ name: 'path' }, { name: 'options', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (filePath: RuntimeValue, optionsVal: RuntimeValue = null): RuntimeValue => {
+      const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
+      if (safeMode) {
+        throw new Error('Security Violation: open_file is disabled in Sesi safe mode.');
+      }
+      if (typeof filePath !== 'string') {
+        throw new Error('open_file expects a string path as the first argument');
+      }
+
+      try {
+        const options = parseOpenOptions(optionsVal);
+        const absolutePath = ensureSafePath(filePath, interpreter);
+        if (!fs.existsSync(absolutePath)) {
+          throw new Error(`Path does not exist: ${filePath}`);
+        }
+
+        const appName = pickAppForFile(absolutePath, options);
+        launchExternalTarget(absolutePath, appName);
+        return true;
+      } catch (e: any) {
+        throw new Error(`Failed to open file: ${filePath}. Reason: ${e.message}`);
+      }
+    },
+  });
+
+  builtins.set('open', {
+    type: 'function',
+    name: 'open',
+    params: [{ name: 'target' }, { name: 'options', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (targetVal: RuntimeValue, optionsVal: RuntimeValue = null): RuntimeValue => {
+      const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
+      if (safeMode) {
+        throw new Error('Security Violation: open is disabled in Sesi safe mode.');
+      }
+      if (typeof targetVal !== 'string') {
+        throw new Error('open expects a string target as the first argument');
+      }
+
+      try {
+        const options = parseOpenOptions(optionsVal);
+        if (looksLikeUrl(targetVal)) {
+          launchExternalTarget(targetVal, options.browser);
+          return true;
+        }
+
+        const absolutePath = ensureSafePath(targetVal, interpreter);
+        if (!fs.existsSync(absolutePath)) {
+          throw new Error(`Path does not exist: ${targetVal}`);
+        }
+
+        const appName = pickAppForFile(absolutePath, options);
+        launchExternalTarget(absolutePath, appName);
+        return true;
+      } catch (e: any) {
+        throw new Error(`Failed to open target: ${targetVal}. Reason: ${e.message}`);
       }
     },
   });

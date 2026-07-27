@@ -3,7 +3,7 @@
 */
 allow "std/terminal" in with {color}
 
-fn theory() {
+export fn theory(output: string = "text", both: bool = false) -> string {
     let message = color("
     /*
         Welcome to the Sesi Programming Language!
@@ -50,7 +50,16 @@ fn theory() {
     * In conclusion, Sesi is a programming language that is designed to be simple, easy to use, and accessible to everyone. Its key features and benefits, including its simple syntax, cross-platform capabilities, support for multiple programming paradigms, built-in package manager, and open-source nature, make it an ideal choice for beginners and experienced programmers alike. 
     Whether you are new to programming or an experienced developer, Sesi provides a powerful and efficient platform for creating applications and learning programming concepts. We hope you enjoy using Sesi and exploring its capabilities.
 ", "green")
-    return message
-}
 
-print theory()
+    let speak = ""
+    if output == "speak" {
+        speak = speech(message)
+        return speak
+    } else if both == true {
+        print message
+        speak = speech(message)
+        return speak
+    } else {
+        print message
+    }
+}

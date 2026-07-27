@@ -153,26 +153,36 @@ print simplePrompt  // "Hello, Sesi!"
 
 ```sesi
 let name = "Alice"
-prompt greeting {"Hello, " name "! How are you?"}
+prompt greeting {"Hello, "name"! How are you?"}
 print greeting  // "Hello, Alice! How are you?"
 ```
 
 ### Composing Prompts
 
 ```sesi
-prompt part1 {"First part"}
-prompt part2 {part1 " Second part"}
+prompt part1 {"First part "}
+prompt part2 {part1 "Second part"}
 print part2  // "First part Second part"
 ```
 
 ### Prompts in Functions
 
 ```sesi
-let text = "Testing"
-let language = "Spanish"
-fn translatePrompt(text: string, language: string) -> string
-{prompt translate {"Translate " text " to " language ": "} return translate}
-print translatePrompt(text, language)
+let title = "Sesi"
+let theme = "Premium with cool blues."
+let output = "index.sesi.html"
+fn makePage(title: string, theme: string, output: string) -> string {
+  prompt build {"Create a beautiful landing page with the title "title". Make the theme "theme}
+  let generated = ""
+  try {
+    generated = model("gemini-3.5-flash-lite") {build}
+  } catch (e) {
+    print e
+  }
+  write_file(output, generated)
+  return generated
+}
+print makePage(title, theme, output)
 ```
 
 Structured output allows you to extract structured data natively or via Reasoning. It uses a JSON Schema to define the structure of the output.
@@ -180,7 +190,7 @@ Structured output allows you to extract structured data natively or via Reasonin
 ### Basic Structured Output
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.6.7\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.7.0\", \"status\": \"active\"}"
 let analysis = structured_output({projectName: string, version: string, status: string})(rawJson)
 print "Project: " analysis["projectName"]
 print "Version: " analysis["version"]
@@ -227,7 +237,7 @@ print "Score: " analysis["score"]
 Like `model`, the `image` command takes configuration parameters.
 
 ```sesi
-let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512", temperature: 0.3} {"make a beautiful logo for the word Sesi"}
+let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512", temperature: 0.3} {"Make a beautiful logo for the word Sesi"}
 write_image("logo.png", logo)
 print "Generated image successfully!"
 ```
@@ -254,6 +264,43 @@ print "Both workers are now running concurrently."
 
 ---
 
+## Opening URLs and Local Files
+
+Use `open()` to hand a URL or existing local file to the operating system:
+
+```sesi
+open("https://code-with-sesi.netlify.app")
+open("reports/dashboard.html", {"mode": "browser", "browser": "Firefox"})
+```
+
+Use `open_file()` when the target must be a local file:
+
+```sesi
+open_file("README.md")
+open_file("README.md", {"editor": "Visual Studio Code"})
+open_file("favicon.png", {"viewer": "Preview"})
+```
+
+Both functions accept an optional settings object:
+
+- `browser`: browser application name
+- `editor`: text editor application name
+- `viewer`: viewer application name
+- `image_viewer`: alias for `viewer`
+- `mode`: `"auto"`, `"browser"`, `"editor"`, `"viewer"`, or `"image_viewer"`
+
+They are desktop integration functions and are disabled in safe mode. Run scripts that use them with explicit local access:
+
+```bash
+sesi -l open_report.sesi
+# Equivalent:
+sesi --local open_report.sesi
+```
+
+`open()` recognizes `http`, `https`, `ftp`, `file`, and `mailto` URLs. For non-URL targets, both functions require an existing path and apply Sesi's filesystem path checks. They return `true` once the operating system has accepted the launch request; they do not wait for the opened application to close.
+
+---
+
 ## Built-in Functions
 
 ### I/O
@@ -261,10 +308,16 @@ print "Both workers are now running concurrently."
 ```sesi
 print value        // Print to stdout
 input(prompt)      // Prompt user for terminal input
-read_file(path)    // Read a file as text
-from_json(string)  // Parse JSON string back to value
+speech(text, voice?, gemini_model?) // Speak text
+from_speech(audio_path, language?, gemini_model?) // Transcribe an audio file
+translate(text, to, from?, gemini_model?) // Translate text
+read_file(string, string?) -> string    // Read file contents (text or base64)
 write_file(path, content) // Write text to a file
+append_file(string, string) -> bool // Append string content to file
 write_image(path, content) // Write base64 encoded image to a file
+open(target, options?) -> bool // Open a URL or local file in an external app (local mode)
+open_file(path, options?) -> bool // Open an existing local file (local mode)
+from_json(string)  // Parse JSON string back to value
 convert(type) { config } { file } // Convert documents/media/audio between formats
 list_dir(path)     // List directory contents
 make_dir(path)     // Create a new directory
@@ -289,6 +342,7 @@ type(value)        // Get type name
 str(value)         // Convert to string
 to_json(value)     // Convert to valid JSON string
 num(value)         // Convert to number
+float(any)         // Convert to floating-point number
 bool(value)        // Convert to boolean
 ```
 
@@ -297,6 +351,7 @@ bool(value)        // Convert to boolean
 ```sesi
 len(collection)    // Collection length
 push(array, item)  // Add to array
+append(array|string, any)     // Append to array or concatenate to string
 pop(array)         // Remove from array
 join(array, sep)   // Join array into string
 split(string, sep) // Split string to array
@@ -363,6 +418,7 @@ raise_error(error)              // Throw an error
 
 ```sesi
 exp(x)             // Exponential function
+trunc(val, n?)     // Truncate number or text (char limit)
 ```
 
 ### System & Control
@@ -446,6 +502,8 @@ sesi examples/main/31_synthesizer.sesi
 
 # Pre-2.0 features
 sesi examples/main/32_browser_automation.sesi
+sesi examples/main/33_base64.sesi
+sesi examples/main/34_sesi_api.sesi
 ```
 
 ## Common Patterns

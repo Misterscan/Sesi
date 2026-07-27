@@ -28,6 +28,7 @@ export class Lexer {
     ['null', 'NULL'],
     ['print', 'PRINT'],
     ['prompt', 'PROMPT'],
+    ['make', 'MAKE'],
     ['model', 'MODEL'],
     ['image', 'IMAGE'],
     ['convert', 'CONVERT'],

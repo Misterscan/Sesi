@@ -97,6 +97,31 @@ Audio.save("tone.wav", "A4", 2000, "sine", {"attack": 50, "release": 500})
 
 ---
 
+### Load a WAV File — `Audio.load`
+
+```
+Audio.load(path) -> audio_sample
+```
+
+Read a WAV file from disk and return an `audio_sample` object containing the decoded PCM data. Useful for inspecting or processing existing audio files.
+
+**Returns:** An object with:
+
+| Field        | Type            | Description                                  |
+| ------------ | --------------- | -------------------------------------------- |
+| `samples`    | `array<number>` | Normalized PCM floats in the range `[-1, 1]` |
+| `sampleRate` | `number`        | Sample rate in Hz (e.g. `44100`)             |
+
+```sesi
+allow "std/audio" in with Audio
+
+let s = Audio.load("loop.wav")
+print "Sample rate:" s.sampleRate
+print "Total samples:" len(s.samples)
+```
+
+---
+
 ### Save a Sequence — `Audio.sequence`
 
 ```
@@ -111,13 +136,13 @@ Save a multi-note sequence to a single WAV file. `notes_array` can be:
 
 **Note object fields:**
 
-| Field    | Type     | Description                                  |
-| -------- | -------- | -------------------------------------------- |
-| `note`   | `string` | Note name (e.g. `"C4"`)                      |
-| `ms`     | `number` | Duration in milliseconds                     |
-| `vol`    | `number` | Volume `0.0–1.0` (default `1.0`)             |
-| `pan`    | `number` | Stereo pan `-1.0` (left) to `1.0` (right)    |
-| `cutoff` | `number` | Low-pass filter cutoff frequency in Hz       |
+| Field    | Type     | Description                               |
+| -------- | -------- | ----------------------------------------- |
+| `note`   | `string` | Note name (e.g. `"C4"`)                   |
+| `ms`     | `number` | Duration in milliseconds                  |
+| `vol`    | `number` | Volume `0.0–1.0` (default `1.0`)          |
+| `pan`    | `number` | Stereo pan `-1.0` (left) to `1.0` (right) |
+| `cutoff` | `number` | Low-pass filter cutoff frequency in Hz    |
 
 ```sesi
 allow "std/audio" in with Audio
@@ -171,11 +196,11 @@ Load a SoundFont (`.sf2`) file and return an **instrument function** bound to a 
 
 **Options:**
 
-| Field        | Type     | Description                            |
-| ------------ | -------- | -------------------------------------- |
-| `instrument` | `number` | GM program number (default `0` = piano)|
-| `channel`    | `number` | MIDI channel (default `0`)             |
-| `gain`       | `number` | Output gain multiplier (default `1.0`) |
+| Field        | Type     | Description                             |
+| ------------ | -------- | --------------------------------------- |
+| `instrument` | `number` | GM program number (default `0` = piano) |
+| `channel`    | `number` | MIDI channel (default `0`)              |
+| `gain`       | `number` | Output gain multiplier (default `1.0`)  |
 
 ```sesi
 allow "std/audio" in with Audio
@@ -192,18 +217,45 @@ print "Saved full_mix.wav"
 
 ---
 
-### Drum Synthesis
+### Drum Hits — `Audio.kick` / `Audio.snare` / `Audio.hat` / `Audio.clap`
 
-The `"kick"`, `"snare"`, `"hat"`, and `"clap"` waveform types use native physical modeling, so no SoundFont is required for basic drum tracks:
+```
+Audio.kick(duration?, volume?)  -> string  // base64 WAV
+Audio.snare(duration?, volume?) -> string
+Audio.hat(duration?, volume?)   -> string
+Audio.clap(duration?, volume?)   -> string
+```
+
+Generate a single drum hit using native physical modeling — no SoundFont required. Each function returns a base64-encoded WAV string that can be written to disk with `write_file(..., "base64")` or passed directly into `Audio.mix`.
+
+| Function      | Default `duration` | Default `volume` | Character          |
+| ------------- | ------------------ | ---------------- | ------------------ |
+| `Audio.kick`  | `300` ms           | `1.0`            | Deep, punchy bass  |
+| `Audio.snare` | `200` ms           | `1.0`            | Bright crack       |
+| `Audio.hat`   | `50` ms            | `1.0`            | Short, sharp click |
+| `Audio.clap`  | `100` ms           | `1.0`            | Bright clap        |
 
 ```sesi
 allow "std/audio" in with Audio
 
-let kick  = {"note": "C1", "ms": 500, "type": "kick"}
-let snare = {"note": "C4", "ms": 500, "type": "snare"}
-let hat   = {"note": "G8", "ms": 250, "type": "hat", "pan": 0.3}
+let k = Audio.kick(300, 1.0)
+let s = Audio.snare(200, 0.8)
+let h = Audio.hat(50, 0.6)
 
-Audio.sequence("drums.wav", [kick, snare, hat], "kick")
+// Save a kick drum directly to disk
+write_file("kick.wav", Audio.kick(300), "base64")
+
+// Mix a drum pattern
+Audio.mix("drums.wav", [[k, s, h]], "sine")
+```
+
+You can also reference them by `type` field inside a sequence note object (the older style still works):
+
+```sesi
+Audio.sequence("drums.wav", [
+  {"note": "C1", "ms": 300, "type": "kick"},
+  {"note": "C4", "ms": 200, "type": "snare"}
+], "kick")
 ```
 
 ---
@@ -400,6 +452,16 @@ let b64 = Audio.synth("C4", 1000, "square")
 
 // Save a single tone
 Audio.save("tone.wav", "C4", 1000, "sine", {"attack": 30, "release": 200})
+
+// Load a WAV file into an audio_sample object
+let sample = Audio.load("loop.wav")
+print sample.sampleRate
+
+// Drum hits (returns base64 WAV)
+let k = Audio.kick(300, 1.0)
+let s = Audio.snare(200, 0.8)
+let h = Audio.hat(50, 0.6)
+write_file("kick.wav", k, "base64")
 
 // Save a sequence
 Audio.sequence("seq.wav", [{"note": "C4", "ms": 500}, {"note": "E4", "ms": 500}], "triangle")

@@ -19,7 +19,7 @@ Sesi is a **clean, minimal, side-effect-oriented** scripting language. It is:
 
 ```sesi
 let name    = "Sesi"
-let version = 1.6.7
+let version = 1.7.0
 let active  = true
 let missing         // null (uninitialized)
 ```
@@ -284,10 +284,10 @@ Sesi's unique string-composition primitive. Replaces template literals.
 
 ```sesi
 let name = "Ada"
-let ver  = "1.6.7"
+let ver  = "1.7.0"
 
 prompt header {"Welcome to Sesi" ver ". Hello," name}
-// header = "Welcome to Sesi 1.6.7. Hello, Ada"
+// header = "Welcome to Sesi 1.7.0. Hello, Ada"
 
 print header
 write_file("out.txt", header)
@@ -311,7 +311,7 @@ The newline is a real line break _inside the string literal_ — not `\n`, not a
 
 ```sesi
 prompt fullName {first last}
-prompt badge {"[Developer]" fullName}
+prompt badge {"[Developer] "fullName}
 ```
 
 ### Prefer prompt blocks over `+` inside `print`
@@ -332,7 +332,7 @@ print "Hello, " + name + " version " + str(version)
 
 ```sesi
 export fn add(a, b) { return a + b }
-export let VERSION = "1.6.7"
+export let VERSION = "1.7.0"
 ```
 
 ### Importing — `import` (named)
@@ -679,6 +679,16 @@ These are always available — no imports needed:
 | ---------------- | -------------------------------- |
 | `to_json(obj)`   | Serialize object → JSON string   |
 | `from_json(str)` | Parse JSON string → object/array |
+
+### Speech & Translation
+
+| Function | Description |
+| -------- | ----------- |
+| `speech(text, voice?, gemini?)` | Speak text with the system voice or Gemini |
+| `from_speech(path, language?, gemini?)` | Transcribe with Whisper or Gemini |
+| `translate(text, to, from?, gemini?)` | Translate with the `translate` package or Gemini |
+
+`from_speech()` needs Whisper and a local model.
 
 > Always use `to_json()` for serialization. Never use `stringify()`.
 

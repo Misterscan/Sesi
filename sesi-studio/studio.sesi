@@ -30,8 +30,8 @@ let global_tools = Agent.global_tools
 let copilotMemory = Memory.context
 let sesiDocs = Memory.sesiDocs
 
-set_alias("copilot", "gemini-3.1-flash-lite")
-set_alias("chat", "gemini-3.1-pro-preview")
+set_alias("copilot", "gemini-3.5-flash-lite")
+set_alias("chat", "gemini-3.6-flash")
 
 fn get_db_collections(db_path, password) {
   try {
@@ -500,9 +500,9 @@ fn handle_http(req) {
       let output_str = ""
       let success = true
       try {
-        let cmd = "SESI_DEBUG=1 node \"" + SESI_ROOT + "/bin/sesi.js\" -l \"" + temp_name + "\""
+        let cmd = "SESI_DEBUG=1 node \"" + SESI_ROOT + "/bin/sesi.js\" -l --cli \"" + temp_name + "\""
         if IS_WINDOWS {
-          cmd = "set SESI_DEBUG=1 && cmd.exe /c node \"" + SESI_ROOT + "/bin/sesi.js\" -l \"" + temp_name + "\""
+          cmd = "set SESI_DEBUG=1 && cmd.exe /c node \"" + SESI_ROOT + "/bin/sesi.js\" -l --cli \"" + temp_name + "\""
         }
         output_str = exec_in_project(cmd)
       } catch (e) {
@@ -982,7 +982,7 @@ fn handle_http(req) {
       if action == "generate_commit_msg" {
         let generated_msg = ""
         try {
-          generated_msg = exec_in_project("node bin/sesi.js -l helpers/commit_message.sesi --staged")
+          generated_msg = sesi("helpers/commit_message.sesi", true)
           
           let lines = split(generated_msg, "\n")
           let filtered = []

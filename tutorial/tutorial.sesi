@@ -1,115 +1,431 @@
-// We use a progress file to keep track of where the user is
-let progress_file = "tutorial/.sesi_tutorial_progress.json"
+/*
+  Sesi command-line tutorial
+
+  Start:  npm run tutorial:cli
+  Set name: npm run tutorial:cli name <your-name>
+  Narrate: npm run tutorial:cli narrate
+  Move:   npm run tutorial:cli next
+  Review: npm run tutorial:cli back
+  Index:  npm run tutorial:cli list
+  Reset:  npm run tutorial:cli reset
+*/
+
+let PROGRESS_FILE = "tutorial/.sesi_tutorial_progress.json"
+let accessibility = false
+if is_null(accessibility) || accessibility == "" || accessibility == false {
+  accessibility = "n"
+}
+let enableAccessibility = ""
+
+let lessons = [
+  {
+    "title": "Run your first program",
+    "learn": [
+      "A Sesi file is a sequence of statements.",
+      "Newlines normally end statements; semicolons are useful for inline code.",
+      "print accepts multiple values and inserts spaces between them."
+    ],
+    "example": "print \"Hello from Sesi!\"
+print \"The answer is:\" 6 * 7",
+    "challenge": "Create hello.sesi, print your name and a number, then run: sesi --cli hello.sesi"
+  },
+  {
+    "title": "Values and variables",
+    "learn": [
+      "Use let once when declaring a binding.",
+      "Reassign later without repeating let.",
+      "Core values include numbers, strings, booleans, null, arrays, and objects."
+    ],
+    "example": "let quantity = 4
+let price = 12.5
+let total = quantity * price
+let expensive = total > 40
+print \"Total:\" total
+print \"Expensive?\" expensive",
+    "challenge": "Change quantity and price, then use type(total) to confirm the computed value is a number."
+  },
+  {
+    "title": "Collections and JSON",
+    "learn": [
+      "Arrays are ordered and zero-indexed.",
+      "Objects store values under named keys.",
+      "to_json and from_json cross the text/data boundary."
+    ],
+    "example": "let stages = [\"lint\", \"test\"]
+push(stages, \"build\")
+let project = {\"name\": \"Sesi\", \"ready\": true}
+print join(stages, \" -> \")
+print project[\"name\"] project[\"ready\"]",
+    "challenge": "Add a version key to project and print every key by looping over keys(project)."
+  },
+  {
+    "title": "Conditionals and loops",
+    "learn": [
+      "if, else if, and else branch on ordinary expressions.",
+      "for item in array iterates values.",
+      "Numeric for ranges exclude the right boundary; break and continue control a loop."
+    ],
+    "example": "let total = 0
+for n in [1, 2, 3, 4, 5] {
+  if n % 2 == 0 {
+    continue
+  }
+  total = total + n
+}
+print \"Odd total:\" total",
+    "challenge": "Change the loop to total only even numbers. The result should be 6."
+  },
+  {
+    "title": "Functions and types",
+    "learn": [
+      "Declare reusable behavior with fn.",
+      "return sends a value back to the caller.",
+      "Parameter types, return types, and default values communicate a function's contract."
+    ],
+    "example": "fn greet(name: string, punctuation: string = \"!\") -> string {
+  return \"Hello, \" + name + punctuation
+}
+print greet(\"Ada\")
+print greet(\"Sesi\", \".\")",
+    "challenge": "Write a typed area(width, height) function and call it with 6 and 7."
+  },
+  {
+    "title": "Functions as data and pipelines",
+    "learn": [
+      "map transforms, filter selects, reduce combines, and find locates.",
+      "These helpers receive functions as callback values.",
+      "The pipe operator passes the left result as the next function's first argument."
+    ],
+    "example": "fn add(a, b) { return a + b }
+fn multiply(a, b) { return a * b }
+let piped = 10 | add(5) | multiply(2)
+print piped
+
+fn double(n) { return n * 2 }
+print map([1, 2, 3], double)",
+    "challenge": "Filter [1, 2, 3, 4] to even values, double them, and reduce them to 12."
+  },
+  {
+    "title": "Errors and cleanup",
+    "learn": [
+      "Wrap failure-prone work in try and catch.",
+      "raise_error can attach a type, message, and structured data.",
+      "finally runs for success, failure, and early return paths."
+    ],
+    "example": "try {
+  raise_error(\"ValidationError\", \"Missing name\", {\"field\": \"name\"})
+} catch (err) {
+  print err[\"type\"] err[\"data\"][\"field\"]
+} finally {
+  print \"Validation finished\"
+}",
+    "challenge": "Raise a ValidationError when a quantity is negative and print a useful message from catch."
+  },
+  {
+    "title": "Files and modules",
+    "learn": [
+      "read_file, write_file, list_dir, archive, rename, and trash cover common filesystem work.",
+      "Safe mode restricts paths to approved directories.",
+      "allow loads standard or local modules as named bindings or a namespace."
+    ],
+    "example": "allow \"std/math\" in with Math
+let record = {\"name\": \"Sesi\", \"power\": Math.pow(2, 5)}
+write_file(\"tutorial/.cli_example.json\", to_json(record))
+let loaded = from_json(read_file(\"tutorial/.cli_example.json\"))
+print loaded[\"name\"] loaded[\"power\"]
+trash(\"tutorial/.cli_example.json\", true)",
+    "challenge": "Save an array as JSON, load it back, print its length, and remove only the temporary file you created."
+  },
+  {
+    "title": "Arguments and the CLI",
+    "learn": [
+      "Arguments after a script name appear in the global args array.",
+      "Validate len(args) before indexing.",
+      "--tokens and --ast expose how Sesi reads a program; -e evaluates inline code."
+    ],
+    "example": "let name = \"Developer\"
+if len(args) > 0 {
+  name = args[0]
+}
+print \"Hello,\" name + \"!\"",
+    "challenge": "Save the example as greet.sesi, then run: sesi --cli greet.sesi Ada"
+  },
+  {
+    "title": "Optional reasoning",
+    "learn": [
+      "Sesi is a general-purpose language; model calls are optional.",
+      "prompt blocks are useful string templates with or without AI.",
+      "Keep model work explicit, handle errors, and validate structured results."
+    ],
+    "example": "let topic = \"small, testable functions\"
+prompt request {\"Explain in two short sentences:\" topic}
+try {
+  let answer = model(\"gemini-3-flash-preview\") {thinkingLevel: \"low\"} {request}
+  print answer
+} catch (err) {
+  print \"Optional model call unavailable\"
+}",
+    "challenge": "First use a prompt block in a normal print statement. Only run model() if GEMINI_API_KEY is configured."
+  }
+]
 
 fn load_progress() {
   try {
-    let content = read_file(progress_file)
-    return from_json(content)
+    let saved = from_json(read_file(PROGRESS_FILE))
+    if type(saved) == "object" {
+      return saved
+    }
   } catch (err) {
-    // Default progress state
-    return {"step": 0, "name": "Developer"}
+    // A missing or invalid progress file simply starts a new course.
   }
+  return {"step": 0, "name": "Developer", "complete": false}
 }
 
-fn save_progress(state) {
+fn save_progress(progress) {
   try {
-    write_file(progress_file, to_json(state))
+    write_file(PROGRESS_FILE, to_json(progress))
   } catch (err) {
-    print "Error saving progress:" err
+    print "Warning: tutorial progress could not be saved."
+    print err
   }
 }
 
-let state = load_progress()
-let cmd = ""
-let early_exit = false
-
-// Sesi accepts args natively through the global `args` array!
-if len(args) > 0 {
-  cmd = args[0]
+fn print_help() {
+  print "Commands:"
+  print "  npm run tutorial:cli narrate    Read the lesson aloud (accessibility)"
+  print "  npm run tutorial:cli next       Go to the next lesson"
+  print "  npm run tutorial:cli back       Review the previous lesson"
+  print "  npm run tutorial:cli list       Show the course index"
+  print "  npm run tutorial:cli name Ada   Personalize the greeting"
+  print "  npm run tutorial:cli reset      Clear saved progress"
+  print ""
+  print "For the full interactive course, run: npm run tutorial"
+  accessibility = input("Enable accessibility features (text-to-speech) (y/n, default: n): ")
+  enableAccessibility = accessibility == "y" || accessibility == "Y"
+  if enableAccessibility {
+    speech("Commands:
+  npm run tutorial: see el eye narrate,    Read the lesson aloud (accessibility)
+  npm run tutorial: see el eye next,       Go to the next lesson
+  npm run tutorial: see el eye back,      Review the previous lesson
+  npm run tutorial: see el eye list,       Show the course index
+  npm run tutorial: see el eye name Ada,   Personalize the greeting
+  npm run tutorial: see el eye reset,      Clear saved progress
+For the full interactive course, run: npm run tutorial")
+  }
 }
 
-if cmd == "reset" {
-  state["step"] = 0
-  save_progress(state)
-  print "Tutorial reset! Run 'npm run tutorial:cli' to start over."
-  // Stop early
-  early_exit = true
-} else if cmd == "next" {
-  state["step"] = state["step"] + 1
-  save_progress(state)
-  print "Moving to step" str(state["step"]) "...\n"
-} else if cmd == "name" {
-  if len(args) > 1 {
-    state["name"] = args[1]
-    save_progress(state)
-    print "Nice to meet you," state["name"] "!\n"
+fn print_index(progress) {
+  accessibility = input("Enable accessibility features (text-to-speech) (y/n, default: n): ")
+  enableAccessibility = accessibility == "y" || accessibility == "Y"
+  print ""
+  print "Sesi CLI Tutorial — Course Index"
+  print "────────────────────────────────"
+  if enableAccessibility {
+    speech("Sey-see see el eye tutorial. Course index.")
+  }
+  for i = 0 to len(lessons) {
+    let marker = " "
+    if i < progress["step"] || progress["complete"] {
+      marker = "✓"
+    } else if i == progress["step"] {
+      marker = "→"
+    }
+    print marker str(i + 1) + "." lessons[i]["title"]
+  }
+  print ""
+  print_help()
+}
+
+fn print_lesson(progress) {
+  let index = progress["step"]
+  let lesson = lessons[index]
+  enableAccessibility = accessibility == "y" || accessibility == "Y" || accessibility == true
+
+  print ""
+  print "╭────────────────────────────────────────────────────────────╮"
+  print "  SESI CLI TUTORIAL · LESSON" index + 1 "OF" len(lessons)
+  print "╰────────────────────────────────────────────────────────────╯"
+  if enableAccessibility {
+    speech("Sey-see see el eye tutorial. Lesson " + str(index + 1) + " of " + str(len(lessons)) + ".")
+  }
+  print ""
+  print lesson["title"]
+  print ""
+  print "What you will learn"
+  if enableAccessibility {
+    speech(lesson["title"] + ". What you will learn:")
+  }
+  for item in lesson["learn"] {
+    print "  •" item
+    if enableAccessibility {
+      if contains(item, "Sesi") || contains(item, "sesi") {
+        let accessSesi = swap(item, "Sesi", "sey-see")
+        accessSesi = swap(accessSesi, "sesi", "sey-see")
+        speech(accessSesi)
+      } else {
+        speech(item)
+      }
+    }
+  }
+  print ""
+  print "Example"
+  print "──────────────────────────────────────────────────────────────"
+  print lesson["example"]
+  if enableAccessibility {
+    if contains(lesson["example"], "--cli") || contains(lesson["example"], "CLI") || contains(lesson["example"], "cli") {
+      let accessCli = swap(lesson["example"], "--cli", "dash dash see el eye")
+      accessCli = swap(accessCli, "CLI", "see el eye")
+      accessCli = swap(accessCli, "cli", "see el eye")
+      speech("Example: " + accessCli)
+    } else if contains(lesson["example"], "--") {
+      let accessExample = swap(lesson["example"], "--", "dash dash ")
+      speech("Example: " + accessExample)
+    } else if contains(lesson["example"], "sesi") || contains(lesson["example"], "Sesi") {
+      let accessSesi = swap(lesson["example"], "sesi", "sey-see")
+      accessSesi = swap(accessSesi, "Sesi", "sey-see")
+      speech("Example: " + accessSesi)
+    } else {speech("Example: " + lesson["example"])}
+  }
+  print "──────────────────────────────────────────────────────────────"
+  print ""
+  print "Practice"
+  print "  " + lesson["challenge"]
+  if enableAccessibility {
+    if contains(lesson["challenge"], "--cli") || contains(lesson["challenge"], "CLI") || contains(lesson["challenge"], "cli") {
+      let accessCli = swap(lesson["challenge"], "--cli", "see el eye")
+      accessCli = swap(accessCli, "CLI", "see el eye")
+      accessCli = swap(accessCli, "cli", "see el eye")
+      speech("Practice: " + accessCli)
+    } else if contains(lesson["challenge"], "--") {
+      let accessExample = swap(lesson["challenge"], "--", "dash dash ")
+      speech("Practice: " + accessExample)
+    } else if contains(lesson["challenge"], "sesi") || contains(lesson["challenge"], "Sesi") {
+      let accessSesi = swap(lesson["challenge"], "sesi", "sey-see")
+      accessSesi = swap(accessSesi, "Sesi", "sey-see")
+      speech("Practice: " + accessSesi)
+    } else {speech("Practice: " + lesson["challenge"])}
+  }
+  print ""
+
+  if index == len(lessons) - 1 {
+    print "This is the final lesson."
+    print "Run 'npm run tutorial:cli next' to mark the course complete."
+    if enableAccessibility {
+      speech("This is the final lesson. Run 'npm run tutorial: see el eye next' to mark the course complete.")
+    }
   } else {
-    print "Please provide a name: npm run tutorial:cli name <your_name>"
-    early_exit = true
+    print "Continue: npm run tutorial:cli next"
+    if enableAccessibility {
+      speech("Continue: npm run tutorial: see el eye next")
+    }
   }
+  print "Auto-narrate: npm run tutorial:cli narrate"
+  print "Review:       npm run tutorial:cli back"
+  print "Index:        npm run tutorial:cli list"
 }
 
-let step = state["step"]
+let progress = load_progress()
+let command = ""
 
-if cmd != "reset" && len(args) == 0 || cmd == "next" || cmd == "name" {
-  if step == 0 {
-    print "======================================"
-    print "   Welcome to the Sesi CLI Tutorial!  "
-    print "======================================"
-    print "Hello," state["name"] "!"
-    print "Sesi scripts accept arguments natively via the global 'args' array."
-    print "To move forward, pass the 'next' argument:"
-    print ""
-    print "  👉 npm run tutorial:cli next"
-    print ""
-    print "Want to change your name? Run:"
-    print "  👉 npm run tutorial:cli name Alice"
-  } else if step == 1 {
-    print "--- Step 1: Variables & Printing ---"
-    print "In Sesi, you declare variables using 'let'."
-    print "  let x = 10"
-    print "  let msg = \"Hello\""
-    print "  print msg x"
-    print ""
-    print "Notice how 'print' automatically spaces out arguments!"
-    print ""
-    print "  👉 npm run tutorial:cli next"
-  } else if step == 2 {
-    print "--- Step 2: Arrays and Loops ---"
-    print "Sesi has modern collections and loops."
-    print "  let items = [1, 2, 3]"
-    print "  for item in items {"
-    print "    print item"
-    print "  }"
-    print ""
-    print "You can also use 'while' and numeric 'for' loops."
-    print "  for i = 0 to 5 { ... }"
-    print ""
-    print "  👉 npm run tutorial:cli next"
-  } else if step == 3 {
-    print "--- Step 3: Optional Reasoning ---"
-    print "Sesi has built-in Reasoning blocks. You don't need to set up anything."
-    print "  prompt request {"
-    print "    \"Summarize this text:\" text"
-    print "  }"
-    print "  let answer = model(\"gemini-3.1-flash-lite\") {request}"
-    print ""
-    print "It feels just like writing native code."
-    print ""
-    print "  👉 npm run tutorial:cli next"
-  } else if step >= 4 {
-    print "======================================"
-    print "          Tutorial Complete!          "
-    print "======================================"
-    print "Great job," state["name"] "! You learned how to:"
-    print "1. Pass native CLI args (using the args array)"
-    print "2. Manage variables and loops"
-    print "3. Read/write files (this script saved your progress!)"
-    print "4. Use native AI blocks"
-    print ""
-    print "Check docs/WRITING_SCRIPTS.md to build your own tools."
-    print ""
-    print "To restart:"
-    print "  👉 npm run tutorial:cli reset"
+if len(args) > 0 {
+  command = args[0]
+}
+
+if progress["step"] < 0 {
+  progress["step"] = 0
+}
+if progress["step"] >= len(lessons) {
+  progress["step"] = len(lessons) - 1
+}
+
+if command == "reset" {
+  progress = {"step": 0, "name": "Developer", "complete": false}
+  save_progress(progress)
+  print "Tutorial progress reset."
+  if enableAccessibility {
+    speech("Tutorial progress reset.")
   }
+  print_lesson(progress)
+} else if command == "name" {
+  if len(args) < 2 {
+    print "Usage: npm run tutorial:cli name <your-name>"
+    if enableAccessibility {
+      speech("Usage: npm run tutorial: see el eye name `your name`.")
+    }
+  } else {
+    progress["name"] = args[1]
+    save_progress(progress)
+    print "Welcome," progress["name"] + "."
+    if enableAccessibility {
+      speech("Welcome, " + progress["name"] + ".")
+    }
+    print_lesson(progress)
+  }
+} else if command == "next" {
+  if progress["step"] < len(lessons) - 1 {
+    progress["step"] = progress["step"] + 1
+    save_progress(progress)
+    print_lesson(progress)
+  } else {
+    progress["complete"] = true
+    save_progress(progress)
+    print ""
+    print "Course complete — well done," progress["name"] + "!"
+    print "You now have the core tools to build grounded Sesi scripts"
+    print "and add reasoning only when a problem benefits from it."
+    if enableAccessibility {
+      speech("Course complete. Well done, " + progress["name"] + "! You now have the core tools to build grounded sey-see scripts and add reasoning only when a problem benefits from it.")
+    }
+    print ""
+    print "Open the practice lab: npm run tutorial"
+    print "Browse more examples: examples/main/"
+    print "Restart this course: npm run tutorial:cli reset"
+  }
+} else if command == "back" {
+  if progress["step"] > 0 {
+    progress["step"] = progress["step"] - 1
+    progress["complete"] = false
+    save_progress(progress)
+  }
+  print_lesson(progress)
+} else if command == "list" {
+  print_index(progress)
+} else if command == "help" {
+  print_help()
+} else if command == "" {
+  print ""
+  print "Welcome," progress["name"] + "."
+  print "This ten-lesson path teaches Sesi from first principles."
+  if enableAccessibility {
+    speech("Welcome, " + progress["name"] + ". This ten-lesson path teaches Sesi from first principles.")
+  }
+  print_lesson(progress)
+} else if command == "narrate" {
+  accessibility = true
+  enableAccessibility = true
+  if progress["step"] < len(lessons) - 1 {
+    progress["step"] = progress["step"] + 1
+    save_progress(progress)
+    print_lesson(progress)
+  } else {
+    progress["complete"] = true
+    save_progress(progress)
+    print ""
+    print "Course complete — well done," progress["name"] + "!"
+    print "You now have the core tools to build grounded Sesi scripts"
+    print "and add reasoning only when a problem benefits from it."
+    if enableAccessibility {
+      speech("Course complete. Well done, " + progress["name"] + "! You now have the core tools to build grounded sey-see scripts and add reasoning only when a problem benefits from it.")
+    }
+    print ""
+    print "Open the practice lab: npm run tutorial"
+    print "Browse more examples: examples/main/"
+    print "Restart this course: npm run tutorial:cli reset"
+  }
+} else {
+  print "Unknown tutorial command:" command
+  if enableAccessibility {
+    speech("Sorry, don't recognize this command: " + command)
+  }
+  print_help()
 }

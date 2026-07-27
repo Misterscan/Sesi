@@ -121,7 +121,7 @@ async fn handleRequest(req) {
     let response_content = "Sorry, no response could be generated."
     let failed = false
     try {
-      response_content = model("gemini-3.1-flash-lite") {temperature: 0.3, max_tokens: 2048} {prompt_context}
+      response_content = model("gemini-3.5-flash-lite") {temperature: 0.3, max_tokens: 2048} {prompt_context}
     } catch (e) {
       print "[SERVER ERROR] Sesi model call failed:" e
       failed = true
@@ -227,22 +227,19 @@ async fn handleRequest(req) {
 let port = 8000
 print "=================================================="
 print "[STATUS] Sesi Support Online!"
-print "[URL] Serving at: http://localhost:8000/index.html"
 print "=================================================="
 
 let server = listen(port, handleRequest)
 try {
   let cmd = exec("uname")
   if contains(cmd, "Linux") {
-    print "[SERVER] Linux OS Detected - Using 'xdg-open'"
-    exec("xdg-open http://localhost:8000/index.html")
+    print "[SERVER] Linux OS Detected!"
   } else if contains(cmd, "Darwin") {
-    print "[SERVER] macOS Detected - Using 'open'"
-    exec("open http://localhost:8000/index.html")
+    print "[SERVER] macOS Detected!"
   } else {
-    print "[SERVER] Windows Detected - Using 'start'"
-    exec("start http://localhost:8000/index.html")
+    print "[SERVER] Windows Detected!"
   }
+  open("http://localhost:8000/index.html")
 } catch (e) {
   print "[SERVER] Could not open browser - navigate to http://localhost:8000/index.html manually"
 }

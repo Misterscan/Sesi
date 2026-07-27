@@ -341,33 +341,44 @@ main/                     # Main user scripts and debugging
 └── tests/                # Additional syntax validation scripts
 
 examples/
-├── 01_hello.sesi         # Basic example
-├── 02_variables.sesi     # Variables & operations
-├── 03_functions.sesi     # Functions with parameters
-├── 04_conditionals.sesi  # If/else control flow
-├── 05_loops.sesi         # Loops & iteration
-├── 06_arrays_objects.sesi # Arrays & objects
-├── 07_prompts.sesi       # Prompts and string templating
-├── 08_model_call.sesi    # Basic Reasoning model calls
-├── 09_structured_output.sesi # Schema-guided structured output with JSON recovery and empty-object fallback on failure
-├── 10_code_generation.sesi   # Reasoning-powered code gen
-├── 11_memory_storage.sesi # Memory storage
-├── 12_classification.sesi    # Classification
-├── 13_data_pipeline.sesi     # Pipeline demo
-├── 14_folder_explainer.sesi  # Directory parsing & reasoning
-├── 15_image_generation.sesi  # Image generation API test
-├── 16_modules.sesi          # Modules & std library imports
-├── 17_http_client.sesi      # HTTP GET/POST client
-├── 18_parallel_requests.sesi # Parallel requests concurrency
-├── 19_search_web.sesi        # Web search
-├── 20_model_aliases.sesi     # Custom model naming via aliases
-├── 21_custom_tools.sesi      # Runtime custom tool definitions
-├── 22_reasoning_plus_custom_tools.sesi # Compose reasoning with custom tools
-├── 23_file_conversion.sesi         # Document and media conversion via `convert()`
-├── 24_http_server.sesi             # Native async HTTP server (`listen`)
-├── 25_webpage_server.sesi          # High-performance dynamic HTML site rendering
-├── 26_database.sesi                # Embedded Document Database (`std/db`) crud operations
-└── 27_robust_web_db.sesi           # Secured combined API server backed by persistent DB
+├── main/                        # Core language & systems feature examples
+│   ├── 01_hello.sesi            # Hello World
+│   ├── 02_variables.sesi        # Variables & operations
+│   ├── 03_functions.sesi        # Functions with parameters
+│   ├── 04_conditionals.sesi     # If/else control flow
+│   ├── 05_loops.sesi            # While, for, for-in loops
+│   ├── 06_arrays_objects.sesi   # Collections
+│   ├── 07_prompts.sesi          # Prompt blocks composition
+│   ├── 09_structured_output.sesi # Type-safe reasoning responses
+│   ├── 11_memory_storage.sesi   # Multi-turn stateful reasoning
+│   ├── 12_classification.sesi   # Systems classification loop
+│   ├── 13_data_pipeline.sesi    # Complete systems pipeline
+│   ├── 16_modules.sesi          # Modules & standard library imports
+│   ├── 17_http_client.sesi      # Native HTTP client (web_get/web_send)
+│   ├── 18_parallel_requests.sesi # Parallel request concurrency (multi_req)
+│   ├── 19_search_web.sesi       # Built-in search_web integration
+│   ├── 21_custom_tools.sesi     # Declaring and using custom tools
+│   ├── 23_file_conversion.sesi  # File and format conversions
+│   ├── 24_http_handler.sesi     # Native HTTP server request routing
+│   ├── 24_http_server.sesi      # Non-blocking native HTTP server
+│   ├── 25_webpage_server.sesi   # Native webpage hosting
+│   ├── 26_database.sesi         # Embedded document database operations
+│   ├── 27_robust_web_db.sesi    # Dynamic database-backed web analytics
+│   ├── 29_tool_piping.sesi      # Functional piping operator (|)
+│   ├── 30_error_recovery.sesi   # Error retry backoff handling
+│   ├── 31_synthesizer.sesi      # Sound/music synthesis & SVG drawing
+│   ├── 32_browser_automation.sesi # Headless browser automation with Playwright
+│   ├── 33_base64.sesi           # Base64
+│   └── 34_sesi_api.sesi         # SwaggerUI API setup
+│
+└── optional/                    # Optional reasoning & advanced AI examples
+│   ├── 08_model_call.sesi       # Basic reasoning model calls
+│   ├── 10_code_generation.sesi  # Code generation logic
+│   ├── 14_folder_explainer.sesi # Workspace directory analyzer
+│   ├── 15_image_generation.sesi # Image generation API
+│   ├── 20_model_aliases.sesi    # Custom model naming aliases
+│   ├── 22_reasoning_plus_custom_tools.sesi # Reasoning composed with custom tools
+│   └── 28_streaming.sesi        # Real-time response streaming
 
 docs/
 ├── SPECIFICATION.md      # Language spec

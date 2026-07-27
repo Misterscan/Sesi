@@ -723,14 +723,35 @@ export class Interpreter {
   }
 
   private async evaluateImageCall(expr: import('./types').ImageCallExpression): Promise<RuntimeValue> {
+    const rawModelName = await this.evaluateExpression(expr.modelName);
+    if (typeof rawModelName !== 'string' || rawModelName.trim() === '') {
+      throw new Error('image() expects a model name string or string variable');
+    }
+
     let promptText = await this.evaluateExpression(expr.prompt) as string;
     if (typeof promptText !== 'string') {
       promptText = stringify(promptText);
     }
 
+    const resolvedConfig: Record<string, RuntimeValue> = Object.create(null);
+    if (expr.config) {
+      for (const [key, configExpr] of Object.entries(expr.config)) {
+        resolvedConfig[key] = await this.evaluateExpression(configExpr);
+      }
+    }
+
+    const getConfig = (...keys: string[]): RuntimeValue => {
+      for (const k of keys) {
+        if (Object.prototype.hasOwnProperty.call(resolvedConfig, k)) {
+          return resolvedConfig[k];
+        }
+      }
+      return null;
+    };
+
     let imagePaths: string[] | undefined;
-    if (expr.images) {
-      const raw = await this.evaluateExpression(expr.images);
+    {
+      const raw = getConfig('images');
       if (Array.isArray(raw)) {
         imagePaths = (raw as any[]).map(v => stringify(v));
       } else if (typeof raw === 'string' && raw.trim() !== '') {
@@ -739,8 +760,8 @@ export class Interpreter {
     }
 
     let thinkingLevel: any | undefined;
-    if (expr.config?.thinkingLevel) {
-      const raw = await this.evaluateExpression(expr.config.thinkingLevel);
+    {
+      const raw = getConfig('thinkingLevel', 'thinking', 'effort', 'reasoning');
       if (typeof raw === 'object' && raw !== null) {
         thinkingLevel = raw as any;
       } else if (typeof raw === 'string') {
@@ -749,22 +770,29 @@ export class Interpreter {
     }
 
     let cache: boolean | undefined;
-    if (expr.config?.cache) {
-      const raw = await this.evaluateExpression(expr.config.cache);
+    {
+      const raw = getConfig('cache', 'cached');
       if (typeof raw === 'boolean') {
         cache = raw;
       }
     }
 
+    const temperatureRaw = getConfig('temperature', 'temp');
+    const maxTokensRaw = getConfig('max_tokens', 'maxTokens', 'maxT');
+    const topKRaw = getConfig('top_k', 'topK');
+    const topPRaw = getConfig('top_p', 'topP');
+    const ratioRaw = getConfig('ratio', 'imgRatio', 'imageRatio', 'aspectRatio');
+    const sizeRaw = getConfig('size', 'imgSize', 'imageSize');
+
     const response = await aiRuntime.callModel({
-      model: this.resolveModelName(expr.modelName),
+      model: this.resolveModelName(rawModelName),
       prompt: promptText,
-      temperature: expr.config?.temperature ? (await this.evaluateExpression(expr.config.temperature) as number) : undefined,
-      maxTokens: expr.config?.max_tokens ? (await this.evaluateExpression(expr.config.max_tokens) as number) : undefined,
-      topK: expr.config?.top_k ? (await this.evaluateExpression(expr.config.top_k) as number) : undefined,
-      topP: expr.config?.top_p ? (await this.evaluateExpression(expr.config.top_p) as number) : undefined,
-      ratio: expr.config?.ratio ? (await this.evaluateExpression(expr.config.ratio) as string) : undefined,
-      size: expr.config?.size ? (await this.evaluateExpression(expr.config.size) as string) : undefined,
+      temperature: typeof temperatureRaw === 'number' ? temperatureRaw : undefined,
+      maxTokens: typeof maxTokensRaw === 'number' ? maxTokensRaw : undefined,
+      topK: typeof topKRaw === 'number' ? topKRaw : undefined,
+      topP: typeof topPRaw === 'number' ? topPRaw : undefined,
+      ratio: typeof ratioRaw === 'string' ? ratioRaw : undefined,
+      size: typeof sizeRaw === 'string' ? sizeRaw : undefined,
       images: imagePaths,
       thinkingLevel,
       cache,
@@ -774,14 +802,36 @@ export class Interpreter {
   }
 
   private async evaluateModelCall(expr: import('./types').ModelCallExpression): Promise<RuntimeValue> {
+    const rawModelName = await this.evaluateExpression(expr.modelName);
+    if (typeof rawModelName !== 'string' || rawModelName.trim() === '') {
+      throw new Error('model() expects a model name string or string variable');
+    }
+
     let promptText = await this.evaluateExpression(expr.prompt) as string;
     if (typeof promptText !== 'string') {
       promptText = stringify(promptText);
     }
 
+    const resolvedConfig: Record<string, RuntimeValue> = Object.create(null);
+    if (expr.config) {
+      for (const [key, configExpr] of Object.entries(expr.config)) {
+        resolvedConfig[key] = await this.evaluateExpression(configExpr);
+      }
+    }
+
+    const getConfig = (...keys: string[]): RuntimeValue => {
+      for (const k of keys) {
+        if (Object.prototype.hasOwnProperty.call(resolvedConfig, k)) {
+          return resolvedConfig[k];
+        }
+      }
+      return null;
+    };
+
     let imagePaths: string[] | undefined;
-    if (expr.images) {
-      const raw = await this.evaluateExpression(expr.images);
+    const imageConfig = getConfig('images');
+    if (imageConfig !== null) {
+      const raw = imageConfig;
       if (Array.isArray(raw)) {
         imagePaths = (raw as any[]).map(v => stringify(v));
       } else if (typeof raw === 'string' && raw.trim() !== '') {
@@ -790,8 +840,8 @@ export class Interpreter {
     }
 
     let thinkingLevel: any | undefined;
-    if (expr.config?.thinkingLevel) {
-      const raw = await this.evaluateExpression(expr.config.thinkingLevel);
+    {
+      const raw = getConfig('thinkingLevel', 'thinking', 'effort', 'reasoning');
       if (typeof raw === 'object' && raw !== null) {
         thinkingLevel = raw as any;
       } else if (typeof raw === 'string') {
@@ -800,16 +850,16 @@ export class Interpreter {
     }
 
     let cache: boolean | undefined;
-    if (expr.config?.cache) {
-      const raw = await this.evaluateExpression(expr.config.cache);
+    {
+      const raw = getConfig('cache', 'cached');
       if (typeof raw === 'boolean') {
         cache = raw;
       }
     }
 
     let search: boolean | undefined;
-    if (expr.config?.search) {
-      const raw = await this.evaluateExpression(expr.config.search);
+    {
+      const raw = getConfig('search', 'grounding');
       if (typeof raw === 'boolean') {
         search = raw;
       } else if (typeof raw === 'string') {
@@ -819,9 +869,11 @@ export class Interpreter {
     }
 
     let stream: any | undefined;
-    if (expr.config?.stream) {
-      const raw = await this.evaluateExpression(expr.config.stream);
+    {
+      const raw = getConfig('stream', 'onChunk', 'on_chunk');
       if (typeof raw === 'boolean') {
+        stream = raw;
+      } else if (typeof raw === 'function') {
         stream = raw;
       } else if (typeof raw === 'object' && raw !== null && (raw as any).type === 'function') {
         const sesiFn = raw as RuntimeFunction;
@@ -831,16 +883,28 @@ export class Interpreter {
       }
     }
 
+    let tools: any[] | undefined;
+    {
+      const raw = getConfig('tools', 'toolSchemas', 'tool_schemas');
+      if (Array.isArray(raw)) {
+        tools = raw as any[];
+      }
+    }
+
+    const temperatureRaw = getConfig('temperature', 'temp');
+    const maxTokensRaw = getConfig('max_tokens', 'maxTokens', 'maxT');
+
     const response = await aiRuntime.callModel({
-      model: this.resolveModelName(expr.modelName),
+      model: this.resolveModelName(rawModelName),
       prompt: promptText,
-      temperature: expr.config?.temperature ? (await this.evaluateExpression(expr.config.temperature) as number) : undefined,
-      maxTokens: expr.config?.max_tokens ? (await this.evaluateExpression(expr.config.max_tokens) as number) : undefined,
+      temperature: typeof temperatureRaw === 'number' ? temperatureRaw : undefined,
+      maxTokens: typeof maxTokensRaw === 'number' ? maxTokensRaw : undefined,
       images: imagePaths,
       thinkingLevel,
       cache,
       search,
       stream,
+      tools,
     });
 
     return response.text;
@@ -1474,6 +1538,91 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           if (typeof str !== 'string') return null;
           try {
             return stripPrototypes(JSON.parse(str));
+          } catch (e) {
+            return null;
+          }
+        }
+      });
+      return exports;
+    } else if (source === 'std/base64') {
+      const toByteArray = (value: RuntimeValue): number[] | null => {
+        if (!Array.isArray(value)) return null;
+        const bytes: number[] = [];
+        for (const item of value) {
+          if (typeof item !== 'number' || !Number.isInteger(item) || item < 0 || item > 255) {
+            return null;
+          }
+          bytes.push(item);
+        }
+        return bytes;
+      };
+
+      exports.set('encode', {
+        type: 'function',
+        name: 'encode',
+        params: [{ name: 'value' }, { name: 'mode', defaultValue: 'text' as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const [value, modeVal] = args;
+          const mode = typeof modeVal === 'string' ? modeVal.toLowerCase() : 'text';
+
+          if (mode === 'bytes') {
+            const bytes = toByteArray(value);
+            if (!bytes) return null;
+            return Buffer.from(bytes).toString('base64');
+          }
+
+          if (mode === 'text') {
+            if (typeof value !== 'string') return null;
+            return Buffer.from(value, 'utf8').toString('base64');
+          }
+
+          return null;
+        }
+      });
+      exports.set('decode', {
+        type: 'function',
+        name: 'decode',
+        params: [{ name: 'base64_text' }, { name: 'mode', defaultValue: 'text' as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+          const [base64Text, modeVal] = args;
+          if (typeof base64Text !== 'string') return null;
+          const mode = typeof modeVal === 'string' ? modeVal.toLowerCase() : 'text';
+
+          const compact = base64Text.replace(/\s+/g, '');
+          if (compact === '') {
+            if (mode === 'bytes') return [];
+            if (mode === 'text') return '';
+            return null;
+          }
+
+          // Accept standard and URL-safe Base64.
+          const normalized = compact.replace(/-/g, '+').replace(/_/g, '/');
+          const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+          if (!/^[A-Za-z0-9+/]+={0,2}$/.test(padded)) {
+            return null;
+          }
+
+          try {
+            const buffer = Buffer.from(padded, 'base64');
+            const canonical = buffer.toString('base64').replace(/=+$/g, '');
+            const incoming = padded.replace(/=+$/g, '');
+            if (canonical !== incoming) {
+              return null;
+            }
+
+            if (mode === 'bytes') {
+              return Array.from(buffer.values());
+            }
+            if (mode === 'text') {
+              return buffer.toString('utf8');
+            }
+            return null;
           } catch (e) {
             return null;
           }
@@ -3190,6 +3339,393 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           return browserObj;
         }
       });
+      return exports;
+    } else if (source === 'std/api') {
+      if (this.safeMode) {
+        throw new Error('Security Violation: std/api is disabled in Sesi safe mode.');
+      }
+
+      const interp = this;
+
+      function makeBuiltinFn(name: string, paramNames: string[], fn: (...args: RuntimeValue[]) => RuntimeValue | Promise<RuntimeValue>): RuntimeFunction {
+        return {
+          type: 'function',
+          name,
+          params: paramNames.map(p => ({ name: p })),
+          body: {} as any,
+          closure: {} as any,
+          isBuiltin: true,
+          builtin: fn as any,
+        } as RuntimeFunction;
+      }
+
+      function typeToOpenAPI(t: string): string {
+        if (t === 'number' || t === 'int' || t === 'float') return 'number';
+        if (t === 'bool') return 'boolean';
+        if (t === 'array') return 'array';
+        if (t === 'object') return 'object';
+        return 'string';
+      }
+
+      const createAppFn = makeBuiltinFn('create_app', ['config'], (...args: RuntimeValue[]): RuntimeValue => {
+        const config = (args[0] as any) || Object.create(null);
+        const title: string = config?.title || 'Sesi API';
+        const apiVersion: string = config?.version || '1.0.0';
+        const description: string = config?.description || '';
+        const basePath: string = config?.base_path || '';
+
+        interface RouteEntry {
+          method: string;
+          path: string;
+          schema: any;
+          handler: RuntimeFunction;
+          pathParams: string[];
+        }
+
+        const routes: RouteEntry[] = [];
+        const middlewares: RuntimeFunction[] = [];
+
+        function extractPathParams(routePath: string): string[] {
+          const matches = routePath.match(/\{([^}]+)\}/g) || [];
+          return matches.map((m: string) => m.slice(1, -1));
+        }
+
+        function matchRoute(method: string, urlPath: string): { route: RouteEntry; params: Record<string, string> } | null {
+          for (const route of routes) {
+            if (route.method !== method && route.method !== '*') continue;
+            const paramNames: string[] = [];
+            const regexStr = route.path
+              .replace(/[.+?^$|[\]\\]/g, (c: string) => '\\' + c)
+              .replace(/\{([^}]+)\}/g, (_: string, name: string) => { paramNames.push(name); return '([^/]+)'; });
+            const regex = new RegExp('^' + regexStr + '$');
+            const match = urlPath.match(regex);
+            if (match) {
+              const params: Record<string, string> = Object.create(null);
+              paramNames.forEach((name, i) => { params[name] = decodeURIComponent(match[i + 1]); });
+              return { route, params };
+            }
+          }
+          return null;
+        }
+
+        function registerRoute(method: string, routePath: string, schema: any, handler: RuntimeFunction): void {
+          const fullPath = basePath + routePath;
+          routes.push({ method: method.toUpperCase(), path: fullPath, schema: schema || Object.create(null), handler, pathParams: extractPathParams(fullPath) });
+        }
+
+        function buildOpenAPI(): Record<string, any> {
+          const paths: Record<string, any> = Object.create(null);
+          for (const route of routes) {
+            if (!paths[route.path]) paths[route.path] = Object.create(null);
+            const methodKey = route.method.toLowerCase();
+            const schema = route.schema || {};
+            const operation: any = Object.create(null);
+            if (schema.summary) operation.summary = schema.summary;
+            if (schema.description) operation.description = schema.description;
+            if (schema.tags) operation.tags = schema.tags;
+            if (schema.deprecated) operation.deprecated = true;
+            operation.operationId = `${methodKey}${route.path.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`;
+
+            const parameters: any[] = [];
+            for (const param of route.pathParams) {
+              parameters.push({ name: param, in: 'path', required: true, schema: { type: 'string' } });
+            }
+            if (schema.query && typeof schema.query === 'object') {
+              for (const [name, def] of Object.entries(schema.query)) {
+                const p: any = { name, in: 'query' };
+                if (typeof def === 'string') {
+                  p.schema = { type: typeToOpenAPI(def) };
+                  p.required = false;
+                } else if (typeof def === 'object' && def !== null) {
+                  const d = def as any;
+                  p.required = d.required === true;
+                  p.schema = { type: typeToOpenAPI(d.type || 'string') };
+                  if (d.description) p.description = d.description;
+                  if (d.example !== undefined) p.example = d.example;
+                }
+                parameters.push(p);
+              }
+            }
+            if (parameters.length > 0) operation.parameters = parameters;
+
+            if (schema.body && typeof schema.body === 'object' && ['POST', 'PUT', 'PATCH'].includes(route.method)) {
+              const props: Record<string, any> = Object.create(null);
+              const req: string[] = [];
+              for (const [name, def] of Object.entries(schema.body)) {
+                if (typeof def === 'string') {
+                  props[name] = { type: typeToOpenAPI(def) };
+                  req.push(name);
+                } else if (typeof def === 'object' && def !== null) {
+                  const d = def as any;
+                  props[name] = { type: typeToOpenAPI(d.type || 'string') };
+                  if (d.description) props[name].description = d.description;
+                  if (d.example !== undefined) props[name].example = d.example;
+                  if (d.required !== false) req.push(name);
+                }
+              }
+              operation.requestBody = {
+                required: true,
+                content: { 'application/json': { schema: { type: 'object', properties: props, ...(req.length ? { required: req } : {}) } } }
+              };
+            }
+
+            const responses: any = Object.create(null);
+            const successCode = route.method === 'POST' ? '201' : '200';
+            if (schema.response && typeof schema.response === 'object') {
+              const props: Record<string, any> = Object.create(null);
+              for (const [name, t] of Object.entries(schema.response)) {
+                props[name] = { type: typeToOpenAPI(typeof t === 'string' ? t : 'string') };
+              }
+              responses[successCode] = { description: 'Successful response', content: { 'application/json': { schema: { type: 'object', properties: props } } } };
+            } else {
+              responses[successCode] = { description: 'Successful response' };
+            }
+            responses['422'] = { description: 'Validation error' };
+            responses['500'] = { description: 'Internal server error' };
+            operation.responses = responses;
+            paths[route.path][methodKey] = operation;
+          }
+          return { openapi: '3.1.0', info: { title, version: apiVersion, description }, paths };
+        }
+
+        function swaggerUiHtml(specUrl: string): string {
+          return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} — API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <style>body{margin:0}</style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '${specUrl}',
+      dom_id: '#swagger-ui',
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+      layout: 'BaseLayout',
+      deepLinking: true,
+      tryItOutEnabled: true
+    });
+  </script>
+</body>
+</html>`;
+        }
+
+        const appObj: Record<string, RuntimeValue> = Object.create(null);
+
+        for (const httpMethod of ['get', 'post', 'put', 'delete', 'patch', 'options', 'head']) {
+          const m = httpMethod;
+          appObj[m] = makeBuiltinFn(m, ['path', 'schema', 'handler'], (...routeArgs: RuntimeValue[]): RuntimeValue => {
+            const [routePath, routeSchema, routeHandler] = routeArgs;
+            if (typeof routePath !== 'string') throw new Error(`app.${m}() expects a path string`);
+            if (typeof routeHandler !== 'object' || !routeHandler || (routeHandler as any).type !== 'function') {
+              throw new Error(`app.${m}() expects a handler function as third argument`);
+            }
+            registerRoute(m, routePath, routeSchema, routeHandler as RuntimeFunction);
+            return appObj;
+          });
+        }
+
+        appObj.use = makeBuiltinFn('use', ['middleware'], (...mwArgs: RuntimeValue[]): RuntimeValue => {
+          const fn = mwArgs[0];
+          if (typeof fn === 'object' && fn && (fn as any).type === 'function') middlewares.push(fn as RuntimeFunction);
+          return appObj;
+        });
+
+        appObj.openapi = makeBuiltinFn('openapi', [], (): RuntimeValue => buildOpenAPI() as any);
+
+        appObj.routes = makeBuiltinFn('routes', [], (): RuntimeValue => {
+          return routes.map(r => {
+            const o: Record<string, any> = Object.create(null);
+            o.method = r.method;
+            o.path = r.path;
+            if (r.schema?.summary) o.summary = r.schema.summary;
+            return o;
+          }) as any;
+        });
+
+        appObj.listen = makeBuiltinFn('listen', ['port', 'options'], async (...listenArgs: RuntimeValue[]): Promise<RuntimeValue> => {
+          const port = listenArgs[0] as number;
+          const opts = (listenArgs[1] as any) || Object.create(null);
+          if (typeof port !== 'number') throw new Error('app.listen() expects a port number');
+
+          const docsPath: string = opts?.docs_path || '/docs';
+          const openapiPath: string = opts?.openapi_path || '/openapi.json';
+          const cors: boolean = opts?.cors !== false;
+          const corsOrigin: string = opts?.cors_origin || '*';
+
+          const corsHeaders: Record<string, string> = cors ? {
+            'Access-Control-Allow-Origin': corsOrigin,
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          } : {};
+
+          const nodeHttp = require('http');
+          const server = nodeHttp.createServer(async (req: any, res: any) => {
+            const urlObj = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+            const urlPath = urlObj.pathname;
+            const query: Record<string, string> = Object.create(null);
+            urlObj.searchParams.forEach((val: string, key: string) => { query[key] = val; });
+
+            if (req.method === 'OPTIONS') {
+              res.writeHead(204, corsHeaders);
+              res.end();
+              return;
+            }
+
+            if (urlPath === openapiPath) {
+              res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(buildOpenAPI(), null, 2));
+              return;
+            }
+
+            if (urlPath === docsPath || urlPath === docsPath + '/') {
+              res.writeHead(200, { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' });
+              res.end(swaggerUiHtml(openapiPath));
+              return;
+            }
+
+            let rawBody = '';
+            try {
+              const buffers: Buffer[] = [];
+              for await (const chunk of req) buffers.push(chunk as Buffer);
+              rawBody = Buffer.concat(buffers).toString('utf8');
+            } catch (_) { /* ignore */ }
+
+            const matched = matchRoute(req.method || 'GET', urlPath);
+            if (!matched) {
+              res.writeHead(404, { ...corsHeaders, 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ detail: `Not found: ${req.method} ${urlPath}` }));
+              return;
+            }
+
+            const { route, params } = matched;
+            const schema = route.schema || {};
+
+            // Validate query params
+            const validationErrors: string[] = [];
+            if (schema.query && typeof schema.query === 'object') {
+              for (const [name, def] of Object.entries(schema.query)) {
+                const required = typeof def === 'object' && (def as any)?.required === true;
+                if (required && !Object.prototype.hasOwnProperty.call(query, name)) {
+                  validationErrors.push(`Query parameter '${name}' is required`);
+                }
+              }
+            }
+
+            // Parse and validate body
+            let parsedBody: any = null;
+            if (['POST', 'PUT', 'PATCH'].includes(req.method || '') && schema.body && typeof schema.body === 'object') {
+              if (rawBody.trim()) {
+                try {
+                  parsedBody = JSON.parse(rawBody);
+                } catch (_) {
+                  res.writeHead(422, { ...corsHeaders, 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ detail: [{ msg: 'Invalid JSON body' }] }));
+                  return;
+                }
+              } else {
+                parsedBody = Object.create(null);
+              }
+              for (const [name, def] of Object.entries(schema.body)) {
+                const isRequired = typeof def === 'string' || (typeof def === 'object' && (def as any)?.required !== false);
+                if (isRequired && (parsedBody === null || !Object.prototype.hasOwnProperty.call(parsedBody, name))) {
+                  validationErrors.push(`Body field '${name}' is required`);
+                }
+              }
+            }
+
+            if (validationErrors.length > 0) {
+              res.writeHead(422, { ...corsHeaders, 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ detail: validationErrors.map((msg: string) => ({ msg })) }));
+              return;
+            }
+
+            const sesiReq: Record<string, any> = Object.create(null);
+            sesiReq.method = req.method || 'GET';
+            sesiReq.path = urlPath;
+            sesiReq.headers = req.headers;
+            sesiReq.body = rawBody;
+            sesiReq.json = parsedBody;
+            sesiReq.query = query;
+            sesiReq.params = params;
+
+            // Run middlewares
+            for (const mw of middlewares) {
+              try {
+                let mwResult = await interp.callSesiFunction(mw, [sesiReq]);
+                if (typeof mwResult === 'object' && mwResult !== null && (mwResult as any).type === 'promise') {
+                  mwResult = await (mwResult as any).promise;
+                }
+                if (typeof mwResult === 'object' && mwResult !== null && typeof (mwResult as any).status === 'number') {
+                  const mwBody = (mwResult as any).body;
+                  res.writeHead((mwResult as any).status, { ...corsHeaders, 'Content-Type': 'application/json' });
+                  res.end(typeof mwBody === 'object' ? JSON.stringify(mwBody) : String(mwBody ?? ''));
+                  return;
+                }
+              } catch (mwErr: any) {
+                res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: mwErr.message }));
+                return;
+              }
+            }
+
+            try {
+              let result = await interp.callSesiFunction(route.handler, [sesiReq]);
+              if (typeof result === 'object' && result !== null && (result as any).type === 'promise') {
+                result = await (result as any).promise;
+              }
+
+              if (result === null || result === undefined) {
+                res.writeHead(204, corsHeaders);
+                res.end();
+              } else if (typeof result === 'object' && !Array.isArray(result) && typeof (result as any).status === 'number') {
+                const status = (result as any).status as number;
+                const resHeaders: Record<string, string> = { ...corsHeaders, 'Content-Type': 'application/json' };
+                if (typeof (result as any).headers === 'object' && (result as any).headers !== null) {
+                  for (const [k, v] of Object.entries((result as any).headers as Record<string, any>)) {
+                    resHeaders[k] = String(v);
+                  }
+                }
+                const body = (result as any).body;
+                const bodyStr = body === undefined ? '' : (typeof body === 'object' ? JSON.stringify(body) : String(body));
+                res.writeHead(status, resHeaders);
+                res.end(bodyStr);
+              } else {
+                res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+                res.end(typeof result === 'object' ? JSON.stringify(result) : String(result));
+              }
+            } catch (handlerErr: any) {
+              res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ detail: handlerErr.message || 'Internal server error' }));
+            }
+          });
+
+          return new Promise<RuntimeValue>((resolve, reject) => {
+            server.listen(port, () => {
+              const host = `http://localhost:${port}`;
+              console.log(`\nSesiAPI  →  ${host}`);
+              console.log(`Docs     →  ${host}${docsPath}`);
+              console.log(`OpenAPI  →  ${host}${openapiPath}\n`);
+              const serverObj: Record<string, RuntimeValue> = Object.create(null);
+              serverObj.close = makeBuiltinFn('close', [], (): RuntimeValue => { server.close(); return true; });
+              serverObj.url = host;
+              serverObj.docs_url = `${host}${docsPath}`;
+              serverObj.openapi_url = `${host}${openapiPath}`;
+              resolve(serverObj);
+            });
+            server.on('error', (err: any) => reject(new Error(`SesiAPI server failed: ${err.message}`)));
+          });
+        });
+
+        return appObj;
+      });
+
+      exports.set('create_app', createAppFn);
       return exports;
     }
     return null;

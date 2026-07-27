@@ -1,7 +1,8 @@
 // AI Runtime - Integration with Gemini API
-import { AIRequest, AIResponse, StructuredOutput } from './types';
+import { AIRequest, AIResponse, StructuredOutput, RuntimeValue } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as https from 'https';
 
 function stripPrototypes(val: any): any {
   if (val === null || typeof val !== 'object') {
@@ -23,6 +24,356 @@ export class AIRuntime {
   private embeddingCache: Map<string, number[]> = new Map();
 
   constructor() {}
+
+  private isGPTModel(model: string): boolean {
+    return /^gpt-/i.test(String(model || '').trim());
+  }
+
+  private mapThinkingEffort(thinkingLevel: AIRequest['thinkingLevel']): 'minimal' | 'low' | 'medium' | 'high' | undefined {
+    if (!thinkingLevel) return undefined;
+
+    let level = 'low';
+    let thinking = true;
+
+    if (typeof thinkingLevel === 'object' && thinkingLevel !== null) {
+      thinking = (thinkingLevel as any).thinking !== 'no';
+      level = String((thinkingLevel as any).level || 'low').toLowerCase();
+    } else {
+      level = String(thinkingLevel).toLowerCase();
+      thinking = level !== 'no';
+    }
+
+    if (!thinking) return 'minimal';
+    if (level === 'minimal' || level === 'low' || level === 'medium' || level === 'high') {
+      return level;
+    }
+    return 'low';
+  }
+
+  private async postOpenAIResponses(body: Record<string, any>): Promise<any> {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY is required for GPT model calls.');
+    }
+
+    const payload = JSON.stringify(body);
+
+    const responseText = await new Promise<string>((resolve, reject) => {
+      const req = https.request(
+        {
+          hostname: 'api.openai.com',
+          path: '/v1/responses',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Length': Buffer.byteLength(payload),
+          },
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            const status = res.statusCode || 500;
+            if (status >= 200 && status < 300) {
+              resolve(data);
+              return;
+            }
+            reject(new Error(`OpenAI API request failed (${status}): ${data}`));
+          });
+        }
+      );
+
+      req.on('error', (err) => reject(err));
+      req.write(payload);
+      req.end();
+    });
+
+    try {
+      return stripPrototypes(JSON.parse(responseText));
+    } catch (e: any) {
+      throw new Error(`Failed to parse OpenAI response JSON: ${e.message}`);
+    }
+  }
+
+  private async streamOpenAIResponses(
+    body: Record<string, any>,
+    onDelta: (delta: string) => void | Promise<void>
+  ): Promise<{ text: string; response: any }> {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY is required for GPT model calls.');
+    }
+
+    const payload = JSON.stringify({ ...body, stream: true });
+
+    return await new Promise<{ text: string; response: any }>((resolve, reject) => {
+      const req = https.request(
+        {
+          hostname: 'api.openai.com',
+          path: '/v1/responses',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Length': Buffer.byteLength(payload),
+          },
+        },
+        (res) => {
+          const status = res.statusCode || 500;
+          if (status < 200 || status >= 300) {
+            let errBody = '';
+            res.on('data', (chunk) => {
+              errBody += String(chunk);
+            });
+            res.on('end', () => {
+              reject(new Error(`OpenAI streaming request failed (${status}): ${errBody}`));
+            });
+            return;
+          }
+
+          let buffer = '';
+          let text = '';
+          let finalResponse: any = null;
+          let deltaChain: Promise<void> = Promise.resolve();
+
+          const consumeEvent = (rawEvent: string) => {
+            const trimmed = rawEvent.trim();
+            if (!trimmed) return;
+
+            const lines = trimmed
+              .split('\n')
+              .map((line) => line.trim())
+              .filter((line) => line.startsWith('data:'));
+
+            for (const line of lines) {
+              const data = line.slice(5).trim();
+              if (!data || data === '[DONE]') continue;
+
+              let event: any;
+              try {
+                event = stripPrototypes(JSON.parse(data));
+              } catch {
+                continue;
+              }
+
+              if (event?.type === 'response.error') {
+                reject(new Error(event?.error?.message || 'OpenAI streaming error'));
+                return;
+              }
+
+              if (event?.type === 'response.output_text.delta' && typeof event?.delta === 'string') {
+                text += event.delta;
+                deltaChain = deltaChain.then(async () => {
+                  await onDelta(event.delta);
+                });
+                continue;
+              }
+
+              if (event?.type === 'response.completed' && event?.response) {
+                finalResponse = event.response;
+              }
+            }
+          };
+
+          res.on('data', (chunk) => {
+            buffer += chunk.toString('utf8');
+
+            let boundary = buffer.indexOf('\n\n');
+            while (boundary !== -1) {
+              const frame = buffer.slice(0, boundary);
+              buffer = buffer.slice(boundary + 2);
+              consumeEvent(frame);
+              boundary = buffer.indexOf('\n\n');
+            }
+          });
+
+          res.on('end', () => {
+            if (buffer.trim()) {
+              consumeEvent(buffer);
+            }
+
+            deltaChain
+              .then(() => {
+                resolve({ text, response: finalResponse });
+              })
+              .catch(reject);
+          });
+        }
+      );
+
+      req.on('error', (err) => reject(err));
+      req.write(payload);
+      req.end();
+    });
+  }
+
+  private extractOpenAIToolCall(response: any): { name: string; args: RuntimeValue; call_id?: string } | null {
+    if (!Array.isArray(response?.output)) return null;
+
+    for (const item of response.output) {
+      if (item?.type !== 'function_call' || typeof item?.name !== 'string') continue;
+
+      let parsedArgs: RuntimeValue = Object.create(null);
+      const rawArgs = item?.arguments;
+
+      if (typeof rawArgs === 'string' && rawArgs.trim() !== '') {
+        try {
+          parsedArgs = stripPrototypes(JSON.parse(rawArgs));
+        } catch {
+          parsedArgs = rawArgs;
+        }
+      }
+
+      const toolCall: Record<string, RuntimeValue> = Object.create(null);
+      toolCall.name = item.name;
+      toolCall.args = parsedArgs;
+      if (typeof item.call_id === 'string' && item.call_id.trim() !== '') {
+        toolCall.call_id = item.call_id;
+      }
+
+      return toolCall as { name: string; args: RuntimeValue; call_id?: string };
+    }
+
+    return null;
+  }
+
+  private extractOpenAIText(response: any): string {
+    if (typeof response?.output_text === 'string' && response.output_text.trim() !== '') {
+      return response.output_text;
+    }
+
+    if (Array.isArray(response?.output)) {
+      let text = '';
+      for (const item of response.output) {
+        if (!Array.isArray(item?.content)) continue;
+        for (const part of item.content) {
+          if (part?.type === 'output_text' && typeof part?.text === 'string') {
+            text += part.text;
+          }
+        }
+      }
+      if (text.trim() !== '') {
+        return text;
+      }
+    }
+
+    return '';
+  }
+
+  private async callGPTModel(request: AIRequest): Promise<AIResponse> {
+    if (request.images && request.images.length > 0) {
+      throw new Error('GPT model calls currently support text-only prompts in Sesi.');
+    }
+    if (request.search) {
+      throw new Error('search is currently not supported for GPT model calls in Sesi.');
+    }
+    const effort = this.mapThinkingEffort(request.thinkingLevel);
+    const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
+    const fullPrompt = timeContext + request.prompt;
+
+    const body: Record<string, any> = {
+      model: request.model,
+      input: fullPrompt,
+    };
+
+    if (request.temperature !== undefined) body.temperature = request.temperature;
+    if (request.maxTokens !== undefined) body.max_output_tokens = request.maxTokens;
+    if (request.topP !== undefined) body.top_p = request.topP;
+    if (effort) body.reasoning = { effort };
+    if (request.tools && request.tools.length > 0) body.tools = request.tools;
+
+    if (request.stream) {
+      const streamed = await this.streamOpenAIResponses(body, async (delta: string) => {
+        if (typeof request.stream === 'function') {
+          await request.stream(delta);
+        } else if (request.stream === true) {
+          process.stdout.write(delta);
+        }
+      });
+
+      const toolCall = this.extractOpenAIToolCall(streamed.response);
+      if (toolCall) {
+        const usage = streamed.response?.usage || {};
+        return {
+          text: JSON.stringify(toolCall),
+          finishReason: 'TOOL_CALL',
+          usage: {
+            inputTokens: usage.input_tokens ?? 0,
+            outputTokens: usage.output_tokens ?? 0,
+          },
+        };
+      }
+
+      const text = streamed.text.trim() !== ''
+        ? streamed.text
+        : this.extractOpenAIText(streamed.response);
+      if (!text.trim()) {
+        throw new Error('Returned no text output from GPT model.');
+      }
+
+      const finishReason = String(streamed.response?.status || 'completed').toUpperCase();
+      const usage = streamed.response?.usage || {};
+      return {
+        text,
+        finishReason,
+        usage: {
+          inputTokens: usage.input_tokens ?? 0,
+          outputTokens: usage.output_tokens ?? 0,
+        },
+      };
+    }
+
+    const response = await this.postOpenAIResponses(body);
+    const toolCall = this.extractOpenAIToolCall(response);
+    if (toolCall) {
+      const usage = response?.usage || {};
+      return {
+        text: JSON.stringify(toolCall),
+        finishReason: 'TOOL_CALL',
+        usage: {
+          inputTokens: usage.input_tokens ?? 0,
+          outputTokens: usage.output_tokens ?? 0,
+        },
+      };
+    }
+
+    const text = this.extractOpenAIText(response);
+    if (!text.trim()) {
+      throw new Error('Returned no text output from GPT model.');
+    }
+
+    const finishReason = String(response?.status || 'completed').toUpperCase();
+    const usage = response?.usage || {};
+
+    return {
+      text,
+      finishReason,
+      usage: {
+        inputTokens: usage.input_tokens ?? 0,
+        outputTokens: usage.output_tokens ?? 0,
+      },
+    };
+  }
+
+  private normalizeModelName(model: string): string {
+    const value = String(model || '').trim();
+    if (!value) {
+      return value;
+    }
+
+    if (value.startsWith('models/') || value.startsWith('projects/') || value.startsWith('publishers/')) {
+      return value;
+    }
+
+    if (value.includes('/')) {
+      return value;
+    }
+
+    return `models/${value}`;
+  }
 
   private get client() {
     if (!this._client) {
@@ -105,6 +456,67 @@ export class AIRuntime {
     return parts;
   }
 
+  async synthesizeSpeech(text: string, voice: string = 'Vindemiatrix', model: string = 'gemini-2.5-flash-preview-tts'): Promise<string> {
+    const response = await this.client.models.generateContent({
+      model: this.normalizeModelName(model),
+      contents: [{ role: 'user', parts: [{ text }] }],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
+      },
+    });
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (typeof part.inlineData?.data === 'string' && part.inlineData.data !== '') {
+        const mimeType = part.inlineData.mimeType || 'audio/L16;rate=24000';
+        const pcmBuffer = Buffer.from(part.inlineData.data, 'base64');
+
+        // Extract sample rate from mime type (e.g. "audio/L16;rate=24000")
+        const rateMatch = mimeType.match(/rate=(\d+)/i);
+        const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+        const numChannels = 1;
+        const bitsPerSample = 16;
+        const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+        const blockAlign = numChannels * (bitsPerSample / 8);
+        const dataSize = pcmBuffer.length;
+        const wavHeader = Buffer.alloc(44);
+        // RIFF chunk
+        wavHeader.write('RIFF', 0);
+        wavHeader.writeUInt32LE(36 + dataSize, 4);
+        wavHeader.write('WAVE', 8);
+        // fmt sub-chunk
+        wavHeader.write('fmt ', 12);
+        wavHeader.writeUInt32LE(16, 16);           // sub-chunk size
+        wavHeader.writeUInt16LE(1, 20);            // PCM = 1
+        wavHeader.writeUInt16LE(numChannels, 22);
+        wavHeader.writeUInt32LE(sampleRate, 24);
+        wavHeader.writeUInt32LE(byteRate, 28);
+        wavHeader.writeUInt16LE(blockAlign, 32);
+        wavHeader.writeUInt16LE(bitsPerSample, 34);
+        // data sub-chunk
+        wavHeader.write('data', 36);
+        wavHeader.writeUInt32LE(dataSize, 40);
+
+        const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
+        return wavBuffer.toString('base64');
+      }
+    }
+    throw new Error('Speech generation returned no audio output.');
+  }
+
+
+  async transcribeSpeech(audioData: string, mimeType: string, language?: string, model: string = 'gemini-3.5-flash-lite'): Promise<string> {
+    const languageInstruction = language && language.trim() !== ''
+      ? ` The spoken language is ${language}; preserve it in the transcript.`
+      : '';
+    const response = await this.callModel({
+      model,
+      prompt: `Transcribe this audio accurately. Return only the transcript, without commentary, timestamps, or labels.${languageInstruction}`,
+      cache: false,
+      audio: { data: audioData, mimeType },
+    });
+    return response.text;
+  }
+
   async callModel(request: AIRequest): Promise<AIResponse> {
     const useCache = request.cache !== false;
     let cacheHash = '';
@@ -126,7 +538,18 @@ export class AIRuntime {
     }
 
     try {
+      if (this.isGPTModel(request.model)) {
+        const gptResponse = await this.callGPTModel(request);
+        if (useCache) {
+          const cache = this.readCache();
+          cache[cacheHash] = gptResponse;
+          this.writeCache(cache);
+        }
+        return gptResponse;
+      }
+
       const client = this.client;
+      const resolvedModel = this.normalizeModelName(request.model);
       
       // Inject current date/time for context
       const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
@@ -179,7 +602,7 @@ export class AIRuntime {
         if (thinkingConfig) configObj.thinkingConfig = thinkingConfig;
 
         const response = await client.models.generateContent({
-          model: request.model,
+          model: resolvedModel,
           contents: request.images && request.images.length > 0
             ? [{ role: 'user', parts: [...this.resolveImageParts(request.images), { text: request.prompt }] }]
             : request.prompt,
@@ -239,16 +662,19 @@ export class AIRuntime {
       const imageParts: any[] = request.images && request.images.length > 0
         ? this.resolveImageParts(request.images)
         : [];
+      const audioParts: any[] = request.audio
+        ? [{ inlineData: { mimeType: request.audio.mimeType, data: request.audio.data } }]
+        : [];
 
       contents.push({
         role: 'user',
-        parts: [...imageParts, { text: fullPrompt }],
+        parts: [...imageParts, ...audioParts, { text: fullPrompt }],
       });
 
       while (!isComplete && currentPoll < maxPolls) {
         const genConfig: any = {
-            temperature: request.temperature ?? 0.1,
-            maxOutputTokens: request.maxTokens ?? 4096,
+            temperature: request.temperature ?? 0.3,
+            maxOutputTokens: request.maxTokens ?? 8192,
             topK: request.topK,
             topP: request.topP,
         };
@@ -269,7 +695,7 @@ export class AIRuntime {
         let response: any;
         if (request.stream) {
           const responseStream = await client.models.generateContentStream({
-            model: request.model,
+            model: resolvedModel,
             contents: contents,
             config: genConfig,
           });
@@ -325,7 +751,7 @@ export class AIRuntime {
           };
         } else {
           response = await client.models.generateContent({
-            model: request.model,
+            model: resolvedModel,
             contents: contents,
             config: genConfig,
           });
@@ -490,7 +916,7 @@ export class AIRuntime {
     for (const model of models) {
       try {
         const response = await client.models.embedContent({
-          model,
+          model: this.normalizeModelName(model),
           contents: text,
         });
         const embedding: number[] = response.embeddings?.[0]?.values

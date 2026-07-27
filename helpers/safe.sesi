@@ -6,13 +6,16 @@
 allow "std/time" in with Time
 
 // Resilience Helper: Safe file read with retry logic
-export fn readFile(path: string) -> string {
+export fn readFile(path: string, mode: string) -> string {
   let result = ""
   let success = false
   let attempts = 0
   while !success && attempts < 3 {
     try {
-      result = read_file(path)
+      if mode == "" || mode == null {
+        mode = "text"
+      }
+      result = read_file(path, mode)
       success = true
     } catch (err) {
       attempts = attempts + 1
@@ -60,14 +63,7 @@ export fn appendFile(path: str, content: str) -> bool {
   let attempts = 0
   while !success && attempts < 3 {
     try {
-      let existing = ""
-      try {
-        existing = readFile(path)
-      } catch (e) {}
-      if len(existing) > 0 && !ends_with(existing, "\n") {
-        existing = existing + "\n"
-      }
-      writeFile(path, existing + content)
+      append_file(path, content)
       success = true
     } catch (err) {
       attempts = attempts + 1

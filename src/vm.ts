@@ -447,22 +447,44 @@ export class VM {
 
             const config    = this.pop() as Record<string, any> | null;
             const promptVal = this.pop();
-            const modelName = this.pop() as string;
+            const modelNameVal = this.pop();
             const promptStr = typeof promptVal === 'string' ? promptVal : stringify(promptVal);
+            const modelName = typeof modelNameVal === 'string' ? modelNameVal : stringify(modelNameVal);
+
+            const cfg = config || Object.create(null);
+            const pick = (...keys: string[]): any => {
+              for (const key of keys) {
+                if (Object.prototype.hasOwnProperty.call(cfg, key)) return cfg[key];
+              }
+              return undefined;
+            };
 
             const resolvedModel = this.interpreter && typeof this.interpreter.resolveModelName === 'function'
               ? this.interpreter.resolveModelName(modelName)
               : modelName;
 
+            let rawStream = pick('stream', 'onChunk', 'on_chunk');
+            let streamVal: any = rawStream;
+            if (typeof rawStream === 'object' && rawStream !== null && (rawStream as any).type === 'function') {
+              const sesiFn = rawStream;
+              const selfVM = this;
+              streamVal = async (chunk: string) => {
+                if (selfVM.interpreter && typeof selfVM.interpreter.callSesiFunction === 'function') {
+                  await selfVM.interpreter.callSesiFunction(sesiFn, [chunk]);
+                }
+              };
+            }
+
             const response = await aiRuntime.callModel({
               model: resolvedModel,
               prompt: promptStr,
-              temperature: config?.temperature as number | undefined,
-              maxTokens: config?.max_tokens as number | undefined,
-              thinkingLevel: config?.thinkingLevel as any,
-              cache: config?.cache as boolean | undefined,
-              search: config?.search as boolean | undefined,
-              stream: config?.stream as any,
+              temperature: pick('temperature', 'temp') as number | undefined,
+              maxTokens: pick('max_tokens', 'maxTokens', 'maxT') as number | undefined,
+              thinkingLevel: pick('thinkingLevel', 'thinking', 'effort', 'reasoning') as any,
+              cache: pick('cache', 'cached') as boolean | undefined,
+              search: pick('search', 'grounding') as boolean | undefined,
+              stream: streamVal,
+              tools: Array.isArray(pick('tools', 'toolSchemas', 'tool_schemas')) ? pick('tools', 'toolSchemas', 'tool_schemas') as any[] : undefined,
             });
             this.push(response.text);
             break;
@@ -473,14 +495,16 @@ export class VM {
             this.readByte(frame);
             const config    = this.pop() as Record<string, any> | null;
             const promptVal = this.pop();
-            const modelName = this.pop() as string;
+            const modelNameVal = this.pop();
+            const modelName = typeof modelNameVal === 'string' ? modelNameVal : stringify(modelNameVal);
 
             if (this.interpreter && typeof (this.interpreter as any).evaluateImageCall === 'function') {
               const syntheticExpr: any = {
                 type: 'ImageCallExpression',
-                modelName,
+                modelName: { type: 'Literal', value: modelName, rawType: 'string', line: 0 },
                 config: config ? Object.fromEntries(Object.entries(config).map(([k, v]) => [k, { type: 'Literal', value: v }])) : undefined,
                 prompt: { type: 'Literal', value: promptVal },
+                line: 0,
               };
               const result = await (this.interpreter as any).evaluateImageCall(syntheticExpr);
               this.push(result);

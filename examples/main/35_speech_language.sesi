@@ -1,0 +1,52 @@
+/*
+  Example 35: Speech, Transcription, and Translation
+
+  Uses Whisper for transcription, the translate package for translation, and
+  the operating-system voice for speech.
+*/
+
+let modelFound = js("const c=require('nodejs-whisper/dist/constants');const fs=require('fs');const p=require('path');console.log(fs.existsSync(p.join(c.WHISPER_CPP_PATH,'models','ggml-base.en.bin'))?'yes':'no')")
+if trim(modelFound) == "yes" {
+  print "Whisper model already installed."
+} else {
+  // Download a Whisper model if not installed
+  print "Downloading Whisper model..."
+  exec("npx nodejs-whisper download base.en")
+}
+
+let tts = input("Text to speak: ")
+let fromLang = input("Source language (default: en): ")
+if is_null(fromLang) || fromLang == "" {
+  fromLang = "en"
+}
+let toLang = input("Target language (default: es): ")
+if is_null(toLang) || toLang == "" {
+  toLang = "es"
+}
+
+if tts == "" {
+  print "No text was provided."
+} else {
+  let audio = speech(tts, "Vindemiatrix", "gemini-2.5-flash-preview-tts")
+  speech(tts); allow "std/time" in with {sleep} sleep(2000)
+  write_file("audio_text.wav", audio, "base64")
+  let audioPath = "audio_text.wav"
+  let transcript = ""
+  try {
+    transcript = from_speech(audioPath, toLang)
+  } catch (e) {
+    print "Error transcribing audio:" e
+  }
+  trash(audioPath, true)
+
+  // Skip translation when transcription failed or returned empty text.
+  if is_null(transcript) || trim(transcript) == "" || includes(transcript, "Error:") {
+    print "Unable to transcribe audio. Skipping translation."
+  } else {
+    let translated = translate(transcript, toLang, fromLang)
+    speech(translated)
+
+    print "Original language transcribed (" fromLang "):" transcript
+    print "Translated language transcribed (" toLang "):" translated
+  }
+}

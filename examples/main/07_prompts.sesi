@@ -1,8 +1,8 @@
 // Prompt blocks - composable text templates
 allow "std/terminal" in with { color }
 
-prompt greetingTemplate {"Hello! " "How are you today?"}
-prompt responseTemplate {greetingTemplate " I hope you're having a great day!"}
+prompt greetingTemplate {"Hello! How are you today?"}
+prompt responseTemplate {greetingTemplate "I hope you're having a great day!"}
 
 // Prompts evaluate to strings
 let greeting = responseTemplate
@@ -10,27 +10,44 @@ print color(greeting, "cyan")
 
 // Prompts can use variables
 let userName = "Alice"
-prompt personalGreeting {"Hello, " userName "! Welcome back!"}
+prompt personalGreeting {"Hello, "userName"! Welcome back!"}
 print color(personalGreeting, "magenta")
 
 // You can really explore the power of prompt blocks by using it to structure your outputs
-prompt htmlHead {"<!DOCTYPE html>
-<html lang='en'>
-<head>
-    <meta charset='UTF-8'>
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <title>Document</title>
-</head>
-"}
-prompt htmlBody {"<body>
-    <h1>Hello World!</h1>
-    <p>This is a paragraph</p>
-</body>
-"}
-prompt htmlFooter {"</html>"}
-prompt htmlLayout {htmlHead htmlBody htmlFooter}
+prompt title {"Document"}
+
+prompt css {"<style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #333; }
+</style>"}
+
+prompt body {"  <h1>Hello Sesi!</h1>
+    <p>This is a sentence.</p>
+    <p>Here's a list:</p>
+    <ul>
+        <li>Item 1</li>
+        <li>Item 2</li>
+        <li>Item 3</li>
+    </ul>
+    <p>And here's a table:</p>
+    <table border='1'>
+        <tr>
+            <th>Header 1</th>
+            <th>Header 2</th>
+        </tr>
+        <tr>
+            <td>Data 1</td>
+            <td>Data 2</td>
+        </tr>
+        <tr>
+            <td>Data 3</td>
+            <td>Data 4</td>
+        </tr>
+    </table>
+    <p>Goodbye!</p>"}
+let htmlPage = html(body, {"title": title, "head": css, "lang": "en"})
 try {
-    write_file("index.html", htmlLayout)
+    write_file("index.prompt.html", htmlPage)
     print color("HTML file created successfully!", "green", "bold")
 } catch(error) {
     print color("Error creating HTML file: " + str(error), "red")

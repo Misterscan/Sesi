@@ -1983,7 +1983,7 @@ runBtn.innerText = "Running...";
 runBtn.disabled = true;
 saveActiveFile().then(() => {
 // Send execution command directly into terminal shell input
-const cmd = `sesi -l ${window.activeFilePath}\r`;
+const cmd = `sesi --cli -l ${window.activeFilePath}\r`;
 window.terminalSocket.send(JSON.stringify({ type: 'input', data: cmd }));
 setTimeout(() => {
 runBtn.innerText = originalText;

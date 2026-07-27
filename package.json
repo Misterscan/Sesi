@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.6.7",
+  "version": "1.7.0",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -33,7 +33,7 @@
     "debug": "SESI_DEBUG=1 sesi --cli",
     "repl": "sesi",
     "dev": "dotenvx run -- npm run build --watch",
-    "test": "tsx tests/basic.test.ts && tsx tests/module.test.ts && tsx tests/cache.test.ts && tsx tests/http.test.ts && tsx tests/workflow.test.ts && tsx tests/security.test.ts",
+    "test": "tsx tests/basic.test.ts && tsx tests/module.test.ts && tsx tests/cache.test.ts && tsx tests/http.test.ts && tsx tests/workflow.test.ts && tsx tests/security.test.ts && tsx tests/v2_features.test.ts && tsx tests/openai_gpt_runtime.test.ts",
     "test:watch": "tsx watch tests/basic.test.ts",
     "sesi": "sesi --cli",
     "sesi:local": "sesi --cli -l",
@@ -62,7 +62,7 @@
     "example:ai": "node --no-deprecation example-ai.js",
     "example:all": "sesi -l examples.sesi",
     "tutorial": "sesi -l tutorial/interactive_web_tutorial.sesi",
-    "tutorial:cli": "sesi -l tutorial/tutorial.sesi",
+    "tutorial:cli": "sesi --cli -l tutorial/tutorial.sesi",
     "upload": "npm run build && npm publish --access public",
     "version:bump": "sesi -l helpers/version-bump.sesi"
   },
@@ -79,17 +79,21 @@
   "author": "Misterscan",
   "license": "MIT",
   "dependencies": {
-    "@dotenvx/dotenvx": "2.17.1",
+    "@dotenvx/dotenvx": "2.18.0",
     "@dotenvx/dotenvx-armor": "0.56.1",
     "@dotenvx/dotenvx-ops": "0.56.1",
     "@google/genai": "2.13.0",
     "blessed": "^0.1.81",
     "html-to-text": "10.0.0",
     "image-size": "^2.0.2",
-    "js-yaml": "5.2.1",
+    "js-tiktoken": "^1.0.21",
+    "js-yaml": "^5.2.2",
     "marked": "18.0.7",
-    "playwright": "^1.61.1",
+    "nodejs-whisper": "^0.3.0",
+    "playwright": "1.62.0",
+    "translate": "^3.0.1",
     "turndown": "7.2.4",
+    "whisper-cli": "1.4.1",
     "ws": "8.21.1"
   },
   "devDependencies": {

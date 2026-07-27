@@ -1,61 +1,104 @@
-/* Sesi Tutorial Server
-Start with: npm run tutorial */
+/*
+  Sesi interactive tutorial server
+
+  Start it from the repository root:
+    npm run tutorial
+
+  The browser sends code to POST /run. Each request is written to a uniquely
+  named file, checked by Sesi, executed in safe mode, and then deleted.
+*/
 
 let PORT = 8080
+let FRONTEND = "tutorial/tutorial_frontend.html"
+let MAX_CODE_LENGTH = 50000
 
-async fn handleRequest(req) {
-  if req.method == "GET" && req.path == "/" {
-    try {
-      let frontendHtml = "tutorial/tutorial_frontend.html"
-      let html = read_file(frontendHtml)
-      return {
-        "status": 200,
-        "headers": {"Content-Type": "text/html"},
-        "body": html
-      }
-    } catch (err) {
-      return {"status": 500, "body": "Error loading frontend. Make sure tutorial_frontend.html exists."}
-    }
-  }
-
-  if req.method == "POST" && req.path == "/run" {
-    try {
-      let payload = from_json(req.body)
-      let code = payload["code"]
-      let tempFile = "tutorial/.tmp_run.sesi"
-      
-      write_file(tempFile, code)
-      
-      // We run the user's code in a separate Sesi process to avoid blocking the main server.
-      let out = sesi(tempFile, true)
-      trash(tempFile, true) // Clean up the temporary file
-      
-      return {
-        "status": 200,
-        "headers": {"Content-Type": "application/json"},
-        "body": to_json({"output": out})
-      }
-    } catch (err) {
-      return {
-        "status": 200, // Return 200 so the frontend can display the error nicely
-        "headers": {"Content-Type": "application/json"},
-        "body": to_json({"error": str(err)})
-      }
-    }
-  }
-
+fn json_response(status, payload) {
   return {
-    "status": 404,
-    "body": "Not found"
+    "status": status,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
+    },
+    "body": to_json(payload)
   }
 }
 
+fn handleRequest(req) {
+  if req.method == "GET" && req.path == "/" {
+    try {
+      return {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff"
+        },
+        "body": read_file(FRONTEND)
+      }
+    } catch (err) {
+      return {
+        "status": 500,
+        "headers": {"Content-Type": "text/plain; charset=utf-8"},
+        "body": "Could not load tutorial/tutorial_frontend.html.\n" + str(err)
+      }
+    }
+  }
+
+  if req.method == "GET" && req.path == "/health" {
+    return json_response(200, {"ok": true, "service": "sesi-tutorial"})
+  }
+
+  if req.method == "POST" && req.path == "/run" {
+    let temp_file = null
+    let response = null
+
+    try {
+      let payload = from_json(req.body)
+      let code = payload["code"]
+
+      if type(code) != "string" {
+        return json_response(400, {"error": "The request must include a string field named 'code'."})
+      }
+
+      if len(trim(code)) == 0 {
+        return json_response(400, {"error": "Write some Sesi code before running the lesson."})
+      }
+
+      if len(code) > MAX_CODE_LENGTH {
+        return json_response(413, {"error": "Code is limited to 50,000 characters in the tutorial."})
+      }
+
+      temp_file = "tutorial/.tmp_run_" + str(time()) + ".sesi"
+      write_file(temp_file, code)
+
+      // sesi() runs in-process and returns an empty string after execution, so
+      // compile-check here and use the CLI process to capture printed stdout.
+      sesi(temp_file, false, true)
+      let out = exec("sesi --cli " + temp_file)
+
+      response = json_response(200, {"output": out})
+    } catch (err) {
+      response = json_response(200, {"error": str(err)})
+    }
+
+    if temp_file != null {
+      try {
+        trash(temp_file, true)
+      } catch (cleanup_error) {}
+    }
+
+    return response
+  }
+
+  return json_response(404, {"error": "Not found"})
+}
+
 print "======================================================"
-print "⚡ Sesi Tutorial is online!"
-print "Open your browser to: http://localhost:8080"
+print "⚡ Sesi Learning Lab is online!"
 print "======================================================"
 
 let server = listen(PORT, handleRequest)
+open("http://localhost:" + str(PORT) + "/")
 
-let end = input("Press Enter to stop the server...")
+let end = input("Press Enter to stop the server...\n")
 server.close(end)
