@@ -49,6 +49,7 @@ import { imageSize } from 'image-size';
 import yaml from 'js-yaml';
 import { marked } from 'marked';
 import TurndownService from 'turndown';
+import { estimateTokenCost } from './token-pricing';
 
 export class Interpreter {
   private globalEnv: Environment;
@@ -57,6 +58,7 @@ export class Interpreter {
   private memory: Map<string, string> = new Map();
   private modelAliases: Map<string, string> = new Map();
   private customTools: Map<string, { fn: RuntimeFunction; description?: string }> = new Map();
+  private lastModelUsage: RuntimeValue = null;
   public exports: Map<string, RuntimeValue> = new Map();
   private scriptDir: string | undefined;
 
@@ -97,6 +99,38 @@ export class Interpreter {
     for (const [name, fn] of builtins) {
       this.globalEnv.define(name, fn);
     }
+  }
+
+  public recordModelUsage(
+    model: string,
+    usage?: { inputTokens?: number; outputTokens?: number; thinkingTokens?: number },
+    cached: boolean = false,
+  ): void {
+    const inputTokens = Math.max(0, Math.floor(usage?.inputTokens ?? 0));
+    const outputTokens = Math.max(0, Math.floor(usage?.outputTokens ?? 0));
+    const thinkingTokens = Math.max(0, Math.floor(usage?.thinkingTokens ?? 0));
+    const billableOutputTokens = outputTokens + thinkingTokens;
+    const estimate = estimateTokenCost(model, inputTokens, billableOutputTokens);
+    this.lastModelUsage = {
+      model: String(model).replace(/^models\//, ''),
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      thinking_tokens: thinkingTokens,
+      billable_output_tokens: billableOutputTokens,
+      total_tokens: inputTokens + billableOutputTokens,
+      cached,
+      input_rate_per_million: estimate?.inputPerMillion ?? null,
+      output_rate_per_million: estimate?.outputPerMillion ?? null,
+      input_cost_usd: estimate?.inputCostUsd ?? null,
+      output_cost_usd: estimate?.outputCostUsd ?? null,
+      total_cost_usd: estimate?.totalCostUsd ?? null,
+      pricing_source: estimate?.source ?? null,
+      pricing_as_of: estimate?.asOf ?? null,
+    };
+  }
+
+  public getLastModelUsage(): RuntimeValue {
+    return this.lastModelUsage;
   }
 
   /**
@@ -894,8 +928,9 @@ export class Interpreter {
     const temperatureRaw = getConfig('temperature', 'temp');
     const maxTokensRaw = getConfig('max_tokens', 'maxTokens', 'maxT');
 
+    const resolvedModelName = this.resolveModelName(rawModelName);
     const response = await aiRuntime.callModel({
-      model: this.resolveModelName(rawModelName),
+      model: resolvedModelName,
       prompt: promptText,
       temperature: typeof temperatureRaw === 'number' ? temperatureRaw : undefined,
       maxTokens: typeof maxTokensRaw === 'number' ? maxTokensRaw : undefined,
@@ -907,6 +942,7 @@ export class Interpreter {
       tools,
     });
 
+    this.recordModelUsage(resolvedModelName, response.usage, response.cached === true);
     return response.text;
   }
 

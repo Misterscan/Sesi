@@ -15,12 +15,12 @@ Place string literals and variable names sequentially inside the braces. Sesi jo
 
 ```sesi
 let name    = "Ada"
-let version = "1.7.0"
+let version = "1.7.1"
 
 prompt header {"Welcome to Sesi "version". Hello, "name}
 ```
 
-`header` now holds the composed string `"Welcome to Sesi 1.7.0. Hello, Ada"`.
+`header` now holds the composed string `"Welcome to Sesi 1.7.1. Hello, Ada"`.
 
 > **Rule:** Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error — they are treated as statement separators. Newlines that live inside a string literal are fine.
 
@@ -32,11 +32,11 @@ A prompt block is a value. Pass it to `print` like any other variable:
 
 ```sesi
 let lang = "Sesi"
-let ver  = "1.7.0"
+let ver  = "1.7.1"
 
 prompt title {"Welcome to "lang ver}
 
-print title   // Welcome to Sesi 1.7.0
+print title   // Welcome to Sesi 1.7.1
 ```
 
 ---

@@ -1,22 +1,22 @@
 /* 
-  svg_badge.sesi
+  svg-badge.sesi
   Generate a simple SVG badge.
 
 Usage:
-    npm run sesi helpers/svg_badge.sesi <label> <value> <color> <output>
+    sesi helpers/svg-badge.sesi <label> <value> <color> <output>
 
 Examples:
-    npm run sesi helpers/svg_badge.sesi Sesi passing "#22c55e" badge.svg
+    sesi helpers/svg-badge.sesi Sesi passing "#22c55e" badge.svg
 */
 
 allow "std/draw" in with Draw
 
 fn show_help() {
   print "Usage:"
-  print "  npm run sesi helpers/svg_badge.sesi <label> <value> <color> <output>"
+  print "  sesi helpers/svg-badge.sesi <label> <value> <color> <output>"
   print ""
   print "Example:"
-  print "  npm run sesi helpers/svg_badge.sesi Sesi passing \"#22c55e\" badge.svg"
+  print "  sesi helpers/svg-badge.sesi Sesi passing \"#22c55e\" badge.svg"
 }
 
 fn estimate_width(text: str) -> num {

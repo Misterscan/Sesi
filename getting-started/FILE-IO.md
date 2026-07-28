@@ -26,14 +26,19 @@ try {
 }
 ```
 
-### `write_file(path, content)`
+### `write_file(path, content, encoding = null)`
 
-Writes string content to a file. If the file already exists, it is overwritten. If it doesn't exist, it is created.
+Writes content to a file. If the file already exists, it is overwritten. If it doesn't exist, it is created.
+
+- Default (`encoding = null`): writes UTF-8 text.
+- `encoding = "base64"`: decodes Base64 text and writes raw bytes.
 
 ```sesi
 let content = "Hello from Sesi!"
 try {
   write_file("output.txt", content)
+  let image_b64 = read_file("logo.png", "base64")
+  write_file("logo-copy.png", image_b64, "base64")
   print "Successfully wrote output.txt"
 } catch (err) {
   print "Failed to write file:" err

@@ -539,9 +539,11 @@ export interface AIRequest {
 export interface AIResponse {
   text: string;
   finishReason?: string;
+  cached?: boolean;
   usage?: {
     inputTokens: number;
     outputTokens: number;
+    thinkingTokens?: number;
   };
 }
 

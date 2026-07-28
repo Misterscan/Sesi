@@ -726,6 +726,7 @@ function analyzeScope(tokens, decls, refs) {
         tokenScopes.set(tok, currentScope);
         
         if (tok.type === 'FN' || tok.type === 'MAKE') {
+            const isMakeMethod = tok.type === 'FN' && currentScope.isMakeScope;
             const nameTok = tokens[i + 1];
             if (nameTok && nameTok.type === 'IDENTIFIER') {
                 currentScope.declare(nameTok.lexeme, {
@@ -753,7 +754,8 @@ function analyzeScope(tokens, decls, refs) {
                             currentScope.declare(paramTok.lexeme, {
                                 token: paramTok,
                                 type: 'parameter',
-                                readCount: 0
+                                readCount: 0,
+                                suppressUnused: isMakeMethod && paramTok.lexeme === 'self'
                             });
                         }
                     }
@@ -769,7 +771,8 @@ function analyzeScope(tokens, decls, refs) {
                 currentScope.declare(varTok.lexeme, {
                     token: varTok,
                     type: 'loop_variable',
-                    readCount: 0
+                    readCount: 0,
+                    suppressUnused: true
                 });
             }
         }
@@ -848,13 +851,22 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'speech', 'from_speech', 'translate', 'len', 'read_file', 'write_file', 'append_file', 'write_image', 'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'trunc', 'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call', 'spawn', 'exec', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split', 'tokenize', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
-        'string', 'number', 'bool', 'array', 'any', 'object', 'num', 'str', 'null', 'dict', 'int', 'float',
-        'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null', 'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
-        // Audio & Theory
-        'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
-        // Draw
-        'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw'
+        'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json',
+  'speech', 'from_speech', 'translate', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
+  'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'trunc',
+  'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call',
+  'spawn', 'exec', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split',
+  'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log',
+  'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req',
+  'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
+  'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input',
+  'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
+  'string', 'number', 'bool', 'array', 'object', 'num', 'str', 'null', 'float',
+  'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null',
+  'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
+  'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
+  'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw',
+  'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage'
     ]);
     
     for (const ref of refs) {
@@ -885,7 +897,13 @@ function analyzeScope(tokens, decls, refs) {
             // and never appear as bare identifier references.
             if (!scope.isMakeScope) {
                 for (const [name, decl] of scope.variables.entries()) {
-                    if (decl.readCount === 0 && decl.type !== 'catch_variable' && name !== 'req' && !name.startsWith('_')) {
+                    if (
+                        decl.readCount === 0 &&
+                        !decl.suppressUnused &&
+                        decl.type !== 'catch_variable' &&
+                        name !== 'req' &&
+                        !name.startsWith('_')
+                    ) {
                         diagnostics.push({
                             type: 'warning',
                             token: decl.token,
@@ -1393,7 +1411,31 @@ function activate(context) {
             signature: 'tokenize(string, options = null)',
             source: 'String Utility Standard Library',
             description: 'Tokenizes text into model token IDs using OpenAI-compatible tiktoken-style encoding.',
-            example: 'let ids = tokenize("Hello world")\nprint len(ids)\n\nlet ids2 = tokenize("Hello world", {"model": "gpt-4o"})\nprint ids2\n\nlet words = tokenize("one two", "simple")\nprint words'
+            example: 'let ids = tokenize("Hello world")\nprint len(ids)\n\nlet ids2 = tokenize("Hello world", {"model": "gpt-5.6-sol"})\nprint ids2\n\nlet words = tokenize("one two", "simple")\nprint words'
+        },
+        'count_tokens': {
+            signature: 'count_tokens(string, options = null)',
+            source: 'AI Utility Standard Library',
+            description: 'Counts request tokens through the native OpenAI or Gemini provider endpoint.',
+            example: 'let count = count_tokens("Hello world", "gemini-3.5-flash")'
+        },
+        'estimate_tokens': {
+            signature: 'estimate_tokens(string, options = null)',
+            source: 'AI Utility Standard Library',
+            description: 'Estimates tokens locally, explicitly allowing fallback encoding for non-OpenAI models.',
+            example: 'let approximate = estimate_tokens(text, "gemini-3.6-flash")'
+        },
+        'estimate_cost': {
+            signature: 'estimate_cost(model, input, output = 0, rates = null)',
+            source: 'AI Utility Standard Library',
+            description: 'Estimates paid-tier text-token cost in USD from counts or text.',
+            example: 'let cost = estimate_cost("gpt-5.6-terra", prompt, 500)\nprint cost["total_cost_usd"]'
+        },
+        'model_usage': {
+            signature: 'model_usage()',
+            source: 'AI Utility Standard Library',
+            description: 'Returns provider-reported tokens and estimated cost for the latest model call.',
+            example: 'let answer = model("gemini-3.5-flash-lite") {"Hello"}\nprint model_usage()'
         },
         'keys': {
             signature: 'keys(collection)',

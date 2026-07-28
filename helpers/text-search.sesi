@@ -1,34 +1,34 @@
 /* 
-    text_search.sesi
+    text-search.sesi
     Sesi-native grep substitute.
 
 Usage:
-    npm run sesi helpers/text_search.sesi file <path> <query>
-    npm run sesi helpers/text_search.sesi folder <path> <query>
-    npm run sesi helpers/text_search.sesi folder <path> <query> --ext sesi
-    npm run sesi helpers/text_search.sesi folder <path> <query> --skip node_modules --skip reports
-    npm run sesi helpers/text_search.sesi folder <path> <query> --ext sesi --json reports/search.json
+    sesi helpers/text-search.sesi file <path> <query>
+    sesi helpers/text-search.sesi folder <path> <query>
+    sesi helpers/text-search.sesi folder <path> <query> --ext sesi
+    sesi helpers/text-search.sesi folder <path> <query> --skip node_modules --skip reports
+    sesi helpers/text-search.sesi folder <path> <query> --ext sesi --json reports/search.json
 
 Examples:
-    npm run sesi helpers/text_search.sesi file README.md Sesi
-    npm run sesi helpers/text_search.sesi folder . TODO
-    npm run sesi helpers/text_search.sesi folder . TODO --ext sesi
-    npm run sesi helpers/text_search.sesi folder . TODO --ext sesi --skip node_modules --json reports/todos.json
+    sesi helpers/text-search.sesi file README.md Sesi
+    sesi helpers/text-search.sesi folder . TODO
+    sesi helpers/text-search.sesi folder . TODO --ext sesi
+    sesi helpers/text-search.sesi folder . TODO --ext sesi --skip node_modules --json reports/todos.json
 */
 
 fn show_help() {
   print "Usage:"
-  print "  npm run sesi helpers/text_search.sesi file <path> <query>"
-  print "  npm run sesi helpers/text_search.sesi folder <path> <query>"
-  print "  npm run sesi helpers/text_search.sesi folder <path> <query> --ext <extension>"
-  print "  npm run sesi helpers/text_search.sesi folder <path> <query> --skip <name>"
-  print "  npm run sesi helpers/text_search.sesi folder <path> <query> --json <output>"
+  print "  sesi helpers/text-search.sesi file <path> <query>"
+  print "  sesi helpers/text-search.sesi folder <path> <query>"
+  print "  sesi helpers/text-search.sesi folder <path> <query> --ext <extension>"
+  print "  sesi helpers/text-search.sesi folder <path> <query> --skip <name>"
+  print "  sesi helpers/text-search.sesi folder <path> <query> --json <output>"
   print ""
   print "Examples:"
-  print "  npm run sesi helpers/text_search.sesi file README.md Sesi"
-  print "  npm run sesi helpers/text_search.sesi folder . TODO"
-  print "  npm run sesi helpers/text_search.sesi folder . TODO --ext sesi"
-  print "  npm run sesi helpers/text_search.sesi folder . TODO --ext sesi --skip node_modules --json reports/todos.json"
+  print "  sesi helpers/text-search.sesi file README.md Sesi"
+  print "  sesi helpers/text-search.sesi folder . TODO"
+  print "  sesi helpers/text-search.sesi folder . TODO --ext sesi"
+  print "  sesi helpers/text-search.sesi folder . TODO --ext sesi --skip node_modules --json reports/todos.json"
 }
 
 fn get_extension(path: str) -> str {

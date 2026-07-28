@@ -19,7 +19,7 @@ allow "agent/memory" in with Memory
 allow "agent/tools" in with Tools
 allow "agent/prompts" in with Prompts
 
-let current_ws_client = Tools.current_ws_client
+let current_ws_client = null
 let current_confirm_response = Tools.current_confirm_response
 let exec_in_project = Tools.exec_in_project
 let exec_node = Tools.exec_node
@@ -31,7 +31,7 @@ let copilotMemory = Memory.context
 let sesiDocs = Memory.sesiDocs
 
 set_alias("copilot", "gemini-3.5-flash-lite")
-set_alias("chat", "gemini-3.6-flash")
+set_alias("agent", "gemini-3.6-flash")
 
 fn get_db_collections(db_path, password) {
   try {
@@ -66,6 +66,16 @@ fn get_db_collections(db_path, password) {
 }
 
 let timestamp = Time.now()
+let ws_streamed_any = false
+
+fn on_ws_agent_chunk(chunk) {
+  ws_streamed_any = true
+  if current_ws_client != null {
+    try {
+      current_ws_client.send(to_json({"type": "chat_chunk", "chunk": chunk}))
+    } catch (err_c) {}
+  }
+}
 
 /*
   Setup secure database for Co-pilot conversations using Sesi's AES-256-CBC encryption
@@ -262,12 +272,13 @@ fn handle_http(req) {
       }
 
       let agent = Copilot.create({
-        "model": "chat",
+        "model": "agent",
         "system": system_prompt,
         "thinkingLevel": "low",
         "cache": false,
         "max_tokens": 4096,
-        "tools": copilot_tools
+        "tools": copilot_tools,
+        "stream": on_ws_agent_chunk
       })
 
       if len(existing) > 0 {
@@ -283,7 +294,18 @@ fn handle_http(req) {
         }
       }
 
-      let res = Copilot.chat(agent, q)
+      let res = ""
+      try {
+        res = Copilot.chat(agent, q)
+      } catch (chat_err) {
+        let err_txt = str(chat_err)
+        if contains(err_txt, "MALFORMED_FUNCTION_CALL") || contains(err_txt, "Returned no text output") {
+          let retry_q = q + "\n\nIMPORTANT: Your previous output was malformed. Return a valid plain-text response and valid tool calls only when necessary."
+          res = Copilot.chat(agent, retry_q)
+        } else {
+          raise_error("RuntimeError", err_txt, null)
+        }
+      }
       
       let assistant_msg = {"text": res, "isUser": false}
       push(chat_doc["messages"], assistant_msg)
@@ -1265,13 +1287,13 @@ fn handle_ws(client, msg) {
       current_ws_client = client
 
       let agent = Copilot.create({
-        "model": "chat",
+        "model": "agent",
         "system": system_prompt,
         "thinkingLevel": "low",
         "cache": false,
         "max_tokens": 4096,
         "tools": copilot_tools,
-        "stream": Tools.on_agent_chunk
+        "stream": on_ws_agent_chunk
       })
 
       if len(existing) > 0 {
@@ -1288,10 +1310,26 @@ fn handle_ws(client, msg) {
       }
 
       let res = ""
+      ws_streamed_any = false
       try {
         res = Copilot.chat(agent, q)
       } catch(chat_err) {
-        res = "⚠️ Co-pilot error: " + str(chat_err)
+        let err_txt = str(chat_err)
+        if contains(err_txt, "MALFORMED_FUNCTION_CALL") || contains(err_txt, "Returned no text output") {
+          let retry_q = q + "\n\nIMPORTANT: Your previous output was malformed. Return a valid plain-text response and valid tool calls only when necessary."
+          try {
+            res = Copilot.chat(agent, retry_q)
+          } catch(retry_err) {
+            res = "⚠️ Co-pilot error: " + str(retry_err)
+            client.send(to_json({"type": "chat_chunk", "chunk": res}))
+          }
+        } else {
+          res = "⚠️ Co-pilot error: " + err_txt
+          client.send(to_json({"type": "chat_chunk", "chunk": res}))
+        }
+      }
+
+      if ws_streamed_any == false && res != null && res != "" {
         client.send(to_json({"type": "chat_chunk", "chunk": res}))
       }
 

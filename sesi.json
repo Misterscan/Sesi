@@ -1,7 +1,8 @@
 {
   "name": "sesi-programming-lang",
-  "version": "1.0.0",
+  "version": "1.7.1",
   "dependencies": {
-    "AutoWebpageDiagnostics": "github:Misterscan/AutoWebpageDiagnostics"
+    "AutoWebpageDiagnostics": "Misterscan/AutoWebpageDiagnostics",
+    "SesiDo": "Misterscan/SesiDo"
   }
 }

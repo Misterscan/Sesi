@@ -82,6 +82,8 @@ let if else while for fn make print import export async
 prompt model image convert memory structured_output tool_call break continue try catch true false null await
 ```
 
+These words are reserved and cannot be used as binding, function, parameter, template, prompt, memory, or import names. In particular, `make` is reserved exactly like `prompt`.
+
 #### Identifiers & Literals
 
 ```
@@ -354,7 +356,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.7.0\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.7.1\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -499,7 +501,11 @@ append(array|string, any)     // Append to array or concatenate to string
 pop(array) -> any             // Remove last
 join(array, string) -> string // Join with separator
 split(string, string) -> array // Split by separator
-tokenize(string, object?) -> array // Model tokenization (OpenAI-compatible tiktoken-style)
+tokenize(string, string|object?) -> array // Local OpenAI-compatible token IDs
+count_tokens(string, string|object?) -> number // Native OpenAI/Gemini request count
+estimate_tokens(string, string|object?) -> number // Explicit local approximation
+estimate_cost(string, number|string, number|string?, object?) -> object // Token cost estimate
+model_usage() -> object|null   // Latest provider-reported usage and estimated cost
 to_upper(string) -> string       // Convert to uppercase
 to_lower(string) -> string       // Convert to lowercase
 trim(string) -> string        // Trim whitespace

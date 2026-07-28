@@ -345,7 +345,7 @@ Objects are useful for configuration and structured records.
 ```sesi
 let app = {
   "name": "Sesi",
-  "version": "1.7.0"
+  "version": "1.7.1"
 }
 
 for key in keys(app) {
@@ -378,12 +378,12 @@ Sesi provides native string utilities to format, transform, and slice text:
 - **`locate(string, sub)`**: Returns the zero-based index of the first occurrence of a substring, or `-1` if not found.
 
 ```sesi
-let original = "  Hello, Sesi V1.7.0!  "
+let original = "  Hello, Sesi V1.7.1!  "
 
-let cleaned = trim(original)                   // "Hello, Sesi V1.7.0!"
-let shouted = to_upper(cleaned)                // "HELLO, SESI V1.7.0!"
+let cleaned = trim(original)                   // "Hello, Sesi V1.7.1!"
+let shouted = to_upper(cleaned)                // "HELLO, SESI V1.7.1!"
 let part = slice(cleaned, 7, 11)               // "Sesi"
-let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V1.7.0!"
+let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V1.7.1!"
 let found = contains(cleaned, "Sesi")          // true
 let idx = locate(cleaned, "Sesi")             // 7
 ```
@@ -773,7 +773,7 @@ allow "std/json" in with {
 }
 let original = {
   "project": "Sesi",
-  "version": "1.7.0"
+  "version": "1.7.1"
 }
 print stringify(original)
 ```

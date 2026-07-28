@@ -175,14 +175,14 @@ print cheap
 - `images` and `search` are not yet supported for GPT calls in Sesi.
 
 ```sesi
-let answer = model("gpt-4o") {"Summarize this document in 3 bullets."}
+let answer = model("gpt-5.6-sol") {"Summarize this document in 3 bullets."}
 print answer
 
 fn onChunk(chunk) {
   print "chunk:" chunk
 }
 
-let streamed = model("gpt-4o") {stream: onChunk, thinkingLevel: "low", max_tokens: 400} {"Explain event streaming in one paragraph."}
+let streamed = model("gpt-5.6-sol") {stream: onChunk, thinkingLevel: "low", max_tokens: 400} {"Explain event streaming in one paragraph."}
 print streamed
 ```
 
@@ -534,29 +534,39 @@ fn assessPerson(person: string) -> string {return model("gemini-3.5-flash-lite")
 for person in people {print assessPerson(person)}
 ```
 
-## 9. Token Counting
+## 9. Token Counting and Cost Estimation
 
-Use tokenize() for token counting:
-
-Note: tokenize() uses OpenAI-compatible tiktoken encodings.
+Use `count_tokens()` before a request, `estimate_cost()` to budget it, and `model_usage()` after a request for provider-reported usage. Gemini counting uses Gemini's native API; use `estimate_tokens()` when you explicitly want an offline approximation.
 
 ```sesi
 let text = "Summarize this conversation concisely."
-let tokens = len(tokenize(text, "gpt-5.6-sol"))
+let tokens = count_tokens(text, "gpt-5.6-sol")
 print "Token count:" tokens
 
-// Optional rough cost estimate (example rate only)
-let PRICE_PER_TOKEN_CENTS = 0.00001
-print "Estimated cost (cents):" str(tokens * PRICE_PER_TOKEN_CENTS)
+let planned = estimate_cost("gpt-5.6-sol", tokens, 500)
+print "Planned maximum cost (USD):" planned["total_cost_usd"]
+
+let response = model("gpt-5.6-sol") {max_tokens: 500} {text}
+let actual = model_usage()
+print "Actual tokens:" actual["total_tokens"]
+print "Estimated actual cost (USD):" actual["total_cost_usd"]
 
 // Plan memory size with declared values
 memory conversation {"User: Hello\nAssistant: Hi there"}
 let MAX_TOKENS = 1000000
-let memoryTokens = len(tokenize(conversation, "gpt-5.6-sol"))
+let memoryTokens = count_tokens(conversation, "gpt-5.6-sol")
 let remaining = MAX_TOKENS - memoryTokens
 if remaining < 500 {conversation = summarizeMemory(conversation)}
 print "Memory token count:" memoryTokens
 ```
+
+`model_usage()` uses the actual counts returned by the provider. Pricing is a dated paid-tier snapshot and excludes tool calls, caching, media, taxes, free-tier allowances, and negotiated discounts.
+
+The token APIs are deliberately separate:
+
+- `tokenize()` returns OpenAI-compatible token IDs and does not accept Gemini as an OpenAI encoding.
+- `count_tokens()` uses OpenAI's native `responses/input_tokens` endpoint for GPT models and Gemini's native `models.countTokens` endpoint for Gemini.
+- `estimate_tokens()` is always local and may approximate unsupported/non-OpenAI tokenizers with `o200k_base`.
 
 ## 10. Advanced: Custom Reasoning Workflows
 

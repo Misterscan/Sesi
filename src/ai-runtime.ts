@@ -50,7 +50,7 @@ export class AIRuntime {
     return 'low';
   }
 
-  private async postOpenAIResponses(body: Record<string, any>): Promise<any> {
+  private async postOpenAIJson(apiPath: string, body: Record<string, any>): Promise<any> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error('OPENAI_API_KEY is required for GPT model calls.');
@@ -62,7 +62,7 @@ export class AIRuntime {
       const req = https.request(
         {
           hostname: 'api.openai.com',
-          path: '/v1/responses',
+          path: apiPath,
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -96,6 +96,10 @@ export class AIRuntime {
     } catch (e: any) {
       throw new Error(`Failed to parse OpenAI response JSON: ${e.message}`);
     }
+  }
+
+  private async postOpenAIResponses(body: Record<string, any>): Promise<any> {
+    return await this.postOpenAIJson('/v1/responses', body);
   }
 
   private async streamOpenAIResponses(
@@ -390,6 +394,47 @@ export class AIRuntime {
     return this._client;
   }
 
+  async countTokens(model: string, contents: string): Promise<number> {
+    const normalizedModel = String(model || '').trim();
+    if (typeof contents !== 'string') {
+      throw new Error('Native token counting requires string contents.');
+    }
+
+    if (this.isGPTModel(normalizedModel)) {
+      try {
+        const response = await this.postOpenAIJson('/v1/responses/input_tokens', {
+          model: normalizedModel,
+          input: contents,
+        });
+        const inputTokens = response?.input_tokens;
+        if (typeof inputTokens !== 'number' || !Number.isFinite(inputTokens) || inputTokens < 0) {
+          throw new Error('OpenAI input-token endpoint returned no valid input_tokens value.');
+        }
+        return Math.floor(inputTokens);
+      } catch (error: any) {
+        throw new Error(`Sesi: OpenAI token counting failed: ${error.message}`);
+      }
+    }
+
+    if (!/^(?:models\/)?gemini-/i.test(normalizedModel)) {
+      throw new Error('Native token counting requires a GPT or Gemini model name.');
+    }
+
+    try {
+      const response = await this.client.models.countTokens({
+        model: this.normalizeModelName(normalizedModel),
+        contents,
+      });
+      const totalTokens = response?.totalTokens;
+      if (typeof totalTokens !== 'number' || !Number.isFinite(totalTokens) || totalTokens < 0) {
+        throw new Error('Gemini countTokens returned no valid totalTokens value.');
+      }
+      return Math.floor(totalTokens);
+    } catch (error: any) {
+      throw new Error(`Sesi: Gemini token counting failed: ${error.message}`);
+    }
+  }
+
   private getCacheFile(): string {
     return path.resolve(process.cwd(), '.sesi_cache.json');
   }
@@ -533,7 +578,15 @@ export class AIRuntime {
             process.stdout.write(cachedRes.text);
           }
         }
-        return cachedRes;
+        return {
+          ...cachedRes,
+          cached: true,
+          usage: {
+            inputTokens: 0,
+            outputTokens: 0,
+            thinkingTokens: 0,
+          },
+        };
       }
     }
 
@@ -653,6 +706,7 @@ export class AIRuntime {
       let isComplete = false;
       let totalInputTokens = 0;
       let totalOutputTokens = 0;
+      let totalThinkingTokens = 0;
       let maxPolls = 10;
       let currentPoll = 0;
 
@@ -771,6 +825,7 @@ export class AIRuntime {
                         usage: {
                             inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
                             outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+                            thinkingTokens: response.usageMetadata?.thoughtsTokenCount ?? 0,
                         },
                     };
                     return toolRes;
@@ -795,6 +850,7 @@ export class AIRuntime {
 
         totalInputTokens += response.usageMetadata?.promptTokenCount ?? 0;
         totalOutputTokens += response.usageMetadata?.candidatesTokenCount ?? 0;
+        totalThinkingTokens += response.usageMetadata?.thoughtsTokenCount ?? 0;
 
         currentFinishReason = finishReason;
 
@@ -823,6 +879,7 @@ export class AIRuntime {
         usage: {
           inputTokens: totalInputTokens,
           outputTokens: totalOutputTokens,
+          thinkingTokens: totalThinkingTokens,
         },
       };
 
@@ -896,7 +953,7 @@ export class AIRuntime {
     this.conversationHistory.set(memoryId, [content]);
   }
 
-  countTokens(text: string): number {
+  estimateTokens(text: string): number {
     // Heuristic: ~4 characters per token for English text.
     // Avoids an API call and is accurate enough for context window budgeting.
     return Math.ceil(text.length / 4);
@@ -972,7 +1029,7 @@ export class AIRuntime {
     if (!history || history.length === 0) return '';
 
     const fullText = history.join('\n');
-    const currentTokens = this.countTokens(fullText);
+    const currentTokens = this.estimateTokens(fullText);
 
     if (currentTokens <= maxTokens) {
       return fullText;

@@ -486,6 +486,9 @@ export class VM {
               stream: streamVal,
               tools: Array.isArray(pick('tools', 'toolSchemas', 'tool_schemas')) ? pick('tools', 'toolSchemas', 'tool_schemas') as any[] : undefined,
             });
+            if (this.interpreter && typeof this.interpreter.recordModelUsage === 'function') {
+              this.interpreter.recordModelUsage(resolvedModel, response.usage, response.cached === true);
+            }
             this.push(response.text);
             break;
           }

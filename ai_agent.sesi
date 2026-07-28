@@ -46,6 +46,15 @@ fn call_model_helper(model_name: string, temp: number, thinking: string, search_
   if model_name == "gemini-3-flash-preview" {
     return model("gemini-3-flash-preview") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
   }
+   if model_name == "gemini-2.5-flash" {
+    return model("gemini-2.5-flash") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "gemini-2.5-pro" {
+    return model("gemini-2.5-pro") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
+  if model_name == "gemini-3.1-flash-lite" {
+    return model("gemini-3.1-flash-lite") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+  }
   return model("gemini-3.5-flash-lite") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
 }
 
@@ -127,13 +136,15 @@ export fn get_history_string(agent) {
   return h_str
 }
 
-export fn chat(agent, message) {
+export fn chat(agent, message, speech_enabled) {
   let tools = agent["tools"]
+  let res = ""
   if len(keys(tools)) > 0 {
     let user_turn = {"role": "user", "text": message}
     push(agent["history"], user_turn)
 
-    let res = run_react(agent, message, 10)
+    if speech_enabled == true {res = run_react(agent, message, 10, true)} else 
+    {res = run_react(agent, message, 10)}
 
     let assistant_turn = {"role": "assistant", "text": res}
     push(agent["history"], assistant_turn)
@@ -152,15 +163,33 @@ History:
 " + hist + "
 Assistant:"
 
-  let resp = call_model_helper(agent["model"], agent["temperature"], agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
+  let resp = ""
+  try {
+    resp = call_model_helper(agent["model"], agent["temperature"], agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
+  } catch(model_err) {
+    let err_txt = str(model_err)
+    if contains(err_txt, "MALFORMED_FUNCTION_CALL") || contains(err_txt, "Returned no text output") {
+      let retry_prompt = prompt_text + "\n\nIMPORTANT: Your previous output was malformed. Reply with plain text only. Do not emit tool/function calls."
+      resp = call_model_helper(agent["model"], agent["temperature"], agent["thinkingLevel"], agent["search"], agent["stream"], false, agent["max_tokens"], retry_prompt)
+    } else {
+      raise_error("RuntimeError", err_txt, null)
+    }
+  }
 
   let assistant_turn = {"role": "assistant", "text": resp}
   push(agent["history"], assistant_turn)
-
+  
+  if speech_enabled == true {
+    try {
+      speech(resp)
+    } catch (e) {
+      print "Agent failed to speak:" e
+    }
+  }
   return resp
 }
 
-export fn run_react(agent, task, max_steps) {
+export fn run_react(agent, task, max_steps, speech_enabled) {
   let steps_taken = 0
   let react_history = ""
   let final_res = ""
@@ -192,7 +221,18 @@ Previous steps and observations:
 " react_history "
 Next Step JSON:"}
 
-      let step_text = call_model_helper(agent["model"], 0.1, agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
+      let step_text = ""
+      try {
+        step_text = call_model_helper(agent["model"], 0.1, agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
+      } catch(model_err) {
+        let err_txt = str(model_err)
+        if contains(err_txt, "MALFORMED_FUNCTION_CALL") || contains(err_txt, "Returned no text output") {
+          let retry_prompt = prompt_text + "\n\nIMPORTANT: Return exactly one valid JSON object for this step. Do not emit tool/function calls outside the JSON fields."
+          step_text = call_model_helper(agent["model"], 0.1, agent["thinkingLevel"], agent["search"], agent["stream"], false, agent["max_tokens"], retry_prompt)
+        } else {
+          raise_error("RuntimeError", err_txt, null)
+        }
+      }
       let step = structured_output({thought: string, tool_name: string, tool_args_json: string, finished: bool, final_answer: string})(step_text)
 
       if step == null || len(keys(step)) == 0 {
@@ -272,6 +312,13 @@ Observation: Invalid JSON format.
                 try {
                   stream_fn("📥 *Observation:* " + obs + "\n\n")
                 } catch(e_sf5) {}
+                if speech_enabled == true {
+                  try {
+                    speech("Observation: " + obs)
+                  } catch (e) {
+                    print "Agent failed to speak:" e
+                  }
+                }
               }
             } catch(e) {
               obs = "Error executing tool: " + e
@@ -287,6 +334,13 @@ Observation: Invalid JSON format.
 
           if error_count >= 3 {
             final_res = "Error: Task failed due to consecutive tool errors."
+            if speech_enabled == true {
+              try {
+                speech(final_res)
+              } catch (e) {
+                print "Agent failed to speak:" e
+              }
+            }
             break
           }
 
@@ -390,7 +444,7 @@ export fn load(agent, path) {
   return true
 }
 
-export fn get_last_response(agent) {
+export fn get_last_response(agent, speech_enabled) {
   let history = agent["history"]
   let length = len(history)
   if length == 0 {
@@ -398,6 +452,13 @@ export fn get_last_response(agent) {
   }
   let last_turn = history[length - 1]
   if last_turn["role"] == "assistant" {
+    if speech_enabled == true {
+      try {
+        speech(last_turn["text"])
+      } catch (e) {
+        print "Agent failed to speak:" e
+      }
+    }
     return last_turn["text"]
   }
   return null

@@ -6,6 +6,7 @@ import { spawn, execSync, execFileSync } from 'child_process';
 import * as vm from 'vm';
 import { aiRuntime } from './ai-runtime';
 import * as http from 'http';
+import { estimateTokenCost } from './token-pricing';
 
 // Browser Hot Reloading State
 let isLiveReloadEnabled = false;
@@ -17,14 +18,24 @@ type TokenEncoder = {
 };
 
 const tokenEncoderCache = new Map<string, TokenEncoder>();
+const DEFAULT_TOKEN_MODEL = 'gpt-5.6-sol';
+
+function getOpenAIEncodingAlias(modelName: string): string | null {
+  const model = String(modelName || '').trim().toLowerCase();
+  // js-tiktoken 1.0.x predates the GPT-5.6 model names. The current GPT-5
+  // text family uses the o200k-compatible vocabulary for local plain-text
+  // tokenization; request-level counting belongs to count_tokens().
+  if (/^gpt-5(?:\.|-|$)/.test(model)) return 'o200k_base';
+  return null;
+}
 
 // Keep ESM-only optional runtime packages compatible with Sesi's CommonJS build.
 async function importEsmModule(specifier: string): Promise<any> {
   return await (new Function('specifier', 'return import(specifier)'))(specifier);
 }
 
-function getTokenEncoder(modelName: string, encodingName?: string): TokenEncoder {
-  const cacheKey = `${modelName}::${encodingName || ''}`;
+function getTokenEncoder(modelName: string, encodingName?: string, allowFallback: boolean = false): TokenEncoder {
+  const cacheKey = `${modelName}::${encodingName || ''}::${allowFallback}`;
   const cached = tokenEncoderCache.get(cacheKey);
   if (cached) return cached;
 
@@ -37,7 +48,13 @@ function getTokenEncoder(modelName: string, encodingName?: string): TokenEncoder
     try {
       encoder = encodingForModel(modelName);
     } catch (e) {
-      encoder = getEncoding('o200k_base');
+      const aliasedEncoding = getOpenAIEncodingAlias(modelName);
+      if (aliasedEncoding) {
+        encoder = getEncoding(aliasedEncoding);
+      } else {
+        if (!allowFallback) throw e;
+        encoder = getEncoding('o200k_base');
+      }
     }
   }
 
@@ -892,7 +909,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         return trimmed.split(/\s+/);
       }
 
-      let model = 'gpt-4o';
+      let model = DEFAULT_TOKEN_MODEL;
       let encoding: string | undefined;
       let mode: string | undefined;
 
@@ -924,6 +941,144 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       } catch (e) {
         return null;
       }
+    },
+  });
+
+  builtins.set('count_tokens', {
+    type: 'function',
+    name: 'count_tokens',
+    params: [{ name: 'string' }, { name: 'options', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (str: RuntimeValue, optionsVal: RuntimeValue = null): Promise<RuntimeValue> => {
+      if (typeof str !== 'string') return null;
+
+      let model = DEFAULT_TOKEN_MODEL;
+      if (typeof optionsVal === 'string' && optionsVal.trim() !== '') {
+        model = optionsVal;
+      } else if (optionsVal !== null) {
+        if (typeof optionsVal !== 'object' || Array.isArray(optionsVal)) return null;
+        const options = optionsVal as Record<string, RuntimeValue>;
+        if (typeof options.model === 'string' && options.model.trim() !== '') model = options.model;
+      }
+
+      if (/^(?:models\/)?gemini-/i.test(model) || /^gpt-/i.test(model)) {
+        return await aiRuntime.countTokens(model, str);
+      }
+      return null;
+    },
+  });
+
+  builtins.set('estimate_tokens', {
+    type: 'function',
+    name: 'estimate_tokens',
+    params: [{ name: 'string' }, { name: 'options', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (str: RuntimeValue, optionsVal: RuntimeValue = null): RuntimeValue => {
+      if (typeof str !== 'string') return null;
+
+      let model = DEFAULT_TOKEN_MODEL;
+      let encoding: string | undefined;
+      if (typeof optionsVal === 'string' && optionsVal.trim() !== '') {
+        model = optionsVal;
+      } else if (optionsVal !== null) {
+        if (typeof optionsVal !== 'object' || Array.isArray(optionsVal)) return null;
+        const options = optionsVal as Record<string, RuntimeValue>;
+        if (typeof options.model === 'string' && options.model.trim() !== '') model = options.model;
+        if (typeof options.encoding === 'string' && options.encoding.trim() !== '') encoding = options.encoding;
+      }
+
+      try {
+        return getTokenEncoder(model, encoding, true).encode(str).length;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  builtins.set('estimate_cost', {
+    type: 'function',
+    name: 'estimate_cost',
+    params: [
+      { name: 'model' },
+      { name: 'input' },
+      { name: 'output', defaultValue: 0 as any },
+      { name: 'rates', defaultValue: null as any },
+    ],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (
+      modelVal: RuntimeValue,
+      inputVal: RuntimeValue,
+      outputVal: RuntimeValue = 0,
+      ratesVal: RuntimeValue = null,
+    ): Promise<RuntimeValue> => {
+      if (typeof modelVal !== 'string' || modelVal.trim() === '') return null;
+
+      const toTokenCount = async (value: RuntimeValue): Promise<number | null> => {
+        if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return Math.floor(value);
+        if (typeof value === 'string') {
+          if (/^(?:models\/)?gemini-/i.test(modelVal)) {
+            return await aiRuntime.countTokens(modelVal, value);
+          }
+          try {
+            return getTokenEncoder(modelVal).encode(value).length;
+          } catch {
+            return null;
+          }
+        }
+        return null;
+      };
+
+      const inputTokens = await toTokenCount(inputVal);
+      const outputTokens = await toTokenCount(outputVal);
+      if (inputTokens === null || outputTokens === null) return null;
+
+      let customRates: { inputPerMillion: number; outputPerMillion: number } | undefined;
+      if (ratesVal !== null) {
+        if (typeof ratesVal !== 'object' || Array.isArray(ratesVal)) return null;
+        const rates = ratesVal as Record<string, RuntimeValue>;
+        const inputRate = rates.input_per_million ?? rates.input;
+        const outputRate = rates.output_per_million ?? rates.output;
+        if (
+          typeof inputRate !== 'number' || !Number.isFinite(inputRate) || inputRate < 0 ||
+          typeof outputRate !== 'number' || !Number.isFinite(outputRate) || outputRate < 0
+        ) return null;
+        customRates = { inputPerMillion: inputRate, outputPerMillion: outputRate };
+      }
+
+      const estimate = estimateTokenCost(modelVal, inputTokens, outputTokens, customRates);
+      if (!estimate) return null;
+      return {
+        model: estimate.model,
+        input_tokens: estimate.inputTokens,
+        output_tokens: estimate.outputTokens,
+        total_tokens: estimate.totalTokens,
+        input_rate_per_million: estimate.inputPerMillion,
+        output_rate_per_million: estimate.outputPerMillion,
+        input_cost_usd: estimate.inputCostUsd,
+        output_cost_usd: estimate.outputCostUsd,
+        total_cost_usd: estimate.totalCostUsd,
+        pricing_source: estimate.source,
+        pricing_as_of: estimate.asOf,
+      };
+    },
+  });
+
+  builtins.set('model_usage', {
+    type: 'function',
+    name: 'model_usage',
+    params: [],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (): RuntimeValue => {
+      if (!interpreter || typeof interpreter.getLastModelUsage !== 'function') return null;
+      return interpreter.getLastModelUsage();
     },
   });
 
@@ -1034,10 +1189,21 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     closure: {} as any,
     isBuiltin: true,
     builtin: (filePath: RuntimeValue, mode: RuntimeValue = 'text'): RuntimeValue => {
-      if (typeof filePath !== 'string') return null;
-      const readMode = typeof mode === 'string' ? mode.toLowerCase() : 'text';
+      let resolvedPath: RuntimeValue = filePath;
+      let resolvedMode: RuntimeValue = mode;
+
+      if (resolvedPath !== null && typeof resolvedPath === 'object' && !Array.isArray(resolvedPath)) {
+        const argObj = resolvedPath as Record<string, RuntimeValue>;
+        resolvedPath = argObj['path'] ?? argObj['filePath'] ?? argObj['filepath'] ?? null;
+        if (argObj['mode'] !== undefined) {
+          resolvedMode = argObj['mode'];
+        }
+      }
+
+      if (typeof resolvedPath !== 'string') return null;
+      const readMode = typeof resolvedMode === 'string' ? resolvedMode.toLowerCase() : 'text';
       try {
-        const absolutePath = ensureSafePath(filePath, interpreter);
+        const absolutePath = ensureSafePath(resolvedPath, interpreter);
         if (readMode === 'base64') {
           return fs.readFileSync(absolutePath).toString('base64');
         }
@@ -1046,7 +1212,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         }
         return fs.readFileSync(absolutePath, 'utf-8');
       } catch (e: any) {
-        throw new Error(`Failed to read file: ${filePath}. Reason: ${e.message}`);
+        throw new Error(`Failed to read file: ${resolvedPath}. Reason: ${e.message}`);
       }
     },
   });
@@ -1968,6 +2134,9 @@ ${bodyText}
           cache: typeof stepObj.cache === 'boolean' ? stepObj.cache : undefined,
           search: typeof stepObj.search === 'boolean' ? stepObj.search : undefined,
         });
+        if (interpreter && typeof (interpreter as any).recordModelUsage === 'function') {
+          (interpreter as any).recordModelUsage(model, response.usage, response.cached === true);
+        }
 
         previous = response.text;
         outputs.push(response.text);

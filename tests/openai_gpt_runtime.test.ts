@@ -31,7 +31,7 @@ async function main() {
     });
 
     const res = await rt.callModel({
-      model: 'gpt-4o',
+      model: 'gpt-5.6-sol',
       prompt: 'say hello',
       cache: false,
     });
@@ -62,7 +62,7 @@ async function main() {
 
     const chunks: string[] = [];
     const res = await rt.callModel({
-      model: 'gpt-4o',
+      model: 'gpt-5.6-sol',
       prompt: 'stream hello',
       stream: async (chunk: string) => {
         chunks.push(chunk);
@@ -97,7 +97,7 @@ async function main() {
     };
 
     const res = await rt.callModel({
-      model: 'gpt-4o',
+      model: 'gpt-5.6-sol',
       prompt: 'what is weather in nyc',
       tools: [
         {

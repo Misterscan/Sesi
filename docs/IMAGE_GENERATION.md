@@ -77,9 +77,9 @@ When configuring the `image` call (specifically for models like `gemini-3.1-flas
 
 ## File I/O Integration: `write_image`
 
-The `image()` call evaluates to a `string` (specifically, base64-encoded image data). To convert this into a standard image file on disk, you must use the `write_image(path, base64_content)` builtin.
+The `image()` call evaluates to a `string` (specifically, base64-encoded image data). To convert this into a standard image file on disk, use either `write_image(path, base64_content)` or `write_file(path, base64_content, "base64")`.
 
-**Important:** Do _not_ use `write_file` for image payloads—`write_image` is explicitly implemented in the Sesi engine (`src/builtins.ts`) to handle `Buffer.from(content, 'base64')` decoding for writing safe binary formats.
+`write_image` remains the clearest option for image payloads, while `write_file(..., "base64")` is useful for generalized binary writes.
 
 ---
 

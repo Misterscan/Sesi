@@ -1,3 +1,4 @@
+/// <reference types="node" />
 // Sesi Executable Modules Test Suite
 import { Lexer } from '../src/lexer';
 import { Parser } from '../src/parser';
@@ -37,6 +38,35 @@ async function main() {
     console.log('  ✓ Exported function registered correctly');
   } else {
     console.error('  ✗ Exported function failed');
+  }
+
+  // Exported make templates remain inert until imported and instantiated.
+  const accessibilityInterpreter = new Interpreter();
+  await runTest('Import exported Accessibility make template', `
+    import { Accessibility } from "helpers/accessibility"
+    let accessibility = Accessibility({
+      "reduced_motion": true,
+      "text_scale": 1.25
+    })
+    let preferences = accessibility.preferences()
+    let notice = accessibility.live_region("Saved", "assertive")
+    let decorative = accessibility.image_attributes("ignored", true)
+  `, accessibilityInterpreter);
+  const accessibilityEnv = (accessibilityInterpreter as any).currentEnv;
+  const preferences = accessibilityEnv.get('preferences');
+  const notice = accessibilityEnv.get('notice');
+  const decorative = accessibilityEnv.get('decorative');
+  if (
+    preferences?.reduced_motion === true &&
+    preferences?.text_scale === 1.25 &&
+    notice?.role === 'alert' &&
+    notice?.['aria-live'] === 'assertive' &&
+    decorative?.alt === '' &&
+    decorative?.['aria-hidden'] === 'true'
+  ) {
+    console.log('  ✓ Accessibility template exports and returns semantic metadata');
+  } else {
+    throw new Error('Accessibility helper returned unexpected preferences or metadata');
   }
 
   // Test 2: Local Sesi file import (Sesi-to-Sesi)

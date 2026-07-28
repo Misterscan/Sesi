@@ -77,6 +77,10 @@ async function main() {
     } else {
       console.error('  ✗ Failed to serve cached response, got:', result.text);
     }
+    if (result.cached !== true || result.usage?.inputTokens !== 0 || result.usage?.outputTokens !== 0) {
+      throw new Error('cache hits must report cached=true and zero new provider tokens');
+    }
+    console.log('  ✓ Cache hit reports zero new provider usage');
     console.log(`  Cache hit duration: ${end - start}ms`);
 
     // Test 3: bypass cache flag

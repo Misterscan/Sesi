@@ -14,8 +14,8 @@ allow "std/browser" in with {launch}
 print "🚀 Initializing Scrape & Generate Agent..."
 
 // Register model aliases
-set_alias("agent", "gemini-3.1-pro-preview")
-set_alias("search", "gemini-3.1-flash-lite")
+set_alias("agent", "gemini-3.6-flash")
+set_alias("search", "gemini-3.5-flash-lite")
 
 // Tool to search Google using Sesi's model with search: true
 fn web_search(arg) -> string {

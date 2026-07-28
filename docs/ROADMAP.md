@@ -132,7 +132,7 @@
 
 - [x] Bytecode compilation (VM + compiler foundation: expressions, loops, functions, closures, try/catch, imports)
 - [x] Logic caching
-- [ ] Token counting and cost estimation
+- [x] Token counting and cost estimation (`count_tokens`, explicit `estimate_tokens`, `estimate_cost`, and provider-backed `model_usage`)
 - [ ] Lazy evaluation
 
 ### New Built-ins

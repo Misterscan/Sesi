@@ -333,16 +333,87 @@ let words = tokenize("  Sesi   language   rocks  ", "simple")
 
 **Options**:
 
-- `model` (`string`, default `"gpt-4o"`): Model name used to pick tokenizer encoding.
+- `model` (`string`, default `"gpt-5.6-sol"`): Model name used to pick tokenizer encoding.
 - `encoding` (`string`, optional): Explicit tiktoken encoding override (for example `"o200k_base"`).
 - `mode` (`string`, optional): Set to `"simple"` for basic whitespace tokenization.
 
 You can also pass a string as the second argument directly:
 
 - `tokenize(text, "simple")` for simple word splitting
-- `tokenize(text, "gpt-4o")` to preview a specific models tokenization
+- `tokenize(text, "gpt-5.6-sol")` to inspect plain-text token IDs for the current GPT flagship
 
 **Returns**: `array<number>` (model token IDs), `array<string>` in simple mode, or `null` if input/options are invalid
+
+---
+
+### count_tokens(string, options = null) -> number
+
+Count request tokens with the model provider's native counting endpoint.
+
+```sesi
+let count = count_tokens("Summarize this text.", "gpt-5.6-sol")
+let gemini_count = count_tokens(text, "gemini-3.6-flash")
+```
+
+GPT models use OpenAI's `responses/input_tokens` endpoint. Gemini models use Gemini's `models.countTokens` endpoint. Unlike `tokenize()`, this requires the provider API key and returns a count rather than token IDs.
+
+**Returns**: `number`, or `null` if the input/options are invalid
+
+---
+
+### estimate_tokens(string, options = null) -> number
+
+Estimate tokens locally without making a provider request. The options match `tokenize`; unknown and non-OpenAI model names explicitly fall back to `o200k_base`.
+
+```sesi
+let approximate = estimate_tokens(long_text, "gemini-3.6-flash")
+```
+
+Use this only when an offline approximation is acceptable. For native Gemini counts, use `count_tokens`.
+
+**Returns**: `number`, or `null` if the input/options are invalid
+
+---
+
+### estimate_cost(model, input, output = 0, rates = null) -> object
+
+Estimate paid-tier text-token cost in USD. `input` and `output` may each be a token count or text.
+
+```sesi
+let planned = estimate_cost("gemini-3.6-flash", prompt, 2000)
+print planned["input_tokens"]
+print planned["total_cost_usd"]
+
+// Unknown/private models can provide USD rates per one million tokens.
+let custom = estimate_cost("private-model", 500000, 100000, {
+  "input_per_million": 2,
+  "output_per_million": 8
+})
+```
+
+When `input` or `output` is text, GPT models use local tokenization and Gemini models use native Gemini counting. Passing numeric counts never makes a provider request.
+
+The result includes token counts, separate input/output costs, total cost, per-million rates, pricing source, and pricing snapshot date. Built-in GPT rates cover the current `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna` family, including the documented long-context tier. Tool fees, cache storage, audio, images, free-tier allowances, taxes, and negotiated discounts are not included.
+
+**Returns**: `object`, or `null` for an unsupported model without custom rates
+
+---
+
+### model_usage() -> object
+
+Return provider-reported token usage and estimated cost for the most recent `model()` call in the current interpreter.
+
+```sesi
+let answer = model("gpt-5.6-sol") {"Explain closures briefly."}
+let usage = model_usage()
+
+print "Tokens:" usage["total_tokens"]
+print "Estimated USD:" usage["total_cost_usd"]
+```
+
+Token counts come from the provider response. Gemini thinking tokens are reported separately as `thinking_tokens` and included in `billable_output_tokens`, `total_tokens`, and cost. Local logic-cache hits return `cached: true`, zero tokens, and zero added cost. Cost fields are `null` when the model has no built-in pricing entry.
+
+**Returns**: `object`, or `null` before the first model call
 
 ---
 
@@ -352,7 +423,7 @@ Converts all alphabetic characters in a string to uppercase.
 
 ```sesi
 to_upper("hello")      // "HELLO"
-to_upper("Sesi V1.7.0")  // "SESI V1.7.0"
+to_upper("Sesi V1.7.1")  // "SESI V1.7.1"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -365,7 +436,7 @@ Converts all alphabetic characters in a string to lowercase.
 
 ```sesi
 to_lower("WORLD")      // "world"
-to_lower("Sesi V1.7.0")  // "sesi v1.7.0"
+to_lower("Sesi V1.7.1")  // "sesi v1.7.1"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -602,13 +673,21 @@ print image_b64
 
 ---
 
-### write_file(path, content) -> bool
+### write_file(path, content, encoding = null) -> bool
 
-Write string content to a file. Overwrites the file if it exists.
+Write content to a file. Overwrites the file if it exists.
+
+Encodings:
+
+- `null` (default): writes UTF-8 text
+- `"base64"`: decodes Base64 content and writes raw bytes
 
 ```sesi
 let success = write_file("output.txt", "Hello, Sesi!")
 if success {print "File written successfully"}
+
+let image_b64 = read_file("logo.png", "base64")
+write_file("logo-copy.png", image_b64, "base64")
 ```
 
 **Note**: Paths are resolved relative to the current working directory.
@@ -2286,7 +2365,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.7.0"
+  "version": "1.7.1"
 }
 print Json.stringify(original)
 ```

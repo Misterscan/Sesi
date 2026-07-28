@@ -19,7 +19,7 @@ Sesi is a **clean, minimal, side-effect-oriented** scripting language. It is:
 
 ```sesi
 let name    = "Sesi"
-let version = 1.7.0
+let version = 1.7.1
 let active  = true
 let missing         // null (uninitialized)
 ```
@@ -284,10 +284,10 @@ Sesi's unique string-composition primitive. Replaces template literals.
 
 ```sesi
 let name = "Ada"
-let ver  = "1.7.0"
+let ver  = "1.7.1"
 
 prompt header {"Welcome to Sesi" ver ". Hello," name}
-// header = "Welcome to Sesi 1.7.0. Hello, Ada"
+// header = "Welcome to Sesi 1.7.1. Hello, Ada"
 
 print header
 write_file("out.txt", header)
@@ -332,7 +332,7 @@ print "Hello, " + name + " version " + str(version)
 
 ```sesi
 export fn add(a, b) { return a + b }
-export let VERSION = "1.7.0"
+export let VERSION = "1.7.1"
 ```
 
 ### Importing — `import` (named)
@@ -691,6 +691,25 @@ These are always available — no imports needed:
 `from_speech()` needs Whisper and a local model.
 
 > Always use `to_json()` for serialization. Never use `stringify()`.
+
+### Token Usage & Cost
+
+| Function | Description |
+| -------- | ----------- |
+| `tokenize(text, model?)` | Return local plain-text token IDs; also supports `"simple"` word splitting |
+| `count_tokens(text, model?)` | Count through OpenAI's or Gemini's native endpoint |
+| `estimate_tokens(text, model?)` | Estimate locally without an API request |
+| `estimate_cost(model, input, output?)` | Estimate paid-tier text-token cost |
+| `model_usage()` | Inspect actual usage from the latest model call |
+
+```sesi
+let planned = estimate_cost("gemini-3.6-flash", prompt, 1000)
+let answer = model("gemini-3.6-flash") {max_tokens: 1000} {prompt}
+let actual = model_usage()
+print actual["total_tokens"] actual["total_cost_usd"]
+```
+
+These are deliberately separate: `tokenize()` is local and returns IDs, `count_tokens()` asks the selected provider for an exact request count, and `estimate_tokens()` is the explicit offline approximation.
 
 ### Math & Randomness (Must be used as "std/math")
 

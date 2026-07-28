@@ -16,7 +16,7 @@ allow "std/browser" in with {launch}
 print "🚀 Initializing SVG Generator Agent..."
 
 // Register model aliases
-set_alias("agent", "gemini-3.1-pro-preview")
+set_alias("agent", "gemini-3.5-flash-lite")
 
 // Helper function to extract a file path/name from various argument forms
 fn get_filepath_from_args(arg) {
@@ -221,7 +221,7 @@ Follow the documentation exactly to write valid Sesi code!
 
 ### ⚙️ WORKFLOW PROCESS:
 1. Read the official documentation using 'read_file' to learn Sesi syntax and std/draw API.
-2. Write your Sesi drawing script. Save it with 'write_sesi_script' (name it 'draw_design.sesi').
+2. Write your Sesi drawing script. Save it with 'write_sesi_script'.
 3. Run the script with 'execute_sesi_script' to generate 'design.svg'.
 4. Use 'verify_svg_file' on 'design.svg' to check for errors and take a screenshot.
 5. If there are syntax or execution errors, read the error message carefully, read the docs to identify the mistake, rewrite/fix your Sesi script, and run it again.
@@ -272,7 +272,7 @@ prompt task_instruction {"Perform the following actions:
 5. Save a detailed report named '" baseFilename "_svg_workflow_report.md' detailing your steps, Sesi script code, and embedding the screenshot '" baseFilename "_screenshot.png'.
    ⚠️ CRITICAL: You MUST use the 'write_report' tool to write this file. Do NOT set finished: true until you have successfully executed the 'write_report' tool."}
 
-let final_answer = Agent.run_react(svg_agent, task_instruction, 15)
+let final_answer = Agent.run_react(svg_agent, task_instruction, 10, true)
 
 print "
 ========================================="

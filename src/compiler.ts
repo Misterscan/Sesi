@@ -69,14 +69,22 @@ interface LoopInfo {
 
 // Known Sesi built-in names — compiled to CALL_BUILTIN for a speed win
 const BUILTINS = new Set([
-  'print','len','range','type','str','num','bool',
-  'keys','values','push','pop','join','split',
-  'to_upper','to_lower','trim','slice','swap','contains','locate',
-  'map','filter','reduce','find','retry',
-  'read_file','write_file','write_image','list_dir','make_dir','rename','archive','trash',
-  'spawn','exec','python','js','html','time','random',
-  'to_json','from_json',
-  'input','debug',
+  'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json',
+  'speech', 'from_speech', 'translate', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
+  'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'trunc',
+  'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call',
+  'spawn', 'exec', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split',
+  'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log',
+  'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req',
+  'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
+  'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input',
+  'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
+  'string', 'number', 'bool', 'array', 'object', 'num', 'str', 'null', 'float',
+  'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null',
+  'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
+  'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
+  'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw',
+  'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage',
 ]);
 
 // ---------------------------------------------------------------------------

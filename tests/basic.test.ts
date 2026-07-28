@@ -56,6 +56,22 @@ async function main() {
   }
   console.log('✓ Make keyword tokenization');
 
+  const reservedWords = ['prompt', 'make'];
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    for (const word of reservedWords) {
+      const parser = new Parser(new Lexer(`let ${word} = 1`).scanTokens());
+      parser.parse();
+      if (parser.errors.length === 0) {
+        throw new Error(`${word} must be rejected as a reserved binding name`);
+      }
+    }
+  } finally {
+    console.error = originalConsoleError;
+  }
+  console.log('✓ Prompt and make reserved binding names');
+
   // Parser tests
   console.log('\n=== Parser Tests ===');
 
@@ -113,7 +129,7 @@ async function main() {
   await runTest('Split function', 'let arr = split("a,b,c", ",")');
   await runTest('Tokenize function (model token IDs)', 'let t = tokenize("  SesiLanguage, and rocks!  ")\nif len(t) < 3 || type(t[0]) != "number" { let err = missing_var }');
   await runTest('Tokenize function (simple mode)', 'let t = tokenize("  Sesi   language   rocks  ", "simple")\nif len(t) != 3 || t[0] != "Sesi" || t[2] != "rocks" { let err = missing_var }');
-  await runTest('Tokenize function (explicit model option)', 'let t = tokenize("hello world", {"model": "gpt-4o"})\nif len(t) < 2 || type(t[0]) != "number" { let err = missing_var }');
+  await runTest('Tokenize function (current GPT model)', 'let t = tokenize("hello world", {"model": "gpt-5.6-sol"})\nif len(t) < 2 || type(t[0]) != "number" { let err = missing_var }');
   await runTest('Upper function', 'let s = to_upper("hello")\nif s != "HELLO" { let err = missing_var }');
   await runTest('Lower function', 'let s = to_lower("WORLD")\nif s != "world" { let err = missing_var }');
   await runTest('Trim function', 'let s = trim("  spaces  ")\nif s != "spaces" { let err = missing_var }');

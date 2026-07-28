@@ -138,3 +138,7 @@ sesi-studio/extensions/themes/WinXP.css
 sesi-studio/extensions/themes/Y2K.css
 mesh_*.json
 Misterscan_portfolio.html
+gemini-transcript.txt
+tutorial/.sesi_tutorial_progress.json
+agent_session.json
+.vscode/settings.json

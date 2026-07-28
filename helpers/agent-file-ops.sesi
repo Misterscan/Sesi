@@ -6,29 +6,29 @@ Purpose:
     Replace shell heredocs, cat EOF, sed, awk, and ad hoc replace-in-file commands.
     
 Usage:
-    npm run sesi helpers/agent_file_ops.sesi help
-    npm run sesi helpers/agent_file_ops.sesi write <path> <text...>
-    npm run sesi helpers/agent_file_ops.sesi append <path> <text...>
-    npm run sesi helpers/agent_file_ops.sesi copy <source> <target>
-    npm run sesi helpers/agent_file_ops.sesi replace <path> <old> <new>
-    npm run sesi helpers/agent_file_ops.sesi replace-from <path> <old_file> <new_file>
-    npm run sesi helpers/agent_file_ops.sesi insert-before <path> <marker> <insert_file>
-    npm run sesi helpers/agent_file_ops.sesi insert-after <path> <marker> <insert_file>
-    npm run sesi helpers/agent_file_ops.sesi replace-block <path> <start_marker> <end_marker> <insert_file>
+    sesi helpers/agent-file-ops.sesi help
+    sesi helpers/agent-file-ops.sesi write <path> <text...>
+    sesi helpers/agent-file-ops.sesi append <path> <text...>
+    sesi helpers/agent-file-ops.sesi copy <source> <target>
+    sesi helpers/agent-file-ops.sesi replace <path> <old> <new>
+    sesi helpers/agent-file-ops.sesi replace-from <path> <old_file> <new_file>
+    sesi helpers/agent-file-ops.sesi insert-before <path> <marker> <insert_file>
+    sesi helpers/agent-file-ops.sesi insert-after <path> <marker> <insert_file>
+    sesi helpers/agent-file-ops.sesi replace-block <path> <start_marker> <end_marker> <insert_file>
     
 Examples:
-    npm run sesi helpers/agent_file_ops.sesi write notes.txt "hello from sesi"
-    npm run sesi helpers/agent_file_ops.sesi append notes.txt "another line"
-    npm run sesi helpers/agent_file_ops.sesi copy draft.sesi final.sesi
-    npm run sesi helpers/agent_file_ops.sesi replace app.sesi "let debug = true" "let debug = false"
-    npm run sesi helpers/agent_file_ops.sesi replace-from app.sesi old_block.txt new_block.txt
-    npm run sesi helpers/agent_file_ops.sesi insert-before app.sesi "// INSERT HERE" snippet.sesi
-    npm run sesi helpers/agent_file_ops.sesi insert-after app.sesi "// IMPORTS" imports.sesi
-    npm run sesi helpers/agent_file_ops.sesi replace-block app.sesi "// START GENERATED" "// END GENERATED" generated.sesi
+    sesi helpers/agent-file-ops.sesi write notes.txt "hello from sesi"
+    sesi helpers/agent-file-ops.sesi append notes.txt "another line"
+    sesi helpers/agent-file-ops.sesi copy draft.sesi final.sesi
+    sesi helpers/agent-file-ops.sesi replace app.sesi "let debug = true" "let debug = false"
+    sesi helpers/agent-file-ops.sesi replace-from app.sesi old_block.txt new_block.txt
+    sesi helpers/agent-file-ops.sesi insert-before app.sesi "// INSERT HERE" snippet.sesi
+    sesi helpers/agent-file-ops.sesi insert-after app.sesi "// IMPORTS" imports.sesi
+    sesi helpers/agent-file-ops.sesi replace-block app.sesi "// START GENERATED" "// END GENERATED" generated.sesi
 */
 
 fn show_help() {
-  print "agent_file_ops.sesi"
+  print "agent-file-ops.sesi"
   print ""
   print "Commands:"
   print "  help"
