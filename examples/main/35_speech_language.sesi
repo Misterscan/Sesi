@@ -3,50 +3,119 @@
 
   Uses Whisper for transcription, the translate package for translation, and
   the operating-system voice for speech.
+
+Usage:
+  sesi examples/main/35_speech_language.sesi
+  sesi examples/main/35_speech_language.sesi --ai 
+
+  Note: This example requires CMake to be installed for the `from_speech()` function to work.
 */
 
-let modelFound = js("const c=require('nodejs-whisper/dist/constants');const fs=require('fs');const p=require('path');console.log(fs.existsSync(p.join(c.WHISPER_CPP_PATH,'models','ggml-base.en.bin'))?'yes':'no')")
-if trim(modelFound) == "yes" {
-  print "Whisper model already installed."
-} else {
-  // Download a Whisper model if not installed
-  print "Downloading Whisper model..."
-  exec("npx nodejs-whisper download base.en")
-}
+allow "std/terminal" in with {color}
 
 let tts = input("Text to speak: ")
 let fromLang = input("Source language (default: en): ")
-if is_null(fromLang) || fromLang == "" {
-  fromLang = "en"
-}
+if is_null(fromLang) || fromLang == "" {fromLang = "en"}
 let toLang = input("Target language (default: es): ")
-if is_null(toLang) || toLang == "" {
-  toLang = "es"
+print ""
+if is_null(toLang) || toLang == "" {toLang = "es"}
+
+let brew = "" 
+try {brew = exec("which brew")} catch (e) {print color(str(e), "red") } // Check if Homebrew is installed 
+if contains(brew, "not found") {print color("Homebrew is not installed. Please install Homebrew to proceed for CMake. Visit https://brew.sh for instructions.", "yellow")}
+if contains(brew, "bin/brew") {
+  try { /* Check if CMake is installed */
+      let CMakeCheck = exec("which cmake")
+      if contains(CMakeCheck, "not found") {
+        print color("CMake is not installed. It is required for 'from_speech()' demonstration.", "yellow")
+        
+        // Prompt user to install CMake via Homebrew
+        brew = input(color("Allow Sesi to install cmake? (y/n): ", "yellow"))
+      } else {
+        print color("CMake is already installed.\n", "green")
+      }
+  } catch (e) {
+    print color(str(e), "red")
+  }
+}
+if trim(brew) == "y" {
+  try { // Install CMake via Homebrew
+      exec("brew install cmake")
+      print color("CMake installed successfully.", "green")
+  } catch (e) {
+      print color("Error installing CMake: " + str(e), "red")
+  }
+}
+if trim(brew) == "n" {print color("Skipping 'from_speech()' demonstration.", "yellow")}
+
+let modelFound = js("const c=require('nodejs-whisper/dist/constants');const fs=require('fs');const p=require('path');console.log(fs.existsSync(p.join(c.WHISPER_CPP_PATH,'models','ggml-base.en.bin'))?'yes':'no')")
+if trim(modelFound) == "yes" {
+  print color("Whisper model already installed.\n", "green")
+} else { // Download a Whisper model if not installed
+  print color("Downloading Whisper model...", "yellow")
+  try {
+    exec("npx nodejs-whisper download base.en")
+    print color("base.en model downloaded successfully.\n", "green")
+  } catch (e) {
+    print color("Error downloading Whisper model: " + str(e), "red")
+  }
 }
 
-if tts == "" {
-  print "No text was provided."
-} else {
-  let audio = speech(tts, "Vindemiatrix", "gemini-2.5-flash-preview-tts")
-  speech(tts); allow "std/time" in with {sleep} sleep(2000)
+// Check if the user wants to use AI for translation
+if tts != "" && (args[0] != "--ai" || args[0] == null) {
+  print "Original language transcribed (" fromLang "):" tts
+  speech(tts)
+
+  tts = translate(tts, toLang, fromLang)
+  print "Translated language transcribed (" toLang "):" tts
+  speech(tts, "Mónica")
+  
+} else if tts != "" && args[0] == "--ai" { // Use AI for translation
+  let audio = speech(tts, "Kore", "gemini-2.5-flash-preview-tts")
   write_file("audio_text.wav", audio, "base64")
   let audioPath = "audio_text.wav"
   let transcript = ""
+
   try {
-    transcript = from_speech(audioPath, toLang)
+    transcript = from_speech(audioPath, toLang) 
+    // Clean up common subtitle timestamps in Whisper transcription output
+    if contains(transcript, "[") && contains(transcript, "-->") {transcript = js("const t=" + to_json(transcript) + ";console.log(t.replace(/\\[\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\s*-->\\s*\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\]/g,'').trim())")}
   } catch (e) {
-    print "Error transcribing audio:" e
+    print color("Error transcribing audio: " + str(e), "red")
   }
-  trash(audioPath, true)
+  trash(audioPath, true); trash("audio_text.wav.txt", true)
 
-  // Skip translation when transcription failed or returned empty text.
+  // If transcription fails or is empty, fallback to original text for translation
   if is_null(transcript) || trim(transcript) == "" || includes(transcript, "Error:") {
-    print "Unable to transcribe audio. Skipping translation."
-  } else {
-    let translated = translate(transcript, toLang, fromLang)
-    speech(translated)
+    print color("Fallback: Using original text for translation.", "yellow")
+    print "Original language (" fromLang ") transcribed:" tts
+    speech(tts)
+    
+    tts = translate(tts, toLang, fromLang)
 
-    print "Original language transcribed (" fromLang "):" transcript
-    print "Translated language transcribed (" toLang "):" translated
+    // Speak the translated text in the target language
+    print "Translated language (" toLang ") transcribed:" tts
+    if toLang == "es" {speech(tts, "Mónica")}
+    if toLang == "fr" {speech(tts, "Amélie")}
+    if toLang == "de" {speech(tts, "Anna")}
+    if toLang == "it" {speech(tts, "Alice")}
+    if toLang == "ja" {speech(tts, "Kyoko")}
+    if toLang == "ko" {speech(tts, "Yuna")}
+    if toLang == "zh" {speech(tts, "Mei")}
+    if toLang == "en" {speech(tts)}
+  } else { // Run translation and speech synthesis if transcription is successful
+    let translated = translate(transcript, toLang, fromLang)
+    print "Original language(" fromLang ") transcribed:" transcript
+    speech(tts)
+
+    print "Translated language (" toLang ") transcribed:" translated
+    if toLang == "es" {speech(translated, "Mónica")}
+    if toLang == "fr" {speech(translated, "Amélie")}
+    if toLang == "de" {speech(translated, "Anna")}
+    if toLang == "it" {speech(translated, "Alice")}
+    if toLang == "ja" {speech(translated, "Kyoko")}
+    if toLang == "ko" {speech(translated, "Yuna")}
+    if toLang == "zh" {speech(translated, "Mei")}
+    if toLang == "en" {speech(translated)}
   }
 }

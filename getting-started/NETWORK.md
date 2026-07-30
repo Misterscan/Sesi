@@ -182,6 +182,56 @@ let ws = api(8989, handleMessage)
 ws.close()
 ```
 
+## High-level API Framework — `std/api`
+
+For building web APIs with automated Swagger documentation and OpenAPI specifications, Sesi provides the `std/api` module. It offers high-level FastAPI-style routing, request schema specification, global middlewares, and auto-generated graphical interactive docs.
+
+```sesi
+allow "std/api" in with API
+
+// Handler function for a route
+fn listUsers(req) {
+  return {"status": 200, "body": {"users": []}}
+}
+
+// Create the API app
+let app = API.create_app({
+  "title": "Users API",
+  "version": "1.0.0",
+  "description": "A user management API"
+})
+
+// Register routing using FastAPI/Express style
+app.get("/users", {
+  "summary": "List users",
+  "tags": ["Users"]
+}, listUsers)
+
+// Listen starts the server
+let server = app.listen(8080)
+```
+
+By default, this will host:
+- The Swagger UI interactive documentation at `http://localhost:8080/docs`
+- The raw OpenAPI 3.1 specification at `http://localhost:8080/openapi.json`
+
+### `std/api` Quick Reference
+
+| Method / Property | Description |
+| ----------------- | ----------- |
+| `API.create_app(config?)` | Instantiates a new API application. Config options: `title`, `version`, `description`, `base_path`. |
+| `app.get(path, schema?, handler)` | Registers a `GET` route. Schema can define `summary`, `description`, `tags`, etc. |
+| `app.post(path, schema?, handler)` | Registers a `POST` route. |
+| `app.put(path, schema?, handler)` | Registers a `PUT` route. |
+| `app.patch(path, schema?, handler)` | Registers a `PATCH` route. |
+| `app.delete(path, schema?, handler)`| Registers a `DELETE` route. |
+| `app.use(middleware)` | Registers a request middleware function `fn(req)`. |
+| `app.openapi()` | Returns the generated OpenAPI 3.1 specification object. |
+| `app.routes()` | Returns an array of registered route objects. |
+| `app.listen(port, options?)` | Starts the server. Options: `docs_path` (default: `"/docs"`), `openapi_path` (default: `"/openapi.json"`), `cors` (default: `true`), `cors_origin` (default: `"*"`). Returns an object with a `.close()` method. |
+
+---
+
 ## Browser Automation — `std/browser`
 
 For complex web pages that require rendering JavaScript, clicking buttons, filling forms, taking screenshots, or exporting to PDF, import the `std/browser` library. Sesi uses Playwright under the hood:
@@ -256,6 +306,13 @@ http.close()
 fn onMsg(client, msg) { client.send("Echo: " + msg) }
 let ws = api(8989, onMsg)
 ws.close()
+
+// High-level API Framework
+allow "std/api" in with API
+let app = API.create_app({"title": "My API"})
+app.get("/hello", {"summary": "Say Hello"}, fn(req) { return {"status": 200, "body": {"message": "hello"}} })
+let server = app.listen(8080)
+server.close()
 
 // Browser Automation (requires -l)
 allow "std/browser" in with {launch}

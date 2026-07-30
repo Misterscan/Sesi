@@ -353,9 +353,13 @@ Count request tokens with the model provider's native counting endpoint.
 ```sesi
 let count = count_tokens("Summarize this text.", "gpt-5.6-sol")
 let gemini_count = count_tokens(text, "gemini-3.6-flash")
+let local_count = count_tokens(text, "local")
 ```
 
-GPT models use OpenAI's `responses/input_tokens` endpoint. Gemini models use Gemini's `models.countTokens` endpoint. Unlike `tokenize()`, this requires the provider API key and returns a count rather than token IDs.
+GPT models use OpenAI's `responses/input_tokens` endpoint. Gemini models use
+Gemini's `models.countTokens` endpoint. Local models use their cached tokenizer
+without an API request. Provider-backed counting requires the corresponding API
+key.
 
 **Returns**: `number`, or `null` if the input/options are invalid
 
@@ -423,7 +427,7 @@ Converts all alphabetic characters in a string to uppercase.
 
 ```sesi
 to_upper("hello")      // "HELLO"
-to_upper("Sesi V1.7.1")  // "SESI V1.7.1"
+to_upper("Sesi V1.7.5")  // "SESI V1.7.5"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -436,7 +440,7 @@ Converts all alphabetic characters in a string to lowercase.
 
 ```sesi
 to_lower("WORLD")      // "world"
-to_lower("Sesi V1.7.1")  // "sesi v1.7.1"
+to_lower("Sesi V1.7.5")  // "sesi v1.7.5"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -2365,7 +2369,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.7.1"
+  "version": "1.7.5"
 }
 print Json.stringify(original)
 ```

@@ -356,7 +356,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.7.1\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.7.5\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -591,6 +591,7 @@ allow "std/audio" in with Audio  // Audio synthesis
 allow "std/theory" in with Music   // Music Theory
 allow "std/terminal" in with Term  // Terminal options
 allow "std/base64" in with Base64 // Base64 encode/decode
+allow "std/api" in with API       // FastAPI-style HTTP API framework
 ```
 
 ### Module Resolution Order (v1.x)

@@ -1,0 +1,95 @@
+/*
+    Test out Sesi's native local model.
+    Flags:
+        custom/edit/system/basic/default -> choose or skip a custom system prompt
+        speak/on/true -> print the answer and read it aloud
+        save/gemini -> print the answer and save it as audio
+        text -> print the answer without reading it aloud
+        help -> print usage instructions
+
+    The first call downloads the configured model. Later calls use the local cache.
+*/
+
+allow "std/terminal" in with {color}
+
+fn help() {print color("Usage:", "green"); print color("    sesi local_ai.sesi - Run interactive mode", "green"); print color("    sesi local_ai.sesi \"prompt\" - Ask a question", "green"); print color("    sesi local_ai.sesi \"prompt\" custom - Asks for a custom system prompt", "green"); print color("    sesi local_ai.sesi \"prompt\" default - Use the default system prompt", "green"); print color("    sesi local_ai.sesi \"prompt\" speak - Read the answer aloud", "green"); print color("    sesi local_ai.sesi \"prompt\" save - Save the answer as audio", "green"); print color("    sesi local_ai.sesi text - Print the answer without reading it aloud", "green"); print color("    sesi local_ai.sesi speak - Skips interactive input", "green"); print color("    sesi local_ai.sesi save - Skips interactive input", "green"); print color("    sesi local_ai.sesi custom - Asks for custom system prompt. Presets are 'basic' and 'default', or 'ai' for AI-generated prompts", "green"); print color("    sesi local_ai.sesi default - Skips interactive input", "green"); print ""}
+let helpMode = false
+if len(args) > 0 {let i = 0; while i < len(args) {if args[i] == "help" {helpMode = true} i = i + 1}}
+
+if helpMode {help()} else {
+let question = ""
+if len(args) > 0 && args[0] != "speak" && args[0] != "on" && args[0] != "true" && args[0] != "text" && args[0] != "custom" && args[0] != "edit" && args[0] != "system" && args[0] != "basic" && args[0] != "default" && args[0] != "save" && args[0] != "gemini" && args[0] != "help" {
+    question = join(args, " ")
+} else {question = input(color("[You]: ", "magenta"))}
+
+let answer = ""
+let customSystem = false
+let ask = ""
+
+if len(args) > 1 && (args[1] == "custom" || args[1] == "edit" || args[1] == "system" || args[1] == "basic" || args[1] == "default") {
+    ask = args[1]
+} else {
+    ask = input(color("Custom system prompt? (y/n): ", "yellow"))
+}
+if ask == "y" || ask == "custom" || ask == "edit" {
+    customSystem = true
+} else if ask == "n" || ask == "system" || ask == "basic" || ask == "default" {
+    customSystem = false
+} else {print color("Invalid input. Using default system prompt.", "red"); customSystem = false}
+
+if customSystem == true {
+    let systemPrompt = input("Enter your custom system prompt: ")
+    if systemPrompt == "" || systemPrompt == "default" || systemPrompt == "basic" {
+        systemPrompt = "You are an experienced ELI5 translator."
+    } else if systemPrompt == "ai" {
+            systemPrompt = await model("gemini-3.5-flash-lite") {cache: true} {"Write a clear and detailed system instruction for an experienced and efficient coding assistant AI named 'Sesira'. Begin your response with '# SYSTEM INSTRUCTION: Your name is `Sesira`...'. Please respond in under 300 characters and all on one line."}
+            // Save the AI-generated system prompt to a file for future use
+            write_file("local-ai-sys-prompt.txt", "SESI_LOCAL_SYSTEM_PROMPT=\"" + systemPrompt + "\"")
+        }
+        print color("Sesira is thinking...", "cyan")
+        answer = model("local") {max_tokens: 2048, temperature: 0.3, stream: false, system: "# SYSTEM INSTRUCTION: " + systemPrompt} {question}
+        print ""
+} else {customSystem = false}
+
+if customSystem == false {print color("Sesira is thinking...", "cyan"); answer = model("local") {max_tokens: 2048, temperature: 0.5, thinkingLevel: "medium", stream: false} {question} print ""}
+
+fn speak(answer: str, on: bool = false, options = null) -> bool {
+    if on == true && !is_null(options) {
+        if is_null(options.voice) {options.voice = "Kore"}
+        if is_null(options.modelName) {options.modelName = "gemini-2.5-flash-preview-tts"}
+
+        
+        if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
+        write_file("ai-response.wav", speech(answer, options.voice, options.modelName), "base64")
+        print color("Saved to ai-response.wav!", "green")
+    } else {
+        print color("\nSpeaking...", "green")
+        if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
+        speech(answer)
+    }
+}
+
+let shouldSpeakMode = false
+let isSaveMode = false
+let isTextOnlyMode = false
+let helpMode = false
+
+if len(args) > 0 {let i = 0
+    while i < len(args) {let arg = args[i]
+        if arg == "speak" || arg == "on" || arg == "true" {shouldSpeakMode = true}
+        if arg == "save" || arg == "gemini" {isSaveMode = true}
+        if arg == "text" {isTextOnlyMode = true}
+        if arg == "help" {helpMode = true} i = i + 1
+    }
+}
+
+if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
+
+if shouldSpeakMode {print color("[SESIRA]: " + answer, "cyan"); speak(answer, true)
+} else if isSaveMode {print color("[SESIRA]: " + answer, "cyan")
+    speak(answer, true, {"voice": "Vindemiatrix", "modelName": "gemini-2.5-flash-preview-tts"})
+} else if isTextOnlyMode {print color("[SESIRA]: " + answer, "cyan")
+} else {print color("[SESIRA]: " + answer, "cyan")
+    let reqSpeak = input(color("Read answer aloud? (y/n): ", "yellow"))
+    if reqSpeak == "y" {speak(answer, true)}
+}}

@@ -118,13 +118,71 @@ async function main() {
       cache: false,
     });
 
-    assert('tools payload forwarded to OpenAI request', Array.isArray(seenTools) && seenTools.length === 1);
+    assert(
+      'tools payload uses the Responses API shape',
+      Array.isArray(seenTools) && seenTools.length === 1 && seenTools[0]?.name === 'lookup_weather'
+    );
     assert('finish reason is TOOL_CALL', res.finishReason === 'TOOL_CALL', `got ${res.finishReason}`);
 
     const parsed = JSON.parse(res.text);
     assert('tool name mapped', parsed.name === 'lookup_weather', `got ${parsed.name}`);
     assert('tool args parsed', parsed.args?.city === 'NYC', `got ${JSON.stringify(parsed.args)}`);
     assert('tool call id mapped', parsed.call_id === 'call_123', `got ${parsed.call_id}`);
+  }
+
+  // 4) GPT web search and system instructions
+  console.log('\n4. GPT web search and system instructions...');
+  {
+    let seenBody: any = null;
+    const rt = new AIRuntime() as any;
+    rt.postOpenAIResponses = async (body: any) => {
+      seenBody = body;
+      return { status: 'completed', output_text: 'search result' };
+    };
+
+    await rt.callModel({
+      model: 'gpt-5.6-luna',
+      prompt: 'Find the current forecast.',
+      systemPrompt: 'Answer concisely.',
+      search: true,
+      cache: false,
+    });
+
+    assert('search adds the OpenAI web search tool', seenBody?.tools?.some((tool: any) => tool.type === 'web_search'));
+    assert('system prompt is sent as instructions', seenBody?.instructions?.includes('Answer concisely.'));
+  }
+
+  // 5) GPT image generation
+  console.log('\n5. GPT image generation...');
+  {
+    let seenBody: any = null;
+    const rt = new AIRuntime() as any;
+    rt._openAIClient = {
+      images: {
+        generate: async (body: any) => {
+          seenBody = body;
+          return {
+            data: [
+              {
+                b64_json: 'mock-image-base64',
+              },
+            ],
+          };
+        },
+      },
+    };
+
+    const res = await rt.callModel({
+      model: 'gpt-image-2',
+      prompt: 'a neon robot cat',
+      ratio: '16:9',
+      cache: false,
+    });
+
+    assert('routes GPT image calls through OpenAI images.generate', seenBody?.model === 'gpt-image-2');
+    assert('GPT image prompt is forwarded', seenBody?.prompt === 'a neon robot cat', `got ${seenBody?.prompt}`);
+    assert('ratio maps to an OpenAI-compatible size', seenBody?.size === '1536x1024', `got ${seenBody?.size}`);
+    assert('GPT image response returns base64', res.text === 'mock-image-base64', `got ${res.text}`);
   }
 
   console.log('\n=== Summary ===');

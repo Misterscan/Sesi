@@ -2010,7 +2010,9 @@ function activate(context) {
                                 'clear()', 'color(text, color)', 'cursor(x,y)'
                             ],
                             'std/api': [
-                                'create_app(config?)'
+                                'create_app(config?)', '.get(path, schema?, handler)', '.post(path, schema?, handler)', 
+                                '.put(path, schema?, handler)', '.delete(path, schema?, handler)', '.use(middleware)', 
+                                '.openapi()', '.routes()', '.listen(port, options?)'
                             ]
                         };
 

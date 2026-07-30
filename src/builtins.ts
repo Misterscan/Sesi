@@ -963,7 +963,11 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         if (typeof options.model === 'string' && options.model.trim() !== '') model = options.model;
       }
 
-      if (/^(?:models\/)?gemini-/i.test(model) || /^gpt-/i.test(model)) {
+      if (
+        /^(?:models\/)?gemini-/i.test(model)
+        || /^gpt-/i.test(model)
+        || /^local(?::|$)/i.test(model)
+      ) {
         return await aiRuntime.countTokens(model, str);
       }
       return null;

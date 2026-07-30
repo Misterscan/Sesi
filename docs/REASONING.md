@@ -166,13 +166,14 @@ print cheap
 - `gemini-3.1-flash-image-lite` - Fastest and cheapest image model, engineered for velocity and scale where speed and cost are the primary operational constraints. Not optimized for multiple reference inputs or multi-turn sequential editing.
 - `gemini-3-pro-image` - High quality image generation model. (No `512` image size support for this model.)
 
-#### OpenAI GPT Models (Text)
+#### OpenAI GPT Models
 
-- `gpt-*` models are supported through `model()` for text generation.
+- `gpt-*` models are supported through `model()` for text generation and visual input.
+- `gpt-*` models are also supported through `image()` when you want GPT image generation.
 - Set `OPENAI_API_KEY` in your environment to enable GPT calls.
-- GPT calls currently support text prompts and streaming.
+- GPT calls support streaming, `system` instructions, local image files via `images`, and web search via `search: true`.
 - GPT tool schemas can be passed via `tools` in model config.
-- `images` and `search` are not yet supported for GPT calls in Sesi.
+- Sesi audio input currently requires a Gemini model.
 
 ```sesi
 let answer = model("gpt-5.6-sol") {"Summarize this document in 3 bullets."}
@@ -182,14 +183,31 @@ fn onChunk(chunk) {
   print "chunk:" chunk
 }
 
-let streamed = model("gpt-5.6-sol") {stream: onChunk, thinkingLevel: "low", max_tokens: 400} {"Explain event streaming in one paragraph."}
+let streamed = model("gpt-5.6-terra") {stream: onChunk, thinkingLevel: "low", max_tokens: 400} {"Explain event streaming in one paragraph."}
 print streamed
+
+let current = model("gpt-5.6-luna") {search: true} {"What is the current capital of France?"}
+print current
 ```
+
+#### Local Models (Text)
+
+`model("local")` runs a quantized ONNX/Qwen2.5 instruction model directly at runtime.
+
+```sesi
+let answer = model("local") {max_tokens: 256, temperature: 0.3} {"What is the best thing about local AI usage?"}
+print answer
+```
+
+The default model is `onnx-community/Qwen2.5-0.5B-Instruct`. Its weights are
+downloaded on first use and cached under `~/.cache/sesi/models`. Set
+`SESI_LOCAL_MODEL`, `SESI_LOCAL_DTYPE`, `SESI_LOCAL_DEVICE`, or
+`SESI_LOCAL_CACHE_DIR` to configure the provider. Use
+`model("local:model-id")` to select a model for one call.
 
 #### Planned for (v2+)
 
-- `OpenAI` non-GPT models (DALL-E, etc.)
-- `HuggingFace` integration
+- `HuggingFace` integration (In-Progress)
 - `Midjourney` integration
 - `Newer Reasoning Models` - Native upgrades
 
@@ -405,8 +423,10 @@ let logo = image("gemini-3.1-flash-image") {ratio: "1:1", size: "512"} {"A high 
 write_image("logo.png", logo)
 print "Image generated!"
 ```
-
 ![Sesi Logo](logo.png)
+
+GPT image models work here too, so you can use `image("gpt-image-2")` with the same Sesi flow and write the returned base64 payload with `write_image()`.
+
 
 ### Code Generation
 

@@ -927,6 +927,9 @@ export class Interpreter {
 
     const temperatureRaw = getConfig('temperature', 'temp');
     const maxTokensRaw = getConfig('max_tokens', 'maxTokens', 'maxT');
+    const topKRaw = getConfig('top_k', 'topK');
+    const topPRaw = getConfig('top_p', 'topP');
+    const systemPromptRaw = getConfig('system', 'system_prompt', 'systemPrompt');
 
     const resolvedModelName = this.resolveModelName(rawModelName);
     const response = await aiRuntime.callModel({
@@ -934,6 +937,9 @@ export class Interpreter {
       prompt: promptText,
       temperature: typeof temperatureRaw === 'number' ? temperatureRaw : undefined,
       maxTokens: typeof maxTokensRaw === 'number' ? maxTokensRaw : undefined,
+      topK: typeof topKRaw === 'number' ? topKRaw : undefined,
+      topP: typeof topPRaw === 'number' ? topPRaw : undefined,
+      systemPrompt: typeof systemPromptRaw === 'string' ? systemPromptRaw : undefined,
       images: imagePaths,
       thinkingLevel,
       cache,

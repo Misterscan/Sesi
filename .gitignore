@@ -7,6 +7,7 @@ dist
 .env.keys
 venv
 *.db
+.vscode/settings.json
 
 # Installer build outputs (generated)
 SesiInstaller.msi
@@ -141,4 +142,22 @@ Misterscan_portfolio.html
 gemini-transcript.txt
 tutorial/.sesi_tutorial_progress.json
 agent_session.json
-.vscode/settings.json
+SesiDo/database/.agent/default-memory-block.md
+local-ai-sys-prompt.txt
+
+# Sesira generated training and release artifacts
+/sesira/
+/sesira/__pycache__/
+/sesira/tmp/
+/sesira/adapters-smoke/
+/sesira/adapters/
+/sesira/adapters-v2/
+/sesira/adapters-v3/
+/sesira/adapters-v4/
+/sesira/eval/
+/sesira/fused_model/
+/sesira/peft_adapter/
+/sesira/merged_pytorch/
+/sesira/onnx/
+/sesira/releases/
+docs/BUILDING_SESIRA.md

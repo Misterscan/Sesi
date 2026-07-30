@@ -530,6 +530,7 @@ export interface AIRequest {
   tools?: any[];
   images?: string[]; // base64-encoded image data URIs or file paths resolved at runtime
   audio?: { data: string; mimeType: string }; // base64-encoded inline audio for multimodal requests
+  systemPrompt?: string;
   thinkingLevel?: { thinking?: string; level?: string } | string;
   cache?: boolean;
   search?: boolean;

@@ -81,7 +81,9 @@ npm install -g .  # Unlock the `sesi` command locally
 
 ## Quick Start
 
-You'll need a [Gemini API Key](https://aistudio.google.com/app/apikey) for the reasoning features. Create a `.env` file referencing your key where you run your scripts:
+Provider-backed reasoning needs an API key. Local reasoning with
+`model("local")` needs no API key. To use Gemini, create
+a `.env` file referencing your key where you run your scripts:
 
 ```env
 GEMINI_API_KEY="AIzaSy..."
@@ -98,6 +100,9 @@ sesi main/tests/test_args.sesi arg1 arg2
 
 # Reasoning script example
 sesi examples/optional/08_model_call.sesi
+
+# Python-free local model (downloads weights on first use)
+sesi local_ai.sesi "Say hello."
 
 # Run all examples
 sesi examples.sesi
@@ -392,6 +397,7 @@ Sesi/
 ### Reasoning-Native Features ✅
 
 - `model()` calls with Reasoning provider configuration
+- Native `model("local")` inference through a cached, quantized ONNX model
 - `image()` calls with specific ratio/size generation capabilities
 - **Async Polling**: Native looping to auto-resume generation when hitting `MAX_TOKENS` limit
 
@@ -408,6 +414,9 @@ Sesi/
 - **Structured Output**: `structured_output()` for typed JSON Schema
 - **Function Calling**: `tool_call()` for function calling
 - **Prompt Blocks**: `prompt` blocks for cleaner and more concise script composition
+
+See [Local Models](docs/LOCAL_MODELS.md) for the context limit, the public
+2,048-token CPU warning threshold, configuration, and reference performance.
 
 ### Type System
 

@@ -1,8 +1,11 @@
-// AI Runtime - Integration with Gemini API
+// AI Runtime - local, Gemini, and OpenAI model providers
 import { AIRequest, AIResponse, StructuredOutput, RuntimeValue } from './types';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
-import * as https from 'https';
+
+export const DEFAULT_LOCAL_MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct';
+export const DEFAULT_LOCAL_MODEL_WARNING_TOKENS = 2048;
 
 function stripPrototypes(val: any): any {
   if (val === null || typeof val !== 'object') {
@@ -20,6 +23,9 @@ function stripPrototypes(val: any): any {
 
 export class AIRuntime {
   private _client: any = null;
+  private _openAIClient: any = null;
+  private localPipelines: Map<string, Promise<any>> = new Map();
+  private localTokenizers: Map<string, Promise<any>> = new Map();
   private conversationHistory: Map<string, string[]> = new Map();
   private embeddingCache: Map<string, number[]> = new Map();
 
@@ -27,6 +33,263 @@ export class AIRuntime {
 
   private isGPTModel(model: string): boolean {
     return /^gpt-/i.test(String(model || '').trim());
+  }
+
+  private isGPTImageModel(model: string): boolean {
+    const normalized = String(model || '').trim();
+    return this.isGPTModel(normalized) && /image/i.test(normalized);
+  }
+
+  private isLocalModel(model: string): boolean {
+    const normalized = String(model || '').trim().toLowerCase();
+    return normalized === 'local' || normalized.startsWith('local:');
+  }
+
+  private resolveLocalModelName(model: string): string {
+    const normalized = String(model || '').trim();
+    let resolved: string;
+    if (normalized.toLowerCase().startsWith('local:')) {
+      const explicitModel = normalized.slice(normalized.indexOf(':') + 1).trim();
+      if (!explicitModel) {
+        throw new Error('A local model name after "local:" is required.');
+      }
+      resolved = explicitModel;
+    } else {
+      resolved = process.env.SESI_LOCAL_MODEL?.trim() || DEFAULT_LOCAL_MODEL;
+    }
+
+    const segments = resolved.split('/');
+    if (
+      segments.length !== 2
+      || segments.some((segment) => !/^[A-Za-z0-9._-]+$/.test(segment) || segment === '.' || segment === '..')
+    ) {
+      throw new Error(
+        `Invalid local model ID "${resolved}". Expected a Hugging Face ID such as "organization/model".`
+      );
+    }
+    return resolved;
+  }
+
+  private getLocalCacheDirectory(): string {
+    const configured = process.env.SESI_LOCAL_CACHE_DIR?.trim();
+    return configured
+      ? path.resolve(configured)
+      : path.join(os.homedir(), '.cache', 'sesi', 'models');
+  }
+
+  private isLocalModelCached(modelName: string, dtype?: string): boolean {
+    const modelDirectory = this.getLocalModelDirectory(modelName);
+    if (!fs.existsSync(path.join(modelDirectory, 'config.json'))) {
+      return false;
+    }
+    if (!dtype) {
+      return fs.existsSync(path.join(modelDirectory, 'tokenizer.json'));
+    }
+
+    const modelFile = dtype === 'fp32'
+      ? 'model.onnx'
+      : `model_${dtype}.onnx`;
+    return fs.existsSync(path.join(modelDirectory, 'onnx', modelFile));
+  }
+
+  private getLocalModelDirectory(modelName: string): string {
+    return path.join(this.getLocalCacheDirectory(), ...modelName.split('/'));
+  }
+
+  private async getLocalPipeline(modelName: string): Promise<any> {
+    const dtype = process.env.SESI_LOCAL_DTYPE?.trim() || 'q4';
+    const device = process.env.SESI_LOCAL_DEVICE?.trim() || 'cpu';
+    const cacheDirectory = this.getLocalCacheDirectory();
+    const cacheKey = `${modelName}\0${dtype}\0${device}\0${cacheDirectory}`;
+    let pending = this.localPipelines.get(cacheKey);
+
+    if (!pending) {
+      pending = (async () => {
+        let transformers: any;
+        try {
+          transformers = require('@huggingface/transformers');
+        } catch (error: any) {
+          throw new Error(
+            'Local model support is unavailable. Reinstall Sesi so the bundled ' +
+            `Transformers.js runtime is present. Details: ${error.message}`
+          );
+        }
+
+        const cached = this.isLocalModelCached(modelName, dtype);
+        const modelSource = cached ? this.getLocalModelDirectory(modelName) : modelName;
+        return await transformers.pipeline('text-generation', modelSource, {
+          dtype,
+          device,
+          cache_dir: cacheDirectory,
+          local_files_only: cached,
+        });
+      })();
+
+      this.localPipelines.set(cacheKey, pending);
+      pending.catch(() => {
+        this.localPipelines.delete(cacheKey);
+      });
+    }
+
+    return await pending;
+  }
+
+  private async getLocalTokenizer(modelName: string): Promise<any> {
+    const cacheDirectory = this.getLocalCacheDirectory();
+    const cacheKey = `${modelName}\0${cacheDirectory}`;
+    let pending = this.localTokenizers.get(cacheKey);
+    if (!pending) {
+      pending = (async () => {
+        let transformers: any;
+        try {
+          transformers = require('@huggingface/transformers');
+        } catch (error: any) {
+          throw new Error(
+            'Local tokenization is unavailable because Transformers.js is not installed. ' +
+            `Details: ${error.message}`
+          );
+        }
+        const cached = this.isLocalModelCached(modelName);
+        const modelSource = cached ? this.getLocalModelDirectory(modelName) : modelName;
+        return await transformers.AutoTokenizer.from_pretrained(modelSource, {
+          cache_dir: cacheDirectory,
+          local_files_only: cached,
+        });
+      })();
+      this.localTokenizers.set(cacheKey, pending);
+      pending.catch(() => {
+        this.localTokenizers.delete(cacheKey);
+      });
+    }
+    return await pending;
+  }
+
+  private countEncodedTokens(tokenizer: any, text: string): number {
+    try {
+      const encoded = tokenizer.encode(text);
+      if (Array.isArray(encoded)) return encoded.length;
+      if (encoded && typeof encoded.length === 'number') return encoded.length;
+      if (encoded?.input_ids && typeof encoded.input_ids.length === 'number') {
+        return encoded.input_ids.length;
+      }
+    } catch {
+      // Fall through to Sesi's local estimate.
+    }
+    return this.estimateTokens(text);
+  }
+
+  private getLocalWarningThreshold(): number {
+    const configured = process.env.SESI_LOCAL_WARN_TOKENS?.trim();
+    if (configured !== undefined && configured !== '') {
+      const parsed = Number(configured);
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        return Math.floor(parsed);
+      }
+    }
+    return DEFAULT_LOCAL_MODEL_WARNING_TOKENS;
+  }
+
+  private extractLocalText(output: any): string {
+    const generated = Array.isArray(output)
+      ? output[0]?.generated_text
+      : output?.generated_text;
+
+    if (typeof generated === 'string') {
+      return generated;
+    }
+
+    if (Array.isArray(generated)) {
+      for (let i = generated.length - 1; i >= 0; i--) {
+        const message = generated[i];
+        if (message?.role === 'assistant' && typeof message?.content === 'string') {
+          return message.content;
+        }
+      }
+    }
+
+    return '';
+  }
+
+  private async callLocalModel(request: AIRequest): Promise<AIResponse> {
+    if (request.images?.length) {
+      throw new Error('Local model calls currently support text-only prompts.');
+    }
+    if (request.audio) {
+      throw new Error('Local model calls currently do not support audio input.');
+    }
+    if (request.search) {
+      throw new Error('search is not available for local model calls.');
+    }
+    if (request.tools?.length) {
+      throw new Error('Tool calling is not yet available for local model calls.');
+    }
+
+    const modelName = this.resolveLocalModelName(request.model);
+    const generator = await this.getLocalPipeline(modelName);
+    const systemPrompt = request.systemPrompt?.trim()
+      || process.env.SESI_LOCAL_SYSTEM_PROMPT?.trim()
+      || 'You are an experienced conversationalist and code assistant. Follow the user request exactly.';
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: request.prompt },
+    ];
+    const tokenizer = generator.tokenizer;
+    const inputTokens = this.countEncodedTokens(tokenizer, `${systemPrompt}\n${request.prompt}`);
+    const warningThreshold = this.getLocalWarningThreshold();
+    if (warningThreshold > 0 && inputTokens > warningThreshold) {
+      console.warn(
+        `⚠️ [Sesi Local Model] Input is ${inputTokens.toLocaleString()} tokens; ` +
+        `the recommended CPU threshold is ${warningThreshold.toLocaleString()}. ` +
+        'Inference may take several minutes. Configure SESI_LOCAL_WARN_TOKENS or set it to 0 to disable this warning.'
+      );
+    }
+
+    const generationOptions: Record<string, any> = {
+      max_new_tokens: request.maxTokens ?? 512,
+      do_sample: request.temperature !== undefined && request.temperature > 0,
+    };
+    if (request.temperature !== undefined && request.temperature > 0) {
+      generationOptions.temperature = request.temperature;
+    }
+    if (request.topK !== undefined) generationOptions.top_k = request.topK;
+    if (request.topP !== undefined) generationOptions.top_p = request.topP;
+
+    let streamedText = '';
+    let streamChain: Promise<void> = Promise.resolve();
+    if (request.stream) {
+      const { TextStreamer } = require('@huggingface/transformers');
+      generationOptions.streamer = new TextStreamer(generator.tokenizer, {
+        skip_prompt: true,
+        skip_special_tokens: true,
+        callback_function: (delta: string) => {
+          streamedText += delta;
+          streamChain = streamChain.then(async () => {
+            if (typeof request.stream === 'function') {
+              await request.stream(delta);
+            } else {
+              process.stdout.write(delta);
+            }
+          });
+        },
+      });
+    }
+
+    const output = await generator(messages, generationOptions);
+    await streamChain;
+    const text = streamedText || this.extractLocalText(output);
+    if (!text.trim()) {
+      throw new Error(`Local model "${modelName}" returned no text output.`);
+    }
+
+    return {
+      text,
+      finishReason: 'STOP',
+      usage: {
+        inputTokens,
+        outputTokens: this.countEncodedTokens(tokenizer, text),
+        thinkingTokens: 0,
+      },
+    };
   }
 
   private mapThinkingEffort(thinkingLevel: AIRequest['thinkingLevel']): 'minimal' | 'low' | 'medium' | 'high' | undefined {
@@ -50,168 +313,52 @@ export class AIRuntime {
     return 'low';
   }
 
-  private async postOpenAIJson(apiPath: string, body: Record<string, any>): Promise<any> {
+  private get openAIClient(): any {
+    if (this._openAIClient) {
+      return this._openAIClient;
+    }
+
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error('OPENAI_API_KEY is required for GPT model calls.');
     }
 
-    const payload = JSON.stringify(body);
-
-    const responseText = await new Promise<string>((resolve, reject) => {
-      const req = https.request(
-        {
-          hostname: 'api.openai.com',
-          path: apiPath,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Length': Buffer.byteLength(payload),
-          },
-        },
-        (res) => {
-          let data = '';
-          res.on('data', (chunk) => {
-            data += chunk;
-          });
-          res.on('end', () => {
-            const status = res.statusCode || 500;
-            if (status >= 200 && status < 300) {
-              resolve(data);
-              return;
-            }
-            reject(new Error(`OpenAI API request failed (${status}): ${data}`));
-          });
-        }
-      );
-
-      req.on('error', (err) => reject(err));
-      req.write(payload);
-      req.end();
-    });
-
     try {
-      return stripPrototypes(JSON.parse(responseText));
-    } catch (e: any) {
-      throw new Error(`Failed to parse OpenAI response JSON: ${e.message}`);
+      const OpenAI = require('openai').default;
+      this._openAIClient = new OpenAI({ apiKey });
+      return this._openAIClient;
+    } catch (error: any) {
+      throw new Error(
+        'Failed to initialize OpenAI SDK. Ensure the openai package is installed. ' +
+        `Details: ${error.message}`
+      );
     }
   }
 
   private async postOpenAIResponses(body: Record<string, any>): Promise<any> {
-    return await this.postOpenAIJson('/v1/responses', body);
+    return stripPrototypes(await this.openAIClient.responses.create(body));
   }
 
   private async streamOpenAIResponses(
     body: Record<string, any>,
     onDelta: (delta: string) => void | Promise<void>
   ): Promise<{ text: string; response: any }> {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY is required for GPT model calls.');
+    const stream = await this.openAIClient.responses.create({ ...body, stream: true });
+    let text = '';
+    let finalResponse: any = null;
+
+    for await (const event of stream) {
+      if (event?.type === 'response.output_text.delta' && typeof event?.delta === 'string') {
+        text += event.delta;
+        await onDelta(event.delta);
+      } else if (event?.type === 'response.completed' && event?.response) {
+        finalResponse = stripPrototypes(event.response);
+      } else if (event?.type === 'error') {
+        throw new Error(event?.message || 'OpenAI streaming error');
+      }
     }
 
-    const payload = JSON.stringify({ ...body, stream: true });
-
-    return await new Promise<{ text: string; response: any }>((resolve, reject) => {
-      const req = https.request(
-        {
-          hostname: 'api.openai.com',
-          path: '/v1/responses',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Length': Buffer.byteLength(payload),
-          },
-        },
-        (res) => {
-          const status = res.statusCode || 500;
-          if (status < 200 || status >= 300) {
-            let errBody = '';
-            res.on('data', (chunk) => {
-              errBody += String(chunk);
-            });
-            res.on('end', () => {
-              reject(new Error(`OpenAI streaming request failed (${status}): ${errBody}`));
-            });
-            return;
-          }
-
-          let buffer = '';
-          let text = '';
-          let finalResponse: any = null;
-          let deltaChain: Promise<void> = Promise.resolve();
-
-          const consumeEvent = (rawEvent: string) => {
-            const trimmed = rawEvent.trim();
-            if (!trimmed) return;
-
-            const lines = trimmed
-              .split('\n')
-              .map((line) => line.trim())
-              .filter((line) => line.startsWith('data:'));
-
-            for (const line of lines) {
-              const data = line.slice(5).trim();
-              if (!data || data === '[DONE]') continue;
-
-              let event: any;
-              try {
-                event = stripPrototypes(JSON.parse(data));
-              } catch {
-                continue;
-              }
-
-              if (event?.type === 'response.error') {
-                reject(new Error(event?.error?.message || 'OpenAI streaming error'));
-                return;
-              }
-
-              if (event?.type === 'response.output_text.delta' && typeof event?.delta === 'string') {
-                text += event.delta;
-                deltaChain = deltaChain.then(async () => {
-                  await onDelta(event.delta);
-                });
-                continue;
-              }
-
-              if (event?.type === 'response.completed' && event?.response) {
-                finalResponse = event.response;
-              }
-            }
-          };
-
-          res.on('data', (chunk) => {
-            buffer += chunk.toString('utf8');
-
-            let boundary = buffer.indexOf('\n\n');
-            while (boundary !== -1) {
-              const frame = buffer.slice(0, boundary);
-              buffer = buffer.slice(boundary + 2);
-              consumeEvent(frame);
-              boundary = buffer.indexOf('\n\n');
-            }
-          });
-
-          res.on('end', () => {
-            if (buffer.trim()) {
-              consumeEvent(buffer);
-            }
-
-            deltaChain
-              .then(() => {
-                resolve({ text, response: finalResponse });
-              })
-              .catch(reject);
-          });
-        }
-      );
-
-      req.on('error', (err) => reject(err));
-      req.write(payload);
-      req.end();
-    });
+    return { text, response: finalResponse };
   }
 
   private extractOpenAIToolCall(response: any): { name: string; args: RuntimeValue; call_id?: string } | null {
@@ -267,27 +414,149 @@ export class AIRuntime {
     return '';
   }
 
-  private async callGPTModel(request: AIRequest): Promise<AIResponse> {
-    if (request.images && request.images.length > 0) {
-      throw new Error('GPT model calls currently support text-only prompts in Sesi.');
+  private normalizeOpenAITools(tools: any[]): any[] {
+    return tools.map((tool) => {
+      if (tool?.type !== 'function' || !tool.function || typeof tool.function !== 'object') {
+        return tool;
+      }
+
+      return {
+        type: 'function',
+        ...tool.function,
+      };
+    });
+  }
+
+  private resolveOpenAIImageParts(imagePaths: string[]): any[] {
+    const mimeMap: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.bmp': 'image/bmp',
+    };
+
+    return imagePaths.map((imagePath) => {
+      const absolutePath = path.isAbsolute(imagePath) ? imagePath : path.resolve(process.cwd(), imagePath);
+      const mimeType = mimeMap[path.extname(absolutePath).toLowerCase()] ?? 'image/jpeg';
+      const data = fs.readFileSync(absolutePath).toString('base64');
+      return {
+        type: 'input_image',
+        image_url: `data:${mimeType};base64,${data}`,
+        detail: 'auto',
+      };
+    });
+  }
+
+
+  private resolveOpenAIImageSize(size?: string, ratio?: string): string {
+    const normalizedSize = String(size || '').trim().toLowerCase();
+    const supportedSizes = new Set(['1024x1024', '1536x1024', '1024x1536']);
+    if (supportedSizes.has(normalizedSize)) {
+      return normalizedSize;
+    }
+
+    const normalizedRatio = String(ratio || '').trim();
+    const ratioMap: Record<string, string> = {
+      '1:1': '1024x1024',
+      '4:3': '1536x1024',
+      '16:9': '1536x1024',
+      '3:4': '1024x1536',
+      '9:16': '1024x1536',
+    };
+
+    return ratioMap[normalizedRatio] ?? '1024x1024';
+  }
+
+  private async callGPTImageModel(request: AIRequest): Promise<AIResponse> {
+    if (request.audio) {
+      throw new Error('GPT image model calls do not yet support Sesi audio input.');
+    }
+    if (request.images?.length) {
+      throw new Error('GPT image model calls do not yet support reference image input.');
+    }
+    if (request.tools?.length) {
+      throw new Error('GPT image model calls do not yet support tools.');
     }
     if (request.search) {
-      throw new Error('search is currently not supported for GPT model calls in Sesi.');
+      throw new Error('GPT image model calls do not yet support web search.');
     }
-    const effort = this.mapThinkingEffort(request.thinkingLevel);
-    const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
-    const fullPrompt = timeContext + request.prompt;
+    if (request.stream) {
+      throw new Error('GPT image model calls do not support streaming.');
+    }
+
+    const imagesApi = this.openAIClient?.images;
+    if (!imagesApi || typeof imagesApi.generate !== 'function') {
+      throw new Error('OpenAI image generation is unavailable. Ensure the openai package is installed and supports images.generate().');
+    }
 
     const body: Record<string, any> = {
       model: request.model,
-      input: fullPrompt,
+      prompt: request.prompt,
+    };
+
+    const size = this.resolveOpenAIImageSize(request.size, request.ratio);
+    if (size) {
+      body.size = size;
+    }
+
+    const response = await imagesApi.generate(body);
+    const firstImage = response?.data?.[0] ?? null;
+    let base64String = firstImage?.b64_json ?? firstImage?.base64 ?? firstImage?.image_base64 ?? null;
+
+    if (!base64String && typeof firstImage?.url === 'string' && firstImage.url.trim() !== '') {
+      const remote = await fetch(firstImage.url);
+      if (!remote.ok) {
+        throw new Error(`GPT image generation returned a URL that could not be fetched: ${remote.status} ${remote.statusText}`);
+      }
+      base64String = Buffer.from(await remote.arrayBuffer()).toString('base64');
+    }
+
+    if (!base64String) {
+      throw new Error('GPT image generation failed or returned no image output.');
+    }
+
+    return {
+      text: base64String,
+      finishReason: 'STOP',
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+      },
+    };
+  }
+  private async callGPTModel(request: AIRequest): Promise<AIResponse> {
+    if (request.audio) {
+      throw new Error('GPT model calls do not yet support Sesi audio input. Use a Gemini model for audio transcription.');
+    }
+    const effort = this.mapThinkingEffort(request.thinkingLevel);
+    const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
+    const instructions = request.systemPrompt?.trim()
+      ? `${timeContext}${request.systemPrompt.trim()}`
+      : timeContext.trim();
+    const input = request.images?.length
+      ? [{
+        role: 'user',
+        content: [
+          ...this.resolveOpenAIImageParts(request.images),
+          { type: 'input_text', text: request.prompt },
+        ],
+      }]
+      : request.prompt;
+
+    const body: Record<string, any> = {
+      model: request.model,
+      input,
+      instructions,
     };
 
     if (request.temperature !== undefined) body.temperature = request.temperature;
     if (request.maxTokens !== undefined) body.max_output_tokens = request.maxTokens;
     if (request.topP !== undefined) body.top_p = request.topP;
     if (effort) body.reasoning = { effort };
-    if (request.tools && request.tools.length > 0) body.tools = request.tools;
+    if (request.tools && request.tools.length > 0) body.tools = this.normalizeOpenAITools(request.tools);
+    if (request.search) body.tools = [...(body.tools ?? []), { type: 'web_search' }];
 
     if (request.stream) {
       const streamed = await this.streamOpenAIResponses(body, async (delta: string) => {
@@ -400,9 +669,18 @@ export class AIRuntime {
       throw new Error('Native token counting requires string contents.');
     }
 
+    if (this.isLocalModel(normalizedModel)) {
+      try {
+        const tokenizer = await this.getLocalTokenizer(this.resolveLocalModelName(normalizedModel));
+        return this.countEncodedTokens(tokenizer, contents);
+      } catch (error: any) {
+        throw new Error(`Sesi: Local token counting failed: ${error.message}`);
+      }
+    }
+
     if (this.isGPTModel(normalizedModel)) {
       try {
-        const response = await this.postOpenAIJson('/v1/responses/input_tokens', {
+        const response = await this.openAIClient.responses.inputTokens.count({
           model: normalizedModel,
           input: contents,
         });
@@ -465,6 +743,20 @@ export class AIRuntime {
     const hash = crypto.createHash('sha256');
     const input = {
       model: request.model,
+      resolvedLocalModel: this.isLocalModel(request.model)
+        ? this.resolveLocalModelName(request.model)
+        : undefined,
+      localDtype: this.isLocalModel(request.model)
+        ? process.env.SESI_LOCAL_DTYPE || 'q4'
+        : undefined,
+      localDevice: this.isLocalModel(request.model)
+        ? process.env.SESI_LOCAL_DEVICE || 'cpu'
+        : undefined,
+      localSystemPrompt: this.isLocalModel(request.model)
+        ? request.systemPrompt?.trim()
+          || process.env.SESI_LOCAL_SYSTEM_PROMPT?.trim()
+          || 'You are an experienced conversationalist and code assistant. Follow the user request exactly.'
+        : undefined,
       prompt: request.prompt,
       temperature: request.temperature,
       maxTokens: request.maxTokens,
@@ -473,6 +765,7 @@ export class AIRuntime {
       ratio: request.ratio,
       size: request.size,
       images: request.images,
+      systemPrompt: request.systemPrompt,
       thinkingLevel: request.thinkingLevel,
       search: request.search,
     };
@@ -591,8 +884,20 @@ export class AIRuntime {
     }
 
     try {
+      if (this.isLocalModel(request.model)) {
+        const localResponse = await this.callLocalModel(request);
+        if (useCache) {
+          const cache = this.readCache();
+          cache[cacheHash] = localResponse;
+          this.writeCache(cache);
+        }
+        return localResponse;
+      }
+
       if (this.isGPTModel(request.model)) {
-        const gptResponse = await this.callGPTModel(request);
+        const gptResponse = this.isGPTImageModel(request.model)
+          ? await this.callGPTImageModel(request)
+          : await this.callGPTModel(request);
         if (useCache) {
           const cache = this.readCache();
           cache[cacheHash] = gptResponse;

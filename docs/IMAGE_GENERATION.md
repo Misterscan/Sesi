@@ -75,6 +75,15 @@ When configuring the `image` call (specifically for models like `gemini-3.1-flas
 - `size`: Dimensional sizing constraints (Must be `"512"`, `"1K"`, `"2K"`, or `"4K"`).
 - `temperature`: _Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — controls variance.
 
+GPT image models are also supported through the same `image()` primitive. When you pass a model such as `gpt-image-2`, Sesi routes the call through OpenAI's image generation API and uses `ratio` to choose an OpenAI-compatible output size.
+
+```sesi
+let logo = image("gpt-image-2") {ratio: "1:1"} {"A bold, flat logo for a fictional studio, black on warm white."}
+write_image("gpt-generated-logo.png", logo)
+```
+
+<img src="gpt-generated-logo.png" alt="GPT Generated Logo" style="width:340px;">
+
 ## File I/O Integration: `write_image`
 
 The `image()` call evaluates to a `string` (specifically, base64-encoded image data). To convert this into a standard image file on disk, use either `write_image(path, base64_content)` or `write_file(path, base64_content, "base64")`.
