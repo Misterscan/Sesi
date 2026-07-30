@@ -533,9 +533,9 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       }
 
       const transcribeWithSmartWhisper = async (): Promise<RuntimeValue> => {
-        const { convertToWavType } = require('nodejs-whisper/dist/utils');
-        const wav = require('node-wav');
-        const { Whisper, manager } = require('smart-whisper');
+        const { convertToWavType } = await importEsmModule('nodejs-whisper/dist/utils');
+        const wav = await importEsmModule('node-wav');
+        const { Whisper, manager } = await importEsmModule('smart-whisper');
 
         const wavPath = await convertToWavType(safePath, console);
         const buffer = fs.readFileSync(wavPath);
@@ -572,8 +572,9 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
 
       try {
         // nodejs-whisper constructs a command before build; pre-create/verify executable first.
-        const { WHISPER_CPP_PATH } = require('nodejs-whisper/dist/constants');
-        const { getCmakeConfigureCommand } = require('nodejs-whisper/dist/buildConfig');
+        const { WHISPER_CPP_PATH } = await importEsmModule('nodejs-whisper/dist/constants');
+        const { getCmakeConfigureCommand } = await importEsmModule('nodejs-whisper/dist/buildConfig');
+        const { nodewhisper } = await importEsmModule('nodejs-whisper');
 
         const execName = process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli';
         const mainName = process.platform === 'win32' ? 'main.exe' : 'main';
@@ -638,7 +639,6 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
           }
         }
 
-        const { nodewhisper } = require('nodejs-whisper');
         const transcript = await nodewhisper(safePath, {
           modelName: 'base.en',
           autoDownloadModelName: 'base.en',

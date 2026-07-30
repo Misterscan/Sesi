@@ -1,3 +1,6 @@
+async function importEsmModule(specifier: string): Promise<any> {
+  return await (new Function('specifier', 'return import(specifier)'))(specifier);
+}
 // AI Runtime - local, Gemini, and OpenAI model providers
 import { AIRequest, AIResponse, StructuredOutput, RuntimeValue } from './types';
 import * as fs from 'fs';
@@ -105,16 +108,7 @@ export class AIRuntime {
 
     if (!pending) {
       pending = (async () => {
-        let transformers: any;
-        try {
-          transformers = require('@huggingface/transformers');
-        } catch (error: any) {
-          throw new Error(
-            'Local model support is unavailable. Reinstall Sesi so the bundled ' +
-            `Transformers.js runtime is present. Details: ${error.message}`
-          );
-        }
-
+        const transformers: any = await importEsmModule('@huggingface/transformers');
         const cached = this.isLocalModelCached(modelName, dtype);
         const modelSource = cached ? this.getLocalModelDirectory(modelName) : modelName;
         return await transformers.pipeline('text-generation', modelSource, {
@@ -140,15 +134,7 @@ export class AIRuntime {
     let pending = this.localTokenizers.get(cacheKey);
     if (!pending) {
       pending = (async () => {
-        let transformers: any;
-        try {
-          transformers = require('@huggingface/transformers');
-        } catch (error: any) {
-          throw new Error(
-            'Local tokenization is unavailable because Transformers.js is not installed. ' +
-            `Details: ${error.message}`
-          );
-        }
+        const transformers: any = await importEsmModule('@huggingface/transformers');
         const cached = this.isLocalModelCached(modelName);
         const modelSource = cached ? this.getLocalModelDirectory(modelName) : modelName;
         return await transformers.AutoTokenizer.from_pretrained(modelSource, {
@@ -257,7 +243,7 @@ export class AIRuntime {
     let streamedText = '';
     let streamChain: Promise<void> = Promise.resolve();
     if (request.stream) {
-      const { TextStreamer } = require('@huggingface/transformers');
+      const { TextStreamer } = await importEsmModule('@huggingface/transformers');
       generationOptions.streamer = new TextStreamer(generator.tokenizer, {
         skip_prompt: true,
         skip_special_tokens: true,
