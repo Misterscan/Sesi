@@ -1,5 +1,5 @@
-async function importEsmModule(specifier: string): Promise<any> {
-  return await (new Function('specifier', 'return import(specifier)'))(specifier);
+async function importTransformersModule(): Promise<any> {
+  return await import('@huggingface/transformers');
 }
 // AI Runtime - local, Gemini, and OpenAI model providers
 import { AIRequest, AIResponse, StructuredOutput, RuntimeValue } from './types';
@@ -108,7 +108,7 @@ export class AIRuntime {
 
     if (!pending) {
       pending = (async () => {
-        const transformers: any = await importEsmModule('@huggingface/transformers');
+        const transformers: any = await importTransformersModule();
         const cached = this.isLocalModelCached(modelName, dtype);
         const modelSource = cached ? this.getLocalModelDirectory(modelName) : modelName;
         return await transformers.pipeline('text-generation', modelSource, {
@@ -134,7 +134,7 @@ export class AIRuntime {
     let pending = this.localTokenizers.get(cacheKey);
     if (!pending) {
       pending = (async () => {
-        const transformers: any = await importEsmModule('@huggingface/transformers');
+        const transformers: any = await importTransformersModule();
         const cached = this.isLocalModelCached(modelName);
         const modelSource = cached ? this.getLocalModelDirectory(modelName) : modelName;
         return await transformers.AutoTokenizer.from_pretrained(modelSource, {
@@ -243,7 +243,7 @@ export class AIRuntime {
     let streamedText = '';
     let streamChain: Promise<void> = Promise.resolve();
     if (request.stream) {
-      const { TextStreamer } = await importEsmModule('@huggingface/transformers');
+      const { TextStreamer } = await importTransformersModule();
       generationOptions.streamer = new TextStreamer(generator.tokenizer, {
         skip_prompt: true,
         skip_special_tokens: true,

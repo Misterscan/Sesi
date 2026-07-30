@@ -33,7 +33,7 @@
     "debug": "SESI_DEBUG=1 sesi --cli",
     "repl": "sesi",
     "dev": "dotenvx run -- npm run build --watch",
-    "test": "tsx tests/basic.test.ts && tsx tests/module.test.ts && tsx tests/cache.test.ts && tsx tests/http.test.ts && tsx tests/workflow.test.ts && tsx tests/security.test.ts && tsx tests/v2_features.test.ts && tsx tests/openai_gpt_runtime.test.ts && tsx tests/local_model_runtime.test.ts && tsx tests/token_cost.test.ts",
+    "test": "tsx tests/basic.test.ts && tsx tests/module.test.ts && tsx tests/cache.test.ts && tsx tests/http.test.ts && tsx tests/workflow.test.ts && tsx tests/security.test.ts && tsx tests/v2_features.test.ts && tsx tests/openai_gpt_runtime.test.ts && tsx tests/local_model_runtime.test.ts && tsx tests/token_cost.test.ts && tsx tests/package_runtime.test.ts",
     "test:watch": "tsx watch tests/basic.test.ts",
     "sesi": "sesi --cli",
     "sesi:local": "sesi --cli -l",
@@ -79,6 +79,9 @@
   ],
   "author": "Misterscan",
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@dotenvx/dotenvx": "2.19.1",
     "@dotenvx/dotenvx-armor": "0.56.1",

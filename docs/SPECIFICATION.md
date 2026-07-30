@@ -769,6 +769,6 @@ print sentiment.score
 
 ## 13. Compatibility Notes
 
-- Sesi programs run on Node.js 20+
+- Sesi programs run on Node.js 20+, using local models relies on Node.js 22+
 - Requires `@google/genai` SDK v2.0.1+
 - Requires valid Gemini API key (GEMINI_API_KEY env var)

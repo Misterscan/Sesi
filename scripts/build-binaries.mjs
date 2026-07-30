@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
 const releasesDir = path.join(repoRoot, 'releases');
+const packagedNodeRange = 'node22';
+const pkgVersion = '6.21.0';
+const pkgFetchVersion = '3.6.4';
 
 function stageStudioRuntime() {
   const runtimeDir = path.join(releasesDir, 'studio-runtime');
@@ -72,11 +75,11 @@ console.log('\n=== Step 2: Packaging Sesi with pkg ===');
 // Determine targets based on current host platform to avoid spawn UNKNOWN fabricator failures
 let targets = '';
 if (process.platform === 'win32') {
-  targets = 'node18-win-x64';
+  targets = `${packagedNodeRange}-win-x64`;
 } else if (process.platform === 'darwin') {
-  targets = 'node18-macos-x64,node18-macos-arm64';
+  targets = `${packagedNodeRange}-macos-x64,${packagedNodeRange}-macos-arm64`;
 } else {
-  targets = 'node18-linux-x64';
+  targets = `${packagedNodeRange}-linux-x64`;
 }
 
 console.log(`Host platform is ${process.platform}. Selected pkg targets: ${targets}`);
@@ -86,7 +89,7 @@ if (process.platform === 'win32') {
   const cacheDir = process.env.PKG_CACHE_PATH || path.join(
     process.env.USERPROFILE || process.env.HOMEPATH || '',
     '.pkg-cache',
-    'v3.4'
+    'v3.6'
   );
 
   console.log(`Checking pkg cache directory: ${cacheDir}`);
@@ -94,13 +97,20 @@ if (process.platform === 'win32') {
     fs.mkdirSync(cacheDir, { recursive: true });
   }
 
-  let fetchedFile = fs.readdirSync(cacheDir).find(f => f.startsWith('fetched-v18.') && f.endsWith('-win-x64'));
+  let fetchedFile = fs.readdirSync(cacheDir).find(
+    f => f.startsWith(`fetched-v${packagedNodeRange.slice(4)}.`) && f.endsWith('-win-x64')
+  );
 
   if (!fetchedFile) {
     console.log('Fetched Windows binary not found in cache. Pre-fetching using pkg-fetch...');
     try {
-      execSync('npx pkg-fetch -t node18-win-x64', { stdio: 'inherit', cwd: repoRoot });
-      fetchedFile = fs.readdirSync(cacheDir).find(f => f.startsWith('fetched-v18.') && f.endsWith('-win-x64'));
+      execSync(
+        `npx --yes @yao-pkg/pkg-fetch@${pkgFetchVersion} -t ${packagedNodeRange}-win-x64`,
+        { stdio: 'inherit', cwd: repoRoot }
+      );
+      fetchedFile = fs.readdirSync(cacheDir).find(
+        f => f.startsWith(`fetched-v${packagedNodeRange.slice(4)}.`) && f.endsWith('-win-x64')
+      );
     } catch (e) {
       console.warn('pkg-fetch failed, pkg will try to fetch automatically:', e.message);
     }
@@ -128,7 +138,7 @@ if (process.platform === 'win32') {
 
 try {
   execSync(
-    `npx pkg dist/sesi.bundled.js --config pkg.json --targets ${targets} --out-path releases`,
+    `npx --yes @yao-pkg/pkg@${pkgVersion} dist/sesi.bundled.js --config pkg.json --targets ${targets} --out-path releases`,
     { stdio: 'inherit', cwd: repoRoot }
   );
 } catch (e) {

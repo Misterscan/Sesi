@@ -22,7 +22,7 @@ If you don't want to install Node.js, you can download a standalone binary:
 
 ### Option 3: Build from Source (For Contributors)
 
-**Prerequisites:** Node.js 18+ and npm
+**Prerequisites:** Node.js 20+ and npm
 
 ```bash
 git clone https://github.com/Misterscan/Sesi.git

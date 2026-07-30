@@ -16,7 +16,7 @@
 | Component | Technology                                       | Rationale                                                           |
 | --------- | ------------------------------------------------ | ------------------------------------------------------------------- |
 | Language  | TypeScript                                       | Type safety, IDE support, easy debugging                            |
-| Runtime   | Node.js 18+                                      | Wide availability, async support                                    |
+| Runtime   | Node.js 20+                                      | Wide availability, async support                                    |
 | Reasoning | Gemini 3.1                                       | Latest models, 1M token context, fast                               |
 | SDK       | @google/genai                                    | Official, well-maintained, async-first                              |
 | Parser    | Recursive descent                                | Simple, readable, extensible                                        |

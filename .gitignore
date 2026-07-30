@@ -13,6 +13,8 @@ venv
 SesiInstaller.msi
 SesiInstaller.wixpdb
 cab1.cab
+cab3.cab
+cab2.cab
 *.wixpdb
 *.exe
 *.pkg
