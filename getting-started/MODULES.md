@@ -115,7 +115,7 @@ To track dependencies, Sesi uses a simple `sesi.json` file in the root of your p
   "name": "my-project",
   "version": "1.0.0",
   "dependencies": {
-    "http-router": "github:sesi-lang/http-router#v1.0.0"
+    "http-router": "example-repo/http-router#v1.0.0"
   }
 }
 ```
@@ -125,7 +125,7 @@ To track dependencies, Sesi uses a simple `sesi.json` file in the root of your p
 - **Install a specific package**:
 
   ```bash
-  sesi install github:owner/repo[#ref]
+  sesi install owner/repo#ref
   ```
 
   This downloads the package from GitHub, extracts it to `sesi_modules/repo`, and registers it inside `sesi.json`. You can specify branch names, tag names, or commit hashes using `#ref`.

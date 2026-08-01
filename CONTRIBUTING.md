@@ -99,7 +99,7 @@ Since Sesi uses direct Git resolution:
 Developers can import your library inside their projects as follows:
 - **Install**:
   ```bash
-  sesi install github:username/repo#v1.0.0
+  sesi install username/repo#ref
   ```
   This creates/updates `sesi.json` and extracts the library into `sesi_modules/repo`.
 - **Import**:

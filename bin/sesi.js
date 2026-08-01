@@ -39,7 +39,7 @@ Usage:
   sesi -t <file>         Run via legacy tree-walking interpreter
   sesi -bd <file>        Print disassembled bytecode
   sesi install           Install all dependencies listed in sesi.json
-  sesi install <pkg>     Install a third-party package (e.g. github:owner/repo)
+  sesi install <pkg>     Install a third-party package (e.g. owner/repo#ref)
 
   Options:
   -v --version           Show version
@@ -171,7 +171,7 @@ function parseArgs(args) {
 async function startRepl() {
   const blessed = require('blessed');
   const { Lexer, Parser, Interpreter } = require('../dist/index.js');
-  
+
   const screen = blessed.screen({
     smartCSR: true,
     title: 'Sesi',
@@ -260,10 +260,10 @@ async function startRepl() {
     if (trimmed === '.exit') {
       return process.exit(0);
     }
-    
+
     inputBox.clearValue();
     inputBox.focus();
-    
+
     if (trimmed) {
       outputBox.log(`{cyan-fg}sesi>{/cyan-fg} ${trimmed}`);
       try {
@@ -292,7 +292,7 @@ async function startRepl() {
 
   outputBox.log('{bold}Welcome to Sesi!{/bold} Type code and press Enter.');
   outputBox.log('Type {cyan-fg}.exit{/cyan-fg} or press {cyan-fg}ESC{/cyan-fg} to quit.');
-  
+
   inputBox.focus();
   screen.render();
 }
@@ -431,7 +431,7 @@ async function main() {
       });
       return;
     }
-    
+
     // START CUSTOM TERMINAL INTERFACE FOR SCRIPT EXECUTION
     const blessed = require('blessed');
     const screen = blessed.screen({
@@ -507,7 +507,7 @@ async function main() {
         inputBox.show();
         inputBox.focus();
         screen.render();
-        
+
         inputBox.once('submit', (text) => {
           const val = text.trim();
           inputBox.clearValue();

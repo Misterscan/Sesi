@@ -141,7 +141,7 @@ sesi -dec my_script.sesi
 
 ```bash
 # Install third-party package dependency
-sesi install owner/repo
+sesi install owner/repo#ref
 
 # Install all dependencies declared in sesi.json
 sesi install
