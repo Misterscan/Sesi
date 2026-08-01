@@ -434,7 +434,7 @@ npm test
 
 **Example Coverage**
 
-- 31 complete example programs
+- 35 complete example programs
 - Covers all major language features
 - Demonstrates reasoning integration
 - Real-world use cases

@@ -523,6 +523,7 @@ sesi examples/main/31_synthesizer.sesi
 sesi examples/main/32_browser_automation.sesi
 sesi examples/main/33_base64.sesi
 sesi examples/main/34_sesi_api.sesi
+sesi examples/main/35_speech_language.sesi
 ```
 
 ## Common Patterns
@@ -547,14 +548,14 @@ print doubled  // [2, 4, 6, 8, 10]
 let text = "hello world"
 
 // Concatenation
-let greeting = "Hello," + "World!"
+prompt greeting {"Hello," "World!"}
 
 // Length
-let len = len(text)
+let len = len(text) // or length(text)
 
-/* Uppercase/lowercase (v2+)
-let upper = upper(text)
-let lower = lower(text) */
+/* Uppercase/lowercase
+let upper = to_upper(text)
+let lower = to_lower(text) */
 
 // Split and join
 let words = split(text, " ")
@@ -564,8 +565,8 @@ let rejoined = join(words, "-")
 ### Reasoning Classification
 
 ```sesi
-fn classify(item: string)
-{print model("gemini-3-flash-preview"){"Classify as: FRUIT, VEGETABLE, or GRAIN. Item: " item}}
+fn classify(item: string) {print model("gemini-3-flash-preview"){"Classify as: FRUIT, VEGETABLE, or GRAIN. Item: "item}}
+
 classify("apple")
 classify("carrot")
 classify("wheat")
@@ -576,11 +577,13 @@ classify("wheat")
 ### Print Intermediate Values
 
 ```sesi
-fn complex(x: number)
-{let step1 = x * 2
-print "Step 1:" str(step1)
-let step2 = step1 + 10
-print "Step 2:" str(step2)}
+fn complex(x: number) {
+  let step1 = x * 2
+  print "Step 1:" str(step1)
+  let step2 = step1 + 10
+  print "Step 2:" str(step2)
+}
+
 complex(5)
 ```
 
@@ -596,9 +599,11 @@ if type(value) == "string" {print "It's a string!"}
 
 ```sesi
 let response = model("gemini-3-flash-preview") {"Respond with YES or NO"}
-if response == "" {print "Error: no response"}
-else if len(response) > 100 {print "Warning: response too long"}
-else {print "Response: " response}
+if response == "" {
+  print "Error: no response"
+} else if len(response) > 100 {
+  print "Warning: response too long"
+} else {print "Response: " response}
 ```
 
 ## Performance Considerations
@@ -679,7 +684,7 @@ npm run sesi:encrypt "my_script.sesi"
 npm run sesi:decrypt "my_script.sesi"
 
 # Search with Sesira
-npm run copilot "how do I use multi_req()?"
+npm run sesira "how do I use multi_req()?"
 ```
 
 Sesira retrieves relevant context from Sesi's native repository database and specification documentation to generate a conversational answer in real time.

@@ -40,7 +40,7 @@ We are excited to announce the release of **Sesi Studio**, a high-performance, b
 
 To launch Sesi Studio, you can:
 
-- Open **Sesi Studio.app** (macOS)
+- Open **Sesi Studio.app** (macOS) / **Sesi Studio.exe** / (Windows)
 - Use the CLI: `sesi -s` from any project directory after installing Sesi. The installer includes the Studio runtime and opens that directory as the initial workspace.
 
 ## Installation
@@ -429,12 +429,6 @@ See [Local Models](docs/LOCAL_MODELS.md) for the context limit, the public
 - Union types for Reasoning response handling
 
 ## Roadmap
-
-### V2: Advanced Reasoning
-
-- Long-term memory and context management
-- Custom tool definitions
-- Streaming responses
 
 ### V3: Agents & Orchestration
 
