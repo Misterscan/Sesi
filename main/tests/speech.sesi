@@ -1,0 +1,4 @@
+// Testing the speech() builtin
+
+speech("Hello from Sesi")
+speech("Bonjour tout le monde", "Thomas")

@@ -178,10 +178,8 @@ export fn evaluate(args) {
     let temp_file = "sesi-studio/temp_eval.sesi"
     Safe.writeFile(temp_file, final_code)
     let output = sesi(temp_file, true)
+    trash(temp_file, true)
     return output
-    try {
-      trash(temp_file, true)
-    } catch(rm_e) {}
   } catch(e) {
     return "Error evaluating Sesi code: " + str(e)
   }
