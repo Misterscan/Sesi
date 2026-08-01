@@ -66,6 +66,25 @@ You can also pass arguments to your script, which are exposed under the global `
 sesi main/test_args.sesi arg1 arg2
 ```
 
+### Ask Sesira for help
+
+Use `-h` with a question to consult the bundled Sesira assistant (maintains conversational history by default):
+
+```bash
+sesi -h "how do I use memory?"
+```
+
+To run the chatbot directly with arguments:
+
+```bash
+npm run sesira "question"
+# Start a new chat
+npm run sesira new "question"
+# Pass file context to Sesira
+npm run sesira <filename> "question"
+npm run sesira new <filename> "question"
+```
+
 ### Run Tests
 
 For devs working on Sesi, you can verify your backend edits with the built-in test suite:
@@ -600,16 +619,16 @@ else {print "Response: " response}
 
 ## Getting Help
 
-Sesi comes with an advanced, built-in **Interactive Co-Pilot** right in your command line! Instead of static help messages, you can query Sesi directly about how to use any statement, standard library, or architectural pattern:
+Sesi comes with an advanced, built-in **Sesira assistant** right in your command line. Instead of static help messages, you can query Sesi directly about how to use any statement, standard library, or architectural pattern:
 
 ```bash
-# Ask the Sesi Co-Pilot for help directly
+# Ask Sesira for help directly
 sesi -help "how do I parse a JSON string?"
 sesi --help "explain structured_output and give an example"
 sesi -h "how to spawn background processes?"
 ```
 
-You can also pass a file into the help context so the co-pilot can talk about that exact script:
+You can also pass a file into the help context so Sesira can talk about that exact script:
 
 ```bash
 sesi examples/main/01_hello.sesi -h
@@ -659,11 +678,11 @@ npm run sesi:eval "print 'Hello from npm!'"
 npm run sesi:encrypt "my_script.sesi"
 npm run sesi:decrypt "my_script.sesi"
 
-# Search with Sesi's Co-Pilot
-npm run sesi:help "how do I use multi_req()?"
+# Search with Sesira
+npm run copilot "how do I use multi_req()?"
 ```
 
-The co-pilot will dynamically index and train on Sesi's native repository database and retrieve full RAG context from our standard specification docs to generate a syntactically correct, 100% accurate, conversational answer in real-time!
+Sesira retrieves relevant context from Sesi's native repository database and specification documentation to generate a conversational answer in real time.
 
 You can also:
 

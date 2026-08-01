@@ -1,0 +1,327 @@
+/* 
+  Sesira
+  Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries! 
+*/
+allow "helpers/safe" in with Safe
+allow "timestamp" in with Stamp
+
+/* 
+  ==================================================
+  💬 1. CHOOSE YOUR ADVANCED TECHNICAL QUERY HERE!
+  (Test it with custom phrases containing our keywords!) 
+*/
+let archiveDir = "chatbot/archive/"; make_dir(archiveDir)
+let queryText = ""
+let fileContext = ""
+let logFile = "chatbot/sesira.log"
+
+fn writeLog(sender, msg) {
+  let status = "Error writing to log file."
+  let wrote = false
+  if len(msg) > 5000 {
+    let lines = split(msg, "\n")
+    let truncatedLines = slice(lines, 0, 250)
+    msg = join(truncatedLines, "\n") + "\n... [TRUNCATED]"
+  }
+  let timestamp = Stamp.localTime("in_ms")
+  prompt logEntry {"["timestamp"]
+["sender"]: "msg"
+===============================
+"}
+
+  try {
+    Safe.appendFile(logFile, logEntry)
+    wrote = true
+  } catch (e) {
+    wrote = Safe.writeFile(logFile, "[" + timestamp + "] [" + sender + "]: " + msg + "\n===============================\n")
+  }
+
+  if sender == "USER" {print "User Query Logged:" msg
+  } else if sender == "SESI" {
+    if contains(msg, "----------------------------------") {print "Sesi Response Logged."
+    } else {
+      print "Sesi Response Logged:" msg
+    }
+  }
+  if wrote { status = "Log entry written successfully." }
+
+  return status
+}
+
+fn clearLog() {
+  let archiveBase = swap(swap(logFile, "chatbot/", ""), ".log", "")
+  let archivePath = archiveDir + archiveBase + "-" + Stamp.formattedTime() + ".log"
+  let previousLog = Safe.readFile(logFile, "text")
+  if len(previousLog) > 0 {
+    try {
+      archive(logFile, archivePath)
+    } catch (e) {
+      return false
+    }
+  }
+  let cleared = Safe.writeFile(logFile, "")
+  if !cleared {
+    return false
+  }
+  print "Log file cleared."
+  return true
+}
+
+fn getHistory() {
+  let history = ""
+  try {history = Safe.readFile(logFile, "text")} catch (e) {}
+  if len(history) > 0 {history = "Conversation History:\n" + history + "\n\n"}
+
+  // If the log file is too large, grab the last 1000 lines and clear the log to avoid excessive memory usage
+  if len(history) > 100000 {
+    let lines = split(history, "\n")
+    let lastLines = slice(lines, len(lines) - 1000, len(lines))
+    history = join(lastLines, "\n")
+    clearLog()
+    writeLog("SESI", "Log file exceeded 100k characters. Retaining last 1000 lines and clearing log.")
+  }
+
+  return history
+}
+
+if len(args) > 1 && (args[0] == "new-chat" || args[0] == "new") {
+  try {
+    rename(logFile, "chatbot/archive/sesira-" + Stamp.formattedTime() + ".log")
+  } catch (e) {Safe.writeFile(logFile, "")}
+  queryText = args[1]
+  if len(args) > 2 && contains(args[2], ".sesi") {
+    try {
+      writeLog("USER", "Active File: " + args[2])
+      fileContext = "File: " + args[2] + "\n\n" + Safe.readFile(args[2])
+    } catch (e) {}
+  }
+} else if len(args) > 0 && (args[0] != "new-chat" && args[0] != "new") {
+  queryText = getHistory() + args[0]
+  writeLog("USER", args[0])
+  if len(args) > 1 && contains(args[1], ".sesi") {
+    try {
+      writeLog("USER", "Active File: " + args[1])
+      fileContext = "File: " + args[1] + "\n\n" + Safe.readFile(args[1])
+    } catch (e) {}
+  }
+} else {
+  print "Continue from previous conversation? (y/n):"
+  if input(" ") == "n" {
+    rename(logFile, "chatbot/archive/sesira-" + Stamp.formattedTime() + ".log")
+    queryText = input("Enter your question: ")
+  } else {
+    queryText = getHistory() + input("Enter your question: ")
+  }
+  let logText = queryText
+  writeLog("USER", logText)
+  let fileName = input("Enter the active file name (optional): ")
+  writeLog("USER", "Active file: " + fileName)
+}
+// ==================================================
+
+print "Loading Sesira..."
+writeLog("SESI", "Loading Sesira...")
+
+// Sigmoid math activation
+fn activate(x) {
+  return 1.0 / (1.0 + exp(0.0 - x))
+}
+
+// Sigmoid derivative for backpropagation
+fn derivative(y) {
+  return y * (1.0 - y)
+}
+
+/* 
+  Current Sesi Bag-of-Words Vocabulary Vectorizer
+  Must stay identical to the trainer vocabulary so saved weights remain compatible.
+*/
+let vocabulary = [
+  "let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "true", "false", "null", "print", "prompt", "make", "model", "image", "convert", "async", "await", "structured_output", "tool_call", "memory", "import", "from", "export", "to", "allow", "with",
+  "debug", "input", "len", "type", "str", "to_json", "from_json", "speech", "from_speech", "translate", "exp", "trunc", "num", "float", "bool", "range", "push", "append", "pop", "keys", "values", "join", "split", "tokenize", "count_tokens", "estimate_tokens", "estimate_cost", "model_usage", "to_upper", "to_lower", "trim", "slice", "swap", "contains", "locate",
+  "read_file", "write_file", "append_file", "write_image", "open_file", "open", "list_dir", "make_dir", "rename", "archive", "trash", "spawn", "exec", "sesi", "python", "js", "html", "time", "random", "env", "memory_search", "memory_trim", "set_alias", "error_type", "raise_error", "define_tool", "list_tools", "web_get", "web_send", "multi_req", "workflow", "listen", "api", "retry", "map", "filter", "reduce", "find", "live",
+  "name", "arity", "is_function", "is_array", "is_object", "is_string", "is_number", "is_bool", "is_null", "length", "starts_with", "ends_with", "index_of", "repeat", "includes", "reverse", "sort", "unique", "flatten",
+  "PI", "E", "sin", "cos", "tan", "sqrt", "floor", "ceil", "abs", "pow", "log", "now", "sleep", "format", "parse", "stringify", "encode", "decode", "db_open", "clear", "cursor", "color"
+]
+
+fn vectorize(text) {
+  let vec = []
+  let k = 0
+  while k < len(vocabulary) {
+    push(vec, 0.0)
+    k = k + 1
+  }
+  
+  let normalized_text = text
+  let delimiters = ["\n", "\t", "\r", "(", ")", "{", "}", "[", "]", ";", ",", "\"", "'", ".", ":", "=", "!", "<", ">", "+", "-", "*", "/", "%", "|"]
+  for delimiter in delimiters {
+    normalized_text = swap(normalized_text, delimiter, " ")
+  }
+  let words = split(normalized_text, " ")
+
+  let i = 0
+  while i < len(words) {
+    let tok = words[i]
+    let vocab_idx = index_of(vocabulary, tok)
+    if vocab_idx >= 0 { vec[vocab_idx] = 1.0 }
+    i = i + 1
+  }
+  return vec
+}
+
+let trained_model_path = "sesi-db/trained_brain.json"
+let has_trained_model = false
+let weights = []
+let biases = []
+let database = []
+let num_classes = 0
+
+try {
+  let raw = Safe.readFile(trained_model_path)
+  let brain = from_json(raw)
+  weights = brain["weights"]
+  biases = brain["biases"]
+  database = brain["database"]
+  num_classes = len(database)
+  has_trained_model = true
+} catch (e) {}
+
+  let query_vec = vectorize(queryText)
+  
+  // Forward propagation on user query across all dynamic classes
+  let outputs = []
+  let j = 0
+  while j < num_classes {
+    let sum = 0.0
+    let w_row = weights[j]
+    let k = 0
+    while k < len(vocabulary) {
+      sum = sum + (query_vec[k] * w_row[k])
+      k = k + 1
+    }
+    let o = activate(sum + biases[j])
+    push(outputs, o)
+    j = j + 1
+  }
+  
+  // Determine class index with highest score
+  let best_class = 0
+  let max_score = -1.0
+  let j = 0
+  while j < num_classes {
+    if outputs[j] > max_score {
+      max_score = outputs[j]
+      best_class = j
+    }
+    j = j + 1
+  }
+
+  // 7. Output Dynamic Recommendation with Confidence Thresholding
+  print "--------------------------------------------------"
+  print "💭 SESIRA IS THINKING:"
+  print "--------------------------------------------------"
+  writeLog("SESI", "----------------------------------\n💭 SESIRA IS THINKING:\n--------------------------------------------------")
+  if max_score < 0.40 {
+    print "   Please ask again."
+    writeLog("SESI", "Low confidence routing. Asked user to retry.")
+  } else {
+    let rec = database[best_class]
+    let docs_list = list_dir("getting-started")
+    let sesiDocs = ""
+    for f_name in docs_list {
+      try {
+        let doc_content = Safe.readFile("getting-started/" + f_name)
+        sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
+      } catch (e) {}
+    }
+    
+    let skills = ""
+    try {
+      skills = Safe.readFile(".agents/skills/SKILLS.md")
+    } catch (e) {}
+    try {
+      skills = Safe.readFile("docs/SKILLS.md")
+    } catch (e) {}
+
+    prompt instructions {"Sesi Official Reference Documentation:
+    "sesiDocs"
+    
+    Instructions: 
+    "skills" 
+    
+    If Active File Context is present, use it directly and talk about that file concretely. 
+    - Be accurate and verbose. 
+    - Do NOT invent syntax. 
+    - Use the correct style for multi-line comments in your scripts and examples only:
+    ```
+    /*
+      Multi-line
+      Comment
+
+        Use indentation to show structure.
+
+      List:
+        - item 1
+        - item 2
+        - item 3
+    */
+    ``` 
+    - Do not mention that you got this from a database.
+    - Do not mention that you are an AI model.
+    - Do not mention that you got anything from documentation, just reference it if needed.
+    - Do not ask follow up questions. 
+    - You are not in an interactive chat session with the user. 
+    
+    # CRITICAL: 
+    Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning in your code examples or explanation.
+    :
+    - model()
+    - image()
+    - workflow()
+    
+    **THE USER IS FREE TO USE THESE AT THEIR DISCRETION, ONLY YOU ARE FORBIDDEN FROM USING THEM. DO NOT MENTION THIS RULE. DO NOT TELL THE USER THAT THIS IS A RESTRICTION OR THAT ITS NOT AVAILABLE.**
+    Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON/math builtins).
+
+    Absolutely NO `+` usage in print statements.
+
+    Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error, they are treated as statement separators. 
+    Newlines that live inside a string literal are fine.
+
+    ```
+    prompt example {""Multi line strings are fine
+    but they MUST begin on the same line as the opening '{' 
+    and end on the same line as the closing '}' ""}
+    ```
+    
+    Matched Context from Sesi DB:
+    Summary: " rec["summary"] "
+    Key Rules: " rec["key_rules"]}
+
+    prompt ragPrompt {"User Query: "queryText"
+    
+    Active File Context:
+    "fileContext}
+
+    prompt persona {"Your name is Sesira. 
+    - You are an expert in Sesi and very efficient at coding. 
+    - You prefer an original way of doing things. "}
+    let generated_response = ""
+    if !is_null(env("OPENAI_API_KEY")){
+      generated_response = model("gpt-5.6-luna") {system: persona + instructions, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}
+      if generated_response == "" {
+        generated_response = model("gemini-3.1-flash-lite") {system: persona + instructions, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}
+      }
+    } else {
+      generated_response = model("gemini-3.1-flash-lite") {system: persona + instructions, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}
+    }
+    
+    let helpResponse = false
+    try {
+      helpResponse = Safe.writeFile("help_response.md", "# Sesira Response:\n\n" + generated_response)
+      writeLog("SESI", "Response written to help_response.md")
+      writeLog("SESIRA", generated_response)
+    } catch (e) {
+      writeLog("SESI", "Failed to write help_response.md")
+    }
+    print "Sesira has provided a response to your question. Please open 'help_response.md' to review the answer."
+  }

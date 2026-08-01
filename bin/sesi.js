@@ -26,7 +26,7 @@ Usage:
   sesi <file> [options] <args>  Run a Sesi program
   sesi -l                Run a Sesi program with local file access
   sesi -e "code"         Evaluate Sesi code directly
-  sesi -h <query>        Ask for help from our Sesi Co-Pilot
+  sesi -h <query>        Ask for help from our Sesira
   sesi -s                Launch Sesi Studio IDE
   sesi --repl            Start interactive Sesi REPL
   sesi -v                Show version
@@ -399,9 +399,9 @@ async function main() {
     if (parsed.helpFile) {
       parsed.sesiOptions.args.push(path.resolve(parsed.helpFile));
     }
-    const copilotPath = path.join(__dirname, '../chatbot/sesi_db_chatbot.sesi');
+    const copilotPath = path.join(__dirname, '../chatbot/sesira.sesi');
     await runSesiFile(copilotPath, parsed.sesiOptions).catch((error) => {
-      console.error('Fatal error in Sesi Co-Pilot:', error.message);
+      console.error('Fatal error with Sesira:', error.message);
       process.exit(1);
     });
   } else if (parsed.eval) {

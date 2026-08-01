@@ -51,7 +51,7 @@
     "studio:ext:pack": "sesi --cli -l sesi-studio/extension-packager.sesi pack",
     "studio:ext:unpack": "sesi --cli -l sesi-studio/extension-packager.sesi unpack",
     "studio:ext:validate": "sesi --cli -l sesi-studio/extension-packager.sesi validate",
-    "copilot": "sesi --cli chatbot/sesi_db_chatbot.sesi",
+    "sesira": "sesi --cli chatbot/sesira.sesi",
     "build:exe": "tsc && node ./scripts/build-binaries.mjs",
     "msi:eula": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& 'C:\\Program Files\\WiX Toolset v7.0\\bin\\wix.exe' eula accept wix7\"",
     "build:msi": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& 'C:\\Program Files\\WiX Toolset v7.0\\bin\\wix.exe' build .\\SesiInstaller.wxs -o .\\SesiInstaller.msi\"",

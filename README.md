@@ -33,7 +33,7 @@ We are excited to announce the release of **Sesi Studio**, a high-performance, b
 
 - **Pro Editor Features**: Bracket pair colorization, document symbols, and go-to-definition.
 - **Integrated Terminal**: Run Sesi scripts and manage your system directly from the IDE.
-- **Sesi Co-Pilot**: Context-aware chat assistant that understands your codebase.
+- **Sesira Assistant**: Context-aware chat assistant that understands your codebase.
 - **Local Timeline**: Never lose code with built-in edit history.
 - **Command Palette**: Access all workspace operations, extension actions, zoom controls, and theme settings with a single keystroke (`Cmd/Ctrl+P`).
 - **Extension & Theme Packagers & Installers**: Pack CSS themes into portable `.sesitheme` bundles and JS extensions into `.sesiext` bundles. Validate, distribute, and install themes/extensions dynamically via the Settings Hub or Command Palette.
@@ -115,13 +115,18 @@ sesi -e "print 'hello'"
 ```
 
 ```bash
-# Ask the built-in co-pilot a question
+# Ask the built-in Sesira assistant a question
 sesi -h "how do I use memory?"
 ```
 
 ```bash
-# Ask for help about a specific file
-sesi examples/main/01_hello.sesi -h "what is this script doing?"
+# Ask Sesira for help about a specific file
+sesi chatbot/sesira.sesi examples/main/01_hello.sesi "what is this script doing?"
+```
+
+```bash
+# Start a new chat
+sesi chatbot/sesira.sesi new "how do I create an HTML?"
 ```
 
 ```bash
@@ -167,8 +172,8 @@ npm run sesi:eval "print 'Sesi running!'"
 ```
 
 ```bash
-# Ask Sesi's Co-Pilot
-npm run sesi:help "how to make a directory?"
+# Ask Sesi's Sesira assistant
+npm run sesira "how to make a directory?"
 ```
 
 ```bash

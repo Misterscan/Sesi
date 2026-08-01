@@ -1,6 +1,6 @@
 # ⚡ Sesi Command Line Interface Reference
 
-Sesi’s CLI is a powerful, zero-footprint environment orchestrator. It allows you to run robust scripts, evaluate inline code filelessly, query the RAG-powered interactive Co-Pilot, encrypt files, and manage sandboxing controls directly from your shell.
+Sesi’s CLI is a powerful, zero-footprint environment orchestrator. It allows you to run robust scripts, evaluate inline code filelessly, query the RAG-powered interactive Sesira assistant, encrypt files, and manage sandboxing controls directly from your shell.
 
 ---
 
@@ -13,8 +13,9 @@ Sesi’s CLI is a powerful, zero-footprint environment orchestrator. It allows y
 | `sesi <file> <args...>`      | **Parametric Script** | Yes                               | Runs the script and exposes trailing parameters in `args`.                          |
 | `sesi -e "<code>"`           | Inline Eval           | **No (Fileless)**                 | Evaluates the string of Sesi code directly in-memory.                               |
 | `sesi -e "<code>" <args...>` | **Parametric Eval**   | **No (Fileless)**                 | Evaluates inline code and populates `args` array with inputs.                       |
-| `sesi -h "<query>"`          | Co-Pilot Help         | **Yes (Internal chatbot script)** | Converses with Sesi's internal Vector-RAG chatbot (`chatbot/sesi_db_chatbot.sesi`). |
-| `sesi <file> -h "<query>"`   | Grounded Help         | **Yes (Chatbot + context file)**  | Converses with the Co-Pilot using both the vector DB and the user's file.           |
+| `sesi -h "<query>"`          | Sesira Help           | **Yes (Internal chatbot script)** | Converses with Sesi's internal Vector-RAG chatbot (`chatbot/sesi_db_chatbot.sesi`). |
+| `sesi <file> -h "<query>"`   | Grounded Help         | **Yes (Chatbot + context file)**  | Converses with Sesira using both the vector DB and the user's file.                 |
+| `sesi --cli chatbot/sesira.sesi "<query>"` | Direct Sesira | Yes | Runs the bundled chatbot directly with raw terminal output. |
 | `sesi -r <file>`             | AST Dump              | Yes                               | Dumps raw syntax JSON AST payload without running code.                             |
 | `sesi --ast <file>`          | AST Visualization     | Yes                               | Prints a pretty-printed, indented hierarchical tree representation of the AST.      |
 | `sesi --tokens <file>`       | Token Stream          | Yes                               | Prints a structured, tabular grid detailing all tokens scanned by the Lexer.        |
@@ -89,9 +90,9 @@ sesi -e "let path = args[0]; let content = read_file(path); print 'Character cou
 
 ---
 
-## 🎓 3. Interactive Co-Pilot Help (`-h` / `--help`)
+## 🎓 3. Interactive Sesira Help (`-h` / `--help`)
 
-Sesi’s CLI features an inline, dynamic RAG (Retrieval-Augmented Generation) co-pilot trained directly on Sesi's grammar rules, standard library, and architecture documentation.
+Sesi’s CLI features Sesira, an inline dynamic RAG (Retrieval-Augmented Generation) assistant trained directly on Sesi's grammar rules, standard library, and architecture documentation.
 
 ### A. General Knowledge Queries (Fileless)
 
@@ -103,10 +104,18 @@ sesi -h "how do I use standard json module?"
 
 ### B. Context-Grounded Code Debugging
 
-Pass a script file along with `-h` to chat with the co-pilot about your code. The co-pilot will automatically ingest the file contents as grounding context:
+Pass a script file along with `-h` to chat with Sesira about your code. Sesira will automatically ingest the file contents as grounding context:
 
 ```bash
 sesi examples/main/01_hello.sesi -h "how can i improve this script?"
+```
+
+### C. Direct Chatbot Execution
+
+Run the bundled chatbot directly when you need to start a new chat without conversational history context (logs are archived to chatbot/archive/):
+
+```bash
+sesi --cli chatbot/sesi_db_chatbot.sesi new "how do I use memory?"
 ```
 
 ---
@@ -238,7 +247,7 @@ If you are working inside the Sesi repository, you can leverage native package m
 | `npm run sesi:encrypt <file>`       | `sesi -enc <file>`        | Encrypts a file (using env password fallback).        |
 | `npm run sesi:decrypt <file>`       | `sesi -dec <file>`        | Decrypts a file (using env password fallback).        |
 | `npm run repl`                      | `sesi --repl`             | Starts the interactive Sesi REPL.                     |
-| `npm run copilot "<query>"`         | `sesi -h "<query>"`       | Consults the RAG-trained Sesi Co-Pilot.               |
+| `npm run sesira "<query>"`         | `sesi -h "<query>"`       | Consults the RAG-trained Sesira assistant.            |
 | `npm run example:all`               | `sesi examples.sesi`      | Runs all examples in the examples/ directory.         |
 
 ### Usage Example
