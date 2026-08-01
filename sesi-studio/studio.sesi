@@ -1,5 +1,5 @@
 /*
-  Sesi Studio v2.0
+  Sesi Studio v2.1.5
   This native server replaces our now deprecated server.js script with a full-featured IDE backend written entirely in Sesi.
 
   Usage:
@@ -19,8 +19,6 @@ allow "agent/memory" in with Memory
 allow "agent/tools" in with Tools
 allow "agent/prompts" in with Prompts
 
-let current_ws_client = null
-let current_confirm_response = Tools.current_confirm_response
 let exec_in_project = Tools.exec_in_project
 let exec_node = Tools.exec_node
 let SESI_ROOT = Tools.SESI_ROOT
@@ -69,11 +67,8 @@ let timestamp = Time.now()
 let ws_streamed_any = false
 
 fn on_ws_agent_chunk(chunk) {
-  ws_streamed_any = true
-  if current_ws_client != null {
-    try {
-      current_ws_client.send(to_json({"type": "chat_chunk", "chunk": chunk}))
-    } catch (err_c) {}
+  if Agent.send_agent_chunk(chunk) {
+    ws_streamed_any = true
   }
 }
 
@@ -99,20 +94,21 @@ try {
 } catch (e) {}
 
 let favicon = ""
-try {
-  favicon = Safe.readFile("sesi-studio/img/favicon.png.base64")
-} catch (e) {
-  try {
-    js("require('fs').writeFileSync('sesi-studio/img/favicon.png.base64', require('fs').readFileSync('sesi-studio/img/favicon.png').toString('base64'))")
-    favicon = Safe.readFile("sesi-studio/img/favicon.png.base64")
-  } catch (err) {}
-}
+favicon = Safe.readFile("sesi-studio/img/favicon.png", "base64")
 
 let pending_file_to_open = ""
 
 fn handle_http(req) {
   let path = req.path
   let method = req.method
+
+  if path == "/api/config" {
+    return {
+      "status": 200,
+      "headers": {"Content-Type": "application/json"},
+      "body": {"wsPort": ws_port}
+    }
+  }
   
   if path == "/api/open" {
     let file = req.query["file"]
@@ -193,8 +189,22 @@ fn handle_http(req) {
   if path == "/api/file" && method == "GET" {
     try {
       let query_path = req.query["path"]
-      let content = read_file(query_path)
-      return {"status": 200, "body": {"content": content, "path": query_path}}
+      let file_parts = split(query_path, ".")
+      let ext = to_lower(file_parts[len(file_parts) - 1])
+      let mode = "text"
+      let is_binary = false
+      
+      if ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif" || ext == "ico" {
+        mode = "base64"
+        is_binary = true
+      }
+      
+      let content = Safe.readFile(query_path, mode)
+      return {
+        "status": 200, 
+        "headers": {"Content-Type": "application/json"},
+        "body": {"content": content, "path": query_path, "isBinary": is_binary}
+      }
     } catch (e) {
       return {"status": 500, "body": {"error": str(e)}}
     }
@@ -203,7 +213,7 @@ fn handle_http(req) {
   if path == "/api/file" && method == "POST" {
     try {
       let body_obj = from_json(req.body)
-      write_file(body_obj["path"], body_obj["content"])
+      Safe.writeFile(body_obj["path"], body_obj["content"])
       return {"status": 200, "body": {"success": true}}
     } catch (e) {
       return {"status": 500, "body": {"error": str(e)}}
@@ -258,7 +268,11 @@ fn handle_http(req) {
 
       system_prompt = system_prompt + Prompts.prompt1
 
-      let copilot_tools = Tools.copilot_tools
+      let copilot_tools = {}
+      let base_tools = Agent.copilot_tools
+      for k in keys(base_tools) {
+        copilot_tools[k] = base_tools[k]
+      }
 
       if body_obj["browserAccess"] == true {
         copilot_tools["browser_goto"] = Agent.browser
@@ -274,7 +288,7 @@ fn handle_http(req) {
       let agent = Copilot.create({
         "model": "agent",
         "system": system_prompt,
-        "thinkingLevel": "low",
+        "thinkingLevel": "medium",
         "cache": false,
         "max_tokens": 4096,
         "tools": copilot_tools,
@@ -815,30 +829,24 @@ fn handle_http(req) {
   if len(ext_parts) == 2 && ext_parts[0] == "" {
     let subpath = ext_parts[1]
     try {
-      let content = Safe.readFile("sesi-studio/extensions/" + subpath)
-      let content_type = "text/plain"
       let file_parts = split(subpath, ".")
       let ext = file_parts[len(file_parts) - 1]
+      let content_type = "text/plain"
+      let mode = "text"
+
       if ext == "js" {
         content_type = "application/javascript"
-      }
-      if ext == "css" {
+      } else if ext == "css" {
         content_type = "text/css"
-      }
-      if ext == "svg" {
+      } else if ext == "svg" {
         content_type = "image/svg+xml"
+      } else if ext == "png" || ext == "jpg" || ext == "jpeg" {
+        content_type = "image/" + ext
+        if ext == "jpg" { content_type = "image/jpeg" }
+        mode = "base64"
       }
-      if ext == "png" || ext == "jpg" || ext == "jpeg" {
 
-        /* 
-          Handle binary files by converting to base64 via node since read_file is utf-8
-          We return the raw buffer as a response body - most Sesi web implementations 
-          will handle a base64 string if we provide the right content type or we might need 
-          to tell the client to decode it. For simplicity, let's assume we can serve text-based icons (SVG/Emoji)
-          and for binary we'll rely on the static server in server.js if it exists. 
-        */
-        js("console.log(require('fs').readFileSync('sesi-studio/extensions/" + subpath + "').toString('base64'))")
-      }
+      let content = Safe.readFile("sesi-studio/extensions/" + subpath, mode)
       return {"status": 200, "headers": {"Content-Type": content_type}, "body": content}
     } catch (e) {
       return {"status": 404, "body": "Extension file not found"}
@@ -1227,7 +1235,7 @@ fn handle_ws(client, msg) {
     } else if parsed["type"] == "ping" {
       client.send(to_json({"type": "pong"}))
     } else if parsed["type"] == "confirm_response" {
-      current_confirm_response = parsed["data"]
+      Agent.receive_confirmation(parsed["data"])
     } else if parsed["type"] == "chat" {
       let q = parsed["query"]
       let sessionId = parsed["sessionId"]
@@ -1271,7 +1279,11 @@ fn handle_ws(client, msg) {
 
       system_prompt = system_prompt + Prompts.prompt1
 
-      let copilot_tools = Prompts.copilot_tools
+      let copilot_tools = {}
+      let base_tools = Agent.copilot_tools
+      for k in keys(base_tools) {
+        copilot_tools[k] = base_tools[k]
+      }
 
       if browserAccess == true {
         copilot_tools["browser_goto"] = Agent.browser
@@ -1284,12 +1296,12 @@ fn handle_ws(client, msg) {
         system_prompt = system_prompt + Prompts.prompt2
       }
 
-      current_ws_client = client
+      Agent.set_ws_client(client)
 
       let agent = Copilot.create({
         "model": "agent",
         "system": system_prompt,
-        "thinkingLevel": "low",
+        "thinkingLevel": "medium",
         "cache": false,
         "max_tokens": 4096,
         "tools": copilot_tools,
@@ -1347,7 +1359,7 @@ fn handle_ws(client, msg) {
       }
 
       client.send(to_json({"type": "chat_end", "response": res}))
-      current_ws_client = null
+      Agent.clear_ws_client()
     } else if parsed["type"] == "input" {
       let data_str = parsed["data"]
       if data_str == "backspace" || data_str == "escape" || data_str == "ctrl-c" {

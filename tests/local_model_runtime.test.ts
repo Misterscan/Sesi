@@ -28,6 +28,19 @@ async function main() {
   runtime.getLocalPipeline = async (model: string) => {
     const generator: any = async (messages: any[], options: Record<string, any>) => {
       calls.push({ model, messages, options });
+      const prompt = String(messages[messages.length - 1]?.content || '');
+      if (prompt === 'use the weather tool') {
+        const content = '<tool_call>\n{"name":"lookup_weather","arguments":{"city":"NYC"}}\n</tool_call>';
+        if (options.streamer) {
+          options.streamer.callback_function(content);
+        }
+        return [{
+          generated_text: [
+            ...messages,
+            { role: 'assistant', content },
+          ],
+        }];
+      }
       if (options.streamer) {
         options.streamer.callback_function('hello ');
         options.streamer.callback_function('local');
@@ -75,6 +88,49 @@ async function main() {
       cache: false,
     });
     assert(calls[1].model === 'test/explicit-model', 'local:model selects an explicit model');
+
+    let streamedToolMarkup = '';
+    const toolResponse = await runtime.callModel({
+      model: 'local',
+      prompt: 'use the weather tool',
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'lookup_weather',
+            description: 'Get weather by city',
+            parameters: {
+              type: 'object',
+              properties: {
+                city: { type: 'string' },
+              },
+              required: ['city'],
+            },
+          },
+        },
+      ],
+      cache: false,
+      stream: async (chunk: string) => {
+        streamedToolMarkup += chunk;
+      },
+    });
+    const toolCall = JSON.parse(toolResponse.text);
+    assert(calls[2].options.tools?.[0]?.function?.name === 'lookup_weather', 'tools are forwarded to the local chat template');
+    assert(toolResponse.finishReason === 'TOOL_CALL', 'local tool calls use the shared finish reason');
+    assert(toolCall.name === 'lookup_weather', 'local tool call name is normalized');
+    assert(toolCall.args?.city === 'NYC', 'local tool call arguments are normalized');
+    assert(streamedToolMarkup === '', 'tool-call markup is not emitted through text streaming');
+    const firstToolHash = runtime.computeCacheHash({
+      model: 'local',
+      prompt: 'same prompt',
+      tools: [{ type: 'function', function: { name: 'first', parameters: { type: 'object' } } }],
+    });
+    const secondToolHash = runtime.computeCacheHash({
+      model: 'local',
+      prompt: 'same prompt',
+      tools: [{ type: 'function', function: { name: 'second', parameters: { type: 'object' } } }],
+    });
+    assert(firstToolHash !== secondToolHash, 'tool schemas are included in the model cache key');
 
     let rejectedTraversal = false;
     try {

@@ -274,6 +274,10 @@ browser.close()
 
 > [!NOTE]
 > `std/browser` requires Sesi to run in local/unsafe mode (pass the `-l` or `--local` flag to `sesi`).
+> Sesi uses a Playwright-managed Chromium installation when available. Packaged
+> builds otherwise fall back to an installed Microsoft Edge, Google Chrome, or
+> Chromium executable. You can select one explicitly with
+> `Browser.launch({"executable_path": "/path/to/browser"})`.
 
 ---
 

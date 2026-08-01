@@ -163,3 +163,4 @@ local-ai-sys-prompt.txt
 /sesira/onnx/
 /sesira/releases/
 docs/BUILDING_SESIRA.md
+agent-review.md

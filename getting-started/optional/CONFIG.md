@@ -28,11 +28,12 @@ print response
 | `images`        | `string \| array<string>` | Local file path(s) for vision input                          |
 | `stream`        | `bool \| fn`              | Stream output to stdout (`true`) or a callback fn            |
 | `cache`         | `bool`                    | Set to `false` to bypass Sesi Logic Caching                  |
-| `system`        | `string`                  | System instruction for local models                          |
+| `system`        | `string`                  | System instruction for Gemini, GPT, and local models         |
 | `search`        | _(no value)_              | Enable web search grounding for real-time information        |
 | `temperature`   | `number`                  | ⚠️ Deprecated in Gemini 3.5+. Use `thinkingLevel`.           |
 | `top_k`         | `number`                  | ⚠️ Deprecated in Gemini 3.5+. Use `thinkingLevel`.           |
 | `top_p`         | `number`                  | ⚠️ Deprecated in Gemini 3.5+. Use `thinkingLevel`.           |
+| `tools`         | `array<object>`           | Function schemas exposed to models with tool-aware templates |
 
 ---
 
@@ -42,7 +43,6 @@ Use `"local"` to run the default quantized instruction model directly:
 
 ```sesi
 let answer = model("local") {max_tokens: 256, temperature: 0.3} {"Explain closures simply."}
-print answer
 ```
 
 The first call downloads the ONNX weights to `~/.cache/sesi/models`. The loaded
@@ -66,17 +66,37 @@ An explicit model can also be selected in the model name:
 let answer = model("local:onnx-community/Qwen3-0.6B-ONNX") {"Say hello."}
 ```
 
-Local calls currently support text generation, streaming, logic caching, and
-token usage. Images, audio, search grounding, and tool calling are currently rejected with
-an explicit error. The `system` config key overrides
-`SESI_LOCAL_SYSTEM_PROMPT` for one call.
+Local calls support text generation, streaming, logic caching, token usage, and
+tool calling for models whose chat templates support tools. Images, audio, and
+search grounding are rejected with an explicit error. The `system` config key
+overrides `SESI_LOCAL_SYSTEM_PROMPT` for one call.
+
+```sesi
+let tools = [{
+  "type": "function",
+  "function": {
+    "name": "lookup_weather",
+    "description": "Get weather by city",
+    "parameters": {
+      "type": "object",
+      "properties": {"city": {"type": "string"}},
+      "required": ["city"]
+    }
+  }
+}]
+
+let call = model("local:onnx-community/Qwen3-0.6B-ONNX") {tools: tools} {"Use lookup_weather for New York City."}
+```
+
+When the model requests a tool, Sesi returns canonical JSON containing `name`,
+`args`, and an optional `call_id`, matching hosted-model behavior.
 
 Inputs above 2,048 tokens are allowed but emit a CPU-performance warning. See
 [Local Models](../../docs/LOCAL_MODELS.md) for context limits, configuration,
 and a reference benchmark.
 
 ```sesi
-model("local") {max_tokens: 256, temperature: 0.5, system: "Use the tone of a motivational speaker that doesn't let let clients give up on their tasks."} {query}
+model("local") {max_tokens: 256, temperature: 0.5, system: "Use the tone of a motivational speaker that doesn't let clients give up on their tasks."} {query}
 ```
 
 ---

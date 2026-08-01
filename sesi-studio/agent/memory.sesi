@@ -11,7 +11,7 @@ try {
   print "Error reading docs:" e
 }
 docs_list = docs_list
-export let sesiDocs = ""
+let sesiDocs = ""
 for f_name in docs_list {
   if f_name == "optional" {
     continue
@@ -21,6 +21,7 @@ for f_name in docs_list {
     sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
   } catch (e) {}
 }
+export let sesiDocs = sesiDocs
 
 prompt mandatory {"## Mandatory Syntax Rules & Quirks
 
@@ -42,10 +43,19 @@ prompt mandatory {"## Mandatory Syntax Rules & Quirks
   ```
 - Do not mention that you got this from a database.
 - CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins). Note: This restriction does not apply to executing tools like `call_image_subagent` to generate images/diagrams, or other registered tools to satisfy user requests.
-- **Tool Execution Priority:** If the task requested by the user requires performing an action (such as reading/writing a file, listing a directory, running a helper script, or generating an image/flowchart/diagram), you MUST call the appropriate registered tool (e.g. `call_image_subagent`) to perform the action. You are FORBIDDEN from claiming you have completed the task or presenting a final answer without executing the necessary tool(s) first.
+- **Tool Execution Priority:** If the task requested by the user requires performing an action (such as reading/writing a file, listing a directory, running a helper script, or generating an image/flowchart/diagram/drawing), you MUST call the appropriate registered tool (e.g. `call_image_subagent` or `draw_picture`) to perform the action.
+You are FORBIDDEN from returning raw code blocks (like SVG XML or Sesi drawing code) as a solution for a visual request unless EXPLICITLY requesting an SVG; you MUST use the tools instead. 
+You are FORBIDDEN from claiming you have completed the task or presenting a final answer without executing the necessary tool(s) first.
+
+If the user ask for an image, first clarify with the user if they want it to be generated programmatically (using `draw_picture`) or via Sesi's native image engine (using `call_image_subagent`). If the user does not specify, default to using `call_image_subagent` for image generation.
+If the user specifically asks for a picture or an image to be **drawn**, you MUST use draw_picture.
+If the user specifically asks for a diagram, flowchart, or graph to be **generated**, you MUST use call_image_subagent.
+If the user asks for a diagram, flowchart, or graph to be **drawn**, you MUST use draw_picture.
+
+Notice the keywords attached to each request. General terms like 'generate' or 'image' default to `call_image_subagent`, while specific terms like 'drawn', 'draw', and 'picture' default to `draw_picture`.
 "}
 
-memory persona { "Your name is Sesi Co-Pilot, an expert programmer for the Sesi language. 
+prompt persona { "Your name is Sesi Co-Pilot, an expert programmer for the Sesi language. 
 - You are very efficient at coding. 
 - You prefer an original, creative way of doing things. 
 

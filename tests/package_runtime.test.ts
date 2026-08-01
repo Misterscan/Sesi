@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -11,6 +12,7 @@ const buildScript = fs.readFileSync(path.join(repoRoot, 'scripts', 'build-binari
 const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
 const packageLock = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package-lock.json'), 'utf8'));
 const aiRuntimeSource = fs.readFileSync(path.join(repoRoot, 'src', 'ai-runtime.ts'), 'utf8');
+const builtinsSource = fs.readFileSync(path.join(repoRoot, 'src', 'builtins.ts'), 'utf8');
 
 const targets: string[] = pkgConfig.pkg?.targets ?? [];
 const assets: string[] = pkgConfig.pkg?.assets ?? [];
@@ -32,6 +34,11 @@ assert(
   'packaged executables include Sharp native bindings and shared libraries'
 );
 assert(
+  assets.includes('node_modules/playwright/**/*')
+    && assets.includes('node_modules/playwright-core/**/*'),
+  'packaged executables include Playwright runtime metadata and assets'
+);
+assert(
   buildScript.includes('@yao-pkg/pkg@'),
   'binary build uses the maintained pkg fork'
 );
@@ -42,6 +49,14 @@ assert(
 assert(
   !aiRuntimeSource.includes("new Function('specifier', 'return import(specifier)')"),
   'local models do not use a VM-host-dependent dynamic import'
+);
+assert(
+  builtinsSource.includes("import('translate')"),
+  'translate uses a statically discoverable import for packaged executables'
+);
+assert(
+  !builtinsSource.includes("importEsmModule('translate')"),
+  'translate does not use a VM-host-dependent dynamic import'
 );
 assert(
   Number(String(packageJson.engines?.node ?? '').match(/\d+/)?.[0] ?? 0) >= 20,

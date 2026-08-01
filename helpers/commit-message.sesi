@@ -80,6 +80,33 @@ fn run_git(command: str) -> str {
   }
 }
 
+fn read_git_diff(command: str, temp_path: str) -> str {
+  try {
+    trash(temp_path, true)
+  } catch (cleanup_err) {}
+
+  try {
+    exec(command + " --output=\"" + temp_path + "\"")
+    let full_diff = read_file(temp_path)
+    try {
+      trash(temp_path, true)
+    } catch (cleanup_err) {}
+
+    let max_chars = 120000
+    if len(full_diff) > max_chars {
+      return trunc(full_diff, max_chars) + "\n\n[Diff truncated for commit-message generation.]"
+    }
+    return full_diff
+  } catch (err) {
+    print "Git diff command failed:" command
+    print err
+    try {
+      trash(temp_path, true)
+    } catch (cleanup_err) {}
+    return ""
+  }
+}
+
 fn get_diff(mode: str) {
   let data = {
     "mode": mode,
@@ -92,15 +119,15 @@ fn get_diff(mode: str) {
 
   if mode == "staged" {
     data["stat"] = run_git("git diff --cached --stat")
-    data["diff"] = run_git("git diff --cached")
+    data["diff"] = read_git_diff("git diff --cached", ".sesi_commit_message_staged.diff")
   } else if mode == "unstaged" {
     data["stat"] = run_git("git diff --stat")
-    data["diff"] = run_git("git diff")
+    data["diff"] = read_git_diff("git diff", ".sesi_commit_message_unstaged.diff")
   } else if mode == "all" {
     let staged_stat = run_git("git diff --cached --stat")
     let unstaged_stat = run_git("git diff --stat")
-    let staged_diff = run_git("git diff --cached")
-    let unstaged_diff = run_git("git diff")
+    let staged_diff = read_git_diff("git diff --cached", ".sesi_commit_message_staged.diff")
+    let unstaged_diff = read_git_diff("git diff", ".sesi_commit_message_unstaged.diff")
 
     data["stat"] = "STAGED:
 " + staged_stat + "
@@ -131,7 +158,7 @@ Rules:
 - Return only the commit message.
 - Use Conventional Commit format.
 - Use one concise subject line.
-- Add a blank line and 2-5 bullet points only if the diff needs explanation.
+- Add a blank line and 3-7 bullet points only if the diff needs explanation.
 - Prefer these types when appropriate: feat, fix, refactor, docs, test, chore, build, ci, perf.
 - Keep the subject under 72 characters.
 - Do not invent changes not shown in the diff.
@@ -148,7 +175,7 @@ Diff stat:
 Diff:
 " data["diff"]}
 
-  let message = model("gemini-3.1-flash-lite") {thinkingLevel: "minimal", max_tokens: 300} {request}
+  let message = model("gemini-3.1-flash-lite") {thinkingLevel: "minimal", max_tokens: 800} {request}
   return trim(message)
 }
 

@@ -4,7 +4,6 @@ Sesi runs local text models directly in Node.js:
 
 ```sesi
 let answer = model("local") {max_tokens: 256} {"Explain closures."}
-print answer
 ```
 
 A provider API key is not required. The default model is `onnx-community/Qwen2.5-0.5B-Instruct` with the `q4` CPU
@@ -76,3 +75,36 @@ larger documents.
 
 Use `model("local:organization/model")` to select a different compatible ONNX
 model for one call.
+
+## Tool calling
+
+Local models can receive function schemas through the `tools` model config when
+their tokenizer chat template supports tool use:
+
+```sesi
+let tools = [{
+  "type": "function",
+  "function": {
+    "name": "lookup_weather",
+    "description": "Get weather by city",
+    "parameters": {
+      "type": "object",
+      "properties": {"city": {"type": "string"}},
+      "required": ["city"]
+    }
+  }
+}]
+
+let call = model("local:onnx-community/Qwen3-0.6B-ONNX") {tools: tools} {"Use lookup_weather for New York City."}
+```
+
+Tool-aware local output is normalized to the same JSON shape as hosted
+providers:
+
+```json
+{"name":"lookup_weather","args":{"city":"New York City"}}
+```
+
+Sesi supports structured tool-call messages and the tagged `<tool_call>...</tool_call>`
+format used by Qwen chat templates. Models without a tool-aware chat template
+may ignore the supplied schemas and return ordinary text.

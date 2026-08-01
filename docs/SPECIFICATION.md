@@ -291,6 +291,7 @@ config_entry := (STRING | identifier) ':' expression
 | `size`          | `image`          | `string`                  | `"512"`, `"1K"`, `"2K"`, `"4K"`                                            |
 | `images`        | `model`, `image` | `string \| array<string>` | Local file path(s) passed as visual input                                  |
 | `stream`        | `model`          | `bool \| fn`              | Enable real-time streaming to stdout (`true`) or a callback function       |
+| `system`        | `model`, `image` | `string`                  | Provider-native system instruction                                         |
 
 Example:
 

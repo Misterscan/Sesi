@@ -12,7 +12,7 @@ export fn readFile(path: string, mode: string) -> string {
   let attempts = 0
   while !success && attempts < 3 {
     try {
-      if mode == "" || mode == null {
+      if mode == "" || is_null(mode) {
         mode = "text"
       }
       result = read_file(path, mode)
@@ -42,7 +42,7 @@ export fn writeFile(path: string, content: string) -> bool {
 }
 
 // Resilience Helper: Safe file write with retry logic
-export fn writeImage(path: str, content: str) -> bool {
+export fn writeImage(path: string, content: string) -> bool {
   let success = false
   let attempts = 0
   while !success && attempts < 3 {
@@ -58,7 +58,7 @@ export fn writeImage(path: str, content: str) -> bool {
 }
 
 // Resilience Helper: Safe file append with retry logic
-export fn appendFile(path: str, content: str) -> bool {
+export fn appendFile(path: string, content: string) -> bool {
   let success = false
   let attempts = 0
   while !success && attempts < 3 {
@@ -74,7 +74,7 @@ export fn appendFile(path: str, content: str) -> bool {
 }
 
 // Resilience Helper: Safe file move with retry logic
-export fn moveFile(path: str, dest: str) -> bool {
+export fn moveFile(path: string, dest: string) -> bool {
   let success = false
   let attempts = 0
   while !success && attempts < 3 {

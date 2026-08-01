@@ -37,7 +37,7 @@ style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver
 🛒 Marketplace</div><div class="settings-tab" onclick="switchSettingsTab('shortcuts', this)"
 style="padding: 10px 24px; cursor: pointer; font-size: 13px; color: var(--silver-mid); transition: all 0.2s;">
 Keyboard Shortcuts</div></div><!-- Settings Content --><div id="settingsContent" style="flex: 1; padding: 24px; overflow-y: auto;"><!-- Content injected here --></div></div><div
-style="padding: 12px 24px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); font-size: 11px; color: var(--silver-dark); display: flex; justify-content: space-between;"><span>Sesi Studio v2.1.0</span><span>Environment: Native Browser IDE</span></div></div></div><!-- Monaco and xterm scripts --><script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js"></script><script src="/api/analyzer"></script><script>
+style="padding: 12px 24px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); font-size: 11px; color: var(--silver-dark); display: flex; justify-content: space-between;"><span>Sesi Studio v2.1.5</span><span>Environment: Native Browser IDE</span></div></div></div><!-- Monaco and xterm scripts --><script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js"></script><script src="/api/analyzer"></script><script>
 // State management
 window.editor = null;
 window.terminal = null;
@@ -1489,14 +1489,26 @@ window.terminal.focus();
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const hostname = window.location.hostname || 'localhost';
 let portIndex = 0;
-const portsToTry = [3051, 3052];
+let portsToTry = [];
+async function loadSocketPorts() {
+try {
+const response = await fetch('/api/config');
+const config = await response.json();
+portsToTry = [config.wsPort];
+} catch (error) {
+// Keeps Studio usable with an older backend during an in-place update.
+portsToTry = [3051, 3052];
+}
+portIndex = 0;
+tryConnect();
+}
 function tryConnect() {
 if (portIndex >= portsToTry.length) {
 window.terminal.write('\r\n\x1b[31m[ERROR] Failed to connect to terminal server.\x1b[0m\r\n');
 return;
 }
 const port = portsToTry[portIndex];
-const socketUrl = `${protocol}//${hostname}:${port}/terminal`;
+const socketUrl = `${protocol}//${hostname}:${port}`;
 console.log('Connecting to terminal socket:', socketUrl);
 const ws = new WebSocket(socketUrl);
 window.terminalSocket = ws;
@@ -1526,6 +1538,10 @@ if (!hasOpened) {
 console.log('Failed to connect on port ' + port + ', trying next port...');
 portIndex++;
 tryConnect();
+} else {
+console.log('Terminal socket disconnected; reconnecting...');
+portIndex = 0;
+setTimeout(tryConnect, 1000);
 }
 };
 ws.onmessage = (event) => {
@@ -1576,7 +1592,7 @@ window.terminalSocket.send(JSON.stringify({ type: 'confirm_response', data: 'no'
 }
 };
 }
-tryConnect();
+loadSocketPorts();
 window.terminal.onData((data) => {
 if (window.terminalSocket.readyState === WebSocket.OPEN) {
 let payload = data;
@@ -2081,7 +2097,6 @@ fileContent: activeFilePath ? editor.getValue() : null,
 browserAccess: localStorage.getItem('setting-ai-browser') === 'true'
 };
 if (window.terminalSocket && window.terminalSocket.readyState === WebSocket.OPEN) {
-// Send over WebSocket for real-time streaming response
 const thinkingEl = appendMessage('', false, true); // start with empty system message element
 window.activeStreamingMessageEl = thinkingEl;
 window.activeStreamingText = '';
@@ -2091,7 +2106,6 @@ type: 'chat',
 ...payload
 }));
 } else {
-// Fallback to standard HTTP fetch if WebSocket is not open
 const thinkingEl = appendMessage('Co-Pilot is thinking...', false, true);
 try {
 const response = await fetch('/api/chat', {

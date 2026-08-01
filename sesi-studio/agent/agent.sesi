@@ -9,17 +9,46 @@ set_alias("search", "gemini-3-flash-preview")
 
 let active_browser = null
 let active_page = null
-let current_ws_client = Tools.current_ws_client
-let current_confirm_response = Tools.current_confirm_response
 let exec_in_project = Tools.exec_in_project
+let current_ws_client = null
+let current_confirm_response = "pending"
+let permission_error = ""
 
-export fn ask_user_permission(prompt_msg) {
+export fn set_ws_client(client) {
+  current_ws_client = client
+}
+
+export fn clear_ws_client() {
+  current_ws_client = null
   current_confirm_response = "pending"
+}
+
+export fn receive_confirmation(response) {
+  current_confirm_response = response
+}
+
+export fn send_agent_chunk(chunk) {
   if current_ws_client != null {
     try {
-      current_ws_client.send(to_json({"type": "prompt_confirm", "msg": prompt_msg}))
-    } catch(e) {}
+      current_ws_client.send(to_json({"type": "chat_chunk", "chunk": chunk}))
+      return true
+    } catch (err) {}
   }
+  return false
+}
+
+export fn ask_user_permission(prompt_msg) {
+  if current_ws_client == null {
+    return "The Studio WebSocket is disconnected, so no permission dialog can be shown."
+  }
+
+  current_confirm_response = "pending"
+  try {
+    current_ws_client.send(to_json({"type": "prompt_confirm", "msg": prompt_msg}))
+  } catch(e) {
+    return "The Studio WebSocket disconnected before the permission dialog could be shown."
+  }
+
   while current_confirm_response == "pending" {
     try {
       Time.sleep(200)
@@ -27,7 +56,10 @@ export fn ask_user_permission(prompt_msg) {
   }
   let res = current_confirm_response
   current_confirm_response = "pending"
-  return res == "yes"
+  if res == "yes" {
+    return true
+  }
+  return false
 }
 export fn read(args) {
   let path = args["path"]
@@ -37,7 +69,11 @@ export fn read(args) {
   if path == null {
     return "Error: missing 'path' or 'filename' argument"
   }
-  if !ask_user_permission("Sesi Studio Agent is trying to read file " + path + ". Is this okay?") {
+  let permission = ask_user_permission("Sesi Studio Agent is trying to read file " + path + ". Is this okay?")
+  if permission != true {
+    if permission != false {
+      return "Error: " + permission
+    }
     return "Error: User rejected read request."
   }
   return Safe.readFile(path)
@@ -52,7 +88,11 @@ export fn write(args) {
   if path == null || content == null {
     return "Error: missing 'path' or 'content' argument"
   }
-  if !ask_user_permission("Sesi Studio Agent is trying to write to file " + path + ". Is this okay?") {
+  let permission = ask_user_permission("Sesi Studio Agent is trying to write to file " + path + ". Is this okay?")
+  if permission != true {
+    if permission != false {
+      return "Error: " + permission
+    }
     return "Error: User rejected write request."
   }
   Safe.writeFile(path, content)
@@ -98,7 +138,11 @@ export fn runScript(args) {
   if args_str == null {
     args_str = ""
   }
-  if !ask_user_permission("Sesi Studio Agent is trying to run helper script: " + script_name + ". Is this okay?") {
+  let permission = ask_user_permission("Sesi Studio Agent is trying to run helper script: " + script_name + ". Is this okay?")
+  if permission != true {
+    if permission != false {
+      return "Error: " + permission
+    }
     return "Error: User rejected run request."
   }
   try {
@@ -117,7 +161,11 @@ export fn evaluate(args) {
   if code == null || code == "" {
     return "Error: missing 'code' argument"
   }
-  if !ask_user_permission("Sesi Studio Agent is trying to eval code. Is this okay?") {
+  let permission = ask_user_permission("Sesi Studio Agent is trying to eval code. Is this okay?")
+  if permission != true {
+    if permission != false {
+      return "Error: " + permission
+    }
     return "Error: User rejected eval request."
   }
   let final_code = code
@@ -127,7 +175,7 @@ export fn evaluate(args) {
     } catch(read_e) {}
   }
   try {
-    let temp_file = "sesi-studio/temp_eval_" + str(Time.now()) + ".sesi"
+    let temp_file = "sesi-studio/temp_eval.sesi"
     Safe.writeFile(temp_file, final_code)
     let output = sesi(temp_file, true)
     return output
@@ -180,6 +228,95 @@ export fn generateImage(args) {
     }
   } catch(e) {
     return "Subagent image generation error: " + str(e)
+  }
+}
+
+export fn drawPicture(args) {
+  let user_prompt = args["prompt"]
+  let path = args["output_path"]
+  let ratio = args["aspect_ratio"]
+  let refs = []
+  let example = Safe.readFile("examples/main/pixel_placeholder_icon_detailed.sesi")
+  let docs = Safe.readFile("getting-started/VARIABLES.md")
+  docs = docs +"\n"+ Safe.readFile("getting-started/FUNCTIONS.md")
+  push(refs, example)
+  push(refs, docs)
+  refs = to_json(refs)
+
+  if user_prompt == null {
+    return "Error: missing 'prompt' argument"
+  }
+  if path == null || path == "" {
+    path = "agent_picture.png"
+  }
+
+  try {
+    let subagent_system = "You are an expert prompt engineering agent for pixel drawing AI agents. This is not related to pixel art style, the AI agent will be drawing this image pixel by pixel, be reasonable. Your job is to take a simple image request and refine it into a detailed and descriptive prompt. Your output must be a single refined prompt string. Do not include any other conversational filler or explanations."
+
+    let subagent = Agent.create({
+      "model": "copilot",
+      "system": subagent_system,
+      "thinkingLevel": "medium",
+      "cache": true,
+      "max_tokens": 1024
+    })
+
+    let refined_prompt = Agent.chat(subagent, "Expand this image request: " + user_prompt)
+    if refined_prompt == null || refined_prompt == "" {
+      refined_prompt = user_prompt
+    } else {
+      print "Refined prompt:" refined_prompt
+    }
+    path = swap(path, ".png", "")
+    path = path + "-drawing.png"
+    prompt sys {"Create a PNG image with a Sesi script based on the following references: "refs"
+    
+    IMPORTANT: ALL `||` and `&&` STATEMENTS MUST BE ON THE SAME LINE, NEWLINES ARE NOT ALLOWED."}
+
+    let imageData = ""
+    if !is_null(env("OPENAI_API_KEY")) {
+      imageData = model("gpt-5.6-terra") {system: sys, thinking: "medium", cache: true} {user_prompt "
+      Aspect Ratio: "ratio"
+      Save it to: "path}
+    } else {
+      imageData = model("gemini-3.5-flash-lite") {system: sys, thinking: "high", temp: 0.7, cache: true, max_tokens: 8192} {user_prompt "
+      Aspect Ratio: "ratio"
+      Save it to: "path}
+    }
+
+    if contains(imageData, "/*") {
+      imageData = "/*" + split(imageData, "/*")[1]
+    } else if !contains(imageData, "/*") && contains(imageData, "allow \"std/draw\" in with Draw") {
+      imageData = "allow \"std/draw\" in with Draw\n" + split(imageData, "allow \"std/draw\" in with Draw")[1]
+    }
+    
+    imageData = swap(imageData, "```sesi", "")
+    imageData = trim(split(imageData, "```", "")[0])
+    path = swap(path, ".png", ".sesi")
+    Safe.writeFile(path, imageData)
+    
+    let success = true
+    let sesi_result = sesi(path, false, true)
+    sesi_result = split(sesi_result, "\n")[0]
+    if sesi_result == null || sesi_result == "" || (contains(sesi_result, "Expected") || contains(sesi_result, "EOF") || contains(sesi_result, "Unexpected")) {
+      print "Sesi script check failed. Result:" sesi_result "
+      Try to fix the script for any errors and rerun the script manually."
+      success = false
+    } else if sesi_result == "✓ Syntax and Compilation valid" {
+      sesi(path)
+      print "Sesi script executed successfully."
+    }
+
+    if success == true {
+      // Clean up the temporary Sesi script file after successful generation
+      trash(path, true)
+      return "Successfully generated and saved image. Saved path: '" + path + "'"
+    } else {
+      path = swap(path, ".sesi", ".png")
+      return "Failed to save image to " + path
+    }
+  } catch(e) {
+    return "Image generation error: " + str(e)
   }
 }
 
@@ -294,6 +431,7 @@ export let global_tools = {
   "run_helper_script": runScript,
   "eval_sesi_code": evaluate,
   "call_image_subagent": generateImage,
+  "draw_picture": drawPicture,
   "browser_goto": browser,
   "browser_click": click,
   "browser_fill": fill,
@@ -309,5 +447,6 @@ export let copilot_tools = {
     "search_google": searchGoogle,
     "run_helper_script": runScript,
     "eval_sesi_code": evaluate,
-    "call_image_subagent": generateImage
+    "call_image_subagent": generateImage,
+    "draw_picture": drawPicture
 }

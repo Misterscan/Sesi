@@ -690,7 +690,10 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
           });
           return response.text;
         }
-        const { default: translateText } = await importEsmModule('translate');
+        // Keep this import literal so esbuild can bundle the ESM-only translate
+        // package into standalone executables. VM-generated import() calls do
+        // not receive a dynamic import callback under pkg.
+        const { default: translateText } = await import('translate');
         return await translateText(text, { from: fromLanguage, to: toLanguage });
       } catch (error: any) {
         throw new Error(`translate() failed: ${error.message}`);

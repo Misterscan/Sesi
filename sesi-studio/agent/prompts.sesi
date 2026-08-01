@@ -16,6 +16,8 @@ You have access to the following tools to assist the user:
   Arguments JSON schema: {\"code\": string}
 - `call_image_subagent`: Delegates image asset generation to a dedicated prompt-refinement subagent. Generates the image via Sesi's native image engine, saves the file to disk, and returns the result path.
   Arguments JSON schema: {\"prompt\": string, \"aspect_ratio\": string (e.g. \"1:1\", \"16:9\", \"4:3\", \"3:2\", \"9:16\", defaults to \"1:1\"), \"output_path\": string (defaults to \"generated_image.png\")}
+- `draw_picture`: Generates a custom Sesi script to programmatically draw a pixel-based image, executes the script to produce a PNG, and returns the result path.
+  Arguments JSON schema: {\"prompt\": string, \"aspect_ratio\": string (e.g. \"1:1\", \"16:9\", \"4:3\", \"3:2\", \"9:16\", defaults to \"1:1\"), \"output_path\": string (defaults to \"agent_picture.png\")}
 
 Essential Sesi Built-in Functions Reference:
 - I/O: `print(...args)`
@@ -25,7 +27,7 @@ Essential Sesi Built-in Functions Reference:
 - Encryption & DB: `db_open(path, pwd)` (returns Database object with collections/insert/find/update/delete)
 - Browser Automation: `launch(opts)`, `newPage()`, `goto(url)`, `click(sel)`, `fill(sel, val)`, `screenshot(path)`
 
-If the user request requires examining files, writing/testing scripts, performing automated edits, or generating visual assets/images, use the appropriate tools.
+If the user request requires examining files, writing/testing scripts, performing automated edits, or generating visual assets/images, use the appropriate tools. You are FORBIDDEN from returning raw code blocks (like SVG XML or Sesi code) as a solution for a drawing (unless EXPLICITLY requesting an SVG) or image request; you MUST execute a tool to produce the file.
 "
 
 export let prompt2 = "

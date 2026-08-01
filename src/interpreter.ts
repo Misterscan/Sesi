@@ -42,13 +42,14 @@ import { getBuiltins, isTruthy, isEqual, stringify, compareValues, stripPrototyp
 import { aiRuntime } from './ai-runtime';
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { deflateSync } from 'zlib';
 import { convert as htmlToPlainText } from 'html-to-text';
 import { imageSize } from 'image-size';
 import yaml from 'js-yaml';
 import { marked } from 'marked';
 import TurndownService from 'turndown';
+import sharp from 'sharp';
 import { estimateTokenCost } from './token-pricing';
 
 export class Interpreter {
@@ -817,6 +818,7 @@ export class Interpreter {
     const topPRaw = getConfig('top_p', 'topP');
     const ratioRaw = getConfig('ratio', 'imgRatio', 'imageRatio', 'aspectRatio');
     const sizeRaw = getConfig('size', 'imgSize', 'imageSize');
+    const systemPromptRaw = getConfig('system', 'system_prompt', 'systemPrompt');
 
     const response = await aiRuntime.callModel({
       model: this.resolveModelName(rawModelName),
@@ -828,6 +830,7 @@ export class Interpreter {
       ratio: typeof ratioRaw === 'string' ? ratioRaw : undefined,
       size: typeof sizeRaw === 'string' ? sizeRaw : undefined,
       images: imagePaths,
+      systemPrompt: typeof systemPromptRaw === 'string' ? systemPromptRaw : undefined,
       thinkingLevel,
       cache,
     });
@@ -1270,12 +1273,18 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     const getCommandPath = (cmd: string): string => {
       if (process.platform === 'win32') {
         try {
-          const res = execSync(`where ${cmd}`, { encoding: 'utf8' }).split('\n')[0].trim();
+          const res = execSync(`where ${cmd}`, {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+          }).split(/\r?\n/)[0].trim();
           if (res) return res;
         } catch {}
       } else {
         try {
-          const res = execSync(`which ${cmd}`, { encoding: 'utf8' }).trim();
+          const res = execSync(`which ${cmd}`, {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+          }).trim();
           if (res) return res;
         } catch {}
         if (process.platform === 'darwin') {
@@ -1416,6 +1425,22 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           }
         }
 
+        if (fileType === 'svg' && (outputType === 'png' || outputType === 'jpg' || outputType === 'jpeg')) {
+          try {
+            await rasterizeSvgWithSharp(absoluteInputPath, absoluteOutputPath, outputType);
+            return relativeOutputPath;
+          } catch (e: any) {
+            lastError = e?.message || String(e);
+          }
+
+          try {
+            await rasterizeSvgWithPlaywright(absoluteInputPath, absoluteOutputPath, outputType);
+            return relativeOutputPath;
+          } catch (e: any) {
+            lastError = e?.message || String(e);
+          }
+        }
+
         if (hasCommand('magick')) {
           try {
             const magickPath = getCommandPath('magick');
@@ -1432,15 +1457,6 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
 
         if (convertedWithImageMagick) {
           return relativeOutputPath;
-        }
-
-        if (fileType === 'svg' && (outputType === 'png' || outputType === 'jpg' || outputType === 'jpeg')) {
-          try {
-            await rasterizeSvgWithPlaywright(absoluteInputPath, absoluteOutputPath, outputType);
-            return relativeOutputPath;
-          } catch (e: any) {
-            lastError = e?.message || String(e);
-          }
         }
 
         // Check if ffmpeg can do it (e.g. for image sequences or videos)
@@ -3114,8 +3130,24 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
             if (rawOpts.headless !== undefined) {
               launchOptions.headless = isTruthy(rawOpts.headless);
             }
+            const requestedExecutable = rawOpts.executablePath ?? rawOpts.executable_path;
+            if (typeof requestedExecutable === 'string' && requestedExecutable.trim() !== '') {
+              launchOptions.executablePath = requestedExecutable.trim();
+            }
           }
-          const { chromium } = require('playwright');
+          const { chromium } = loadPlaywrightRuntime();
+          if (!launchOptions.executablePath) {
+            let managedExecutable = '';
+            try {
+              managedExecutable = chromium.executablePath();
+            } catch {}
+            if (!managedExecutable || !fs.existsSync(managedExecutable)) {
+              const installedExecutable = findInstalledChromiumExecutable();
+              if (installedExecutable) {
+                launchOptions.executablePath = installedExecutable;
+              }
+            }
+          }
           const browser = await chromium.launch(launchOptions);
           const browserObj: Record<string, RuntimeValue> = Object.create(null);
           
@@ -4147,7 +4179,7 @@ function serializeDelimitedValue(value: string, delimiter: ',' | '\t'): string {
 }
 
 async function rasterizeSvgWithPlaywright(inputPath: string, outputPath: string, outputType: string): Promise<void> {
-  const { chromium } = await import('playwright');
+  const { chromium } = loadPlaywrightRuntime();
   const svg = fs.readFileSync(inputPath, 'utf8');
   const browser = await chromium.launch({ headless: true });
 
@@ -4165,6 +4197,86 @@ async function rasterizeSvgWithPlaywright(inputPath: string, outputPath: string,
     });
   } finally {
     await browser.close();
+  }
+}
+
+function loadPlaywrightRuntime(): any {
+  if (!(process as any).pkg) {
+    return require('playwright');
+  }
+
+  const moduleLoader: any = require('module');
+  const originalLoad = moduleLoader._load;
+  const unavailableInspector = {
+    url: () => undefined,
+    Session: class {
+      connect(): never {
+        throw new Error('Playwright Inspector is unavailable in the packaged Sesi executable.');
+      }
+    },
+  };
+
+  moduleLoader._load = function(request: string, ...args: any[]): any {
+    if (request === 'inspector' || request === 'node:inspector') {
+      return unavailableInspector;
+    }
+    return originalLoad.call(this, request, ...args);
+  };
+
+  try {
+    return require('playwright');
+  } finally {
+    moduleLoader._load = originalLoad;
+  }
+}
+
+function findInstalledChromiumExecutable(): string | null {
+  const candidates: string[] = [];
+
+  if (process.platform === 'win32') {
+    const programFiles = process.env.ProgramFiles;
+    const programFilesX86 = process.env['ProgramFiles(x86)'];
+    const localAppData = process.env.LOCALAPPDATA;
+    for (const base of [programFiles, programFilesX86]) {
+      if (!base) continue;
+      candidates.push(
+        path.join(base, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+        path.join(base, 'Google', 'Chrome', 'Application', 'chrome.exe')
+      );
+    }
+    if (localAppData) {
+      candidates.push(
+        path.join(localAppData, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+        path.join(localAppData, 'Google', 'Chrome', 'Application', 'chrome.exe')
+      );
+    }
+  } else if (process.platform === 'darwin') {
+    candidates.push(
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium'
+    );
+  } else {
+    for (const command of ['chromium', 'chromium-browser', 'google-chrome', 'microsoft-edge']) {
+      try {
+        const located = execFileSync('which', [command], {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
+        if (located) candidates.push(located);
+      } catch {}
+    }
+  }
+
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
+}
+
+async function rasterizeSvgWithSharp(inputPath: string, outputPath: string, outputType: string): Promise<void> {
+  const pipeline = sharp(inputPath, { density: 144 });
+  if (outputType === 'png') {
+    await pipeline.png().toFile(outputPath);
+  } else {
+    await pipeline.jpeg().toFile(outputPath);
   }
 }
 

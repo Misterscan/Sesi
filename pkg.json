@@ -7,7 +7,9 @@
     "assets": [
       "node_modules/blessed/**/*",
       "node_modules/onnxruntime-node/bin/**/*",
-      "node_modules/@img/**/*"
+      "node_modules/@img/**/*",
+      "node_modules/playwright/**/*",
+      "node_modules/playwright-core/**/*"
     ],
     "targets": [
       "node22-win-x64",

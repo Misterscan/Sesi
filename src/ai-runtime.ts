@@ -1,5 +1,10 @@
 async function importTransformersModule(): Promise<any> {
-  return await import('@huggingface/transformers');
+  const transformers = await import('@huggingface/transformers');
+  // Configure for Node.js environment
+  if (transformers.env) {
+    (transformers.env as any).allowRemoteModels = true;
+  }
+  return transformers;
 }
 // AI Runtime - local, Gemini, and OpenAI model providers
 import { AIRequest, AIResponse, StructuredOutput, RuntimeValue } from './types';
@@ -92,7 +97,26 @@ export class AIRuntime {
     const modelFile = dtype === 'fp32'
       ? 'model.onnx'
       : `model_${dtype}.onnx`;
-    return fs.existsSync(path.join(modelDirectory, 'onnx', modelFile));
+    const modelPath = path.join(modelDirectory, 'onnx', modelFile);
+    if (!fs.existsSync(modelPath)) {
+      return false;
+    }
+
+    // Large models often split weights into a separate .onnx_data file.
+    // If the .onnx file is very small, it's likely a header that requires the data file.
+    try {
+      const stats = fs.statSync(modelPath);
+      if (stats.size < 1024 * 1024) { // Less than 1MB
+        const dataFile = `${modelFile}_data`;
+        if (!fs.existsSync(path.join(modelDirectory, 'onnx', dataFile))) {
+          return false;
+        }
+      }
+    } catch (e) {
+      return false;
+    }
+
+    return true;
   }
 
   private getLocalModelDirectory(modelName: string): string {
@@ -111,12 +135,32 @@ export class AIRuntime {
         const transformers: any = await importTransformersModule();
         const cached = this.isLocalModelCached(modelName, dtype);
         const modelSource = cached ? this.getLocalModelDirectory(modelName) : modelName;
-        return await transformers.pipeline('text-generation', modelSource, {
+        
+        const options = {
           dtype,
           device,
           cache_dir: cacheDirectory,
           local_files_only: cached,
-        });
+        };
+
+        if (!cached) {
+          console.log(`Downloading model "${modelName}" to ${cacheDirectory}...`);
+          console.log(`This may take a while. Please do not cancel the process.`);
+        }
+
+        try {
+          return await transformers.pipeline('text-generation', modelSource, options);
+        } catch (error) {
+          if (cached) {
+            // Fallback: If we thought it was cached but it failed (e.g. missing .onnx_data),
+            // try again allowing remote downloads.
+            return await transformers.pipeline('text-generation', modelName, {
+              ...options,
+              local_files_only: false,
+            });
+          }
+          throw error;
+        }
       })();
 
       this.localPipelines.set(cacheKey, pending);
@@ -137,10 +181,24 @@ export class AIRuntime {
         const transformers: any = await importTransformersModule();
         const cached = this.isLocalModelCached(modelName);
         const modelSource = cached ? this.getLocalModelDirectory(modelName) : modelName;
-        return await transformers.AutoTokenizer.from_pretrained(modelSource, {
+        
+        const options = {
           cache_dir: cacheDirectory,
           local_files_only: cached,
-        });
+        };
+
+        try {
+          return await transformers.AutoTokenizer.from_pretrained(modelSource, options);
+        } catch (error) {
+          if (cached) {
+            // Fallback: allow remote download if local load fails
+            return await transformers.AutoTokenizer.from_pretrained(modelName, {
+              ...options,
+              local_files_only: false,
+            });
+          }
+          throw error;
+        }
       })();
       this.localTokenizers.set(cacheKey, pending);
       pending.catch(() => {
@@ -196,6 +254,129 @@ export class AIRuntime {
     return '';
   }
 
+  private normalizeLocalTools(tools: any[]): any[] {
+    return tools.map((tool) => {
+      if (tool?.type === 'function' && tool.function && typeof tool.function === 'object') {
+        return stripPrototypes(tool);
+      }
+
+      if (tool && typeof tool === 'object' && typeof tool.name === 'string') {
+        return stripPrototypes({
+          type: 'function',
+          function: {
+            name: tool.name,
+            description: typeof tool.description === 'string' ? tool.description : '',
+            parameters: tool.parameters && typeof tool.parameters === 'object'
+              ? tool.parameters
+              : { type: 'object', properties: {} },
+          },
+        });
+      }
+
+      return stripPrototypes(tool);
+    });
+  }
+
+  private normalizeLocalToolCall(value: any): { name: string; args: RuntimeValue; call_id?: string } | null {
+    if (!value || typeof value !== 'object') return null;
+
+    const fn = value.function && typeof value.function === 'object'
+      ? value.function
+      : value;
+    const name = typeof fn.name === 'string'
+      ? fn.name.trim()
+      : typeof value.name === 'string'
+        ? value.name.trim()
+        : '';
+    if (!name) return null;
+
+    let args: RuntimeValue = Object.create(null);
+    const rawArgs = fn.arguments ?? fn.args ?? value.arguments ?? value.args;
+    if (typeof rawArgs === 'string' && rawArgs.trim() !== '') {
+      try {
+        args = stripPrototypes(JSON.parse(rawArgs));
+      } catch {
+        args = rawArgs;
+      }
+    } else if (rawArgs !== undefined && rawArgs !== null) {
+      args = stripPrototypes(rawArgs);
+    }
+
+    const toolCall: Record<string, RuntimeValue> = Object.create(null);
+    toolCall.name = name;
+    toolCall.args = args;
+    const callId = value.call_id ?? value.id;
+    if (typeof callId === 'string' && callId.trim() !== '') {
+      toolCall.call_id = callId;
+    }
+
+    return toolCall as { name: string; args: RuntimeValue; call_id?: string };
+  }
+
+  private parseLocalToolCallText(text: string): { name: string; args: RuntimeValue; call_id?: string } | null {
+    const trimmed = String(text || '').trim();
+    if (!trimmed) return null;
+
+    const candidates: string[] = [];
+    const taggedCallPattern = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/gi;
+    let taggedMatch: RegExpExecArray | null;
+    while ((taggedMatch = taggedCallPattern.exec(trimmed)) !== null) {
+      candidates.push(taggedMatch[1]);
+    }
+
+    const toolCallsPrefix = trimmed.match(/^\[TOOL_CALLS\]\s*([\s\S]+)$/i);
+    if (toolCallsPrefix) candidates.push(toolCallsPrefix[1]);
+
+    const fencedJson = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fencedJson) candidates.push(fencedJson[1]);
+    candidates.push(trimmed);
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = stripPrototypes(JSON.parse(candidate));
+        const values = Array.isArray(parsed) ? parsed : [parsed];
+        for (const value of values) {
+          const normalized = this.normalizeLocalToolCall(value);
+          if (normalized) return normalized;
+        }
+      } catch {
+        // Keep looking: local models may surround a valid tool call with reasoning text.
+      }
+    }
+
+    return null;
+  }
+
+  private extractLocalToolCall(output: any, text: string): { name: string; args: RuntimeValue; call_id?: string } | null {
+    const generated = Array.isArray(output)
+      ? output[0]?.generated_text
+      : output?.generated_text;
+
+    if (Array.isArray(generated)) {
+      for (let i = generated.length - 1; i >= 0; i--) {
+        const message = generated[i];
+        if (message?.role !== 'assistant') continue;
+
+        const calls = Array.isArray(message.tool_calls)
+          ? message.tool_calls
+          : message.tool_call
+            ? [message.tool_call]
+            : [];
+        for (const call of calls) {
+          const normalized = this.normalizeLocalToolCall(call);
+          if (normalized) return normalized;
+        }
+
+        if (typeof message.content === 'string') {
+          const parsed = this.parseLocalToolCallText(message.content);
+          if (parsed) return parsed;
+        }
+      }
+    }
+
+    return this.parseLocalToolCallText(text);
+  }
+
   private async callLocalModel(request: AIRequest): Promise<AIResponse> {
     if (request.images?.length) {
       throw new Error('Local model calls currently support text-only prompts.');
@@ -205,9 +386,6 @@ export class AIRuntime {
     }
     if (request.search) {
       throw new Error('search is not available for local model calls.');
-    }
-    if (request.tools?.length) {
-      throw new Error('Tool calling is not yet available for local model calls.');
     }
 
     const modelName = this.resolveLocalModelName(request.model);
@@ -220,7 +398,11 @@ export class AIRuntime {
       { role: 'user', content: request.prompt },
     ];
     const tokenizer = generator.tokenizer;
-    const inputTokens = this.countEncodedTokens(tokenizer, `${systemPrompt}\n${request.prompt}`);
+    const localTools = request.tools?.length
+      ? this.normalizeLocalTools(request.tools)
+      : undefined;
+    const toolContext = localTools ? `\n${JSON.stringify(localTools)}` : '';
+    const inputTokens = this.countEncodedTokens(tokenizer, `${systemPrompt}\n${request.prompt}${toolContext}`);
     const warningThreshold = this.getLocalWarningThreshold();
     if (warningThreshold > 0 && inputTokens > warningThreshold) {
       console.warn(
@@ -237,6 +419,7 @@ export class AIRuntime {
     if (request.temperature !== undefined && request.temperature > 0) {
       generationOptions.temperature = request.temperature;
     }
+    if (localTools) generationOptions.tools = localTools;
     if (request.topK !== undefined) generationOptions.top_k = request.topK;
     if (request.topP !== undefined) generationOptions.top_p = request.topP;
 
@@ -249,6 +432,7 @@ export class AIRuntime {
         skip_special_tokens: true,
         callback_function: (delta: string) => {
           streamedText += delta;
+          if (localTools) return;
           streamChain = streamChain.then(async () => {
             if (typeof request.stream === 'function') {
               await request.stream(delta);
@@ -263,8 +447,30 @@ export class AIRuntime {
     const output = await generator(messages, generationOptions);
     await streamChain;
     const text = streamedText || this.extractLocalText(output);
+    const toolCall = localTools
+      ? this.extractLocalToolCall(output, text)
+      : null;
+    if (toolCall) {
+      const canonicalText = JSON.stringify(toolCall);
+      return {
+        text: canonicalText,
+        finishReason: 'TOOL_CALL',
+        usage: {
+          inputTokens,
+          outputTokens: this.countEncodedTokens(tokenizer, text || canonicalText),
+          thinkingTokens: 0,
+        },
+      };
+    }
     if (!text.trim()) {
       throw new Error(`Local model "${modelName}" returned no text output.`);
+    }
+    if (request.stream && localTools) {
+      if (typeof request.stream === 'function') {
+        await request.stream(text);
+      } else {
+        process.stdout.write(text);
+      }
     }
 
     return {
@@ -754,6 +960,7 @@ export class AIRuntime {
       systemPrompt: request.systemPrompt,
       thinkingLevel: request.thinkingLevel,
       search: request.search,
+      tools: request.tools,
     };
     hash.update(JSON.stringify(input));
     return hash.digest('hex');
@@ -898,6 +1105,7 @@ export class AIRuntime {
       // Inject current date/time for context
       const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
       const fullPrompt = timeContext + request.prompt;
+      const systemInstruction = request.systemPrompt?.trim() || undefined;
 
       // Build thinkingConfig if requested
       let thinkingConfig: any = undefined;
@@ -944,6 +1152,7 @@ export class AIRuntime {
         if (request.topK !== undefined) configObj.topK = request.topK;
         if (request.topP !== undefined) configObj.topP = request.topP;
         if (thinkingConfig) configObj.thinkingConfig = thinkingConfig;
+        if (systemInstruction) configObj.systemInstruction = systemInstruction;
 
         const response = await client.models.generateContent({
           model: resolvedModel,
@@ -1035,6 +1244,10 @@ export class AIRuntime {
 
         if (thinkingConfig) {
           genConfig.thinkingConfig = thinkingConfig;
+        }
+
+        if (systemInstruction) {
+          genConfig.systemInstruction = systemInstruction;
         }
 
         let response: any;

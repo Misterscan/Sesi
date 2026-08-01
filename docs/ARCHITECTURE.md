@@ -173,8 +173,8 @@ RuntimeValue =
 ```
 "Hello" + 5        → "Hello5"
 "Age:" 30          → "Age: 30"
-any + string       → toString(any) + string
-string + any       → string + toString(any)
+any + string       → str(any) + string
+string + any       → string + str(any)
 ```
 
 **Numeric Operations**:

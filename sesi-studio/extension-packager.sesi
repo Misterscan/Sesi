@@ -127,9 +127,8 @@ fn process_icon_svg(meta, file_path) {
           print "  ✗ Failed to URL encode SVG:" e
         }
       } else {
-        let node_script = "const fs=require('fs');const buf=fs.readFileSync('" + svg_path + "');process.stdout.write('data:image/svg+xml;base64,'+buf.toString('base64'))"
         try {
-          encoded_uri = exec_node("-e \"" + node_script + "\"")
+          encoded_uri = "data:image/svg+xml;base64," + read_file(svg_path, "base64")
           print "  → Inline encoded as Base64 SVG."
         } catch (e) {
           print "  ✗ Failed to Base64 encode SVG:" e

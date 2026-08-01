@@ -10,6 +10,8 @@ Usage:
 
   Note: This example requires CMake to be installed for the `from_speech()` function to work.
 */
+fn getOS() {return trim(js("console.log(require('os').platform())"))}
+let platform = getOS()
 
 allow "std/terminal" in with {color}
 
@@ -20,25 +22,28 @@ let toLang = input("Target language (default: es): ")
 print ""
 if is_null(toLang) || toLang == "" {toLang = "es"}
 
-let brew = "" 
-try {brew = exec("which brew")} catch (e) {print color(str(e), "red") } // Check if Homebrew is installed 
-if contains(brew, "not found") {print color("Homebrew is not installed. Please install Homebrew to proceed for CMake. Visit https://brew.sh for instructions.", "yellow")}
-if contains(brew, "bin/brew") {
-  try { /* Check if CMake is installed */
-      let CMakeCheck = exec("which cmake")
-      if contains(CMakeCheck, "not found") {
-        print color("CMake is not installed. It is required for 'from_speech()' demonstration.", "yellow")
-        
-        // Prompt user to install CMake via Homebrew
-        brew = input(color("Allow Sesi to install cmake? (y/n): ", "yellow"))
-      } else {
-        print color("CMake is already installed.\n", "green")
-      }
-  } catch (e) {
-    print color(str(e), "red")
+// Check if CMake is installed
+let cmakeFound = trim(js("const cp=require('child_process');const p=require('os').platform();try{cp.execFileSync(p==='win32'?'where.exe':'which',['cmake'],{stdio:['ignore','pipe','ignore']});console.log('yes')}catch(e){console.log('no')}"))
+let installCMake = ""
+
+if cmakeFound == "yes" {
+  print color("CMake is already installed.\n", "green")
+} else if platform == "darwin" {
+  let brewFound = trim(js("const cp=require('child_process');try{cp.execFileSync('which',['brew'],{stdio:['ignore','pipe','ignore']});console.log('yes')}catch(e){console.log('no')}"))
+  if brewFound == "yes" {
+    print color("CMake is not installed. It is required for the 'from_speech()' demonstration.", "yellow")
+    // Prompt user to install CMake via Homebrew
+    installCMake = input(color("Allow Sesi to install CMake with Homebrew? (y/n): ", "yellow"))
+  } else {
+    print color("CMake is not installed. Install Homebrew from https://brew.sh, then run: brew install cmake", "yellow")
   }
+} else if platform == "win32" {
+  print color("CMake is not installed. Install it from https://cmake.org/download/ or run: winget install Kitware.CMake", "yellow")
+} else {
+  print color("CMake is not installed. Install it with your system package manager before using from_speech().", "yellow")
 }
-if trim(brew) == "y" {
+
+if trim(installCMake) == "y" {
   try { // Install CMake via Homebrew
       exec("brew install cmake")
       print color("CMake installed successfully.", "green")
@@ -46,23 +51,10 @@ if trim(brew) == "y" {
       print color("Error installing CMake: " + str(e), "red")
   }
 }
-if trim(brew) == "n" {print color("Skipping 'from_speech()' demonstration.", "yellow")}
-
-let modelFound = js("const c=require('nodejs-whisper/dist/constants');const fs=require('fs');const p=require('path');console.log(fs.existsSync(p.join(c.WHISPER_CPP_PATH,'models','ggml-base.en.bin'))?'yes':'no')")
-if trim(modelFound) == "yes" {
-  print color("Whisper model already installed.\n", "green")
-} else { // Download a Whisper model if not installed
-  print color("Downloading Whisper model...", "yellow")
-  try {
-    exec("npx nodejs-whisper download base.en")
-    print color("base.en model downloaded successfully.\n", "green")
-  } catch (e) {
-    print color("Error downloading Whisper model: " + str(e), "red")
-  }
-}
+if trim(installCMake) == "n" {print color("Skipping 'from_speech()' demonstration.", "yellow")}
 
 // Check if the user wants to use AI for translation
-if tts != "" && (args[0] != "--ai" || args[0] == null) {
+if tts != "" && (args[0] != "ai" || args[0] == null) {
   print "Original language transcribed (" fromLang "):" tts
   speech(tts)
 
@@ -70,7 +62,7 @@ if tts != "" && (args[0] != "--ai" || args[0] == null) {
   print "Translated language transcribed (" toLang "):" tts
   speech(tts, "Mónica")
   
-} else if tts != "" && args[0] == "--ai" { // Use AI for translation
+} else if tts != "" && args[0] == "ai" { // Use AI for translation
   let audio = speech(tts, "Kore", "gemini-2.5-flash-preview-tts")
   write_file("audio_text.wav", audio, "base64")
   let audioPath = "audio_text.wav"
@@ -95,27 +87,35 @@ if tts != "" && (args[0] != "--ai" || args[0] == null) {
 
     // Speak the translated text in the target language
     print "Translated language (" toLang ") transcribed:" tts
-    if toLang == "es" {speech(tts, "Mónica")}
-    if toLang == "fr" {speech(tts, "Amélie")}
-    if toLang == "de" {speech(tts, "Anna")}
-    if toLang == "it" {speech(tts, "Alice")}
-    if toLang == "ja" {speech(tts, "Kyoko")}
-    if toLang == "ko" {speech(tts, "Yuna")}
-    if toLang == "zh" {speech(tts, "Mei")}
-    if toLang == "en" {speech(tts)}
+    if platform == "darwin" {
+      if toLang == "es" {speech(tts, "Mónica")}
+      if toLang == "fr" {speech(tts, "Amélie")}
+      if toLang == "de" {speech(tts, "Anna")}
+      if toLang == "it" {speech(tts, "Alice")}
+      if toLang == "ja" {speech(tts, "Kyoko")}
+      if toLang == "ko" {speech(tts, "Yuna")}
+      if toLang == "zh" {speech(tts, "Mei")}
+      if toLang == "en" {speech(tts)}
+    } else if platform == "win32" {
+      speech(tts)
+    }
   } else { // Run translation and speech synthesis if transcription is successful
     let translated = translate(transcript, toLang, fromLang)
     print "Original language(" fromLang ") transcribed:" transcript
     speech(tts)
 
     print "Translated language (" toLang ") transcribed:" translated
-    if toLang == "es" {speech(translated, "Mónica")}
-    if toLang == "fr" {speech(translated, "Amélie")}
-    if toLang == "de" {speech(translated, "Anna")}
-    if toLang == "it" {speech(translated, "Alice")}
-    if toLang == "ja" {speech(translated, "Kyoko")}
-    if toLang == "ko" {speech(translated, "Yuna")}
-    if toLang == "zh" {speech(translated, "Mei")}
-    if toLang == "en" {speech(translated)}
+    if platform == "darwin" {
+      if toLang == "es" {speech(translated, "Mónica")}
+      if toLang == "fr" {speech(translated, "Amélie")}
+      if toLang == "de" {speech(translated, "Anna")}
+      if toLang == "it" {speech(translated, "Alice")}
+      if toLang == "ja" {speech(translated, "Kyoko")}
+      if toLang == "ko" {speech(translated, "Yuna")}
+      if toLang == "zh" {speech(translated, "Mei")}
+      if toLang == "en" {speech(translated)}
+    } else if platform == "win32" {
+      speech(translated)
+    }
   }
 }

@@ -68,19 +68,67 @@ export fn exec_in_project(cmd) {
 }
 
 export let current_ws_client = null
-export fn on_agent_chunk(chunk) {
+let permission_error = ""
+export fn set_ws_client(client) {
+  current_ws_client = client
+}
+
+export fn clear_ws_client() {
+  current_ws_client = null
+  current_confirm_response = "pending"
+}
+
+export fn request_confirmation(prompt_msg) {
+  if current_ws_client == null {
+    permission_error = "The Studio WebSocket is disconnected, so no permission dialog can be shown."
+    return false
+  }
+  permission_error = ""
+  current_confirm_response = "pending"
+  try {
+    current_ws_client.send(to_json({"type": "prompt_confirm", "msg": prompt_msg}))
+    return true
+  } catch (err) {
+    permission_error = "The Studio WebSocket disconnected before the permission dialog could be shown."
+    return false
+  }
+}
+
+export fn last_permission_error() {
+  return permission_error
+}
+
+export fn receive_confirmation(response) {
+  current_confirm_response = response
+}
+
+export fn confirmation_response() {
+  return current_confirm_response
+}
+
+export fn reset_confirmation() {
+  current_confirm_response = "pending"
+}
+
+export fn send_agent_chunk(chunk) {
   if current_ws_client != null {
     try {
       current_ws_client.send(to_json({"type": "chat_chunk", "chunk": chunk}))
+      return true
     } catch(err_c) {}
   }
+  return false
+}
+
+export fn on_agent_chunk(chunk) {
+  return send_agent_chunk(chunk)
 }
 export let current_confirm_response = "pending"
 
 // Passphrase generation and retrieval
+let pass = ""
 fn randomPass() {
   let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-  let pass = ""
   let count = 0
   let chars_len = len(chars)
   while count < 16 {
@@ -94,7 +142,7 @@ fn randomPass() {
   return pass
 }
 
-let pass = Safe.readFile("sesi-studio/.sesi_studio_password.txt")
+pass = Safe.readFile("sesi-studio/.sesi_studio_password.txt")
 if pass == null || pass == "" || pass == "nullnullnullnullnullnullnullnullnullnullnullnullnullnullnullnull" {
   pass = randomPass()
 }

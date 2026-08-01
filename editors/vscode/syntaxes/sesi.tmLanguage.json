@@ -103,7 +103,7 @@
       "patterns": [
         {
           "name": "support.type.sesi",
-          "match": "\\b(number|string|bool|null|array|object)\\b"
+            "match": "\\b(number|string|bool|null|array|object|any)\\b"
         }
       ]
     },
