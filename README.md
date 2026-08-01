@@ -41,7 +41,6 @@ We are excited to announce the release of **Sesi Studio**, a high-performance, b
 To launch Sesi Studio, you can:
 
 - Open **Sesi Studio.app** (macOS)
-- Run `./SesiStudio.command` from the root directory
 - Use the CLI: `sesi -s` from any project directory after installing Sesi. The installer includes the Studio runtime and opens that directory as the initial workspace.
 
 ## Installation
@@ -63,8 +62,7 @@ Don't want to install Node.js? Download the standalone executables bundled for W
 For macOS users, Sesi also supports a native PKG installer flow when building from source:
 
 ```bash
-npm run build:exe
-npm run build:mac:pkg
+npm run build:mac:installer
 ```
 
 This generates installer packages in `releases/` (for available architectures) that install `sesi` to `/usr/local/bin`.
@@ -87,6 +85,7 @@ a `.env` file referencing your key where you run your scripts:
 
 ```env
 GEMINI_API_KEY="AIzaSy..."
+OPENAI_API_KEY="sk-......"
 ```
 
 Then run any program directly:
@@ -142,7 +141,7 @@ sesi -dec my_script.sesi
 
 ```bash
 # Install third-party package dependency
-sesi install github:owner/repo
+sesi install owner/repo
 
 # Install all dependencies declared in sesi.json
 sesi install
@@ -196,14 +195,14 @@ npm run studio:ext:validate <js-file-path>
 # Run classic examples
 npm run example examples/main/01_hello.sesi
 npm run example:ai examples/optional/08_model_call.sesi
-npm run example:all
+npm run examples
 ```
 
 ## 📦 Package Management
 
 Sesi has a native, git-centric package manager. You can install third-party libraries directly from GitHub into a local `sesi_modules/` folder and import them cleanly.
 
-- **Install a library**: `sesi install github:owner/repo` (adds it to your local `sesi.json` and downloads it).
+- **Install a library**: `sesi install owner/repo` (adds it to your local `sesi.json` and downloads it).
 - **Restore dependencies**: `sesi install` (installs all dependencies declared in your local `sesi.json`).
 
 ## Language Overview
