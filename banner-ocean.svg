@@ -1,12 +1,16 @@
 <svg width="860" height="180" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="0%">
-    <stop offset="0%" stop-color="#0f2027" />
-    <stop offset="50%" stop-color="#203a43" />
-    <stop offset="100%" stop-color="#2c5364" />
+    <linearGradient id="bg" y2="0%" x2="100%" y1="0%" x1="0%">
+    <stop offset="0%" stop-color="#071b2c" />
+    <stop offset="50%" stop-color="#113a5e" />
+    <stop offset="100%" stop-color="#1f5f67" />
   </linearGradient>
   </defs>
-  <rect x="0" y="0" width="860" height="180" fill="url(#bg)" rx="14" ry="14" />
-  <text x="430" y="86" font-size="52" fill="#ffffff" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700">Sesi</text>
-  <text x="430" y="122" font-size="18" fill="#7dd3fc" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="400">A Concise, Legible Programming Language</text>
+  <rect x="0" y="0" width="860" height="180" fill="url(#bg)" ry="14" rx="14" />
+  <rect x="24" y="24" width="812" height="132" fill="rgba(255,255,255,0.08)" ry="14" rx="14" />
+  <rect x="40" y="36" width="8" height="108" fill="#67e8f9" ry="4" rx="4" />
+  <rect x="740" y="36" width="80" height="8" fill="#67e8f9" ry="4" rx="4" />
+  <rect x="774" y="36" width="46" height="46" fill="rgba(255,255,255,0.12)" ry="10" rx="10" />
+  <text x="430" y="82" font-size="52" fill="#ffffff" font-weight="700" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle">Sesi</text>
+  <text x="430" y="116" font-size="18" fill="#a7f3d0" font-weight="400" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle">A Concise, Legible Programming Language</text>
 </svg>

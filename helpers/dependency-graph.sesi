@@ -5,10 +5,10 @@ Usage:
     sesi helpers/dependency-graph.sesi <entry_file> [options]
 
 Options:
-    --svg <file>   Output a beautiful SVG flow diagram (default: dependency-graph.svg)
-    --json <file>  Save graph data in JSON format
-    --all          Include Sesi standard library modules (std/*)
-    --help         Show this help menu
+    svg <file>   Output a beautiful SVG flow diagram (default: dependency-graph.svg)
+    json <file>  Save graph data in JSON format
+    all          Include Sesi standard library modules (std/*)
+    help         Show this help menu
 */
 
 allow "std/draw" in with Draw
@@ -21,14 +21,14 @@ fn show_help() {
   print "  sesi helpers/dependency-graph.sesi <entry_file> [options]"
   print ""
   print "Options:"
-  print "  --svg <file>   Output a beautiful SVG flow diagram (default: dependency-graph.svg)"
-  print "  --json <file>  Save graph data in JSON format"
-  print "  --all          Include Sesi standard library modules (std/*)"
-  print "  --help         Show this help menu"
+  print "  svg <file>   Output a beautiful SVG flow diagram (default: dependency-graph.svg)"
+  print "  json <file>  Save graph data in JSON format"
+  print "  all          Include Sesi standard library modules (std/*)"
+  print "  help         Show this help menu"
   print ""
   print "Examples:"
   print "  sesi helpers/dependency-graph.sesi examples/main/16_modules.sesi"
-  print "  sesi helpers/dependency-graph.sesi main/tests/test_general_modules.sesi --all"
+  print "  sesi helpers/dependency-graph.sesi main/tests/test_general_modules.sesi all"
 }
 
 export fn get_dirname(path: string) -> string {
@@ -86,14 +86,14 @@ fn file_exists(path: string) -> bool {
 
 fn get_home_dir() -> string {
   try {
-    let out = exec("echo $HOME")
+    let out = env("HOME")
     if out != null {
       return trim(out)
     }
   } catch (e) {
   }
   try {
-    let out = exec("echo %USERPROFILE%")
+    let out = env("USERPROFILE")
     if out != null {
       return trim(out)
     }
@@ -104,14 +104,7 @@ fn get_home_dir() -> string {
 
 fn get_sesi_path() -> string {
   try {
-    let out = exec("echo $SESI_PATH")
-    if out != null {
-      return trim(out)
-    }
-  } catch (e) {
-  }
-  try {
-    let out = exec("echo %SESI_PATH%")
+    let out = env("SESI_PATH")
     if out != null {
       return trim(out)
     }
@@ -356,7 +349,7 @@ if len(args) == 0 {
   let json_file = null
   let include_all = false
   
-  if args[0] == "--help" || args[0] == "-h" {
+  if args[0] == "--help" || args[0] == "help" {
     show_help()
   } else {
     entry_file = args[0]
@@ -365,7 +358,7 @@ if len(args) == 0 {
     let idx = 1
     while idx < len(args) {
       let opt = args[idx]
-      if opt == "--svg" {
+      if opt == "--svg" || opt == "svg" {
         if idx + 1 < len(args) {
           svg_file = args[idx + 1]
           idx = idx + 2
@@ -373,7 +366,7 @@ if len(args) == 0 {
           print "⚠️ Missing value for --svg"
           idx = idx + 1
         }
-      } else if opt == "--json" {
+      } else if opt == "--json" || opt == "json" {
         if idx + 1 < len(args) {
           json_file = args[idx + 1]
           idx = idx + 2
@@ -381,7 +374,7 @@ if len(args) == 0 {
           print "⚠️ Missing value for --json"
           idx = idx + 1
         }
-      } else if opt == "--all" {
+      } else if opt == "--all" || opt == "all" {
         include_all = true
         idx = idx + 1
       } else {

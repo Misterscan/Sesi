@@ -20,15 +20,15 @@ fn show_help() {
   print "Usage:"
   print "  sesi helpers/text-search.sesi file <path> <query>"
   print "  sesi helpers/text-search.sesi folder <path> <query>"
-  print "  sesi helpers/text-search.sesi folder <path> <query> --ext <extension>"
-  print "  sesi helpers/text-search.sesi folder <path> <query> --skip <name>"
-  print "  sesi helpers/text-search.sesi folder <path> <query> --json <output>"
+  print "  sesi helpers/text-search.sesi folder <path> <query> ext <extension>"
+  print "  sesi helpers/text-search.sesi folder <path> <query> skip <name>"
+  print "  sesi helpers/text-search.sesi folder <path> <query> json <output>"
   print ""
   print "Examples:"
   print "  sesi helpers/text-search.sesi file README.md Sesi"
   print "  sesi helpers/text-search.sesi folder . TODO"
-  print "  sesi helpers/text-search.sesi folder . TODO --ext sesi"
-  print "  sesi helpers/text-search.sesi folder . TODO --ext sesi --skip node_modules --json reports/todos.json"
+  print "  sesi helpers/text-search.sesi folder . TODO ext sesi"
+  print "  sesi helpers/text-search.sesi folder . TODO ext sesi skip node_modules json reports/todos.json"
 }
 
 fn get_extension(path: str) -> str {
@@ -78,28 +78,28 @@ fn parse_options() {
   while i < len(args) {
     let key = args[i]
 
-    if key == "--ext" {
+    if key == "--ext" || key == "ext" {
       if i + 1 < len(args) {
         options["ext"] = args[i + 1]
         i = i + 2
       } else {
-        print "Missing value for --ext"
+        print "Missing value for ext"
         i = i + 1
       }
-    } else if key == "--json" {
+    } else if key == "--json" || key == "json" {
       if i + 1 < len(args) {
         options["json"] = args[i + 1]
         i = i + 2
       } else {
-        print "Missing value for --json"
+        print "Missing value for json"
         i = i + 1
       }
-    } else if key == "--skip" {
+    } else if key == "--skip" || key == "skip" {
       if i + 1 < len(args) {
         push(options["skips"], args[i + 1])
         i = i + 2
       } else {
-        print "Missing value for --skip"
+        print "Missing value for skip"
         i = i + 1
       }
     } else {

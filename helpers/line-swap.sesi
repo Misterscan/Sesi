@@ -7,16 +7,16 @@
 
 Usage:
     sesi helpers/line-swap.sesi <path> <from> <to>
-    sesi helpers/line-swap.sesi <path> <from> <to> --dry-run
-    sesi helpers/line-swap.sesi <path> <from> <to> --lines <start> <end>
-    sesi helpers/line-swap.sesi <path> <from> <to> --backup
+    sesi helpers/line-swap.sesi <path> <from> <to> dry-run
+    sesi helpers/line-swap.sesi <path> <from> <to> lines <start> <end>
+    sesi helpers/line-swap.sesi <path> <from> <to> backup
     sesi helpers/line-swap.sesi help
 
 Examples:
     sesi helpers/line-swap.sesi src/main.sesi "let debug = true" "let debug = false"
-    sesi helpers/line-swap.sesi README.md "v1.0" "v2.0" --dry-run
-    sesi helpers/line-swap.sesi app.sesi "old_fn" "new_fn" --lines 10 50
-    sesi helpers/line-swap.sesi config.sesi "staging" "production" --backup
+    sesi helpers/line-swap.sesi README.md "v1.0" "v2.0" dry-run
+    sesi helpers/line-swap.sesi app.sesi "old_fn" "new_fn" lines 10 50
+    sesi helpers/line-swap.sesi config.sesi "staging" "production" backup
 */
 
 fn show_help() {
@@ -24,22 +24,22 @@ fn show_help() {
   print ""
   print "Usage:"
   print "  sesi helpers/line-swap.sesi <path> <from> <to>"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> --dry-run"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> --lines <start> <end>"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> --backup"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> --exact"
+  print "  sesi helpers/line-swap.sesi <path> <from> <to> dry-run"
+  print "  sesi helpers/line-swap.sesi <path> <from> <to> lines <start> <end>"
+  print "  sesi helpers/line-swap.sesi <path> <from> <to> backup"
+  print "  sesi helpers/line-swap.sesi <path> <from> <to> exact"
   print ""
   print "Options:"
-  print "  --dry-run        Preview changes without writing to disk"
-  print "  --lines N M      Only swap within line range N to M (1-indexed, inclusive)"
-  print "  --backup         Archive the original file before overwriting"
-  print "  --exact          Skip matches where the next character is alphanumeric or _ (avoids substring collisions)"
+  print "  dry-run        Preview changes without writing to disk"
+  print "  lines N M      Only swap within line range N to M (1-indexed, inclusive)"
+  print "  backup         Archive the original file before overwriting"
+  print "  exact          Skip matches where the next character is alphanumeric or _ (avoids substring collisions)"
   print ""
   print "Examples:"
   print "  sesi helpers/line-swap.sesi src/main.sesi \"let debug = true\" \"let debug = false\""
-  print "  sesi helpers/line-swap.sesi README.md \"v1.0\" \"v2.0\" --dry-run"
-  print "  sesi helpers/line-swap.sesi app.sesi \"old_fn\" \"new_fn\" --lines 10 50"
-  print "  sesi helpers/line-swap.sesi config.sesi \"staging\" \"production\" --backup"
+  print "  sesi helpers/line-swap.sesi README.md \"v1.0\" \"v2.0\" dry-run"
+  print "  sesi helpers/line-swap.sesi app.sesi \"old_fn\" \"new_fn\" lines 10 50"
+  print "  sesi helpers/line-swap.sesi config.sesi \"staging\" \"production\" backup"
 }
 
 let word_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
@@ -96,22 +96,22 @@ fn parse_options() {
   while i < len(args) {
     let key = args[i]
 
-    if key == "--dry-run" {
+    if key == "--dry-run" || key == "dry-run" {
       options["dry_run"] = true
       i = i + 1
-    } else if key == "--exact" {
+    } else if key == "--exact" || key == "exact" {
       options["exact"] = true
       i = i + 1
-    } else if key == "--backup" {
+    } else if key == "--backup" || key == "backup" {
       options["backup"] = true
       i = i + 1
-    } else if key == "--lines" {
+    } else if key == "--lines" || key == "lines" {
       if i + 2 < len(args) {
         options["line_start"] = num(args[i + 1])
         options["line_end"] = num(args[i + 2])
         i = i + 3
       } else {
-        print "Missing values for --lines <start> <end>"
+        print "Missing values for lines <start> <end>"
         i = i + 1
       }
     } else {
