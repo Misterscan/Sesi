@@ -427,7 +427,7 @@ Converts all alphabetic characters in a string to uppercase.
 
 ```sesi
 to_upper("hello")      // "HELLO"
-to_upper("Sesi V1.7.5")  // "SESI V1.7.5"
+to_upper("Sesi V1.7.6")  // "SESI V1.7.6"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -440,7 +440,7 @@ Converts all alphabetic characters in a string to lowercase.
 
 ```sesi
 to_lower("WORLD")      // "world"
-to_lower("Sesi V1.7.5")  // "sesi v1.7.5"
+to_lower("Sesi V1.7.6")  // "sesi v1.7.6"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -1978,6 +1978,56 @@ if len(args) > 0 {
 
 ---
 
+## Native Matrix Functions
+
+Native matrix functions operate on non-empty rectangular arrays containing only finite numbers. They execute in the Sesi runtime rather than interpreted Sesi loops.
+
+### matrix_dot(a, b) -> array
+
+Multiply two matrices. The number of columns in `a` must equal the number of rows in `b`.
+
+```sesi
+let product = matrix_dot([[1, 2]], [[3], [4]]) // [[11]]
+```
+
+### matrix_transpose(matrix) -> array
+
+Exchange matrix rows and columns.
+
+### matrix_add(a, b) -> array
+
+Add two matrices. If `b` has one row, that row is broadcast across every row of `a`.
+
+### matrix_sub(a, b) -> array
+
+Subtract identically shaped matrices.
+
+### matrix_mul_elements(a, b) -> array
+
+Multiply corresponding elements of identically shaped matrices.
+
+### matrix_scale(matrix, scalar) -> array
+
+Multiply every element by a finite numeric scalar.
+
+### matrix_sigmoid(matrix) -> array
+
+Apply the logistic sigmoid function to every element.
+
+### matrix_dsigmoid(matrix) -> array
+
+Calculate `y * (1 - y)` for each element containing a sigmoid output.
+
+### matrix_sum_rows(matrix) -> array
+
+Sum each column across all rows and return a single-row matrix.
+
+### matrix_mse(a, b) -> number
+
+Return the mean squared error across two identically shaped matrices.
+
+---
+
 ## Math Functions
 
 ### exp(x) -> number
@@ -2369,7 +2419,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.7.5"
+  "version": "1.7.6"
 }
 print Json.stringify(original)
 ```

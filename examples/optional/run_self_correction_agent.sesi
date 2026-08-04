@@ -2,7 +2,7 @@
   Autonomous Coding Agent with self-correction loop in Sesi.
   Run with: sesi run_self_correction_agent.sesi -l
 */
-
+allow "shell-automation" in with {run_command}
 allow "ai_agent" in with Agent
 
 // Set model alias for agent execution
@@ -76,7 +76,7 @@ fn test_script(arg: string) -> string {
   }
   
   try {
-    let result = exec(cmd)
+    let result = run_command(cmd)
     return "Execution Succeeded!\nOutput:\n" + result
   } catch(e) {
     return "Execution Failed!\nError details:\n" + e

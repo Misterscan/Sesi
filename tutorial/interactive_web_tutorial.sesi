@@ -7,6 +7,7 @@
   The browser sends code to POST /run. Each request is written to a uniquely
   named file, checked by Sesi, executed in safe mode, and then deleted.
 */
+allow "shell-automation" in with {run_sesi}
 
 let PORT = 8080
 let FRONTEND = "tutorial/tutorial_frontend.html"
@@ -71,10 +72,8 @@ fn handleRequest(req) {
       temp_file = "tutorial/.tmp_run_" + str(time()) + ".sesi"
       write_file(temp_file, code)
 
-      // sesi() runs in-process and returns an empty string after execution, so
-      // compile-check here and use the CLI process to capture printed stdout.
-      sesi(temp_file, false, true)
-      let out = exec("sesi --cli " + temp_file)
+      run_sesi(temp_file, false, true)
+      let out = run_sesi(temp_file)
 
       response = json_response(200, {"output": out})
     } catch (err) {
@@ -98,7 +97,11 @@ print "⚡ Sesi Learning Lab is online!"
 print "======================================================"
 
 let server = listen(PORT, handleRequest)
-open("http://localhost:" + str(PORT) + "/")
+try {
+  open("http://localhost:" + str(PORT) + "/")
+} catch (e) {
+  print "Could not automatically open browser. Please visit http://localhost:" + str(PORT)
+}
 
 let end = input("Press Enter to stop the server...\n")
 server.close(end)

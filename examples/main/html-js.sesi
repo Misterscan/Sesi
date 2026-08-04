@@ -9,7 +9,6 @@
     - js() runs server-side JavaScript before the response is sent.
     - The <script> tag inside html() is browser-side JavaScript.
 */
-
 allow "std/time" in with {format, now}
 
 let tasks = [
@@ -306,20 +305,15 @@ async fn handleRequest(req) {
   }
 }
 
-async fn getSys() {
-  let OS = ""
-  try {OS = exec("uname")} catch (e) {OS = "Windows"}
-  return OS
-}
-
 let port = 8080
 print "Starting Sesi server on http://localhost:" port
 let server = listen(port, handleRequest)
-let OS = await getSys()
 
-print "Current System:" OS ""
-await open("http://localhost:" + port)
-print "Automatically opened in browser."
+try {
+  open("http://localhost:" + port)
+} catch (e) {
+  print "Could not automatically open browser. Please visit http://localhost:" port
+}
 
 let end = input("Press Enter to stop the server...\n")
 server.close(end)

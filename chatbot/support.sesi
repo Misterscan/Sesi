@@ -231,14 +231,6 @@ print "=================================================="
 
 let server = listen(port, handleRequest)
 try {
-  let cmd = exec("uname")
-  if contains(cmd, "Linux") {
-    print "[SERVER] Linux OS Detected!"
-  } else if contains(cmd, "Darwin") {
-    print "[SERVER] macOS Detected!"
-  } else {
-    print "[SERVER] Windows Detected!"
-  }
   open("http://localhost:8000/index.html")
 } catch (e) {
   print "[SERVER] Could not open browser - navigate to http://localhost:8000/index.html manually"

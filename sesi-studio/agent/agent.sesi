@@ -3,6 +3,7 @@ allow "ai_agent" in with Agent
 allow "std/browser" in with {launch}
 allow "helpers/safe" in with Safe
 allow "tools" in with Tools
+allow "shell-automation" in with {run_sesi}
 
 set_alias("copilot", "gemini-3.5-flash-lite")
 set_alias("search", "gemini-3-flash-preview")
@@ -177,7 +178,7 @@ export fn evaluate(args) {
   try {
     let temp_file = "sesi-studio/temp_eval.sesi"
     Safe.writeFile(temp_file, final_code)
-    let output = sesi(temp_file, true)
+    let output = run_sesi(temp_file, true)
     trash(temp_file, true)
     return output
   } catch(e) {
@@ -294,15 +295,14 @@ export fn drawPicture(args) {
     Safe.writeFile(path, imageData)
     
     let success = true
-    let sesi_result = sesi(path, false, true)
+    let sesi_result = run_sesi(path, false, true)
     sesi_result = split(sesi_result, "\n")[0]
     if sesi_result == null || sesi_result == "" || (contains(sesi_result, "Expected") || contains(sesi_result, "EOF") || contains(sesi_result, "Unexpected")) {
       print "Sesi script check failed. Result:" sesi_result "
       Try to fix the script for any errors and rerun the script manually."
       success = false
     } else if sesi_result == "✓ Syntax and Compilation valid" {
-      sesi(path)
-      print "Sesi script executed successfully."
+      run_sesi(path)
     }
 
     if success == true {

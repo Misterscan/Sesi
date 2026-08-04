@@ -866,7 +866,9 @@ function analyzeScope(tokens, decls, refs) {
   'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
   'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
   'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw',
-  'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage'
+  'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage',
+  'matrix_dot', 'matrix_transpose', 'matrix_add', 'matrix_sub', 'matrix_mul_elements',
+  'matrix_scale', 'matrix_sigmoid', 'matrix_dsigmoid', 'matrix_sum_rows', 'matrix_mse'
     ]);
     
     for (const ref of refs) {
@@ -1436,6 +1438,66 @@ function activate(context) {
             source: 'AI Utility Standard Library',
             description: 'Returns provider-reported tokens and estimated cost for the latest model call.',
             example: 'let answer = model("gemini-3.5-flash-lite") {"Hello"}\nprint model_usage()'
+        },
+        'matrix_dot': {
+            signature: 'matrix_dot(a, b)',
+            source: 'Native Matrix Runtime',
+            description: 'Multiplies two rectangular numeric matrices. The inner dimensions must match.',
+            example: 'let result = matrix_dot([[1, 2]], [[3], [4]])'
+        },
+        'matrix_transpose': {
+            signature: 'matrix_transpose(matrix)',
+            source: 'Native Matrix Runtime',
+            description: 'Returns a matrix with its rows and columns exchanged.',
+            example: 'let result = matrix_transpose([[1, 2], [3, 4]])'
+        },
+        'matrix_add': {
+            signature: 'matrix_add(a, b)',
+            source: 'Native Matrix Runtime',
+            description: 'Adds numeric matrices. A single-row second matrix is broadcast across all rows of the first.',
+            example: 'let result = matrix_add([[1, 2], [3, 4]], [[10, 20]])'
+        },
+        'matrix_sub': {
+            signature: 'matrix_sub(a, b)',
+            source: 'Native Matrix Runtime',
+            description: 'Subtracts two numeric matrices with identical shapes.',
+            example: 'let result = matrix_sub([[3, 4]], [[1, 2]])'
+        },
+        'matrix_mul_elements': {
+            signature: 'matrix_mul_elements(a, b)',
+            source: 'Native Matrix Runtime',
+            description: 'Multiplies corresponding elements of two identically shaped numeric matrices.',
+            example: 'let result = matrix_mul_elements([[2, 3]], [[4, 5]])'
+        },
+        'matrix_scale': {
+            signature: 'matrix_scale(matrix, scalar)',
+            source: 'Native Matrix Runtime',
+            description: 'Multiplies every matrix element by a finite numeric scalar.',
+            example: 'let result = matrix_scale([[2, 4]], 0.5)'
+        },
+        'matrix_sigmoid': {
+            signature: 'matrix_sigmoid(matrix)',
+            source: 'Native Matrix Runtime',
+            description: 'Applies the logistic sigmoid function to every matrix element.',
+            example: 'let result = matrix_sigmoid([[0, 1]])'
+        },
+        'matrix_dsigmoid': {
+            signature: 'matrix_dsigmoid(matrix)',
+            source: 'Native Matrix Runtime',
+            description: 'Calculates y * (1 - y) for each matrix element containing a sigmoid output.',
+            example: 'let result = matrix_dsigmoid([[0.5, 0.75]])'
+        },
+        'matrix_sum_rows': {
+            signature: 'matrix_sum_rows(matrix)',
+            source: 'Native Matrix Runtime',
+            description: 'Sums each matrix column across its rows and returns a single-row matrix.',
+            example: 'let result = matrix_sum_rows([[1, 2], [3, 4]])'
+        },
+        'matrix_mse': {
+            signature: 'matrix_mse(a, b)',
+            source: 'Native Matrix Runtime',
+            description: 'Returns mean squared error across two identically shaped numeric matrices.',
+            example: 'let loss = matrix_mse([[1, 2]], [[1, 3]])'
         },
         'keys': {
             signature: 'keys(collection)',

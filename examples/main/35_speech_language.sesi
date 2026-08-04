@@ -10,6 +10,8 @@ Usage:
 
   Note: This example requires CMake to be installed for the `from_speech()` function to work.
 */
+allow "shell-automation" in with {brew_install}
+
 fn getOS() {return trim(js("console.log(require('os').platform())"))}
 let platform = getOS()
 
@@ -45,7 +47,7 @@ if cmakeFound == "yes" {
 
 if trim(installCMake) == "y" {
   try { // Install CMake via Homebrew
-      exec("brew install cmake")
+      brew_install("cmake")
       print color("CMake installed successfully.", "green")
   } catch (e) {
       print color("Error installing CMake: " + str(e), "red")

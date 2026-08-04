@@ -4,6 +4,7 @@
 */
 allow "helpers/safe" in with Safe
 allow "timestamp" in with Stamp
+allow "math" in with Math
 
 /* 
   ==================================================
@@ -73,12 +74,12 @@ fn getHistory() {
   if len(history) > 0 {history = "Conversation History:\n" + history + "\n\n"}
 
   // If the log file is too large, grab the last 1000 lines and clear the log to avoid excessive memory usage
-  if len(history) > 100000 {
+  if len(history) > 5000 {
     let lines = split(history, "\n")
     let lastLines = slice(lines, len(lines) - 1000, len(lines))
     history = join(lastLines, "\n")
     clearLog()
-    writeLog("SESI", "Log file exceeded 100k characters. Retaining last 1000 lines and clearing log.")
+    writeLog("SESI", "Log file exceeded 5K characters. Retaining last 1000 lines and clearing log.")
   }
 
   return history
@@ -124,12 +125,12 @@ writeLog("SESI", "Loading Sesira...")
 
 // Sigmoid math activation
 fn activate(x) {
-  return 1.0 / (1.0 + exp(0.0 - x))
+  return Math.sigmoid(x)
 }
 
 // Sigmoid derivative for backpropagation
 fn derivative(y) {
-  return y * (1.0 - y)
+  return Math.dsigmoid(y)
 }
 
 /* 

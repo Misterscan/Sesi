@@ -357,7 +357,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.7.5\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.7.6\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -507,6 +507,16 @@ count_tokens(string, string|object?) -> number // Native OpenAI/Gemini request c
 estimate_tokens(string, string|object?) -> number // Explicit local approximation
 estimate_cost(string, number|string, number|string?, object?) -> object // Token cost estimate
 model_usage() -> object|null   // Latest provider-reported usage and estimated cost
+matrix_dot(array, array) -> array // Native rectangular matrix multiplication
+matrix_transpose(array) -> array // Native matrix transpose
+matrix_add(array, array) -> array // Native addition with single-row bias broadcasting
+matrix_sub(array, array) -> array // Native same-shape subtraction
+matrix_mul_elements(array, array) -> array // Native elementwise multiplication
+matrix_scale(array, number) -> array // Native scalar multiplication
+matrix_sigmoid(array) -> array // Native elementwise sigmoid
+matrix_dsigmoid(array) -> array // Native sigmoid-output derivative
+matrix_sum_rows(array) -> array // Native column sums as a single-row matrix
+matrix_mse(array, array) -> number // Native mean squared error
 to_upper(string) -> string       // Convert to uppercase
 to_lower(string) -> string       // Convert to lowercase
 trim(string) -> string        // Trim whitespace

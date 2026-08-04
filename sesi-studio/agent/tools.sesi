@@ -1,9 +1,9 @@
 allow "helpers/safe" in with Safe
+allow "shell-automation" in with {run_command}
 
 export let SESI_ROOT = ""
-try {
-  SESI_ROOT = exec("cd")
-} catch (e) {}
+
+SESI_ROOT = run_command("cd")
 SESI_ROOT = split(SESI_ROOT, "\r")[0]
 SESI_ROOT = split(SESI_ROOT, "\n")[0]
 
@@ -13,12 +13,10 @@ if SESI_ROOT == "" {
   } catch (e) {}
 }
 
-try {
-  let requested_project_root = env("SESI_STUDIO_PROJECT_ROOT")
-  if requested_project_root != null && requested_project_root != "" {
-    SESI_ROOT = requested_project_root
-  }
-} catch (e) {}
+let requested_project_root = env("SESI_STUDIO_PROJECT_ROOT")
+if requested_project_root != null && requested_project_root != "" {
+  SESI_ROOT = requested_project_root
+}
 
 export let PROJECT_ROOT = SESI_ROOT
 
@@ -30,19 +28,19 @@ if len(split(SESI_ROOT, "\\")) > 1 || len(split(SESI_ROOT, ":")) > 1 {
 export fn exec_node(args) {
   if IS_WINDOWS {
     try {
-      return exec("cmd.exe /c node " + args)
+      return run_command("cmd.exe /c node " + args)
     } catch (e) {
       try {
-        return exec("node " + args)
+        return run_command("node " + args)
       } catch (e2) {
-        return exec("node.exe " + args)
+        return run_command("node.exe " + args)
       }
     }
   } else {
     try {
-      return exec("node " + args)
+      return run_command("node " + args)
     } catch (e) {
-      return exec("node.exe " + args)
+      return run_command("node.exe " + args)
     }
   }
 }
@@ -55,16 +53,11 @@ export fn exec_in_project(cmd) {
       Handles most POSIX environments and Windows cmd.exe basics.
     */
     let safeExec = ""
-    try {
-      safeExec = exec("cd \"" + PROJECT_ROOT + "\" && " + cmd)
-    } catch (e) {}
+    safeExec = run_command("cd \"" + PROJECT_ROOT + "\" && " + cmd)
     return safeExec
   }
-  try {
-    return exec(cmd)
-  } catch(e) {
-    print "Error executing command:" cmd ":" e
-  }
+
+  return run_command(cmd)
 }
 
 export let current_ws_client = null

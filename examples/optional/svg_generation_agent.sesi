@@ -9,7 +9,7 @@
 
   Run with: sesi examples/optional/svg_generation_agent.sesi -l
 */
-
+allow "shell-automation" in with {run_command, run_sesi}
 allow "ai_agent" in with Agent
 allow "std/browser" in with {launch}
 
@@ -116,7 +116,7 @@ fn execute_sesi_script(arg) -> string {
   }
   print "⚡ Executing Sesi script:" filename
   try {
-    let result = exec("node bin/sesi.js " + filename + " -l")
+    let result = run_sesi(filename, true)
     return "Execution Succeeded!\nOutput:\n" + result
   } catch(e) {
     return "Execution Failed!\nError details:\n" + e
@@ -131,7 +131,7 @@ fn verify_svg_file(arg) -> string {
   }
   
   // Resolve absolute path for browser local load
-  let cwd = swap(exec("pwd"), "\n", "")
+  let cwd = swap(run_command("pwd"), "\n", "")
   let file_url = "file://" + cwd + "/" + filename
   print "🌐 Navigating browser to:" file_url
   

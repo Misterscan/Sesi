@@ -1,5 +1,6 @@
 /* main/media_convert_test.sesi
 Script to generate an image, convert it, rasterize an SVG, download a video, and convert it to mp3.*/
+allow "shell-automation" in with {run_command}
 
 print "=== 1. Generating Image ==="
 let img = image("gemini-2.5-flash-image") {ratio: "1:1"} {"A beautiful clean tech minimalist logo for a coding project startup named Sesi."}
@@ -22,10 +23,10 @@ fn download(url) {
         let output = "Videos"
         make_dir(output)
         /* Note: The following commands assume you don't have yt-dlp installed and available in your PATH.
-        exec("python3 -m venv venv")
-        exec("source venv/bin/activate")
-        exec("pip install yt-dlp")*/
-        exec("yt-dlp -t mp4 -o '" + output + "/me_at_the_zoo.%(ext)s' " + url)
+        run_command("python3 -m venv venv")
+        run_command("source venv/bin/activate")
+        run_command("pip install yt-dlp")*/
+        run_command("yt-dlp -t mp4 -o '" + output + "/me_at_the_zoo.%(ext)s' " + url)
         print "Video downloaded successfully."
     } catch (e) {
         print "Failed:" e

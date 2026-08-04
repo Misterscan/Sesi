@@ -2,7 +2,7 @@
   Sesi Theme Packager
   A native tool to pack, unpack, and validate Sesi Studio CSS themes.
 */
-
+allow "shell-automation" in with {run_command}
 allow "helpers/safe" in with Safe
 
 // --- Helper: Clean Comment Asterisks ---
@@ -42,9 +42,9 @@ fn validate_metadata(meta) {
 
 fn exec_node(args) {
   try {
-    return exec("node " + args)
+    return run_command("node " + args)
   } catch (e) {
-    return exec("node.exe " + args)
+    return run_command("node.exe " + args)
   }
 }
 

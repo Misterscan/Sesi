@@ -1,8 +1,9 @@
 {
   "name": "sesi-programming-lang",
-  "version": "1.7.1",
+  "version": "1.7.5",
   "dependencies": {
     "AutoWebpageDiagnostics": "Misterscan/AutoWebpageDiagnostics",
-    "SesiDo": "Misterscan/SesiDo"
+    "SesiDo": "Misterscan/SesiDo#v1.1.5",
+    "shell-automation": "Misterscan/shell-automation#v1.0.2"
   }
 }

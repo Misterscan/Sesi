@@ -118,6 +118,18 @@ async function main() {
   await runTest('Number function', 'let n = num("42")');
   await runTest('Float function', 'let n = float("42.5")\nif n != 42.5 { let err = missing_var }');
   await runTest('Range function', 'let arr = range(5)');
+  await runTest(
+    'Native matrix multiplication',
+    'let result = matrix_dot([[1, 2, 3], [4, 5, 6]], [[7, 8], [9, 10], [11, 12]])\nif result[0][0] != 58 || result[0][1] != 64 || result[1][0] != 139 || result[1][1] != 154 { raise_error("AssertionError", "matrix_dot result mismatch") }',
+  );
+  await runTest(
+    'Native matrix broadcast addition',
+    'let result = matrix_add([[1, 2], [3, 4]], [[10, 20]])\nif result[0][0] != 11 || result[0][1] != 22 || result[1][0] != 13 || result[1][1] != 24 { raise_error("AssertionError", "matrix_add broadcast mismatch") }',
+  );
+  await runTest(
+    'Native matrix operations',
+    'let a = [[1, 2], [3, 4]]\nlet t = matrix_transpose(a)\nlet s = matrix_scale(a, 0.5)\nlet e = matrix_mul_elements(a, a)\nlet rows = matrix_sum_rows(a)\nlet mse = matrix_mse(a, [[1, 1], [3, 3]])\nif t[0][1] != 3 || s[1][1] != 2 || e[1][0] != 9 || rows[0][1] != 6 || mse != 0.5 { raise_error("AssertionError", "native matrix operation mismatch") }',
+  );
   await runTest('Env function retrieve all', 'let envs = env()\nif type(envs) != "object" { let err = missing_var }');
   await runTest('Env function retrieve specific', 'let val = env("PATH")\nif type(val) != "string" { let err = missing_var }');
   await runTest('Env function default value', 'let val = env("NON_EXISTENT_VAR", "default_val")\nif val != "default_val" { let err = missing_var }');

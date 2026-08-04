@@ -146,6 +146,7 @@ tutorial/.sesi_tutorial_progress.json
 agent_session.json
 SesiDo/database/.agent/default-memory-block.md
 local-ai-sys-prompt.txt
+agent-review.md
 
 # Sesira generated training and release artifacts
 /sesira/
@@ -163,4 +164,17 @@ local-ai-sys-prompt.txt
 /sesira/onnx/
 /sesira/releases/
 docs/BUILDING_SESIRA.md
-agent-review.md
+
+# Other training data and artifacts
+comparisons
+bottleneck*
+checkpoints
+datasets
+deep_*
+final_*
+reconstructions
+unseen*
+valid*
+sweep*
+train*
+reconstruct*

@@ -19,7 +19,7 @@ Sesi is a **clean, minimal, side-effect-oriented** scripting language. It is:
 
 ```sesi
 let name    = "Sesi"
-let version = 1.7.5
+let version = 1.7.6
 let active  = true
 let missing         // null (uninitialized)
 ```
@@ -284,10 +284,10 @@ Sesi's unique string-composition primitive. Replaces template literals.
 
 ```sesi
 let name = "Ada"
-let ver  = "1.7.5"
+let ver  = "1.7.6"
 
 prompt header {"Welcome to Sesi" ver ". Hello," name}
-// header = "Welcome to Sesi 1.7.5. Hello, Ada"
+// header = "Welcome to Sesi 1.7.6. Hello, Ada"
 
 print header
 write_file("out.txt", header)
@@ -332,7 +332,7 @@ print "Hello, " + name + " version " + str(version)
 
 ```sesi
 export fn add(a, b) { return a + b }
-export let VERSION = "1.7.5"
+export let VERSION = "1.7.6"
 ```
 
 ### Importing — `import` (named)

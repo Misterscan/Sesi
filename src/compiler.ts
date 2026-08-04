@@ -85,6 +85,8 @@ const BUILTINS = new Set([
   'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
   'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw',
   'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage',
+  'matrix_dot', 'matrix_transpose', 'matrix_add', 'matrix_sub', 'matrix_mul_elements',
+  'matrix_scale', 'matrix_sigmoid', 'matrix_dsigmoid', 'matrix_sum_rows', 'matrix_mse',
 ]);
 
 // ---------------------------------------------------------------------------

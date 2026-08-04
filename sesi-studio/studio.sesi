@@ -10,6 +10,7 @@
     - https://github.com/misterscan/sesi/tree/main/sesi-studio/extensions
     - https://github.com/misterscan/sesi/tree/main/sesi-studio/themes
 */
+allow "shell-automation" in with {run_command, run_sesi}
 allow "std/time" in with Time
 allow "std/db" in with {db_open}
 allow "ai_agent" in with Copilot
@@ -459,7 +460,7 @@ fn handle_http(req) {
       let check_result = ""
       let success = true
       try {
-        check_result = sesi(temp_path, true, true)
+        check_result = run_sesi(temp_path, true, true)
       } catch (e) {
         check_result = str(e)
         success = false
@@ -1400,7 +1401,7 @@ fn handle_ws(client, msg) {
                 }
                 let result = ""
                 try {
-                  result = exec(clean_cmd)
+                  result = run_command(clean_cmd)
                 } catch (e) {
                   print "Error in terminal:" e
                 }
@@ -1430,7 +1431,7 @@ fn handle_ws(client, msg) {
 let http_port = 3050
 let ws_port = 3051
 try {
-  let test_win = exec("cd")
+  let test_win = run_command("cd")
   if test_win != "" {
     ws_port = 3052
   }

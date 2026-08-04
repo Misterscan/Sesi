@@ -169,6 +169,44 @@ function looksLikeUrl(target: string): boolean {
   return /^(https?:\/\/|ftp:\/\/|file:\/\/|mailto:)/i.test(target);
 }
 
+type NumericMatrix = number[][];
+
+function requireNumericMatrix(value: RuntimeValue, name: string): NumericMatrix {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${name} expects a non-empty matrix`);
+  }
+  if (!Array.isArray(value[0]) || value[0].length === 0) {
+    throw new Error(`${name} expects non-empty matrix rows`);
+  }
+
+  const width = value[0].length;
+  const matrix: NumericMatrix = new Array(value.length);
+  for (let r = 0; r < value.length; r++) {
+    const row = value[r];
+    if (!Array.isArray(row) || row.length !== width) {
+      throw new Error(`${name} expects a rectangular matrix`);
+    }
+    const numericRow = new Array<number>(width);
+    for (let c = 0; c < width; c++) {
+      const cell = row[c];
+      if (typeof cell !== 'number' || !Number.isFinite(cell)) {
+        throw new Error(`${name} expects only finite numeric values`);
+      }
+      numericRow[c] = cell;
+    }
+    matrix[r] = numericRow;
+  }
+  return matrix;
+}
+
+function requireSameMatrixShape(a: NumericMatrix, b: NumericMatrix, name: string): void {
+  if (a.length !== b.length || a[0].length !== b[0].length) {
+    throw new Error(
+      `${name} matrix shape mismatch (${a.length}x${a[0].length} != ${b.length}x${b[0].length})`,
+    );
+  }
+}
+
 function launchExternalTarget(target: string, appName?: string): void {
   let command = '';
   let args: string[] = [];
@@ -778,6 +816,194 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     closure: {} as any,
     isBuiltin: true,
     builtin: (value: RuntimeValue): RuntimeValue => isTruthy(value),
+  });
+
+  builtins.set('matrix_dot', {
+    type: 'function',
+    name: 'matrix_dot',
+    params: [{ name: 'a' }, { name: 'b' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (aValue: RuntimeValue, bValue: RuntimeValue): RuntimeValue => {
+      const a = requireNumericMatrix(aValue, 'matrix_dot');
+      const b = requireNumericMatrix(bValue, 'matrix_dot');
+      const aRows = a.length;
+      const inner = a[0].length;
+      const bCols = b[0].length;
+      if (inner !== b.length) {
+        throw new Error(`matrix_dot dimension mismatch (${inner} != ${b.length})`);
+      }
+
+      // Transpose B once so every inner product reads contiguous arrays.
+      const bColumns: number[][] = new Array(bCols);
+      for (let c = 0; c < bCols; c++) {
+        const column = new Array<number>(inner);
+        for (let k = 0; k < inner; k++) column[k] = b[k][c];
+        bColumns[c] = column;
+      }
+
+      const output: number[][] = new Array(aRows);
+      for (let r = 0; r < aRows; r++) {
+        const aRow = a[r];
+        const outputRow = new Array<number>(bCols);
+        for (let c = 0; c < bCols; c++) {
+          const bColumn = bColumns[c];
+          let sum = 0;
+          for (let k = 0; k < inner; k++) sum += aRow[k] * bColumn[k];
+          outputRow[c] = sum;
+        }
+        output[r] = outputRow;
+      }
+      return output;
+    },
+  });
+
+  builtins.set('matrix_transpose', {
+    type: 'function',
+    name: 'matrix_transpose',
+    params: [{ name: 'matrix' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => {
+      const matrix = requireNumericMatrix(value, 'matrix_transpose');
+      const output: number[][] = new Array(matrix[0].length);
+      for (let c = 0; c < matrix[0].length; c++) {
+        const row = new Array<number>(matrix.length);
+        for (let r = 0; r < matrix.length; r++) row[r] = matrix[r][c];
+        output[c] = row;
+      }
+      return output;
+    },
+  });
+
+  builtins.set('matrix_add', {
+    type: 'function',
+    name: 'matrix_add',
+    params: [{ name: 'a' }, { name: 'b' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (aValue: RuntimeValue, bValue: RuntimeValue): RuntimeValue => {
+      const a = requireNumericMatrix(aValue, 'matrix_add');
+      const b = requireNumericMatrix(bValue, 'matrix_add');
+      if (a[0].length !== b[0].length || (b.length !== 1 && b.length !== a.length)) {
+        throw new Error(`matrix_add matrix shape mismatch`);
+      }
+      return a.map((row, r) => row.map((cell, c) => cell + b[b.length === 1 ? 0 : r][c]));
+    },
+  });
+
+  builtins.set('matrix_sub', {
+    type: 'function',
+    name: 'matrix_sub',
+    params: [{ name: 'a' }, { name: 'b' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (aValue: RuntimeValue, bValue: RuntimeValue): RuntimeValue => {
+      const a = requireNumericMatrix(aValue, 'matrix_sub');
+      const b = requireNumericMatrix(bValue, 'matrix_sub');
+      requireSameMatrixShape(a, b, 'matrix_sub');
+      return a.map((row, r) => row.map((cell, c) => cell - b[r][c]));
+    },
+  });
+
+  builtins.set('matrix_mul_elements', {
+    type: 'function',
+    name: 'matrix_mul_elements',
+    params: [{ name: 'a' }, { name: 'b' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (aValue: RuntimeValue, bValue: RuntimeValue): RuntimeValue => {
+      const a = requireNumericMatrix(aValue, 'matrix_mul_elements');
+      const b = requireNumericMatrix(bValue, 'matrix_mul_elements');
+      requireSameMatrixShape(a, b, 'matrix_mul_elements');
+      return a.map((row, r) => row.map((cell, c) => cell * b[r][c]));
+    },
+  });
+
+  builtins.set('matrix_scale', {
+    type: 'function',
+    name: 'matrix_scale',
+    params: [{ name: 'matrix' }, { name: 'scalar' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue, scalar: RuntimeValue): RuntimeValue => {
+      const matrix = requireNumericMatrix(value, 'matrix_scale');
+      if (typeof scalar !== 'number' || !Number.isFinite(scalar)) {
+        throw new Error('matrix_scale expects a finite numeric scalar');
+      }
+      return matrix.map((row) => row.map((cell) => cell * scalar));
+    },
+  });
+
+  builtins.set('matrix_sigmoid', {
+    type: 'function',
+    name: 'matrix_sigmoid',
+    params: [{ name: 'matrix' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => {
+      const matrix = requireNumericMatrix(value, 'matrix_sigmoid');
+      return matrix.map((row) => row.map((cell) => 1 / (1 + Math.exp(-cell))));
+    },
+  });
+
+  builtins.set('matrix_dsigmoid', {
+    type: 'function',
+    name: 'matrix_dsigmoid',
+    params: [{ name: 'matrix' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => {
+      const matrix = requireNumericMatrix(value, 'matrix_dsigmoid');
+      return matrix.map((row) => row.map((cell) => cell * (1 - cell)));
+    },
+  });
+
+  builtins.set('matrix_sum_rows', {
+    type: 'function',
+    name: 'matrix_sum_rows',
+    params: [{ name: 'matrix' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => {
+      const matrix = requireNumericMatrix(value, 'matrix_sum_rows');
+      const sums = new Array<number>(matrix[0].length).fill(0);
+      for (const row of matrix) {
+        for (let c = 0; c < row.length; c++) sums[c] += row[c];
+      }
+      return [sums];
+    },
+  });
+
+  builtins.set('matrix_mse', {
+    type: 'function',
+    name: 'matrix_mse',
+    params: [{ name: 'a' }, { name: 'b' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (aValue: RuntimeValue, bValue: RuntimeValue): RuntimeValue => {
+      const a = requireNumericMatrix(aValue, 'matrix_mse');
+      const b = requireNumericMatrix(bValue, 'matrix_mse');
+      requireSameMatrixShape(a, b, 'matrix_mse');
+      let squaredError = 0;
+      for (let r = 0; r < a.length; r++) {
+        for (let c = 0; c < a[r].length; c++) {
+          const difference = a[r][c] - b[r][c];
+          squaredError += difference * difference;
+        }
+      }
+      return squaredError / (a.length * a[0].length);
+    },
   });
 
   builtins.set('range', {
