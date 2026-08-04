@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.7.6",
+  "version": "1.8.0",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -33,7 +33,7 @@
     "debug": "SESI_DEBUG=1 sesi --cli",
     "repl": "sesi",
     "dev": "dotenvx run -- npm run build --watch",
-    "test": "tsx tests/basic.test.ts && tsx tests/module.test.ts && tsx tests/cache.test.ts && tsx tests/http.test.ts && tsx tests/workflow.test.ts && tsx tests/security.test.ts && tsx tests/v2_features.test.ts && tsx tests/openai_gpt_runtime.test.ts && tsx tests/gemini_runtime.test.ts && tsx tests/local_model_runtime.test.ts && tsx tests/token_cost.test.ts && tsx tests/conversion.test.ts && tsx tests/package_runtime.test.ts",
+    "test": "tsx tests/basic.test.ts && tsx tests/module.test.ts && tsx tests/cache.test.ts && tsx tests/http.test.ts && tsx tests/workflow.test.ts && tsx tests/security.test.ts && tsx tests/v2_features.test.ts && tsx tests/openai_gpt_runtime.test.ts && tsx tests/gemini_runtime.test.ts && tsx tests/local_model_runtime.test.ts && tsx tests/token_cost.test.ts && tsx tests/conversion.test.ts && tsx tests/package_runtime.test.ts && tsx tests/media_builtins.test.ts",
     "test:watch": "tsx watch tests/basic.test.ts",
     "sesi": "sesi --cli",
     "sesi:local": "sesi --cli -l",
@@ -83,40 +83,49 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "2.19.1",
+    "@dotenvx/dotenvx": "2.19.2",
     "@dotenvx/dotenvx-armor": "0.56.1",
     "@dotenvx/dotenvx-ops": "0.56.1",
     "@google/genai": "2.15.0",
-    "@huggingface/transformers": "^4.2.0",
+    "@huggingface/transformers": "4.2.0",
     "blessed": "^0.1.81",
     "html-to-text": "10.0.0",
     "image-size": "^2.0.2",
     "js-tiktoken": "^1.0.21",
     "js-yaml": "5.2.3",
-    "marked": "18.0.7",
-    "nodejs-whisper": "^0.3.0",
-    "openai": "7.3.0",
+    "marked": "18.0.9",
+    "nodejs-whisper": "^0.3.1",
+    "openai": "7.4.0",
     "playwright": "1.62.1",
     "translate": "3.1.0",
     "turndown": "7.2.4",
-    "whisper-cli": "^1.2.0",
-    "ws": "8.21.1"
+    "whisper-cli": "^1.4.1",
+    "ws": "8.21.2"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.1.2",
     "@types/turndown": "^5.0.6",
-    "globals": "^17.8.0",
+    "globals": "^17.9.0",
     "rcedit": "^5.0.2",
-    "tsx": "4.23.1",
+    "tsx": "4.23.5",
     "typescript": "7.0.2"
+  },
+  "overrides": {
+    "@fastify/ajv-compiler": "^4.0.5",
+    "@fastify/fast-json-stringify-compiler": "^5.0.0",
+    "fastify": "^5.11.2",
+    "fast-uri": "^3.1.5",
+    "find-my-way": "^9.7.0",
+    "onnxruntime-node": "^1.27.0",
+    "sharp": "^0.35.3"
   },
   "allowScripts": {
     "fsevents@2.3.2": true,
     "@google/genai@2.15.0": true,
     "esbuild@0.28.1": true,
-    "onnxruntime-node@1.24.3": true,
+    "onnxruntime-node@1.27.0": true,
     "protobufjs@7.6.5": true,
-    "sharp@0.34.5": true
+    "sharp@0.35.3": true
   }
 }

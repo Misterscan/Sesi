@@ -866,7 +866,8 @@ function analyzeScope(tokens, decls, refs) {
   'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
   'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
   'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw',
-  'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage',
+  'regex', 'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage',
+  'gif', 'video', 'ffmpeg',
   'matrix_dot', 'matrix_transpose', 'matrix_add', 'matrix_sub', 'matrix_mul_elements',
   'matrix_scale', 'matrix_sigmoid', 'matrix_dsigmoid', 'matrix_sum_rows', 'matrix_mse'
     ]);
@@ -1409,6 +1410,12 @@ function activate(context) {
             description: 'Split a string into an array by separator.',
             example: 'split("a,b,c", ",")\nsplit("hello world", " ")'
         },
+        'regex': {
+            signature: 'regex(pattern, text, options = null)',
+            source: 'String Utility Standard Library',
+            description: 'Matches, tests, replaces, or splits text using a JavaScript-compatible regular expression.',
+            example: 'let matches = regex("[A-Z]+", "ID ABC and XYZ")\nlet valid = regex("^[a-z]+$", "sesi", {"mode": "test", "flags": "i"})'
+        },
         'tokenize': {
             signature: 'tokenize(string, options = null)',
             source: 'String Utility Standard Library',
@@ -1786,6 +1793,24 @@ function activate(context) {
             source: 'Media Conversion Standard Library',
             description: 'Native media conversion primitive. Transforms images, videos, audio, or documents to the specified format.',
             example: 'let output = convert(media) { output_type: "jpg" } { "logo.png" }'
+        },
+        'gif': {
+            signature: 'gif(input, output, options = null)',
+            source: 'FFmpeg Media Standard Library',
+            description: 'Creates an animated GIF from a video file or an array of image-frame paths.',
+            example: 'let output = gif(["frame1.png", "frame2.png"], "preview.gif", {"fps": 12, "width": 640})'
+        },
+        'video': {
+            signature: 'video(model) { config } { prompt } | video(input, output, options = null)',
+            source: 'AI Generation / FFmpeg Media Standard Library',
+            description: 'Generates video with Gemini Omni Flash or Veo, or creates/transcodes local media with FFmpeg.',
+            example: 'let localVid = video(frames, "build/preview.mp4", {\n  "fps": 30,\n  "width": 1280,\n  "height": 720,\n  "codec": "libx264",\n  "crf": 23,\n  "audio": "music.wav"\n})\nlet aiVid = video("veo-3.1-generate-preview") {duration: 8, ratio: "16:9"} {"A cinematic ocean shot"}'
+        },
+        'ffmpeg': {
+            signature: 'ffmpeg(args, options = null)',
+            source: 'FFmpeg Media Standard Library',
+            description: 'Runs FFmpeg with a structured argument array and returns its exit status and captured output.',
+            example: 'let info = ffmpeg(["-version"], {"throw_on_error": false})'
         },
         'format': {
             signature: 'format(time, { "timeZone": ... })',

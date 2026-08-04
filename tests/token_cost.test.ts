@@ -51,15 +51,18 @@ async function main() {
   console.log('✓ uses the Gemini native countTokens endpoint');
 
   const openAIRuntime = new AIRuntime() as any;
-  let openAIPath = '';
   let openAIBody: any = null;
-  openAIRuntime.postOpenAIJson = async (apiPath: string, body: any) => {
-    openAIPath = apiPath;
-    openAIBody = body;
-    return { input_tokens: 11 };
+  openAIRuntime._openAIClient = {
+    responses: {
+      inputTokens: {
+        count: async (body: any) => {
+          openAIBody = body;
+          return { input_tokens: 11 };
+        },
+      },
+    },
   };
   assert(await openAIRuntime.countTokens('gpt-5.6-sol', 'hello') === 11, 'OpenAI native count should return input_tokens');
-  assert(openAIPath === '/v1/responses/input_tokens', 'OpenAI native count should use the input-token endpoint');
   assert(openAIBody.model === 'gpt-5.6-sol' && openAIBody.input === 'hello', 'OpenAI native count should preserve model and text');
   console.log('✓ uses the OpenAI native input-token endpoint');
 

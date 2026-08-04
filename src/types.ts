@@ -253,6 +253,7 @@ export type Expression =
   | PromptExpression
   | ModelCallExpression
   | ImageCallExpression
+  | VideoCallExpression
   | StructuredOutputExpression
   | ToolCallExpression
   | ConditionalExpression
@@ -357,6 +358,15 @@ export interface ImageCallExpression {
   config?: Record<string, Expression>;
   prompt: Expression;
   images?: Expression; // string path or array of string paths
+  line: number;
+}
+
+export interface VideoCallExpression {
+  type: 'VideoCallExpression';
+  modelName: Expression;
+  config?: Record<string, Expression>;
+  prompt: Expression;
+  images?: Expression;
   line: number;
 }
 

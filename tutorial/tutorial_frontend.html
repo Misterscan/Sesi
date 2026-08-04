@@ -994,7 +994,7 @@ print format_label("Build", " complete")`,
           }
         ],
         challenge: "Filter to even numbers, double each remaining number, and reduce the result into 24.",
-        hint: "Use filter(numbers, is_even), then map(evens, double), then reduce(doubled, add, 0).",
+        hint: "Use filter(numbers, is_even), then map(evens, double), then reduce(doubled, add, 0). Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | print).\n- Use standard syntax () for math, boolean logic (!, &&, ||), comparisons (==, !=), and inline checks.",
         starter: String.raw`let numbers = [1, 2, 3, 4, 5, 6]
 
 fn is_even(n) { return n % 2 == 0 }

@@ -549,6 +549,9 @@ export class Interpreter {
         case 'ImageCallExpression':
           return await this.evaluateImageCall(expr as import('./types').ImageCallExpression);
 
+        case 'VideoCallExpression':
+          return await this.evaluateVideoCall(expr as import('./types').VideoCallExpression);
+
         case 'ModelCallExpression':
           return await this.evaluateModelCall(expr);
 
@@ -838,6 +841,53 @@ export class Interpreter {
     return response.text;
   }
 
+  private async evaluateVideoCall(expr: import('./types').VideoCallExpression): Promise<RuntimeValue> {
+    const rawModelName = await this.evaluateExpression(expr.modelName);
+    if (typeof rawModelName !== 'string' || rawModelName.trim() === '') {
+      throw new Error('video() expects a model name string or string variable in AI generation form');
+    }
+
+    const promptValue = await this.evaluateExpression(expr.prompt);
+    const prompt = typeof promptValue === 'string' ? promptValue : stringify(promptValue);
+    const config: Record<string, RuntimeValue> = Object.create(null);
+    if (expr.config) {
+      for (const [key, value] of Object.entries(expr.config)) {
+        config[key] = await this.evaluateExpression(value);
+      }
+    }
+
+    const pick = (...keys: string[]): RuntimeValue => {
+      for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(config, key)) return config[key];
+      }
+      return null;
+    };
+    const rawImages = pick('images', 'image');
+    const images = Array.isArray(rawImages)
+      ? rawImages.map((value) => ensureSafePath(stringify(value), this))
+      : typeof rawImages === 'string' && rawImages.trim() !== ''
+        ? [ensureSafePath(rawImages, this)]
+        : undefined;
+
+    return await aiRuntime.callVideo({
+      model: this.resolveModelName(rawModelName),
+      prompt,
+      images,
+      ratio: typeof pick('ratio', 'aspectRatio', 'aspect_ratio') === 'string'
+        ? pick('ratio', 'aspectRatio', 'aspect_ratio') as string : undefined,
+      duration: typeof pick('duration', 'durationSeconds', 'duration_seconds') === 'number'
+        ? pick('duration', 'durationSeconds', 'duration_seconds') as number : undefined,
+      resolution: typeof pick('resolution', 'size') === 'string' ? pick('resolution', 'size') as string : undefined,
+      negativePrompt: typeof pick('negative_prompt', 'negativePrompt') === 'string'
+        ? pick('negative_prompt', 'negativePrompt') as string : undefined,
+      audio: typeof pick('audio', 'generateAudio', 'generate_audio') === 'boolean'
+        ? pick('audio', 'generateAudio', 'generate_audio') as boolean : undefined,
+      task: typeof pick('task') === 'string' ? pick('task') as string : undefined,
+      pollInterval: typeof pick('poll_interval', 'pollInterval') === 'number'
+        ? pick('poll_interval', 'pollInterval') as number : undefined,
+    });
+  }
+
   private async evaluateModelCall(expr: import('./types').ModelCallExpression): Promise<RuntimeValue> {
     const rawModelName = await this.evaluateExpression(expr.modelName);
     if (typeof rawModelName !== 'string' || rawModelName.trim() === '') {
@@ -971,7 +1021,7 @@ export class Interpreter {
   }
 
 private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> {
-    const sensitiveBuiltins = ['exec', 'spawn', 'python', 'js'];
+    const sensitiveBuiltins = ['exec', 'spawn', 'python', 'js', 'ffmpeg', 'gif', 'video'];
     if (sensitiveBuiltins.includes(expr.functionName)) {
       throw new Error(`Security Violation: Automated execution of sensitive tool "${expr.functionName}" is forbidden.`);
     }
@@ -991,7 +1041,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       throw new Error(`Tool not found: ${expr.functionName}`);
     }
 
-    if ((fn as any).name === 'exec' || (fn as any).name === 'spawn' || (fn as any).name === 'python' || (fn as any).name === 'js' || ((fn as any).isBuiltin && sensitiveBuiltins.includes((fn as any).name))) {
+    if ((fn as any).isBuiltin && sensitiveBuiltins.includes((fn as any).name)) {
       throw new Error(`Security Violation: Automated execution of sensitive tool "${(fn as any).name || expr.functionName}" is forbidden.`);
     }
 
@@ -1236,7 +1286,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     let absoluteInputPath = '';
 
     try {
-      absoluteInputPath = ensureSafePath(fileInput, this);
+      absoluteInputPath = ensureSafePath(fileInput, this, this.scriptDir ?? process.cwd());
       if (fs.existsSync(absoluteInputPath) && fs.statSync(absoluteInputPath).isFile()) {
         isFilePath = true;
       }

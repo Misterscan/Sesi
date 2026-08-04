@@ -317,6 +317,42 @@ split("hello world", " ")  // ["hello", "world"]
 
 ---
 
+### regex(pattern, text, options = null) -> array | bool | string
+
+Run a JavaScript-compatible regular expression without dropping into `js()`.
+The default `match` mode returns every match with its index, capture groups,
+and named groups.
+
+```sesi
+let matches = regex("(?<word>[A-Z]+)", "IDs ABC and XYZ")
+print matches[0]["match"]
+print matches[0]["groups"]["word"]
+
+let valid = regex("^[a-z]+$", "Sesi", {
+  "mode": "test",
+  "flags": "i"
+})
+
+let cleaned = regex("\\s+", "too   much space", {
+  "mode": "replace",
+  "flags": "g",
+  "replacement": " "
+})
+
+let parts = regex("[,;]\\s*", "one, two; three", {"mode": "split"})
+```
+
+Options may be a flags string such as `"i"`, or an object:
+
+- `mode`: `"match"` (default), `"test"`, `"replace"`, or `"split"`.
+- `flags`: JavaScript regular-expression flags such as `i`, `m`, `s`, or `g`.
+- `replacement`: Required string for `replace` mode.
+- `limit`: Maximum matches or split parts; defaults to `10000`.
+
+**Returns**: an array for `match`/`split`, a boolean for `test`, or a string for `replace`
+
+---
+
 ### tokenize(string, options = null) -> array
 
 Tokenize text into model token IDs (OpenAI-compatible tiktoken-style encoding).
@@ -427,7 +463,7 @@ Converts all alphabetic characters in a string to uppercase.
 
 ```sesi
 to_upper("hello")      // "HELLO"
-to_upper("Sesi V1.7.6")  // "SESI V1.7.6"
+to_upper("Sesi V1.8.0")  // "SESI V1.8.0"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -440,7 +476,7 @@ Converts all alphabetic characters in a string to lowercase.
 
 ```sesi
 to_lower("WORLD")      // "world"
-to_lower("Sesi V1.7.6")  // "sesi v1.7.6"
+to_lower("Sesi V1.8.0")  // "sesi v1.8.0"
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -932,6 +968,104 @@ print svg_path // "photo.svg"
 ```
 
 **Returns**: `string` (converted content or path to the converted file)
+
+---
+
+### gif(input, output, options = null) -> string
+
+Create an animated GIF from a video file or an ordered array of image-frame
+paths. This requires the `ffmpeg` CLI and is disabled in Sesi safe mode.
+
+```sesi
+let output = gif(
+  ["frames/001.png", "frames/002.png", "frames/003.png"],
+  "build/preview.gif",
+  {"fps": 12, "width": 640, "loop": 0}
+)
+```
+
+Options: `fps` (default `12`), `width`, `loop` (`0` means forever),
+`overwrite` (default `true`), and `timeout` in milliseconds.
+
+**Returns**: the output path
+
+---
+
+### video(input, output, options = null) -> string
+
+`video()` has two forms: AI generation and local FFmpeg creation.
+
+#### AI video generation
+
+Use the same model/config/prompt block syntax as `image()`. It supports Gemini
+Omni Flash and Veo models through the current `@google/genai` SDK and returns
+the generated MP4 as Base64 data.
+
+```sesi
+let clip = video("gemini-omni-flash-preview") {ratio: "9:16"} {"A marble rolling through a chain-reaction track, continuous smooth shot"}
+write_file("marble.mp4", clip, "base64")
+
+let veo_clip = video("veo-3.1-generate-preview") {images: "first-frame.png", ratio: "16:9", duration: 8, resolution: "1080p", audio: true} {"The camera slowly pushes toward the subject as wind moves through the scene"}
+write_file("veo.mp4", veo_clip, "base64")
+```
+
+AI options include `images`/`image`, `ratio`/`aspectRatio`, `duration`,
+`resolution`, `negative_prompt`, `audio`, and `task`. Gemini Omni Flash uses
+the Interactions API; Veo uses the long-running video-generation API. Veo calls
+wait for generation to finish before returning.
+
+#### Local video creation
+
+With ordinary function arguments, create or transcode video from a media file
+or an ordered array of image-frame paths. An optional external audio track can
+be attached. This form requires the `ffmpeg` CLI and is disabled in Sesi safe
+mode.
+
+```sesi
+let output = video(frames, "build/preview.mp4", {
+  "fps": 30,
+  "width": 1280,
+  "height": 720,
+  "codec": "libx264",
+  "crf": 23,
+  "audio": "music.wav"
+})
+```
+
+Options: `fps`, `width`, `height`, `codec`, `crf`, `pixel_format`, `preset`,
+`audio`, `mute`, `overwrite`, and `timeout`. Defaults are selected for MP4;
+WebM output defaults to `libvpx-vp9`.
+
+**Returns**: Base64 MP4 data for AI generation; the output path for local creation
+
+---
+
+### ffmpeg(args, options = null) -> object
+
+Run FFmpeg directly with a structured argument array. A shell command string is
+deliberately rejected. This builtin is disabled in Sesi safe mode.
+
+```sesi
+let result = ffmpeg([
+  "-y",
+  "-i", "input.mov",
+  "-c:v", "libx264",
+  "output.mp4"
+])
+
+print result["ok"] result["code"]
+```
+
+Options:
+
+- `cwd`: validated working-directory path.
+- `timeout`: maximum runtime in milliseconds.
+- `throw_on_error`: throw when FFmpeg exits nonzero; defaults to `true`.
+
+The result contains `ok`, `code`, `signal`, `stdout`, `stderr`, and the executed
+argument array.
+
+**Returns**: `object`
 
 ---
 
@@ -2419,7 +2553,7 @@ allow "std/json" in with Json
 
 let original = {
   "project": "Sesi",
-  "version": "1.7.6"
+  "version": "1.8.0"
 }
 print Json.stringify(original)
 ```

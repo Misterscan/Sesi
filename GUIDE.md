@@ -19,7 +19,7 @@ Sesi is a **clean, minimal, side-effect-oriented** scripting language. It is:
 
 ```sesi
 let name    = "Sesi"
-let version = 1.7.6
+let version = 1.8.0
 let active  = true
 let missing         // null (uninitialized)
 ```
@@ -284,10 +284,10 @@ Sesi's unique string-composition primitive. Replaces template literals.
 
 ```sesi
 let name = "Ada"
-let ver  = "1.7.6"
+let ver  = "1.8.0"
 
 prompt header {"Welcome to Sesi" ver ". Hello," name}
-// header = "Welcome to Sesi 1.7.6. Hello, Ada"
+// header = "Welcome to Sesi 1.8.0. Hello, Ada"
 
 print header
 write_file("out.txt", header)
@@ -332,7 +332,7 @@ print "Hello, " + name + " version " + str(version)
 
 ```sesi
 export fn add(a, b) { return a + b }
-export let VERSION = "1.7.6"
+export let VERSION = "1.8.0"
 ```
 
 ### Importing — `import` (named)
@@ -671,6 +671,7 @@ These are always available — no imports needed:
 | `to_lower(str)`      | Lowercase                   |
 | `trim(str)`          | Strip whitespace            |
 | `replace(str, a, b)` | Replace a with b            |
+| `regex(pattern, text, options?)` | Match, test, replace, or split with a regular expression |
 | `str(val)`           | Convert any value to string |
 
 ### JSON
@@ -744,10 +745,15 @@ These are deliberately separate: `tokenize()` is local and returns IDs, `count_t
 | `swap(str, a, b)`    | String swap/replacement utility                     |
 | `define_tool(n,f,d)` | Register a function as a named AI tool              |
 | `list_tools()`       | List all registered tools                           |
+| `sesi(cmd, options?)`| Run a sesi script                                   |
 | `exec(cmd)`          | Run a system shell command (blocked in Safe Mode)   |
 | `spawn(path)`        | Run a background Sesi script (blocked in Safe Mode) |
 | `python(code, args)` | Run inline Python code (blocked in Safe Mode)       |
 | `js(code, args)`     | Run inline JavaScript code (blocked in Safe Mode)   |
+| `gif(input, output, options?)` | Create an animated GIF with FFmpeg (blocked in Safe Mode) |
+| `video(model) {config} {prompt}` | Generate Base64 video with Gemini Omni Flash or Veo |
+| `video(input, output, options?)` | Create or transcode video with FFmpeg (blocked in Safe Mode) |
+| `ffmpeg(args, options?)` | Run structured FFmpeg arguments (blocked in Safe Mode) |
 | `html(body, opts)`   | Build a complete HTML document string               |
 
 ## FOR MORE PLEASE VISIT "BUILTINS.md" EITHER IN docs/ OR IF NOT PRESENT, THEN IN node_modules/@misterscan/sesi/docs/BUILTINS.md

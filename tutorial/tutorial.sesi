@@ -94,7 +94,8 @@ print greet(\"Sesi\", \".\")",
     "learn": [
       "map transforms, filter selects, reduce combines, and find locates.",
       "These helpers receive functions as callback values.",
-      "The pipe operator passes the left result as the next function's first argument."
+      "The pipe operator passes the left result as the next function's first argument.",
+      "Use | for data pipelines 'arrays, strings, objects, or multi-step transformations' and () for standard syntax."
     ],
     "example": "fn add(a, b) { return a + b }
 fn multiply(a, b) { return a * b }

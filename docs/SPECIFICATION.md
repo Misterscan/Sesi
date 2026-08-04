@@ -357,7 +357,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.7.6\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.0\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -390,6 +390,10 @@ fn double(x) { return x * 2 }
 
 let result = 5 | increment | double // evaluates to 12
 ```
+_Rule of Thumb:_
+> Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | print).
+
+> Use standard syntax () for math, boolean logic (!, &&, ||), comparisons (==, !=), and inline checks.
 
 #### Memory (State Management)
 
@@ -502,11 +506,16 @@ append(array|string, any)     // Append to array or concatenate to string
 pop(array) -> any             // Remove last
 join(array, string) -> string // Join with separator
 split(string, string) -> array // Split by separator
+regex(string, string, string|object?) -> array|bool|string // Regular-expression operations
 tokenize(string, string|object?) -> array // Local OpenAI-compatible token IDs
 count_tokens(string, string|object?) -> number // Native OpenAI/Gemini request count
 estimate_tokens(string, string|object?) -> number // Explicit local approximation
 estimate_cost(string, number|string, number|string?, object?) -> object // Token cost estimate
 model_usage() -> object|null   // Latest provider-reported usage and estimated cost
+gif(string|array, string, object?) -> string // FFmpeg-backed animated GIF creation
+video(string) {object?} {expression} -> string // AI video generation; returns Base64 MP4
+video(string|array, string, object?) -> string // FFmpeg-backed video creation/transcoding overload
+ffmpeg(array, object?) -> object // Structured raw FFmpeg invocation
 matrix_dot(array, array) -> array // Native rectangular matrix multiplication
 matrix_transpose(array) -> array // Native matrix transpose
 matrix_add(array, array) -> array // Native addition with single-row bias broadcasting

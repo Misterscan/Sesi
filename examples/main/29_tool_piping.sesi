@@ -27,3 +27,9 @@ print "=== Piping values through functions ==="
 */
 let output = 5 | addTen | multiplyByTwo | formatResult
 print output
+
+/* 
+  Rule of Thumb:
+    - Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | print).
+    - Use standard syntax () for math, boolean logic (!, &&, ||), comparisons (==, !=), and inline checks.
+*/

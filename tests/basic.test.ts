@@ -7,7 +7,7 @@ import { Interpreter } from '../src/interpreter';
 import * as fs from 'fs';
 import * as path from 'path';
 import { inflateSync } from 'zlib';
-import type { ModelCallExpression, ImageCallExpression, ExpressionStatement, ArrayLiteral, Literal, Identifier } from '../src/types';
+import type { ModelCallExpression, ImageCallExpression, VideoCallExpression, ExpressionStatement, ArrayLiteral, Literal, Identifier } from '../src/types';
 import { SesiRuntimeError } from '../src/types';
 
 declare var process: any;
@@ -139,6 +139,10 @@ async function main() {
   await runTest('Pop function', 'let arr = [1, 2, 3]\nlet x = pop(arr)');
   await runTest('Join function', 'let s = join([1, 2, 3], "-")');
   await runTest('Split function', 'let arr = split("a,b,c", ",")');
+  await runTest(
+    'Regex match, test, replace, and split modes',
+    'let matches = regex("(?<number>[0-9]+)", "a12 b345")\nlet valid = regex("^[a-z]+$", "Sesi", {"mode": "test", "flags": "i"})\nlet cleaned = regex(" +", "too   much", {"mode": "replace", "flags": "g", "replacement": " "})\nlet parts = regex("[,;] *", "one, two; three", {"mode": "split"})\nif len(matches) != 2 || matches[0]["match"] != "12" || matches[1]["index"] != 5 || matches[0]["groups"]["number"] != "12" || !valid || cleaned != "too much" || len(parts) != 3 { raise_error("AssertionError", "regex result mismatch") }',
+  );
   await runTest('Tokenize function (model token IDs)', 'let t = tokenize("  SesiLanguage, and rocks!  ")\nif len(t) < 3 || type(t[0]) != "number" { let err = missing_var }');
   await runTest('Tokenize function (simple mode)', 'let t = tokenize("  Sesi   language   rocks  ", "simple")\nif len(t) != 3 || t[0] != "Sesi" || t[2] != "rocks" { let err = missing_var }');
   await runTest('Tokenize function (current GPT model)', 'let t = tokenize("hello world", {"model": "gpt-5.6-sol"})\nif len(t) < 2 || type(t[0]) != "number" { let err = missing_var }');
@@ -370,11 +374,21 @@ async function main() {
     assert('config.search is present', expr.config?.search !== undefined);
   } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
 
+  // 8. video() AI generation form
+  console.log('\n8. video() — AI generation syntax');
+  try {
+    const expr = parseFirstExpr(`video("veo-3.1-generate-preview") {images: "first.png", ratio: "16:9", duration: 8} {"Animate this scene"}`) as VideoCallExpression;
+    assert('type is VideoCallExpression', expr.type === 'VideoCallExpression');
+    assert('video images config is present', Boolean(expr.config?.images));
+    assert('video ratio config is present', Boolean(expr.config?.ratio));
+    assert('video prompt is present', Boolean(expr.prompt));
+  } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
+
   // ---------------------------------------------------------------------------
   console.log('\n=== Diagnostics & String Semantics Tests ===\n');
 
-  // 8. strict unknown escape sequences should fail with location
-  console.log('8. lexer — invalid escape sequence');
+  // 9. strict unknown escape sequences should fail with location
+  console.log('9. lexer — invalid escape sequence');
   try {
     new Lexer('let x = "bad\\qescape"').scanTokens();
     assert('invalid escape should throw', false, 'lexer did not throw');
@@ -383,8 +397,8 @@ async function main() {
     assert('reports line and column', /line\s+\d+,\s+column\s+\d+/i.test(String(e.message)));
   }
 
-  // 9. multiline strings should remain supported
-  console.log('\n9. lexer — multiline string support');
+  // 10. multiline strings should remain supported
+  console.log('\n10. lexer — multiline string support');
   try {
     const tokens = new Lexer('let poem = "line1\nline2"').scanTokens();
     const stringToken = tokens.find(t => t.type === 'STRING');
@@ -392,8 +406,8 @@ async function main() {
     assert('multiline literal contains newline', String(stringToken?.literal).includes('\n'));
   } catch (e: any) { console.error('  ✗ Lexer threw:', e.message); failed++; }
 
-  // 10. parser diagnostics should include line+column
-  console.log('\n10. parser — error location includes column');
+  // 11. parser diagnostics should include line+column
+  console.log('\n11. parser — error location includes column');
   const originalError = console.error;
   const parserMessages: string[] = [];
   console.error = (...args: any[]) => {
@@ -409,8 +423,8 @@ async function main() {
   assert('mentions line', combinedParserMessage.includes('line'));
   assert('mentions column', combinedParserMessage.includes('column'));
 
-  // 11. runtime errors should carry stack context and location
-  console.log('\n11. interpreter — runtime context stack');
+  // 12. runtime errors should carry stack context and location
+  console.log('\n12. interpreter — runtime context stack');
   try {
     const source = 'fn boom() { let y = missing_var }\nfn caller() { boom() }\ncaller()';
     const interpreter = new Interpreter();

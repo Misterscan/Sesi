@@ -59,14 +59,15 @@ fn escalateTicket(customerId: string, reason: string) {
 }
 memory processingLog {"Pipeline Start:"}
 let rawFeedback = ["My account was charged twice for the pro plan! Fix this now!", "The new dashboard is really clean, great job team.", "I can't figure out how to export my data to CSV, it just spins."]
-for feedback in rawFeedback
-{processingLog = processingLog + "Processing:" + feedback
-let analysis = structured_output({sentiment: string, category: string, isUrgent: bool, summary: string})
-(model("gemini-3.5-flash-lite") {"Analyze the customer feedback. Category should be Billing, UI, or Technical. Feedback:" feedback})
-print "Result for:" analysis["summary"]
-if analysis["isUrgent"]
-{let resolution = tool_call(escalateTicket)(model("gemini-3.5-flash-lite") {"Call escalateTicket for customer '1234' with an exact reason based on:" feedback})
-processingLog = processingLog + "Urgent action taken:" + resolution} else {processingLog = processingLog + "Logged routinely."}}
+for feedback in rawFeedback {
+  processingLog = processingLog + "Processing:" + feedback
+  let analysis = structured_output({sentiment: string, category: string, isUrgent: bool, summary: string})
+  (model("gemini-3.5-flash-lite") {"Analyze the customer feedback. Category should be Billing, UI, or Technical. Feedback:" feedback})
+  print "Result for:" analysis["summary"]
+  if analysis["isUrgent"] {
+    let resolution = tool_call(escalateTicket)(model("gemini-3.5-flash-lite") {"Call escalateTicket for customer '1234' with an exact reason based on:" feedback})
+  processingLog = processingLog + "Urgent action taken:" + resolution} else {processingLog = processingLog + "Logged routinely."}
+}
 print "--- Final Processing Log ---"
 print processingLog
 ```

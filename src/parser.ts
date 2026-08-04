@@ -870,6 +870,20 @@ export class Parser {
     while (true) {
       if (this.match('LEFT_PAREN')) {
         expr = this.finishCall(expr);
+        if (
+          expr.type === 'CallExpression' &&
+          expr.callee.type === 'Identifier' &&
+          expr.callee.name === 'video' &&
+          expr.arguments.length === 1
+        ) {
+          const position = this.current;
+          this.skipNewlines();
+          if (this.check('LEFT_BRACE')) {
+            expr = this.finishVideoCall(expr.arguments[0], expr.line);
+          } else {
+            this.current = position;
+          }
+        }
       } else if (this.match('LEFT_BRACKET')) {
         const index = this.expression();
         this.consume('RIGHT_BRACKET', 'Expected ] after index');
@@ -893,6 +907,74 @@ export class Parser {
     }
 
     return expr;
+  }
+
+  private finishVideoCall(modelName: Expression, line: number): import('./types').VideoCallExpression {
+    let config: Record<string, Expression> | undefined;
+    if (this.check('LEFT_BRACE') && this.hasSecondBlock()) {
+      this.advance();
+      config = {};
+      if (!this.check('RIGHT_BRACE')) {
+        do {
+          let key: string;
+          if (this.check('STRING')) {
+            key = this.consume('STRING', '').literal as string;
+            this.consume('COLON', 'Expected : after config key');
+            config[key] = this.assignment();
+          } else {
+            key = this.consume('IDENTIFIER', 'Expected config key').lexeme;
+            if (this.match('COLON')) {
+              config[key] = this.assignment();
+            } else {
+              config[key] = {
+                type: 'Identifier',
+                name: key,
+                line: this.previous().line,
+              } as import('./types').Identifier;
+            }
+          }
+        } while (this.match('COMMA'));
+      }
+      this.consume('RIGHT_BRACE', 'Expected } after config');
+      this.skipNewlines();
+    }
+
+    if (!this.check('LEFT_BRACE')) {
+      throw new Error(`Expected prompt block after video call ${this.formatLocation(this.peek())}`);
+    }
+    this.advance();
+    const content: Expression[] = [];
+    while (!this.check('RIGHT_BRACE') && !this.isAtEnd()) {
+      if (this.check('STRING')) {
+        this.advance();
+        content.push({
+          type: 'Literal',
+          value: this.previous().literal,
+          rawType: 'string',
+          line: this.previous().line,
+        });
+      } else {
+        content.push(this.expression());
+      }
+    }
+    this.consume('RIGHT_BRACE', 'Expected } after video prompt');
+    if (content.length === 0) {
+      throw new Error(`video() prompt block cannot be empty ${this.formatLocation(this.previous())}`);
+    }
+
+    let prompt = content[0];
+    for (let i = 1; i < content.length; i++) {
+      prompt = { type: 'BinaryOp', left: prompt, operator: '+', right: content[i], line };
+    }
+
+    return {
+      type: 'VideoCallExpression',
+      modelName,
+      config,
+      prompt,
+      images: config?.images,
+      line,
+    };
   }
 
   private finishCall(callee: Expression): CallExpression {

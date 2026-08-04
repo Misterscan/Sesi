@@ -63,6 +63,7 @@ export const enum OpCode {
   // AI primitives (delegate straight to ai-runtime, args already on stack)
   CALL_MODEL,    // operand: name index (model name), second operand: arg count
   CALL_IMAGE,    // same shape
+  CALL_VIDEO,    // same shape
 
   // Output
   PRINT,         // operand: arg count (pops N values, prints space-joined)
@@ -256,6 +257,7 @@ function disassembleInstruction(chunk: Chunk, ip: number): [string, number] {
     case OpCode.CALL_BUILTIN:   return twoByteInstr('CALL_BUILTIN');
     case OpCode.CALL_MODEL:     return twoByteInstr('CALL_MODEL');
     case OpCode.CALL_IMAGE:     return twoByteInstr('CALL_IMAGE');
+    case OpCode.CALL_VIDEO:     return twoByteInstr('CALL_VIDEO');
     case OpCode.PRINT:          return byteInstr('PRINT');
     case OpCode.TRY_START: {
       const catchOff = read16(chunk.code, ip + 1);

@@ -97,7 +97,41 @@ async function main() {
     'Gemini image generation receives the system instruction'
   );
 
-  console.log('✓ Gemini system instructions are forwarded for standard, streaming, and image requests');
+  let omniRequest: any = null;
+  runtime._client.interactions = {
+    create: async (request: any) => {
+      omniRequest = request;
+      return { output_video: { type: 'video', data: 'mock-omni-video', mime_type: 'video/mp4' } };
+    },
+  };
+  const omniVideo = await runtime.callVideo({
+    model: 'gemini-omni-flash-preview',
+    prompt: 'Animate a marble run.',
+    ratio: '9:16',
+  });
+  assert(omniVideo === 'mock-omni-video', 'Gemini Omni video data is returned');
+  assert(omniRequest?.response_format?.aspect_ratio === '9:16', 'Omni receives the aspect ratio');
+
+  let veoRequest: any = null;
+  runtime._client.models.generateVideos = async (request: any) => {
+    veoRequest = request;
+    return {
+      done: true,
+      response: { generatedVideos: [{ video: { videoBytes: 'mock-veo-video', mimeType: 'video/mp4' } }] },
+    };
+  };
+  const veoVideo = await runtime.callVideo({
+    model: 'veo-3.1-generate-preview',
+    prompt: 'A cinematic ocean shot.',
+    duration: 8,
+    resolution: '1080p',
+  });
+  assert(veoVideo === 'mock-veo-video', 'Veo video data is returned');
+  assert(veoRequest?.source?.prompt === 'A cinematic ocean shot.', 'Veo uses the current source request shape');
+  assert(veoRequest?.config?.durationSeconds === 8, 'Veo receives duration');
+  assert(veoRequest?.config?.resolution === '1080p', 'Veo receives resolution');
+
+  console.log('✓ Gemini text, image, Gemini Omni video, and Veo video requests are routed correctly');
 }
 
 main().catch((error) => {

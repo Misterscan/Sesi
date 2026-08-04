@@ -34,6 +34,7 @@ import {
   type AllowStatement,
   type MemoryStatement,
   type ImageCallExpression,
+  type VideoCallExpression,
   type ConvertExpression,
 } from './types';
 
@@ -84,7 +85,8 @@ const BUILTINS = new Set([
   'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
   'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
   'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw',
-  'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage',
+  'regex', 'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage',
+  'gif', 'video', 'ffmpeg',
   'matrix_dot', 'matrix_transpose', 'matrix_add', 'matrix_sub', 'matrix_mul_elements',
   'matrix_scale', 'matrix_sigmoid', 'matrix_dsigmoid', 'matrix_sum_rows', 'matrix_mse',
 ]);
@@ -584,6 +586,7 @@ export class Compiler {
       case 'PromptExpression':       return this.compilePrompt(expr as PromptExpression);
       case 'ModelCallExpression':    return this.compileModelCall(expr as ModelCallExpression);
       case 'ImageCallExpression':    return this.compileImageCall(expr as ImageCallExpression);
+      case 'VideoCallExpression':    return this.compileVideoCall(expr as VideoCallExpression);
       case 'StructuredOutputExpression': return this.compileStructuredOutput(expr as StructuredOutputExpression);
       case 'ToolCallExpression':     return this.compileToolCall(expr as ToolCallExpression);
       case 'ConvertExpression':      return this.compileConvert(expr as ConvertExpression);
@@ -860,6 +863,26 @@ export class Compiler {
     emitByte(this.chunk, OpCode.CALL_IMAGE, line);
     emitByte(this.chunk, 0, line);
     emitByte(this.chunk, 3, line); // model, prompt, config
+  }
+
+  private compileVideoCall(expr: VideoCallExpression): void {
+    const line = expr.line;
+    this.compileExpression(expr.modelName);
+    this.compileExpression(expr.prompt);
+    if (expr.config) {
+      const props = Object.entries(expr.config);
+      for (const [k, v] of props) {
+        const kidx = addConstant(this.chunk, k);
+        emitBytes(this.chunk, OpCode.CONSTANT, kidx, line);
+        this.compileExpression(v);
+      }
+      emitBytes(this.chunk, OpCode.BUILD_OBJECT, props.length, line);
+    } else {
+      this.emitOp(OpCode.NIL, line);
+    }
+    emitByte(this.chunk, OpCode.CALL_VIDEO, line);
+    emitByte(this.chunk, 0, line);
+    emitByte(this.chunk, 3, line);
   }
 
   private compileConvert(expr: ConvertExpression): void {

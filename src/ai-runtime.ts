@@ -15,6 +15,19 @@ import * as path from 'path';
 export const DEFAULT_LOCAL_MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct';
 export const DEFAULT_LOCAL_MODEL_WARNING_TOKENS = 2048;
 
+export interface VideoGenerationRequest {
+  model: string;
+  prompt: string;
+  images?: string[];
+  ratio?: string;
+  duration?: number;
+  resolution?: string;
+  negativePrompt?: string;
+  audio?: boolean;
+  task?: string;
+  pollInterval?: number;
+}
+
 function stripPrototypes(val: any): any {
   if (val === null || typeof val !== 'object') {
     return val;
@@ -903,6 +916,85 @@ export class AIRuntime {
     } catch (error: any) {
       throw new Error(`Sesi: Gemini token counting failed: ${error.message}`);
     }
+  }
+
+  async callVideo(request: VideoGenerationRequest): Promise<string> {
+    const client = this.client;
+    const model = String(request.model || '').replace(/^models\//, '').trim();
+    if (!model) throw new Error('AI video generation requires a model name.');
+    if (!request.prompt.trim()) throw new Error('AI video generation requires a prompt.');
+
+    const loadImage = (filePath: string): { imageBytes: string; mimeType: string } => {
+      const absolutePath = path.resolve(filePath);
+      const mimeTypes: Record<string, string> = {
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+        '.webp': 'image/webp', '.gif': 'image/gif',
+      };
+      if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+        throw new Error(`Video reference image was not found: ${filePath}`);
+      }
+      return {
+        imageBytes: fs.readFileSync(absolutePath).toString('base64'),
+        mimeType: mimeTypes[path.extname(absolutePath).toLowerCase()] || 'image/jpeg',
+      };
+    };
+
+    const downloadAsBase64 = async (video: any): Promise<string> => {
+      if (typeof video?.data === 'string' && video.data) return video.data;
+      if (typeof video?.videoBytes === 'string' && video.videoBytes) return video.videoBytes;
+      if (!video?.uri) throw new Error('Video generation completed without video data or a download URI.');
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-ai-video-'));
+      const outputPath = path.join(tempDir, 'generated.mp4');
+      try {
+        await client.files.download({ file: video, downloadPath: outputPath });
+        return fs.readFileSync(outputPath).toString('base64');
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    };
+
+    if (/omni/i.test(model)) {
+      const imageInputs = (request.images || []).map((imagePath) => {
+        const image = loadImage(imagePath);
+        return { type: 'image', data: image.imageBytes, mime_type: image.mimeType };
+      });
+      const params: any = {
+        model,
+        input: imageInputs.length
+          ? [...imageInputs, { type: 'text', text: request.prompt }]
+          : request.prompt,
+        response_format: {
+          type: 'video',
+          ...(request.ratio ? { aspect_ratio: request.ratio } : {}),
+        },
+      };
+      if (request.task) {
+        params.generation_config = { video_config: { task: request.task } };
+      }
+      const interaction = await client.interactions.create(params);
+      return downloadAsBase64(interaction?.output_video);
+    }
+
+    const source: any = { prompt: request.prompt };
+    if (request.images?.length) source.image = loadImage(request.images[0]);
+    const config: any = { numberOfVideos: 1 };
+    if (request.ratio) config.aspectRatio = request.ratio;
+    if (request.duration !== undefined) config.durationSeconds = request.duration;
+    if (request.resolution) config.resolution = request.resolution;
+    if (request.negativePrompt) config.negativePrompt = request.negativePrompt;
+    if (request.audio !== undefined) config.generateAudio = request.audio;
+
+    let operation = await client.models.generateVideos({ model, source, config });
+    const pollInterval = Math.max(100, request.pollInterval ?? 10000);
+    while (!operation.done) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      operation = await client.operations.getVideosOperation({ operation });
+    }
+    if (operation.error) {
+      throw new Error(`Video generation failed: ${JSON.stringify(operation.error)}`);
+    }
+    const generated = operation.response?.generatedVideos?.[0]?.video;
+    return downloadAsBase64(generated);
   }
 
   private getCacheFile(): string {

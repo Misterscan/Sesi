@@ -127,6 +127,21 @@ async function main() {
       'js("console.log(1)")',
       'Security Violation: js is disabled in Sesi safe mode.'
     );
+    await runExpectError(
+      'Block raw ffmpeg in safe mode',
+      'ffmpeg(["-version"])',
+      'Security Violation: ffmpeg is disabled in Sesi safe mode.'
+    );
+    await runExpectError(
+      'Block GIF creation in safe mode',
+      'gif(["frame.png"], "output.gif")',
+      'Security Violation: gif is disabled in Sesi safe mode.'
+    );
+    await runExpectError(
+      'Block video creation in safe mode',
+      'video(["frame.png"], "output.mp4")',
+      'Security Violation: video is disabled in Sesi safe mode.'
+    );
   } finally {
     process.env.SESI_SAFE_MODE = 'false';
   }
@@ -163,6 +178,12 @@ async function main() {
     'Security Violation: js is disabled in Sesi safe mode.',
     { safeMode: true }
   );
+  await runExpectError(
+    'Block ffmpeg via static safeMode option (independent of env)',
+    'ffmpeg(["-version"])',
+    'Security Violation: ffmpeg is disabled in Sesi safe mode.',
+    { safeMode: true }
+  );
 
   // Test 6: Automated Tool Call Protection
   console.log('\n6. Testing LLM Automated Tool Call Safeguards');
@@ -189,6 +210,12 @@ async function main() {
     'tool_call(js)("console.log(1)")',
     'Security Violation: Automated execution of sensitive tool "js" is forbidden.',
     { safeMode: false } // Even if safeMode is explicitly disabled!
+  );
+  await runExpectError(
+    'Block automated LLM tool calls targeting ffmpeg',
+    'tool_call(ffmpeg)(["-version"])',
+    'Security Violation: Automated execution of sensitive tool "ffmpeg" is forbidden.',
+    { safeMode: false }
   );
   await runExpectError(
     'Block custom tool alias targeting exec',

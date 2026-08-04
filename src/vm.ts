@@ -116,7 +116,7 @@ export class VM {
           throw new Error('Tool name must be a string');
         }
 
-        const sensitiveBuiltins = ['exec', 'spawn', 'python', 'js'];
+        const sensitiveBuiltins = ['exec', 'spawn', 'python', 'js', 'ffmpeg', 'gif', 'video'];
         if (sensitiveBuiltins.includes(nameVal)) {
           throw new Error(`Security Violation: Automated execution of sensitive tool "${nameVal}" is forbidden.`);
         }
@@ -526,6 +526,31 @@ export class VM {
                 size:  config?.size  as string | undefined,
               });
               this.push(response.text);
+            }
+            break;
+          }
+
+          case OpCode.CALL_VIDEO: {
+            this.readByte(frame);
+            this.readByte(frame);
+            const config = this.pop() as Record<string, any> | null;
+            const promptVal = this.pop();
+            const modelNameVal = this.pop();
+            const modelName = typeof modelNameVal === 'string' ? modelNameVal : stringify(modelNameVal);
+
+            if (this.interpreter && typeof (this.interpreter as any).evaluateVideoCall === 'function') {
+              const syntheticExpr: any = {
+                type: 'VideoCallExpression',
+                modelName: { type: 'Literal', value: modelName, rawType: 'string', line: 0 },
+                config: config
+                  ? Object.fromEntries(Object.entries(config).map(([key, value]) => [key, { type: 'Literal', value }]))
+                  : undefined,
+                prompt: { type: 'Literal', value: promptVal, rawType: 'string', line: 0 },
+                line: 0,
+              };
+              this.push(await (this.interpreter as any).evaluateVideoCall(syntheticExpr));
+            } else {
+              throw new Error('AI video generation requires an interpreter-backed VM.');
             }
             break;
           }

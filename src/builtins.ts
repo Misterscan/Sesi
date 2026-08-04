@@ -2,8 +2,9 @@
 import { RuntimeValue, RuntimeFunction, SesiRuntimeError } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
-import { spawn, execSync, execFileSync } from 'child_process';
+import { spawn, spawnSync, execSync, execFileSync } from 'child_process';
 import * as vm from 'vm';
+import * as os from 'os';
 import { aiRuntime } from './ai-runtime';
 import * as http from 'http';
 import { estimateTokenCost } from './token-pricing';
@@ -291,6 +292,139 @@ export function ensureSafePath(filePath: string, interpreter?: any, baseDir: str
     throw new Error(`Security Violation: Path traversal detected. Access to "${filePath}" outside of allowed directories is forbidden.`);
   }
   return resolved;
+}
+
+function requireMediaProcessAccess(name: string, interpreter?: any): void {
+  const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
+  if (safeMode) {
+    throw new Error(`Security Violation: ${name} is disabled in Sesi safe mode.`);
+  }
+}
+
+function normalizeProcessArgs(argsVal: RuntimeValue): string[] {
+  if (!Array.isArray(argsVal)) {
+    throw new Error('ffmpeg expects an array of arguments, not a shell command string.');
+  }
+
+  return argsVal.map((arg, index) => {
+    if (typeof arg !== 'string' && typeof arg !== 'number' && typeof arg !== 'boolean') {
+      throw new Error(`ffmpeg argument ${index + 1} must be a string, number, or boolean.`);
+    }
+    const value = String(arg);
+    if (value.includes('\0')) {
+      throw new Error(`ffmpeg argument ${index + 1} contains a null byte.`);
+    }
+    return value;
+  });
+}
+
+function runFfmpeg(
+  args: string[],
+  options: { cwd?: string; timeout?: number; throwOnError?: boolean } = {},
+): Record<string, RuntimeValue> {
+  const result = spawnSync('ffmpeg', args, {
+    cwd: options.cwd,
+    encoding: 'utf-8',
+    timeout: options.timeout,
+    maxBuffer: 32 * 1024 * 1024,
+    windowsHide: true,
+  });
+
+  if (result.error) {
+    if ((result.error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error('ffmpeg CLI was not found in PATH. Install FFmpeg to use ffmpeg(), gif(), or video().');
+    }
+    throw new Error(`ffmpeg failed to start: ${result.error.message}`);
+  }
+
+  const response: Record<string, RuntimeValue> = {
+    ok: result.status === 0,
+    code: result.status ?? -1,
+    signal: result.signal ?? null,
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
+    args,
+  };
+
+  if (result.status !== 0 && options.throwOnError !== false) {
+    const details = String(result.stderr || result.stdout || '').trim();
+    throw new Error(`ffmpeg exited with code ${result.status ?? -1}${details ? `: ${details}` : ''}`);
+  }
+
+  return response;
+}
+
+function mediaOptions(optionsVal: RuntimeValue): Record<string, RuntimeValue> {
+  if (optionsVal === null || optionsVal === undefined) return Object.create(null);
+  if (typeof optionsVal !== 'object' || Array.isArray(optionsVal)) {
+    throw new Error('Media options must be an object.');
+  }
+  return optionsVal as Record<string, RuntimeValue>;
+}
+
+function numberOption(
+  options: Record<string, RuntimeValue>,
+  name: string,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const value = options[name];
+  if (value === null || value === undefined) return fallback;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+    throw new Error(`${name} must be a number from ${min} to ${max}.`);
+  }
+  return value;
+}
+
+function ffconcatPath(filePath: string): string {
+  return filePath.replace(/'/g, `'\\''`);
+}
+
+function prepareMediaInput(
+  inputVal: RuntimeValue,
+  fps: number,
+  interpreter?: any,
+): { args: string[]; cleanup: () => void } {
+  if (typeof inputVal === 'string') {
+    const inputPath = ensureSafePath(inputVal, interpreter);
+    if (!fs.existsSync(inputPath) || fs.statSync(inputPath).isDirectory()) {
+      throw new Error(`Media input file was not found: ${inputVal}`);
+    }
+    return { args: ['-i', inputPath], cleanup: () => {} };
+  }
+
+  if (!Array.isArray(inputVal) || inputVal.length === 0) {
+    throw new Error('Media input must be a file path or a non-empty array of frame paths.');
+  }
+
+  const framePaths = inputVal.map((frame, index) => {
+    if (typeof frame !== 'string') {
+      throw new Error(`Frame ${index + 1} must be a file path string.`);
+    }
+    const framePath = ensureSafePath(frame, interpreter);
+    if (!fs.existsSync(framePath) || fs.statSync(framePath).isDirectory()) {
+      throw new Error(`Frame file was not found: ${frame}`);
+    }
+    return framePath;
+  });
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-ffmpeg-'));
+  const manifestPath = path.join(tempDir, 'frames.ffconcat');
+  const duration = 1 / fps;
+  const lines = ['ffconcat version 1.0'];
+  for (const framePath of framePaths) {
+    lines.push(`file '${ffconcatPath(framePath)}'`);
+    lines.push(`duration ${duration}`);
+  }
+  // The concat demuxer applies the final duration only when the last frame is repeated.
+  lines.push(`file '${ffconcatPath(framePaths[framePaths.length - 1])}'`);
+  fs.writeFileSync(manifestPath, `${lines.join('\n')}\n`, 'utf-8');
+
+  return {
+    args: ['-f', 'concat', '-safe', '0', '-i', manifestPath],
+    cleanup: () => fs.rmSync(tempDir, { recursive: true, force: true }),
+  };
 }
 
 export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
@@ -1121,6 +1255,92 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
+  builtins.set('regex', {
+    type: 'function',
+    name: 'regex',
+    params: [{ name: 'pattern' }, { name: 'text' }, { name: 'options', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (
+      patternVal: RuntimeValue,
+      textVal: RuntimeValue,
+      optionsVal: RuntimeValue = null,
+    ): RuntimeValue => {
+      if (typeof patternVal !== 'string' || typeof textVal !== 'string') {
+        throw new Error('regex expects pattern and text strings.');
+      }
+
+      let flags = '';
+      let mode = 'match';
+      let replacement: RuntimeValue = null;
+      let limit = 10_000;
+
+      if (typeof optionsVal === 'string') {
+        flags = optionsVal;
+      } else if (optionsVal !== null) {
+        if (typeof optionsVal !== 'object' || Array.isArray(optionsVal)) {
+          throw new Error('regex options must be a flags string or an object.');
+        }
+        const options = optionsVal as Record<string, RuntimeValue>;
+        if (options.flags !== undefined && options.flags !== null) {
+          if (typeof options.flags !== 'string') throw new Error('regex flags must be a string.');
+          flags = options.flags;
+        }
+        if (options.mode !== undefined && options.mode !== null) {
+          if (typeof options.mode !== 'string') throw new Error('regex mode must be a string.');
+          mode = options.mode.toLowerCase();
+        }
+        replacement = options.replacement ?? null;
+        if (options.limit !== undefined && options.limit !== null) {
+          if (typeof options.limit !== 'number' || !Number.isFinite(options.limit) || options.limit < 0) {
+            throw new Error('regex limit must be a non-negative number.');
+          }
+          limit = Math.floor(options.limit);
+        }
+      }
+
+      try {
+        if (mode === 'test') {
+          return new RegExp(patternVal, flags).test(textVal);
+        }
+        if (mode === 'replace') {
+          if (typeof replacement !== 'string') {
+            throw new Error('regex replace mode requires a string replacement option.');
+          }
+          return textVal.replace(new RegExp(patternVal, flags), replacement);
+        }
+        if (mode === 'split') {
+          return textVal.split(new RegExp(patternVal, flags), limit);
+        }
+        if (mode !== 'match') {
+          throw new Error(`Unsupported regex mode: ${mode}. Use match, test, replace, or split.`);
+        }
+
+        const matchFlags = flags.includes('g') ? flags : `${flags}g`;
+        const expression = new RegExp(patternVal, matchFlags);
+        const matches: RuntimeValue[] = [];
+        let match: RegExpExecArray | null;
+        while (matches.length < limit && (match = expression.exec(textVal)) !== null) {
+          matches.push({
+            match: match[0],
+            index: match.index,
+            captures: match.slice(1).map(value => value === undefined ? null : value),
+            groups: match.groups ? { ...match.groups } : {},
+          });
+          if (match[0] === '') expression.lastIndex++;
+        }
+        return matches;
+      } catch (error: any) {
+        if (String(error?.message || '').startsWith('Unsupported regex mode:') ||
+            String(error?.message || '').startsWith('regex replace mode')) {
+          throw error;
+        }
+        throw new Error(`Invalid regular expression: ${error.message}`);
+      }
+    },
+  });
+
   builtins.set('tokenize', {
     type: 'function',
     name: 'tokenize',
@@ -1790,6 +2010,165 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         return execSync(command, { encoding: 'utf-8' });
       } catch (e: any) {
         throw new Error(`Failed to execute command: ${command}. Reason: ${e.message}`);
+      }
+    },
+  });
+
+  builtins.set('ffmpeg', {
+    type: 'function',
+    name: 'ffmpeg',
+    params: [{ name: 'args' }, { name: 'options', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (argsVal: RuntimeValue, optionsVal: RuntimeValue = null): RuntimeValue => {
+      requireMediaProcessAccess('ffmpeg', interpreter);
+      const args = normalizeProcessArgs(argsVal);
+      const options = mediaOptions(optionsVal);
+
+      let cwd: string | undefined;
+      if (options.cwd !== undefined && options.cwd !== null) {
+        if (typeof options.cwd !== 'string') throw new Error('ffmpeg cwd must be a string path.');
+        cwd = ensureSafePath(options.cwd, interpreter);
+        if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
+          throw new Error(`ffmpeg cwd is not a directory: ${options.cwd}`);
+        }
+      }
+
+      let timeout: number | undefined;
+      if (options.timeout !== undefined && options.timeout !== null) {
+        timeout = numberOption(options, 'timeout', 0, 1, 86_400_000);
+      }
+      const throwOnError = options.throw_on_error === undefined
+        ? true
+        : isTruthy(options.throw_on_error);
+
+      return runFfmpeg(args, { cwd, timeout, throwOnError });
+    },
+  });
+
+  builtins.set('gif', {
+    type: 'function',
+    name: 'gif',
+    params: [{ name: 'input' }, { name: 'output' }, { name: 'options', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (
+      inputVal: RuntimeValue,
+      outputVal: RuntimeValue,
+      optionsVal: RuntimeValue = null,
+    ): RuntimeValue => {
+      requireMediaProcessAccess('gif', interpreter);
+      if (typeof outputVal !== 'string' || path.extname(outputVal).toLowerCase() !== '.gif') {
+        throw new Error('gif output must be a .gif file path.');
+      }
+
+      const options = mediaOptions(optionsVal);
+      const fps = numberOption(options, 'fps', 12, 1, 120);
+      const width = Math.floor(numberOption(options, 'width', 0, 0, 8192));
+      const loop = Math.floor(numberOption(options, 'loop', 0, 0, 65_535));
+      const outputPath = ensureSafePath(outputVal, interpreter);
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      const prepared = prepareMediaInput(inputVal, fps, interpreter);
+
+      try {
+        const resize = width > 0 ? `,scale=${width}:-1:flags=lanczos` : '';
+        const filter = `[0:v]fps=${fps}${resize},split[gif_a][gif_b];` +
+          '[gif_a]palettegen[palette];[gif_b][palette]paletteuse';
+        const overwrite = options.overwrite === false ? '-n' : '-y';
+        const timeout = options.timeout === undefined || options.timeout === null
+          ? undefined
+          : numberOption(options, 'timeout', 0, 1, 86_400_000);
+        runFfmpeg([
+          overwrite,
+          ...prepared.args,
+          '-filter_complex', filter,
+          '-loop', String(loop),
+          outputPath,
+        ], { timeout });
+        return outputVal;
+      } finally {
+        prepared.cleanup();
+      }
+    },
+  });
+
+  builtins.set('video', {
+    type: 'function',
+    name: 'video',
+    params: [{ name: 'input' }, { name: 'output' }, { name: 'options', defaultValue: null as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (
+      inputVal: RuntimeValue,
+      outputVal: RuntimeValue,
+      optionsVal: RuntimeValue = null,
+    ): RuntimeValue => {
+      requireMediaProcessAccess('video', interpreter);
+      if (typeof outputVal !== 'string' || path.extname(outputVal) === '') {
+        throw new Error('video output must be a file path with an extension.');
+      }
+
+      const options = mediaOptions(optionsVal);
+      const fps = numberOption(options, 'fps', 30, 1, 240);
+      const width = Math.floor(numberOption(options, 'width', 0, 0, 8192));
+      const height = Math.floor(numberOption(options, 'height', 0, 0, 8192));
+      const crf = Math.floor(numberOption(options, 'crf', 23, 0, 63));
+      const outputPath = ensureSafePath(outputVal, interpreter);
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      const prepared = prepareMediaInput(inputVal, fps, interpreter);
+
+      try {
+        const extension = path.extname(outputPath).toLowerCase();
+        const defaultCodec = extension === '.webm' ? 'libvpx-vp9' : 'libx264';
+        const codec = options.codec === undefined || options.codec === null
+          ? defaultCodec
+          : String(options.codec);
+        const pixelFormat = options.pixel_format === undefined || options.pixel_format === null
+          ? 'yuv420p'
+          : String(options.pixel_format);
+        const overwrite = options.overwrite === false ? '-n' : '-y';
+        const args = [overwrite, ...prepared.args];
+
+        let hasExternalAudio = false;
+        if (!isTruthy(options.mute) && options.audio !== undefined && options.audio !== null) {
+          if (typeof options.audio !== 'string') throw new Error('video audio must be a file path string.');
+          const audioPath = ensureSafePath(options.audio, interpreter);
+          if (!fs.existsSync(audioPath) || fs.statSync(audioPath).isDirectory()) {
+            throw new Error(`Video audio file was not found: ${options.audio}`);
+          }
+          args.push('-i', audioPath);
+          hasExternalAudio = true;
+        }
+
+        const scaleWidth = width > 0 ? String(width) : (height > 0 ? '-2' : 'trunc(iw/2)*2');
+        const scaleHeight = height > 0 ? String(height) : (width > 0 ? '-2' : 'trunc(ih/2)*2');
+        args.push('-vf', `scale=${scaleWidth}:${scaleHeight}`);
+        args.push('-r', String(fps), '-c:v', codec, '-crf', String(crf), '-pix_fmt', pixelFormat);
+
+        if ((codec === 'libx264' || codec === 'libx265') && options.preset !== false) {
+          args.push('-preset', options.preset === undefined || options.preset === null ? 'medium' : String(options.preset));
+        }
+        if (isTruthy(options.mute)) {
+          args.push('-an');
+        } else if (hasExternalAudio) {
+          args.push('-map', '0:v:0', '-map', '1:a:0', '-shortest');
+          args.push('-c:a', extension === '.webm' ? 'libopus' : 'aac');
+        }
+        if (extension === '.mp4' || extension === '.m4v' || extension === '.mov') {
+          args.push('-movflags', '+faststart');
+        }
+
+        const timeout = options.timeout === undefined || options.timeout === null
+          ? undefined
+          : numberOption(options, 'timeout', 0, 1, 86_400_000);
+        args.push(outputPath);
+        runFfmpeg(args, { timeout });
+        return outputVal;
+      } finally {
+        prepared.cleanup();
       }
     },
   });
