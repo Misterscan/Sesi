@@ -5,7 +5,7 @@
 allow "std/terminal" in with { color }
 
 print color("Fetching data...", "magenta")
-let json_data = web_get("https://jsonplaceholder.typicode.com/todos/1")
+let json_data = "https://jsonplaceholder.typicode.com/todos/1" | web_get
 let structured_data = structured_output({title: string, completed: bool})(json_data)
 print color("Title:", "green") color(structured_data["title"], "cyan")
 print color("Completed:", "green") color(str(structured_data["completed"]), "cyan")

@@ -8,17 +8,13 @@
 allow "std/db" in with {db_open}
 allow "std/time" in with {now}
 
-let db = db_open("app_data.db")
-let logs = db.collection("visitor_logs")
+let db = "app_data.db" | db_open
+let logs = "visitor_logs" | db.collection
 
 // Initialize with some seed data if empty
 let existingLogs = logs.find()
 if len(existingLogs) == 0 {
-  logs.insert({
-    "agent": "System Seeder",
-    "timestamp": now() - 10000,
-    "method": "SYSTEM"
-  })
+  ({"agent": "System Seeder", "timestamp": now() - 10000, "method": "SYSTEM"}) | logs.insert
 }
 
 fn renderLogsList(records) {
@@ -66,7 +62,7 @@ async fn handleRequest(req) {
 
   if req.path == "/" {
     let allLogs = logs.find()
-    let logsHtml = renderLogsList(allLogs)
+    let logsHtml = allLogs | renderLogsList
     let totalCount = len(allLogs)
     let css = "<style>
     * {
@@ -179,8 +175,7 @@ async fn handleRequest(req) {
     }
   </style>"
 
-    let html = html("<body>
-  <div class='wrapper'>
+    let html = "  <div class='wrapper'>
     <div class='card'>
       <h1>Sesi Web Analytics</h1>
       <p class='subtitle'>A robust demonstration combining the native Sesi HTTP Server with the embedded Sesi Document Database.</p>
@@ -197,8 +192,7 @@ async fn handleRequest(req) {
       
       <a href='/api/logs' class='btn-api'>&rarr; View Raw Database Records (JSON API)</a>
     </div>
-  </div>
-</body>", {
+  </div>" | html({
     "title": "Sesi Analytics Dashboard",
     "head": "<link rel='preconnect' href='https://fonts.googleapis.com'>
   <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
@@ -231,11 +225,11 @@ async fn handleRequest(req) {
 
 let port = 8080
 print "Starting combined server at http://localhost:8080"
-let server = listen(port, handleRequest)
+let server = port | listen(handleRequest)
 
 /* For automated examples/test run, close the server after 2 seconds. */
 allow "std/time" in with {sleep}
-sleep(2000)
+2000 | sleep
 print "Closing webpage server..."
 server.close()
 print "Webpage server closed successfully."

@@ -45,10 +45,10 @@ prompt body {"  <h1>Hello Sesi!</h1>
         </tr>
     </table>
     <p>Goodbye!</p>"}
-let htmlPage = html(body, {"title": title, "head": css, "lang": "en"})
+let htmlPage = body | html({"title": title, "head": css, "lang": "en"})
 try {
-    write_file("index.prompt.html", htmlPage)
+    htmlPage | write_file("index.prompt.html")
     print color("HTML file created successfully!", "green", "bold")
-} catch(error) {
+} catch (error) {
     print color("Error creating HTML file: " + str(error), "red")
 }

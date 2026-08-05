@@ -2,7 +2,7 @@
 name: MakeInSesi
 description: Intent-based development workflow for generating concise, syntax-accurate Sesi scripts using integrated web research and verified implementation patterns.
 agent: Plan
-model: Gemini 3 Flash Preview (gemini)
+model: Gemini 3.6 Flash
 tools:
   [
     execute/getTerminalOutput,

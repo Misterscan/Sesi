@@ -13,28 +13,28 @@ allow "std/time" in with Time
 Term.clear()
 
 // Move cursor to top left
-Term.cursor(1, 1)
-print Term.color("⚡ Sesi Terminal UI Engine", "cyan")
+1 | Term.cursor(1)
+print "⚡ Sesi Terminal UI Engine" | Term.color("cyan")
 
-Term.cursor(1, 3)
-print Term.color("Loading system modules...", "yellow")
+1 | Term.cursor(3)
+print "Loading system modules..." | Term.color("yellow")
 
-Time.sleep(1000)
+1000 | Time.sleep
 
-Term.cursor(1, 4)
-print Term.color("[OK] File system ready", "green")
+1 | Term.cursor(4)
+print "[OK] File system ready" | Term.color("green")
 
-Time.sleep(500)
+500 | Time.sleep
 
-Term.cursor(1, 5)
-print Term.color("[OK] Network initialized", "green")
+1 | Term.cursor(5)
+print "[OK] Network initialized" | Term.color("green")
 
-Term.cursor(1, 7)
-print Term.color("Ready for commands.", "white")
+1 | Term.cursor(7)
+print "Ready for commands." | Term.color("white")
 
 // Optional: you can combine with input
-Term.cursor(1, 9)
-let cmd = input(Term.color("admin@sesi> ", "magenta"))
+1 | Term.cursor(9)
+let cmd = "admin@sesi> " | input | Term.color("magenta")
 
-Term.cursor(1, 11)
-print "You executed:" Term.color(cmd, "bold")
+1 | Term.cursor(11)
+print "You executed:" cmd | Term.color("bold")

@@ -12,13 +12,13 @@ allow "std/terminal" in with { color }
 print color("=== 1. Defining Concurrently Run Closures ===", "magenta")
 fn slowTask1() {
   print "Starting Task 1 (sleeping 150ms)..."
-  Time.sleep(150)
+  150 | Time.sleep
   print "Task 1 complete!"
   return "result_from_task_1"
 }
 fn slowTask2() {
   print "Starting Task 2 (sleeping 150ms)..."
-  Time.sleep(150)
+  150 | Time.sleep
   print "Task 2 complete!"
   return "result_from_task_2"
 }
@@ -34,7 +34,7 @@ print "=== 3. Parallel Execution via multi_req ==="
 let start_time = Time.now()
 
 // multi_req accepts an array of Sesi functions and executes them concurrently.
-let results = multi_req([slowTask1, slowTask2])
+let results = [slowTask1, slowTask2] | multi_req
 let elapsed = Time.now() - start_time
 print "Returned Results array:"
 print str(results)

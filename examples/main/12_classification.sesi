@@ -4,7 +4,7 @@ allow "std/terminal" in with { color }
 let items = ["A quick brown fox", "123 Main Street", "user@example.com", "New York City"]
 
 fn isEmail(item: string) -> bool {
-  let parts = split(item, "@")
+  let parts = item | split("@")
   if len(parts) != 2 {
     return false
   }
@@ -13,7 +13,7 @@ fn isEmail(item: string) -> bool {
   if len(localPart) == 0 || len(domainPart) == 0 {
     return false
   }
-  let domainParts = split(domainPart, ".")
+  let domainParts = domainPart | split(".")
   if len(domainParts) < 2 {
     return false
   }
@@ -28,7 +28,7 @@ fn isEmail(item: string) -> bool {
 fn isAddress(item: string) -> bool {
   
   // Simplified check for address-like strings
-  let parts = split(item, " ")
+  let parts = item | split(" ")
 
   // Must contain numbers and words
   let hasNumber = false
@@ -45,9 +45,9 @@ fn isAddress(item: string) -> bool {
 
 print color("Classifying items natively:", "magenta")
 for item in items {
-  if isEmail(item) {
+  if item | isEmail {
     print color(item, "cyan") "->" color("EMAIL", "green")
-  } else if isAddress(item) {
+  } else if item | isAddress {
     print color(item, "cyan") "->" color("ADDRESS", "yellow")
   } else {
     print color(item, "cyan") "->" color("TEXT/LOCATION", "white")

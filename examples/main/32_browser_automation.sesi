@@ -19,16 +19,16 @@ print "=== Sesi Web Scraping & Browser Automation ==="
 allow "std/browser" in with Browser
 
 print "Launching headless Chromium browser..."
-let browser = Browser.launch({"headless": true})
+let browser = {"headless": true} | Browser.launch
 let page = browser.newPage()
 
 // Part 1: Scrape Hacker News
 print ""
 print "1. Scraping top stories from Hacker News..."
-page.goto("https://news.ycombinator.com")
+"https://news.ycombinator.com" | page.goto
 
 let jsQuery = "Array.from(document.querySelectorAll('.titleline > a')).slice(0, 5).map(a => ({ 'title': a.innerText, 'url': a.href }))"
-let stories = page.evaluate(jsQuery)
+let stories = jsQuery | page.evaluate
 
 print "Top 5 Stories on Hacker News:"
 let file = ""
@@ -40,10 +40,10 @@ fn append_stories(file, stories) {
     }
     return file
 }
-file = append_stories(file, stories)
+file = file | append_stories(stories)
 
 try {
-    write_file("scraper-results.md", file)
+    "scraper-results.md" | write_file(file)
     print "Scraped result and saved to scraper-results.md"
 } catch (e) {
     print "Failed to write file:" e
@@ -52,23 +52,23 @@ try {
 // Part 2: Search on Wikipedia
 print ""
 print "2. Searching Wikipedia for 'Software engineering'..."
-page.goto("https://en.wikipedia.org")
+"https://en.wikipedia.org" | page.goto
 
 // Type query into the search input box
-page.fill("input[name='search']", "Software engineering")
+"input[name='search']" | page.fill("Software engineering")
 
 // Press Enter to submit the search
-page.press("input[name='search']", "Enter")
+"input[name='search']" | page.press("Enter")
 
 // Wait for the search results page to load
-page.wait_for_timeout(1000)
+1000 | page.wait_for_timeout
 
 let wikiTitle = page.title()
 print "Search Result Page Title: " wikiTitle
 
 // Capture screenshot of the results
 print "Capturing page screenshot..."
-page.screenshot({"path": "wiki_search.png"})
+({"path": "wiki_search.png"}) | page.screenshot
 print "Saved screenshot to wiki_search.png"
 
 // Clean up

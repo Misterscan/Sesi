@@ -8,7 +8,7 @@ print color("Name:", "cyan") database["name"]
 print color("Age:", "cyan") str(database["age"])
 print color("Role:", "cyan") database["role"]
 try {
-  write_file("data.txt", to_json(database))
+  "data.txt" | write_file(database | to_json)
   print color("Database saved!", "green", "bold")
 } catch(error) {
   print "Error:" error
@@ -16,7 +16,7 @@ try {
 
 let new_info = {"name": "Jane", "age": 25, "role": "designer"}
 let merged = database
-for key in keys(new_info) {
+for key in new_info | keys {
   merged[key] = new_info[key]
 }
 database = merged
@@ -24,7 +24,7 @@ print "Name:" database["name"]
 print "Age:" database["age"]
 print "Role:" database["role"]
 try {
-  write_file("data.txt", to_json(database))
+  "data.txt" | write_file(database | to_json)
   print "Database updated!"
 } catch(error) {
   print "Error:" error

@@ -14,7 +14,6 @@
   Usage:
     sesi examples/main/34_sesi_api.sesi -l
 */
-
 allow "std/api" in with API
 
 // In-memory store (no file dependency so example is self-contained)
@@ -26,10 +25,10 @@ fn listUsers(req) {
 }
 
 fn createUser(req) {
-  let data = from_json(req.body)
+  let data = req.body | from_json
   let user = {"id": str(nextId), "name": data.name, "email": data.email}
   nextId = nextId + 1
-  push(store, user)
+  store | push(user)
   return {"status": 201, "body": user}
 }
 
@@ -52,7 +51,7 @@ fn deleteUser(req) {
   let kept = []
   for u in store {
     if u.id != userId {
-      push(kept, u)
+      kept | push(u)
     }
   }
   store = kept
@@ -63,64 +62,64 @@ fn healthCheck(req) {
   return {"status": 200, "body": {"status": "ok"}}
 }
 
-let app = API.create_app({
+let app = ({
   "title": "Users API",
   "version": "1.0.0",
   "description": "A simple user management API built with Sesi"
-})
+}) | API.create_app
 
-app.get("/users", {
+"/users" | app.get({
   "summary": "List users",
   "tags": ["Users"],
   "response": {"users": "array", "total": "number"}
 }, listUsers)
 
-app.post("/users", {
+"/users" | app.post({
   "summary": "Create user",
   "tags": ["Users"],
   "body": {"name": "string", "email": "string"},
   "response": {"id": "string", "name": "string", "email": "string"}
 }, createUser)
 
-app.get("/users/{id}", {
+"/users/{id}" | app.get({
   "summary": "Get user",
   "tags": ["Users"],
   "response": {"id": "string", "name": "string", "email": "string"}
 }, getUser)
 
-app.delete("/users/{id}", {
+"/users/{id}" | app.delete({
   "summary": "Delete user",
   "tags": ["Users"]
 }, deleteUser)
 
-app.get("/health", {
+"/health" | app.get({
   "summary": "Health check",
   "tags": ["System"],
   "response": {"status": "string"}
 }, healthCheck)
 
-let server = app.listen(8080)
+let server = 8080 | app.listen
 
-let health = web_get("http://localhost:8080/health")
+let health = "http://localhost:8080/health" | web_get
 print "Health:        " health
 
-let created = web_send("http://localhost:8080/users", {"name": "Alice", "email": "alice@example.com"})
+let created = "http://localhost:8080/users" | web_send({"name": "Alice", "email": "alice@example.com"})
 print "POST /users:   " created
 
-let list = web_get("http://localhost:8080/users")
+let list = "http://localhost:8080/users" | web_get
 print "GET /users:    " list
 
-let specRaw = web_get("http://localhost:8080/openapi.json")
-let spec = from_json(specRaw)
+let specRaw = "http://localhost:8080/openapi.json" | web_get
+let spec = specRaw | from_json
 print "OpenAPI title: " spec.info.title
-print "Paths:         " join(keys(spec.paths), ", ")
+print "Paths:         " spec.paths | keys | join(", ")
 
-let docsHtml = web_get("http://localhost:8080/docs")
-print "GET /docs HTML starts with: " trunc(docsHtml, 15)
+let docsHtml = "http://localhost:8080/docs" | web_get
+print "GET /docs HTML starts with: " docsHtml | trunc(15)
 
 // 422 on missing required field
-let badReq = web_send("http://localhost:8080/users", {"name": "Bob"})
+let badReq = "http://localhost:8080/users" | web_send({"name": "Bob"})
 print "Missing email: " badReq
 
-let end = input("Press enter to close the server and exit...")
+let end = "Press enter to close the server and exit..." | input
 server.close(end)

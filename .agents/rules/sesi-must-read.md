@@ -11,10 +11,10 @@ trigger: always_on
 ## Core Identity & Execution
 
 - **File Extension:** `.sesi`
-- `src/`: The core TypeScript engine (Lexer, Parser, Interpreter, AI-Runtime, Builtins).
+- `src/`: The core TypeScript engine (Lexer, Parser, Interpreter, AI-Runtime, Builtins, and others).
 - `bin/sesi.js`: The global CLI executable entry point.
 - `examples/main`: Official syntax-demonstration scripts (covers examples like `01_hello.sesi` and `13_data_pipeline.sesi`).
-- `chatbot/`: Local Sesi support and `sesi_db_chatbot.sesi` - Sesi's built-in Co-Pilot.
+- `chatbot/`: Local Sesi support and `sesira.sesi` - Sesi's built-in Co-Pilot.
 - `main/`: `tests/` like `test_failure_debug.sesi`. **Run inline code evaluations (`-e 'code'`) instead of writing new `.sesi` files for quick tests. Do not overwrite existing `.sesi` files unless explicitly asked to.**
 - `docs/`: The source of truth for all sesi syntax, formatting, and structuring guidelines. It contains the official API docs for all built-in functions and types. AIs must treat this as the primary source of truth for syntax and structure.
 - Root helper scripts: `example.js`, `example-ai.js`, and `examples.sesi` are convenience wrappers. AI agents should still use the `npx sesi` command as specified.
@@ -105,8 +105,6 @@ For all quirks and specific syntaxing, visit GUIDE.md/, docs/WRITING_SCRIPTS.md,
 - `docs/IMAGE_GENERATION.md`
 - `*.txt`
 - `*.log`
-- `query.txt`
 - `.sesi_cache.json`
-- `.sesi_chat_history.json`
-- `.ai-ignore/`
-- `AI-IGNORE/`
+- `ai-ignore/`
+- `ai-exclude/`

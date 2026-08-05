@@ -12,8 +12,8 @@ allow "std/time" in with {sleep}
 
 print "=== 1. Text to Base64 ==="
 let text = "Hello from Sesi"
-let encoded_text = Base64.encode(text)
-let decoded_text = Base64.decode(encoded_text)
+let encoded_text = text | Base64.encode
+let decoded_text = encoded_text | Base64.decode
 print "Original:" text
 print "Encoded: " encoded_text
 print "Decoded: " decoded_text
@@ -22,8 +22,8 @@ sleep(1000)
 
 print "=== 2. Bytes to Base64 ==="
 let bytes = [0, 255, 16, 32, 127]
-let encoded_bytes = Base64.encode(bytes, "bytes")
-let decoded_bytes = Base64.decode(encoded_bytes, "bytes")
+let encoded_bytes = bytes | Base64.encode("bytes")
+let decoded_bytes = encoded_bytes | Base64.decode("bytes")
 print "Input bytes:  " str(bytes)
 print "Base64 bytes: " encoded_bytes
 print "Output bytes: " str(decoded_bytes)
@@ -31,7 +31,7 @@ print ""
 sleep(1000)
 
 print "=== 3. Image to Base64 ==="
-let file_b64 = read_file("docs/notebook.png", "base64")
+let file_b64 = "docs/notebook.png" | read_file("base64")
 print "File as base64:" file_b64
 print "File length: " str(len(file_b64)) " characters"
 print ""

@@ -33,7 +33,8 @@ let examples = {
         "Browser Automation",
         "Base64",
         "SesiAPI Server",
-        "Speech & Language"
+        "Speech & Language",
+        "Regex & Local Media"
   ],
   "optional": [
     "Model Call",
@@ -42,7 +43,8 @@ let examples = {
     "Image Generation",
     "Model Aliases",
     "Reasoning + Custom Tools",
-    "Streaming"
+    "Streaming",
+    "AI Video Generation"
   ]
 }
 
@@ -84,7 +86,9 @@ let all_examples = [
     {"title": main[24], "cmd": "sesi examples/main/32_browser_automation.sesi -l"},
     {"title": main[25], "cmd": "sesi examples/main/33_base64.sesi"},
     {"title": main[26], "cmd": "sesi examples/main/34_sesi_api.sesi -l"},
-    {"title": main[27], "cmd": "sesi examples/main/35_speech_language.sesi"}
+    {"title": main[27], "cmd": "sesi examples/main/35_speech_language.sesi"},
+    {"title": main[28], "cmd": "sesi examples/main/36_regex_media.sesi -l"},
+    {"title": optional[7], "cmd": "sesi examples/optional/37_ai_video_generation.sesi", "optional": true}
 ]
 
 let launchTag = "Launching example files. If you have the reasoning examples commented out, this should be quick. If you have the reasoning examples left in, this could take a while..."
@@ -92,6 +96,7 @@ let enterTag = "Press enter to continue, type 'skip' to move on or type 'exit' t
 let exitTag = "Ending script early."
 let skipTag = "Skipping."
 let imageTag = "Image generation example may take a while. Bear with us!"
+let videoTag = "AI video generation may take a while and can be expensive."
 let doneTag = "All done!"
 let errorTag = "We're sorry but an error occurred: "
 
@@ -105,7 +110,7 @@ try {
     }
     for i = 0 to len(all_examples) {
         let ex = all_examples[i]
-        let step = str(i + 1) + "/35"
+        let step = str(i + 1) + "/" + str(len(all_examples))
         let title_tag = "[" + step + "] [" + ex["title"] + "]"
         
         if i > 0 {
@@ -136,6 +141,13 @@ try {
             if enableAccessibility {
                 speech(imageTag)
             } 
+        }
+
+        if ex["cmd"] == "sesi examples/optional/37_ai_video_generation.sesi" {
+            print videoTag
+            if enableAccessibility {
+                speech(videoTag)
+            }
         }
 
         let parts = split(ex["cmd"], " ")

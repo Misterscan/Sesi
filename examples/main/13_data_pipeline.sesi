@@ -16,12 +16,12 @@ fn filterNumbers(list: array, limit: number) -> array {
   let filtered = []
   for n in list {
     if n >= limit {
-      push(filtered, n)
+      filtered | push(n)
     }
   }
   return filtered
 }
-let highNumbers = filterNumbers(numbers, threshold)
+let highNumbers = numbers | filterNumbers(threshold)
 print color("Numbers above " str(threshold) ":", "magenta")
 for val in highNumbers {
   print color("- ", "cyan") str(val)

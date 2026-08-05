@@ -77,8 +77,8 @@ async fn handleRequest(req) {
   print "Request path is:" req.path "with method:" req.method
   
   if req.path == "/" {
-    let featuresHtml = renderFeatures(siteData.features)
-    let statsHtml = renderStats(siteData.stats)
+    let featuresHtml = siteData.features | renderFeatures
+    let statsHtml = siteData.stats | renderStats
     
     let css = "<style>
     * {
@@ -233,8 +233,7 @@ async fn handleRequest(req) {
     }
   </style>"
   
-    let html = html("
-  <header>
+    let html = "  <header>
     <div class='container nav-wrapper'>
       <div class='logo'>" + siteData.title + "</div>
       <div class='nav-links'>
@@ -263,14 +262,13 @@ async fn handleRequest(req) {
     <div class='container'>
       <p>&copy; 2026 Sesi Project. Running on native Sesi HTTP Server.</p>
     </div>
-  </footer>
-", {
+  </footer>" | html({
     "title": siteData.title,
     "head": "<link rel='preconnect' href='https://fonts.googleapis.com'>
   <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
   <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap' rel='stylesheet'>
   " + css
-})
+    })
 
     return {
       "status": 200,
@@ -300,11 +298,11 @@ async fn handleRequest(req) {
 // Start HTTP server on port 8080 (feel free to change the port to your preference)
 let port = 8080
 print "Starting native HTTP server at localhost:8080"
-let server = listen(port, handleRequest)
+let server = port | listen(handleRequest)
 
 /* For automated examples/test run, close the server after 2 seconds. */
 allow "std/time" in with {sleep}
-sleep(2000)
+2000 | sleep
 print "Closing webpage server..."
 server.close()
 print "Webpage server closed successfully."

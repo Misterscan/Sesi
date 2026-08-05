@@ -7,19 +7,18 @@
     - std/json parsing to query structural details.
 */
 
-allow "std/json" in with {parse}
 allow "std/terminal" in with { color }
 
 print color("=== 1. Executing HTTP GET ===", "magenta")
 let get_url = "https://jsonplaceholder.typicode.com/posts/1"
 print color("Fetching from:", "yellow") get_url
 
-let response_str = web_get(get_url)
+let response_str = get_url | web_get
 print "Raw Response string (truncated):"
 print response_str
 print ""
 
-let post = parse(response_str)
+let post = response_str | from_json
 print "Parsed Fields:"
 print "Post ID:" + str(post["id"])
 print "Title:" post["title"]
@@ -31,12 +30,12 @@ let post_url = "https://jsonplaceholder.typicode.com/posts"
 let payload = "{\"title\": \"Sesi HTTP Client\", \"body\": \"Natively supported in v1.2!\", \"userId\": 42}"
 print "Posting payload to:" post_url
 
-let post_response = web_send(post_url, payload)
+let post_response = post_url | web_send(payload)
 print "POST Response:"
 print post_response
 print ""
 
-let result = parse(post_response)
+let result = post_response | from_json
 print "Created Post Details:"
 print "Assigned ID:" + str(result["id"])
 print "Confirmed Title:" result["title"]

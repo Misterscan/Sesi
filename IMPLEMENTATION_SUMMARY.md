@@ -250,8 +250,8 @@ Sesi supports importing standard utility library modules natively at runtime:
 | ------------------- | ------ |
 | Total lines of code | ~4,000 |
 | Source files        | 9      |
-| Documentation pages | 23     |
-| Example programs    | 31     |
+| Documentation pages | 25+    |
+| Example programs    | 37     |
 | Built-in functions  | 50+    |
 | Supported operators | 20+    |
 | AST node types      | 30+    |
@@ -366,7 +366,7 @@ npm test
 
 - V1.0 features (Complete)
 - V1.5 improvements (Complete)
-- V2.0 async & advanced reasoning (Q3-Q4 2026)
+- V2.0 async & advanced reasoning (In-Progress)
 - V3.0 systems framework
 - V4.0+ vision
 - Community involvement
@@ -374,40 +374,46 @@ npm test
 
 ## 🎓 Example Programs
 
-| File                                         | Demonstrates                                          |
-| -------------------------------------------- | ----------------------------------------------------- |
-| main/01_hello.sesi                           | Basic print                                           |
-| main/02_variables.sesi                       | Variables and operations                              |
-| main/03_functions.sesi                       | Functions, parameters, defaults                       |
-| main/04_conditionals.sesi                    | If/else logic                                         |
-| main/05_loops.sesi                           | While, for, for-in                                    |
-| main/06_arrays_objects.sesi                  | Collections and indexing                              |
-| main/07_prompts.sesi                         | Prompt blocks                                         |
-| optional/08_model_call.sesi                  | Basic reasoning calls                                 |
-| main/09_structured_output.sesi               | Structured output                                     |
-| optional/10_code_generation.sesi             | Code generation                                       |
-| main/11_memory_storage.sesi                  | Multi-turn with memory                                |
-| main/12_classification.sesi                  | Classification                                        |
-| main/13_data_pipeline.sesi                   | Data pipeline                                         |
-| optional/14_folder_explainer.sesi            | Directory parsing & reasoning                         |
-| optional/15_image_generation.sesi            | Image generation                                      |
-| main/16_modules.sesi                         | Imports/exports & std namespaces                      |
-| main/17_http_client.sesi                     | HTTP GET and POST operations                          |
-| main/18_parallel_requests.sesi               | Parallel request concurrency                          |
-| main/19_search_web.sesi                      | Web search integration                                |
-| optional/20_model_aliases.sesi               | Custom model naming aliases                           |
-| main/21_custom_tools.sesi                    | Custom runtime tool definitions                       |
-| optional/22_reasoning_plus_custom_tools.sesi | Compose reasoning & tools                             |
-| main/23_file_conversion.sesi                 | Document and media conversion via `convert()`         |
-| main/24_http_server.sesi                     | Native async HTTP server (`listen`, `live`)           |
-| main/24_http_handler.sesi                    | Dynamic routing HTTP handler                          |
-| main/25_webpage_server.sesi                  | High-performance dynamic HTML site rendering          |
-| main/26_database.sesi                        | Embedded Document Database (`std/db`) crud operations |
-| main/27_robust_web_db.sesi                   | Secured combined API server backed by persistent DB   |
-| optional/28_streaming.sesi                   | Streaming API responses                               |
-| main/29_tool_piping.sesi                     | Tool-chaining and data pipelining                     |
-| main/30_error_recovery.sesi                  | Robust error handling and retry policies              |
-| main/31_synthesizer.sesi                     | Music and SVG native capabilities                     |
+| File | Demonstrates |
+| --- | --- |
+| main/01_hello.sesi | Basic print |
+| main/02_variables.sesi | Variables and operations |
+| main/03_functions.sesi | Functions, parameters, defaults |
+| main/04_conditionals.sesi | If/else logic |
+| main/05_loops.sesi | While, for, for-in |
+| main/06_arrays_objects.sesi | Collections and indexing |
+| main/07_prompts.sesi | Prompt blocks |
+| optional/08_model_call.sesi | Basic reasoning calls |
+| main/09_structured_output.sesi | Structured output |
+| optional/10_code_generation.sesi | Code generation |
+| main/11_memory_storage.sesi | Multi-turn with memory |
+| main/12_classification.sesi | Classification |
+| main/13_data_pipeline.sesi | Data pipeline |
+| optional/14_folder_explainer.sesi | Directory parsing & reasoning |
+| optional/15_image_generation.sesi | Image generation |
+| main/16_modules.sesi | Imports/exports & std namespaces |
+| main/17_http_client.sesi | HTTP GET and POST operations |
+| main/18_parallel_requests.sesi | Parallel request concurrency |
+| main/19_search_web.sesi | Web search integration |
+| optional/20_model_aliases.sesi | Custom model naming aliases |
+| main/21_custom_tools.sesi | Custom runtime tool definitions |
+| optional/22_reasoning_plus_custom_tools.sesi | Compose reasoning & tools |
+| main/23_file_conversion.sesi | Document and media conversion via `convert()` |
+| main/24_http_server.sesi | Native async HTTP server (`listen`, `live`) |
+| main/24_http_handler.sesi | Dynamic routing HTTP handler |
+| main/25_webpage_server.sesi | High-performance dynamic HTML site rendering |
+| main/26_database.sesi | Embedded Document Database (`std/db`) crud operations |
+| main/27_robust_web_db.sesi | Secured combined API server backed by persistent DB |
+| optional/28_streaming.sesi | Streaming API responses |
+| main/29_tool_piping.sesi | Tool-chaining and data pipelining |
+| main/30_error_recovery.sesi | Robust error handling and retry policies |
+| main/31_synthesizer.sesi | Music and SVG native capabilities |
+| main/32_browser_automation.sesi | Headless browser automation with Playwright |
+| main/33_base64.sesi | Base64 encoding and decoding |
+| main/34_sesi_api.sesi | Sesi API and Swagger UI server setup |
+| main/35_speech_language.sesi | Speech and language helpers |
+| main/36_regex_media.sesi | Regex and media processing |
+| optional/37_ai_video_generation.sesi | AI video generation workflow |
 
 ## 🔮 Future Directions
 
@@ -444,20 +450,19 @@ npm test
 1. **Start**: [QUICKSTART.md](QUICKSTART.md) - Get running in 5 minutes
 2. **Builtins**: [BUILTINS.md](docs/BUILTINS.md) - Built-in functions
 3. **CLI**: [CLI.md](docs/CLI.md) - Complete CLI flags & parametric execution guide
-4. **Basics**: examples/main/01-06 - Core language features
-5. **Prompts**: examples/main/07 - Prompt blocks
-6. **Reasoning**: examples/optional/08, examples/main/09, examples/optional/10, examples/main/11-12 - Reasoning feature exploration
-7. **Advanced**: [REASONING.md](docs/REASONING.md) - Patterns and best practices
-8. **Systems**: examples/main/13, examples/optional/14 - Systems reasoning and data pipelines
-9. **Modules**: examples/main/16 - Modules & std library namespaces
-10. **Image Generation**: [IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md) examples/optional/15 - Generating images natively
-11. **Concurrency**: examples/main/17-18 - Concurrency & coordination
-12. **Web Search**: examples/main/19 - Web search integration
-13. **Model Aliases**: examples/optional/20 - Custom model naming aliases
-14. **Custom Tools**: examples/main/21, examples/optional/22 - Custom runtime tool definitions and compose reasoning with custom tools
-15. **Specification**: [SPECIFICATION.md](docs/SPECIFICATION.md) - Complete grammar
-16. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
-17. **Roadmap**: [ROADMAP.md](docs/ROADMAP.md) - Future vision
+4. **Basics**: examples/main/01-07 and 09 - Core language features and prompt blocks
+5. **Reasoning**: examples/optional/08, 10, 14, 15, 20, 22, 28, 37 - Reasoning, image, streaming, and video workflows
+6. **Advanced**: [REASONING.md](docs/REASONING.md) - Patterns and best practices
+7. **Systems**: examples/main/11-13, 16-19, 21, 23-27, 29-36 - Systems reasoning, modules, HTTP, databases, and automation
+8. **Modules**: examples/main/16 - Modules & std library namespaces
+9. **Image Generation**: [IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md) examples/optional/15 - Generating images natively
+10. **Concurrency**: examples/main/17-18 - Concurrency & coordination
+11. **Web Search**: examples/main/19 - Web search integration
+12. **Model Aliases**: examples/optional/20 - Custom model naming aliases
+13. **Custom Tools**: examples/main/21, examples/optional/22 - Custom runtime tool definitions and compose reasoning with custom tools
+14. **Specification**: [SPECIFICATION.md](docs/SPECIFICATION.md) - Complete grammar
+15. **Architecture**: [ARCHITECTURE.md](docs/ARCHITECTURE.md) - How it works
+16. **Roadmap**: [ROADMAP.md](docs/ROADMAP.md) - Future vision
 
 ## 🤝 Contributing Path
 
@@ -477,7 +482,7 @@ npm test
 - ✅ API reference (450+ lines)
 - ✅ Systems reasoning guide (500+ lines)
 - ✅ Development roadmap (400+ lines)
-- ✅ 30+ example programs
+- ✅ 35 numbered example programs
 - ✅ CLI executable
 - ✅ Test suite
 - ✅ Quick start guide

@@ -12,14 +12,14 @@ fn flakyAction() {
   attempts = attempts + 1
   print "Attempt number:" attempts
   if attempts < 3 {
-    raise_error("TemporaryNetworkError", "Connection reset by peer")
+    "TemporaryNetworkError" | raise_error("Connection reset by peer")
   }
   return "Successfully fetched data!"
 }
 
 print "=== Executing flaky action with retry ==="
 try {
-  let result = retry(flakyAction, {"max_retries": 3, "initial_delay": 100, "backoff_factor": 2.0})
+  let result = flakyAction | retry({"max_retries": 3, "initial_delay": 100, "backoff_factor": 2.0})
   print "Result:" result
 } catch (error) {
   print "Failed permanently with error:" error["message"]

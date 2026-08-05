@@ -5,9 +5,9 @@ try {
     print color(".env successfully loaded", "green") "
     "
 
-    let geminiKey = env.GEMINI_API_KEY
-    let isSafeMode = env.SESI_SAFE_MODE
-    let sesiPass = env.SESI_PASSWORD
+    let geminiKey = env.GEMINI_API_KEY // or GEMINI_API_KEY | env
+    let isSafeMode = env.SESI_SAFE_MODE // or SESI_SAFE_MODE | env
+    let sesiPass = env.SESI_PASSWORD // or SESI_PASSWORD | env
 
     print color("[Gemini API Key (encrypted)]:
 ", "cyan") color(geminiKey, "magenta")

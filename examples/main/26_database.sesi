@@ -9,16 +9,16 @@ allow "std/db" in with {db_open}
 allow "std/terminal" in with { color }
 
 print color("Initializing Sesi Database (local.db)...", "magenta")
-let db = db_open("local.db")
-let items = db.collection("items")
+let db = "local.db" | db_open
+let items = "items" | db.collection
 
 // Clear any existing items for a clean demo
 items.delete({})
 
 print "Inserting documents..."
-let item1 = items.insert({"name": "Widget A", "stock": 100, "category": "hardware"})
-let item2 = items.insert({"name": "Widget B", "stock": 150, "category": "hardware"})
-let item3 = items.insert({"name": "Gadget C", "stock": 50, "category": "electronics"})
+let item1 = {"name": "Widget A", "stock": 100, "category": "hardware"} | items.insert
+let item2 = {"name": "Widget B", "stock": 150, "category": "hardware"} | items.insert
+let item3 = {"name": "Gadget C", "stock": 50, "category": "electronics"} | items.insert
 
 print "Inserted item 1 with ID:" item1._id
 
@@ -27,15 +27,15 @@ let allItems = items.find()
 print "Total items:" len(allItems)
 
 print "Finding hardware items..."
-let hardware = items.find({"category": "hardware"})
+let hardware = {"category": "hardware"} | items.find()
 print "Found hardware items:" len(hardware)
 
 print "Updating stock for Widget A..."
-let updated = items.update({"name": "Widget A"}, {"stock": 120})
+let updated = {"name": "Widget A"} | items.update({"stock": 120})
 print "Updated count:" updated
 
 print "Deleting Gadget C..."
-let deleted = items.delete({"name": "Gadget C"})
+let deleted = {"name": "Gadget C"} | items.delete
 print "Deleted count:" deleted
 
 print "Final list of items:"

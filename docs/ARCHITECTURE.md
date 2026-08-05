@@ -369,16 +369,19 @@ examples/
 │   ├── 31_synthesizer.sesi      # Sound/music synthesis & SVG drawing
 │   ├── 32_browser_automation.sesi # Headless browser automation with Playwright
 │   ├── 33_base64.sesi           # Base64
-│   └── 34_sesi_api.sesi         # SwaggerUI API setup
+│   ├── 34_sesi_api.sesi         # SwaggerUI API setup
+│   ├── 35_speech_language.sesi  # Speech and language helpers
+│   └── 36_regex_media.sesi     # Regex and media processing
 │
 └── optional/                    # Optional reasoning & advanced AI examples
-│   ├── 08_model_call.sesi       # Basic reasoning model calls
-│   ├── 10_code_generation.sesi  # Code generation logic
-│   ├── 14_folder_explainer.sesi # Workspace directory analyzer
-│   ├── 15_image_generation.sesi # Image generation API
-│   ├── 20_model_aliases.sesi    # Custom model naming aliases
-│   ├── 22_reasoning_plus_custom_tools.sesi # Reasoning composed with custom tools
-│   └── 28_streaming.sesi        # Real-time response streaming
+    ├── 08_model_call.sesi       # Basic reasoning model calls
+    ├── 10_code_generation.sesi  # Code generation logic
+    ├── 14_folder_explainer.sesi # Workspace directory analyzer
+    ├── 15_image_generation.sesi # Image generation API
+    ├── 20_model_aliases.sesi    # Custom model naming aliases
+    ├── 22_reasoning_plus_custom_tools.sesi # Reasoning composed with custom tools
+    ├── 28_streaming.sesi        # Real-time response streaming
+    └── 37_ai_video_generation.sesi # AI video generation workflow
 
 docs/
 ├── SPECIFICATION.md      # Language spec

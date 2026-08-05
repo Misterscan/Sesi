@@ -524,6 +524,8 @@ sesi examples/main/32_browser_automation.sesi
 sesi examples/main/33_base64.sesi
 sesi examples/main/34_sesi_api.sesi
 sesi examples/main/35_speech_language.sesi
+sesi examples/main/36_regex_media.sesi
+sesi examples/optional/37_ai_video_generation.sesi
 ```
 
 ## Common Patterns

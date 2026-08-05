@@ -15,22 +15,26 @@ allow "std/math" in with Math
 print color("PI constant:", "cyan") str(Math.PI)
 print "Euler's number:" str(Math.E)
 print "Square root of 144:" str(Math.sqrt(144))
+// or 144 | Math.sqrt
 print "2 raised to power of 10:" str(Math.pow(2, 10))
+// or 2 | Math.pow(10)
 print "Sine of PI/2:" str(Math.sin(Math.PI / 2.0))
+// or (Math.PI / 2.0) | Math.sin
 
 print "=== 2. Scoped Lib Scoping ==="
 allow "std/math" in with Math
 
 print "Area of circle with radius 5 (using Math lib namespace):" str(Math.PI * Math.pow(5, 2))
+// or 5 | Math.pow(2) * Math.PI
 
 print "=== 3. Standard JSON Module ==="
 allow "std/json" in with Json
 
 let original = {"project": "Sesi Language", "version": "1.8.0", "features": ["modules", "http", "parallel"]}
-let json_str = Json.stringify(original)
+let json_str = Json.stringify(original) // or original | Json.stringify
 print "Serialized JSON string:"
 print json_str
-let restored = Json.parse(json_str)
+let restored = Json.parse(json_str) // or json_str | Json.parse
 print "Deserialized Project Name:" restored["project"]
 print "Deserialized Version:" restored["version"]
 
@@ -42,6 +46,7 @@ allow "main/tests/temp_math_mod" in with LocalMath
 
 print "Imported magic number from local module:" str(LocalMath.magic_number)
 print "Running imported multiply(5, 5):" str(LocalMath.multiply(5, 5))
+// or 5 | LocalMath.multiply(5)
 
 print "=== 5. Third-Party Modules & Sesi Packages ==="
 
