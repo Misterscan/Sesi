@@ -34,7 +34,7 @@ fn isAddress(item: string) -> bool {
   let hasNumber = false
   let hasWord = false
   for part in parts {
-    if num(part) != null {
+    if !(num(part) | is_null) {
       hasNumber = true
     } else if len(part) > 1 {
       hasWord = true

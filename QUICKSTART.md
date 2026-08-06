@@ -100,8 +100,8 @@ Create a file called `hello.sesi` and run it:
 ```bash
 sesi -e 'let filename = "hello.sesi"
 prompt file {"print \"Hello, Sesi!\""}
-write_file(filename, file)
-sesi(filename)'
+filename | write_file(file)
+filename | sesi'
 ```
 
 ## Basic Syntax
@@ -121,7 +121,7 @@ print score
 
 ```sesi
 fn add(a: number, b: number) {print a + b}
-add(5, 3)  // 8
+5 | add(3)  // 8
 ```
 
 ### Control Flow
@@ -190,18 +190,22 @@ print part2  // "First part Second part"
 let title = "Sesi"
 let theme = "Premium with cool blues."
 let output = "index.sesi.html"
+
 fn makePage(title: string, theme: string, output: string) -> string {
   prompt build {"Create a beautiful landing page with the title "title". Make the theme "theme}
   let generated = ""
+
   try {
     generated = model("gemini-3.5-flash-lite") {build}
   } catch (e) {
     print e
   }
-  write_file(output, generated)
+  output | write_file(generated)
+
   return generated
 }
-print makePage(title, theme, output)
+
+print title | makePage(theme, output)
 ```
 
 Structured output allows you to extract structured data natively or via Reasoning. It uses a JSON Schema to define the structure of the output.
@@ -218,18 +222,21 @@ print "Status: " analysis["status"]
 
 ## Reasoning Features
 
-### Requiring Gemini API
+### Requiring Gemini API or OpenAI API
 
 To use Reasoning features, set up your API key:
 
 ```bash
-export GEMINI_API_KEY="your-api-key-here"
+export GEMINI_API_KEY="your-gemini-key-here"
+# Or your OpenAI key
+export OPENAI_API_KEY="your-openai-key-here"
 ```
 
 Or you can set it up in an `.env` file:
 
 ```env
 GEMINI_API_KEY="your-api-key-here"
+OPENAI_API_KEY="your-openai-key-here"
 ```
 
 Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey).
@@ -257,7 +264,7 @@ Like `model`, the `image` command takes configuration parameters.
 
 ```sesi
 let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512", temperature: 0.3} {"Make a beautiful logo for the word Sesi"}
-write_image("logo.png", logo)
+"logo.png" | write_image(logo)
 print "Generated image successfully!"
 ```
 
@@ -276,8 +283,8 @@ Sesi can orchestrate multiple concurrent scripts using the `spawn()` builtin.
 
 ```sesi
 // master.sesi
-spawn("worker_1.sesi")
-spawn("worker_2.sesi")
+"worker_1.sesi" | spawn
+"worker_2.sesi" | spawn
 print "Both workers are now running concurrently."
 ```
 
@@ -288,16 +295,16 @@ print "Both workers are now running concurrently."
 Use `open()` to hand a URL or existing local file to the operating system:
 
 ```sesi
-open("https://code-with-sesi.netlify.app")
-open("reports/dashboard.html", {"mode": "browser", "browser": "Firefox"})
+"https://code-with-sesi.netlify.app" | open
+"reports/dashboard.html" | open({"mode": "browser", "browser": "Firefox"})
 ```
 
 Use `open_file()` when the target must be a local file:
 
 ```sesi
-open_file("README.md")
-open_file("README.md", {"editor": "Visual Studio Code"})
-open_file("favicon.png", {"viewer": "Preview"})
+"README.md" | open_file
+"README.md" | open_file({"editor": "Visual Studio Code"})
+"favicon.png" | open_file({"viewer": "Preview"})
 ```
 
 Both functions accept an optional settings object:
@@ -326,102 +333,112 @@ sesi --local open_report.sesi
 
 ```sesi
 print value        // Print to stdout
-input(prompt)      // Prompt user for terminal input
-speech(text, voice?, gemini_model?) // Speak text
-from_speech(audio_path, language?, gemini_model?) // Transcribe an audio file
-translate(text, to, from?, gemini_model?) // Translate text
-read_file(string, string?) -> string    // Read file contents (text or base64)
-write_file(path, content) // Write text to a file
-append_file(string, string) -> bool // Append string content to file
-write_image(path, content) // Write base64 encoded image to a file
-open(target, options?) -> bool // Open a URL or local file in an external app (local mode)
-open_file(path, options?) -> bool // Open an existing local file (local mode)
-from_json(string)  // Parse JSON string back to value
+prompt | input     // Prompt user for terminal input
+text | speech(voice?, gemini_model?) // Speak text
+audio_path | from_speech(language?, gemini_model?) // Transcribe an audio file
+text | translate(to, from?, gemini_model?) // Translate text
+string | read_file(string?) -> string    // Read file contents (text or base64)
+path | write_file(content) // Write text to a file
+string | append_file(string) -> bool // Append string content to file
+path | write_image(content) // Write base64 encoded image to a file
+target | open(options?) -> bool // Open a URL or local file in an external app (local mode)
+path | open_file(options?) -> bool // Open an existing local file (local mode)
+string | from_json  // Parse JSON string back to value
+
 convert(type) { config } { file } // Convert documents/media/audio between formats
-list_dir(path)     // List directory contents
-make_dir(path)     // Create a new directory
-rename(old, new)   // Rename or move a file/directory
-archive(src, dest) // Backup/copy file/directory recursively
-trash(path, auto)  // Move to trash or permanently remove
-spawn(path)        // Launch concurrent background process
-exec(command)      // Synchronous shell execution
+
+path | list_dir     // List directory contents
+path | make_dir     // Create a new directory
+old | rename(new)   // Rename or move a file/directory
+src | archive(dest) // Backup/copy file/directory recursively
+path | trash(auto)  // Move to trash or permanently remove
+path | spawn        // Launch concurrent background process
+command | exec      // Synchronous shell execution
+
 time()             // Unix timestamp (ms)
 random()           // Random number (0-1)
-sesi(path, local) // Run a Sesi file synchronously in-process
-python(code, args)  // Execute Python code
-js(code, args)      // Execute JavaScript code
-html(body, options) // Build a complete HTML page string
-env(key, default)  // Get environment variable(s)
+
+path | sesi(local) // Run a Sesi file synchronously in-process
+code | python(args)  // Execute Python code
+code | js(args)      // Execute JavaScript code
+body | html(options) // Build a complete HTML page string
+key | env(default)  // Get environment variable(s)
 ```
 
 ### Type Checking
 
 ```sesi
-type(value)        // Get type name
-str(value)         // Convert to string
-to_json(value)     // Convert to valid JSON string
-num(value)         // Convert to number
-float(any)         // Convert to floating-point number
-bool(value)        // Convert to boolean
+value | to_json()     // Convert to valid JSON string
+value | type        // Get type name
+value | str         // Convert to string
+value | num         // Convert to number
+any | float         // Convert to floating-point number
+value | bool        // Convert to boolean
 ```
 
 ### Collections
 
 ```sesi
-len(collection)    // Collection length
-push(array, item)  // Add to array
-append(array|string, any)     // Append to array or concatenate to string
-pop(array)         // Remove from array
-join(array, sep)   // Join array into string
-split(string, sep) // Split string to array
-keys(object)       // Get object keys
-values(object)     // Get object values
-range(n)           // Create [0, 1, ..., n-1]
-to_upper(string)   // Convert string to uppercase
-to_lower(string)   // Convert string to lowercase
-trim(string)       // Remove whitespace from both ends
-slice(coll, s, e)  // Slice a string or array
-swap(str, tgt, rep) // Replace all occurrences of substring
-contains(str, sub) // Check if string contains substring
-locate(str, sub)   // Find index of substring (-1 if not found)
-map(array, callback) // Map array elements
-filter(array, callback) // Filter array elements
-reduce(array, callback, initial) // Reduce array elements
-find(array, callback) // Find first matching element
+collection | len   // Collection length
+array | push(item)  // Add to array
+array|string | append(any)     // Append to array or concatenate to string
+array | pop         // Remove from array
+array | join(sep)   // Join array into string
+string | split(sep) // Split string to array
+object | keys       // Get object keys
+object | values     // Get object values
+n | range           // Create [0, 1, ..., n-1]
+string | to_upper   // Convert string to uppercase
+string | to_lower   // Convert string to lowercase
+string | trim       // Remove whitespace from both ends
+coll | slice(s, e)  // Slice a string or array
+str | swap(tgt, rep) // Replace all occurrences of substring
+str | contains(sub) // Check if string contains substring
+str | locate(sub)   // Find index of substring (-1 if not found)
+array | map(callback) // Map array elements
+array | filter(callback) // Filter array elements
+array | reduce(callback, initial) // Reduce array elements
+array | find(callback) // Find first matching element
 ```
 
 ### Network & Concurrency
 
 ```sesi
-web_get(url, headers = {})        // Natively fetch from URL via HTTP GET
-web_send(url, body, headers = {}) // Natively post body to URL via HTTP POST
-multi_req(array<function>)        // Run multiple tasks/requests physically in parallel
-listen(port, handler)             // Starts HTTP server
-api(port, handler)                // Starts WebSocket server
-launch(options)                   // Launches a browser with given options
+url | web_get(headers = {})        // Natively fetch from URL via HTTP GET
+url | web_send(body, headers = {}) // Natively post body to URL via HTTP POST
+array<function> | multi_req        // Run multiple tasks/requests physically in parallel
+port | listen(handler)             // Starts HTTP server
+port | api(handler)                // Starts WebSocket server
+options | launch                   // Launches a browser with given options
+
 browser.newPage()                 // Creates a new page
 browser.close()                   // Closes the browser
-page.goto(url)                    // Navigates to a URL
-page.get_attribute(selector, attr) // Retrieves the value of an attribute
+
+url | page.goto                    // Navigates to a URL
+selector | page.get_attribute(attr) // Retrieves the value of an attribute
+
 page.title()                      // Retrieves the title of the page`
 page.content()                    // Retrieves the HTML content of the page
-page.screenshot(options?)         // Takes a screenshot of the page
-page.evaluate(script)             // Evaluates a script in the page context
-page.wait_for_selector(selector, options?) // Waits for a selector to appear
-page.wait_for_timeout(ms)         // Waits for a specified time in milliseconds
-page.fill(selector, name)         // Fills a form field
-page.press(selector, key)         // Presses a key in an element
-page.click(selector)              // Clicks an element
-page.inner_text(selector)         // Retrieves the text content of an element
-page.pdf(options?)                // Generates a PDF of the current page
+
+options? | page.screenshot()         // Takes a screenshot of the page
+script | page.evaluate()             // Evaluates a script in the page context
+selector | page.wait_for_selector(options?) // Waits for a selector to appear
+ms | page.wait_for_timeout()         // Waits for a specified time in milliseconds
+selector | page.fill(name)         // Fills a form field
+selector | page.press(key)         // Presses a key in an element
+selector | page.click              // Clicks an element
+selector | page.inner_text()         // Retrieves the text content of an element
+options? | page.pdf                // Generates a PDF of the current page
+
 page.close()                      // Closes the current page
 ```
 
 ### Reasoning
 
 ```sesi
+alias | set_alias(model)         // Register a custom local name for a model
+
 workflow(steps, input)          // Run a multi-step reasoning workflow
-set_alias(alias, model)         // Register a custom local name for a model
 define_tool(name, fn, desc)     // Register a custom tool
 list_tools()                    // List custom tool names
 ```
@@ -429,23 +446,23 @@ list_tools()                    // List custom tool names
 ### Error Handling
 
 ```sesi
-error_type(type, message, data) // Create a custom error object
-raise_error(error)              // Throw an error
+type | error_type(message, data) // Create a custom error object
+error | raise_error              // Throw an error
 ```
 
 ### Math
 
 ```sesi
-exp(x)             // Exponential function
-trunc(val, n?)     // Truncate number or text (char limit)
+x | exp             // Exponential function
+val | trunc(n?)     // Truncate number or text (char limit)
 ```
 
 ### System & Control
 
 ```sesi
-live(filePath, exportName)         // Hot-reloading function wrapper
-retry(action, options)             // Execute with backoff/retry
-debug()                            // Pause execution and launch interactive REPL
+filePath | live(exportName)         // Hot-reloading function wrapper
+action | retry(options)             // Execute with backoff/retry
+debug(message?)                            // Pause execution and launch interactive REPL
 ```
 
 ### Standard Library Modules
@@ -461,16 +478,17 @@ allow "std/time" in with Time
 // Time.sleep(), Time.now()
 
 allow "std/db" in with {db_open}
-// db_open("data.db", "password") -> Encrypted document DB
+// "data.db" | db_open("password") -> Encrypted document DB
 
 allow "std/audio" in with Audio
-// Audio.play("C4", 500), Audio.synth(), Audio.save(), Audio.mix()
+let note = "C4"
+// note | Audio.play(500), Audio.synth(), Audio.save(), Audio.mix()
 
 allow "std/theory" in with Music
-// Music.chord("C4", "M7"), Music.scale("A3", "minor")
+// note | Music.chord(, "M7"), Music.scale("A3", "minor")
 
 allow "std/draw" in with Draw
-// Draw.rect(), Draw.circle(), Draw.save_svg("drawing.svg", 100, 100)
+// Draw.rect(), Draw.circle(), "drawing.svg" | Draw.save_svg(100, 100)
 ```
 
 ## Running Examples
@@ -540,7 +558,7 @@ for n in numbers {print n}
 
 // Build new array
 let doubled = []
-for n in numbers {push(doubled, n * 2)}
+for n in numbers {doubled | push(n * 2)}
 print doubled  // [2, 4, 6, 8, 10]
 ```
 
@@ -555,13 +573,13 @@ prompt greeting {"Hello," "World!"}
 // Length
 let len = len(text) // or length(text)
 
-/* Uppercase/lowercase
-let upper = to_upper(text)
-let lower = to_lower(text) */
+// Uppercase/lowercase
+let upper = text | to_upper
+let lower = text | to_lower
 
 // Split and join
-let words = split(text, " ")
-let rejoined = join(words, "-")
+let words = text | split(" ")
+let rejoined = words | join("-")
 ```
 
 ### Reasoning Classification
@@ -569,9 +587,9 @@ let rejoined = join(words, "-")
 ```sesi
 fn classify(item: string) {print model("gemini-3-flash-preview"){"Classify as: FRUIT, VEGETABLE, or GRAIN. Item: "item}}
 
-classify("apple")
-classify("carrot")
-classify("wheat")
+"apple" | classify
+"carrot" | classify
+"wheat" | classify
 ```
 
 ## Debugging Tips
@@ -581,20 +599,20 @@ classify("wheat")
 ```sesi
 fn complex(x: number) {
   let step1 = x * 2
-  print "Step 1:" str(step1)
+  print "Step 1:" step1
   let step2 = step1 + 10
-  print "Step 2:" str(step2)
+  print "Step 2:" step2
 }
 
-complex(5)
+5 | complex
 ```
 
 ### Check Types
 
 ```sesi
 let value = "hello"
-print type(value)  // "string"
-if type(value) == "string" {print "It's a string!"}
+print value | type  // "string"
+if (value | type) == "string" {print "It's a string!"}
 ```
 
 ### Validate Model Responses
@@ -603,9 +621,9 @@ if type(value) == "string" {print "It's a string!"}
 let response = model("gemini-3-flash-preview") {"Respond with YES or NO"}
 if response == "" {
   print "Error: no response"
-} else if len(response) > 100 {
+} else if (response | len) > 100 {
   print "Warning: response too long"
-} else {print "Response: " response}
+} else {print "Response:" response}
 ```
 
 ## Performance Considerations

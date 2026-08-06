@@ -466,6 +466,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       console.log('Commands:');
       console.log('  env          - Show variables in current scope');
       console.log('  eval <code>  - Evaluate Sesi expression in current scope');
+      console.log('  help, ?      - Display available debug commands');
       console.log('  c, continue  - Resume execution');
       
       while (true) {
@@ -473,6 +474,12 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         const trimmed = input.trim();
         if (trimmed === 'c' || trimmed === 'continue' || trimmed === 'exit') {
           break;
+        } else if (trimmed === 'help' || trimmed === '?') {
+          console.log('\nCommands:');
+          console.log('  env          - Show variables in current scope');
+          console.log('  eval <code>  - Evaluate Sesi expression in current scope');
+          console.log('  help, ?      - Display available debug commands');
+          console.log('  c, continue  - Resume execution\n');
         } else if (trimmed === 'env') {
           if (interpreter) {
             let current = interpreter.currentEnv;
@@ -491,18 +498,39 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
           } else {
             console.log('No interpreter context available.');
           }
-        } else if (trimmed.startsWith('eval ')) {
-          const code = trimmed.substring(5);
-          if (interpreter) {
+        } else if (trimmed === 'eval' || trimmed.startsWith('eval ') || trimmed.startsWith('eval(')) {
+          let code = '';
+          if (trimmed === 'eval') {
+            code = (await question('eval> ')).trim();
+          } else if (trimmed.startsWith('eval ')) {
+            code = trimmed.substring(5).trim();
+          } else if (trimmed.startsWith('eval(')) {
+            let exprStr = trimmed.substring(4).trim();
+            if (exprStr.endsWith(')')) {
+              exprStr = exprStr.substring(0, exprStr.length - 1).trim();
+            }
+            code = exprStr;
+          }
+
+          if (!code) {
+            console.log('Usage: eval <code> (or enter expression at prompt)');
+          } else if (interpreter) {
             try {
               const { Lexer } = require('./lexer');
               const { Parser } = require('./parser');
               const lexer = new Lexer(code);
               const tokens = lexer.scanTokens();
               const parser = new Parser(tokens);
-              const expr = parser.parseExpression();
-              const val = await interpreter.evaluateExpression(expr);
-              console.log(`=> ${JSON.stringify(val)}`);
+              const program = parser.parse();
+              if (program.statements.length === 0) {
+                console.log('=> null');
+              } else {
+                let lastVal: RuntimeValue = null;
+                for (const stmt of program.statements) {
+                  lastVal = await interpreter.executeStatement(stmt);
+                }
+                console.log(`=> ${stringify(lastVal)}`);
+              }
             } catch (e: any) {
               console.log(`Error evaluating expression: ${e.message}`);
             }
@@ -510,7 +538,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
             console.log('No interpreter context available.');
           }
         } else if (trimmed) {
-          console.log(`Unknown command: "${trimmed}". Type "c" to continue.`);
+          console.log(`Unknown command: "${trimmed}". Type "help" or "c" to continue.`);
         }
       }
       rl.close();
@@ -3534,8 +3562,7 @@ export function stringify(value: RuntimeValue): string {
   if (value === null) return 'null';
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'number') {
-    // Format numbers nicely
-    return Number.isInteger(value) ? value.toString() : value.toFixed(2);
+    return value.toString();
   }
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) {

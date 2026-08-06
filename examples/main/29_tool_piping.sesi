@@ -32,4 +32,10 @@ print output
   Rule of Thumb:
     - Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | print).
     - Use standard syntax () for math, boolean logic (!, &&, ||), comparisons (==, !=), and inline checks.
+  
+  If using | for math, boolean logic, or comparisons, wrap the expression in parentheses to avoid ambiguity.
+  Example: 
+    (5 | addTen) > 10 is valid, but 5 | addTen > 10 is ambiguous and will throw an error.
+    if !("text" | is_number) {...} is valid, but "text" | !is_number {...} will trigger a 'Not a function' error.
+
 */

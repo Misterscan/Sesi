@@ -1,8 +1,11 @@
 /* 
   Sesira
   Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries! 
+    Run sesi install to ensure you have the required modules. 
 */
+allow "shell-automation" in with shell
 allow "helpers/safe" in with Safe
+allow "std/time" in with {now, format}
 allow "timestamp" in with Stamp
 allow "math" in with Math
 
@@ -11,7 +14,7 @@ allow "math" in with Math
   💬 1. CHOOSE YOUR ADVANCED TECHNICAL QUERY HERE!
   (Test it with custom phrases containing our keywords!) 
 */
-let archiveDir = "chatbot/archive/"; make_dir(archiveDir)
+let archiveDir = "chatbot/archive/"; archiveDir | make_dir
 let queryText = ""
 let fileContext = ""
 let logFile = "chatbot/sesira.log"
@@ -19,29 +22,33 @@ let logFile = "chatbot/sesira.log"
 fn writeLog(sender, msg) {
   let status = "Error writing to log file."
   let wrote = false
-  if len(msg) > 5000 {
-    let lines = split(msg, "\n")
-    let truncatedLines = slice(lines, 0, 250)
-    msg = join(truncatedLines, "\n") + "\n... [TRUNCATED]"
+
+  if (msg | length) > 5000 {
+    let lines = msg | split("\n")
+    let truncatedLines = lines | slice(0, 250)
+    msg = truncatedLines | join("\n") + "\n... [TRUNCATED]"
   }
-  let timestamp = Stamp.localTime("in_ms")
+
+  let timestamp = "in_ms" | Stamp.localTime
+
   prompt logEntry {"["timestamp"]
 ["sender"]: "msg"
 ===============================
 "}
 
   try {
-    Safe.appendFile(logFile, logEntry)
+    logFile | Safe.appendFile(logEntry)
     wrote = true
   } catch (e) {
-    wrote = Safe.writeFile(logFile, "[" + timestamp + "] [" + sender + "]: " + msg + "\n===============================\n")
+    prompt logEntry {"["timestamp"] ["sender"]: "msg"\n===============================\n"}
+    wrote = logFile | Safe.writeFile(logEntry)
   }
 
   if sender == "USER" {print "User Query Logged:" msg
   } else if sender == "SESI" {
-    if contains(msg, "----------------------------------") {print "Sesi Response Logged."
+    if msg | contains("----------------------------------") {print "Sesi Response Logged."
     } else {
-      print "Sesi Response Logged:" msg
+      print "Sesi Response Logged:\n" msg
     }
   }
   if wrote { status = "Log entry written successfully." }
@@ -50,17 +57,17 @@ fn writeLog(sender, msg) {
 }
 
 fn clearLog() {
-  let archiveBase = swap(swap(logFile, "chatbot/", ""), ".log", "")
+  let archiveBase = logFile | swap("chatbot/", "") | swap(".log", "")
   let archivePath = archiveDir + archiveBase + "-" + Stamp.formattedTime() + ".log"
-  let previousLog = Safe.readFile(logFile, "text")
-  if len(previousLog) > 0 {
+  let previousLog = logFile | Safe.readFile("text")
+  if (previousLog | length) > 0 {
     try {
-      archive(logFile, archivePath)
+      logFile | archive(archivePath)
     } catch (e) {
       return false
     }
   }
-  let cleared = Safe.writeFile(logFile, "")
+  let cleared = logFile | Safe.writeFile("")
   if !cleared {
     return false
   }
@@ -70,58 +77,59 @@ fn clearLog() {
 
 fn getHistory() {
   let history = ""
-  try {history = Safe.readFile(logFile, "text")} catch (e) {}
-  if len(history) > 0 {history = "Conversation History:\n" + history + "\n\n"}
+  try {history = logFile | Safe.readFile("text")} catch (e) {}
+  if (history | length) > 0 {history = "Conversation History:\n" + history + "\n\n"}
 
-  // If the log file is too large, grab the last 1000 lines and clear the log to avoid excessive memory usage
-  if len(history) > 5000 {
-    let lines = split(history, "\n")
-    let lastLines = slice(lines, len(lines) - 1000, len(lines))
-    history = join(lastLines, "\n")
+  // If the log file is too large, grab the last 10000 lines and clear the log to avoid excessive memory usage
+  if (history | length) > 50000 {
+    let lines = history | split("\n")
+    let lastLines = lines | slice( (history | length) - 10000, (history | length) )
+    history = lastLines | join("\n")
     clearLog()
-    writeLog("SESI", "Log file exceeded 5K characters. Retaining last 1000 lines and clearing log.")
+    "SESI" | writeLog("Log file exceeded 50K characters. Retaining last 10000 lines and clearing log.")
   }
 
   return history
 }
 
-if len(args) > 1 && (args[0] == "new-chat" || args[0] == "new") {
+if (args | length) > 1 && (args[0] == "new-chat" || args[0] == "new") {
   try {
-    rename(logFile, "chatbot/archive/sesira-" + Stamp.formattedTime() + ".log")
-  } catch (e) {Safe.writeFile(logFile, "")}
+    logFile | rename("chatbot/archive/sesira-" + Stamp.formattedTime() + ".log")
+  } catch (e) {logFile | Safe.writeFile("")}
   queryText = args[1]
-  if len(args) > 2 && contains(args[2], ".sesi") {
+  "USER" | writeLog(queryText)
+  if (args | length) > 2 && (args[2] | contains(".sesi")) {
     try {
-      writeLog("USER", "Active File: " + args[2])
-      fileContext = "File: " + args[2] + "\n\n" + Safe.readFile(args[2])
+      "USER" | writeLog("Active File: " + args[2])
+      fileContext = "File: " + args[2] + "\n\n" + (args[2] | Safe.readFile("text"))
     } catch (e) {}
   }
-} else if len(args) > 0 && (args[0] != "new-chat" && args[0] != "new") {
+} else if (args | length) > 0 && (args[0] != "new-chat" && args[0] != "new") {
   queryText = getHistory() + args[0]
-  writeLog("USER", args[0])
-  if len(args) > 1 && contains(args[1], ".sesi") {
+  "USER" | writeLog(args[0] | str)
+  if (args | length) > 1 && (args[1] | contains(".sesi")) {
     try {
-      writeLog("USER", "Active File: " + args[1])
-      fileContext = "File: " + args[1] + "\n\n" + Safe.readFile(args[1])
+      "USER" | writeLog("Active File: " + args[1] | str)
+      fileContext = "File: " + args[1] + "\n\n" + (args[1] | Safe.readFile("text"))
     } catch (e) {}
   }
 } else {
   print "Continue from previous conversation? (y/n):"
-  if input(" ") == "n" {
-    rename(logFile, "chatbot/archive/sesira-" + Stamp.formattedTime() + ".log")
-    queryText = input("Enter your question: ")
+  if (" " | input) == "n" {
+    logFile | rename("chatbot/archive/sesira-" + Stamp.formattedTime() + ".log")
+    queryText = "Enter your question: " | input
   } else {
-    queryText = getHistory() + input("Enter your question: ")
+    queryText = getHistory() + "Enter your question: " | input
   }
   let logText = queryText
-  writeLog("USER", logText)
-  let fileName = input("Enter the active file name (optional): ")
-  writeLog("USER", "Active file: " + fileName)
+  "USER" | writeLog(logText)
+  let fileName = "Enter the active file name (optional): " | input
+  "USER" | writeLog("Active file: " + fileName)
 }
 // ==================================================
 
 print "Loading Sesira..."
-writeLog("SESI", "Loading Sesira...")
+"SESI" | writeLog("Loading Sesira...")
 
 // Sigmoid math activation
 fn activate(x) {
@@ -139,31 +147,36 @@ fn derivative(y) {
 */
 let vocabulary = [
   "let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "true", "false", "null", "print", "prompt", "make", "model", "image", "convert", "async", "await", "structured_output", "tool_call", "memory", "import", "from", "export", "to", "allow", "with",
-  "debug", "input", "len", "type", "str", "to_json", "from_json", "speech", "from_speech", "translate", "exp", "trunc", "num", "float", "bool", "range", "push", "append", "pop", "keys", "values", "join", "split", "tokenize", "count_tokens", "estimate_tokens", "estimate_cost", "model_usage", "to_upper", "to_lower", "trim", "slice", "swap", "contains", "locate",
-  "read_file", "write_file", "append_file", "write_image", "open_file", "open", "list_dir", "make_dir", "rename", "archive", "trash", "spawn", "exec", "sesi", "python", "js", "html", "time", "random", "env", "memory_search", "memory_trim", "set_alias", "error_type", "raise_error", "define_tool", "list_tools", "web_get", "web_send", "multi_req", "workflow", "listen", "api", "retry", "map", "filter", "reduce", "find", "live",
+  "number", "string", "array", "object", "any", "media", "audio", "text", "doc", "video", "PI", "E", "INFINITY", "NaN",
+  "debug", "input", "args", "len", "type", "str", "to_json", "from_json", "speech", "from_speech", "translate", "exp", "trunc", "num", "float", "bool", "range", "push", "append", "pop", "keys", "values", "join", "split", "regex", "tokenize", "count_tokens", "estimate_tokens", "estimate_cost", "model_usage", "to_upper", "to_lower", "trim", "slice", "swap", "contains", "locate",
+  "matrix_dot", "matrix_transpose", "matrix_add", "matrix_sub", "matrix_mul_elements", "matrix_scale", "matrix_sigmoid", "matrix_dsigmoid", "matrix_sum_rows", "matrix_mse",
+  "read_file", "write_file", "append_file", "write_image", "open_file", "open", "list_dir", "make_dir", "rename", "archive", "trash", "spawn", "exec", "ffmpeg", "gif", "sesi", "python", "js", "html", "time", "random", "env", "memory_search", "memory_trim", "set_alias", "error_type", "raise_error", "define_tool", "list_tools", "web_get", "web_send", "multi_req", "workflow", "listen", "api", "retry", "map", "filter", "reduce", "find", "live",
+  "create_app", "get", "post", "put", "delete", "patch", "head", "use", "db_open", "launch", "newPage", "goto", "content", "screenshot", "pdf", "click", "fill", "press", "inner_text", "attribute", "evaluate", "wait_for_selector", "wait_for_timeout",
+  "play", "beep", "synth", "save", "load", "kick", "snare", "hat", "sequence", "midi", "render", "comp", "mix", "sf2", "chord", "scale", "transpose", "duration", "bar",
+  "circle", "rect", "line", "pixel", "pixel_grid", "save_svg", "save_png", "ellipse", "polygon", "path", "gradient", "style", "raw",
   "name", "arity", "is_function", "is_array", "is_object", "is_string", "is_number", "is_bool", "is_null", "length", "starts_with", "ends_with", "index_of", "repeat", "includes", "reverse", "sort", "unique", "flatten",
-  "PI", "E", "sin", "cos", "tan", "sqrt", "floor", "ceil", "abs", "pow", "log", "now", "sleep", "format", "parse", "stringify", "encode", "decode", "db_open", "clear", "cursor", "color"
+  "sin", "cos", "tan", "sqrt", "floor", "ceil", "abs", "pow", "log", "now", "sleep", "format", "parse", "stringify", "encode", "decode", "clear", "cursor", "color"
 ]
 
 fn vectorize(text) {
   let vec = []
   let k = 0
-  while k < len(vocabulary) {
-    push(vec, 0.0)
+  while k < (vocabulary | length) {
+    vec | push(0.0)
     k = k + 1
   }
   
   let normalized_text = text
   let delimiters = ["\n", "\t", "\r", "(", ")", "{", "}", "[", "]", ";", ",", "\"", "'", ".", ":", "=", "!", "<", ">", "+", "-", "*", "/", "%", "|"]
   for delimiter in delimiters {
-    normalized_text = swap(normalized_text, delimiter, " ")
+    normalized_text = normalized_text | swap(delimiter, " ")
   }
-  let words = split(normalized_text, " ")
+  let words = normalized_text | split(" ")
 
   let i = 0
-  while i < len(words) {
+  while i < (words | length) {
     let tok = words[i]
-    let vocab_idx = index_of(vocabulary, tok)
+    let vocab_idx = vocabulary | index_of(tok)
     if vocab_idx >= 0 { vec[vocab_idx] = 1.0 }
     i = i + 1
   }
@@ -178,16 +191,16 @@ let database = []
 let num_classes = 0
 
 try {
-  let raw = Safe.readFile(trained_model_path)
-  let brain = from_json(raw)
+  let raw = trained_model_path | Safe.readFile
+  let brain = raw | from_json
   weights = brain["weights"]
   biases = brain["biases"]
   database = brain["database"]
-  num_classes = len(database)
+  num_classes = database | length
   has_trained_model = true
 } catch (e) {}
 
-  let query_vec = vectorize(queryText)
+  let query_vec = queryText | vectorize
   
   // Forward propagation on user query across all dynamic classes
   let outputs = []
@@ -196,12 +209,12 @@ try {
     let sum = 0.0
     let w_row = weights[j]
     let k = 0
-    while k < len(vocabulary) {
+    while k < (vocabulary | length) {
       sum = sum + (query_vec[k] * w_row[k])
       k = k + 1
     }
-    let o = activate(sum + biases[j])
-    push(outputs, o)
+    let o = sum + biases[j] | activate
+    outputs | push(o)
     j = j + 1
   }
   
@@ -221,27 +234,30 @@ try {
   print "--------------------------------------------------"
   print "💭 SESIRA IS THINKING:"
   print "--------------------------------------------------"
-  writeLog("SESI", "----------------------------------\n💭 SESIRA IS THINKING:\n--------------------------------------------------")
+  "SESI" | writeLog("----------------------------------\n💭 SESIRA IS THINKING:\n--------------------------------------------------")
   if max_score < 0.40 {
     print "   Please ask again."
-    writeLog("SESI", "Low confidence routing. Asked user to retry.")
+    "SESI" | writeLog("Low confidence routing. Asked user to retry.")
   } else {
     let rec = database[best_class]
-    let docs_list = list_dir("getting-started")
+    let docs_list = "getting-started" | list_dir
     let sesiDocs = ""
     for f_name in docs_list {
       try {
-        let doc_content = Safe.readFile("getting-started/" + f_name)
+        let doc_content = "getting-started/" + f_name | Safe.readFile
+        let builtins_content = "docs/BUILTINS.md" | Safe.readFile  
+        sesiDocs = sesiDocs + "\n\n=== DOCUMENT: BUILTINS.md ===\n" + builtins_content
         sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
+        
       } catch (e) {}
     }
     
     let skills = ""
     try {
-      skills = Safe.readFile(".agents/skills/SKILLS.md")
+      skills = ".agents/skills/SKILLS.md" | Safe.readFile
     } catch (e) {}
     try {
-      skills = Safe.readFile("docs/SKILLS.md")
+      skills = "docs/SKILLS.md" | Safe.readFile
     } catch (e) {}
 
     prompt instructions {"Sesi Official Reference Documentation:
@@ -274,8 +290,7 @@ try {
     - You are not in an interactive chat session with the user. 
     
     # CRITICAL: 
-    Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning in your code examples or explanation.
-    :
+    Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning in your code examples or explanation:
     - model()
     - image()
     - workflow()
@@ -303,26 +318,31 @@ try {
     Active File Context:
     "fileContext}
 
-    prompt persona {"Your name is Sesira. 
+    prompt persona {"Your name is Sesira. Do not mention your name for no reason, only if the user asks. 
     - You are an expert in Sesi and very efficient at coding. 
     - You prefer an original way of doing things. "}
+
     let generated_response = ""
-    if !is_null(env("OPENAI_API_KEY")){
-      generated_response = model("gpt-5.6-luna") {system: persona + instructions, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}
-      if generated_response == "" {
-        generated_response = model("gemini-3.1-flash-lite") {system: persona + instructions, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}
-      }
+
+    if !("OPENAI_API_KEY" | shell.env_get | is_null){
+      try {
+        generated_response = model("gpt-5.6-luna") {system: persona + instructions, thinkingLevel: "medium", max_tokens: 4096} {ragPrompt}
+      } catch (e) {generated_response = model("gemini-3.1-flash-lite") {system: persona + instructions, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}}
     } else {
       generated_response = model("gemini-3.1-flash-lite") {system: persona + instructions, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}
     }
     
     let helpResponse = false
+    let timestamp = now | format({"dateStyle": "short", "timeStyle": "medium"})
+    timestamp = timestamp | swap("/", "-") | swap(":", "-") | swap(",", "") | swap(" ", "-")
+    let responseFile = "chatbot/responses/sesira-help-" + timestamp + ".md"; "chatbot/responses" | make_dir
+    
     try {
-      helpResponse = Safe.writeFile("help_response.md", "# Sesira Response:\n\n" + generated_response)
-      writeLog("SESI", "Response written to help_response.md")
-      writeLog("SESIRA", generated_response)
+      helpResponse = responseFile | Safe.writeFile("# Sesira Response:\n\n" + generated_response)
+      "SESI" | writeLog("Response written to " + responseFile)
+      "SESIRA" | writeLog(generated_response)
     } catch (e) {
-      writeLog("SESI", "Failed to write help_response.md")
+      "SESI" | writeLog("Failed to write " + responseFile + ": " + e)
     }
-    print "Sesira has provided a response to your question. Please open 'help_response.md' to review the answer."
+    print "Sesira has provided a response to your question:\n"generated_response"\n\nYour answer has also been saved at '" responseFile "'."
   }

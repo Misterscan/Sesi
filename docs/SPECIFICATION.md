@@ -363,16 +363,22 @@ let parsedRegistry = structured_output({projectName: string, version: string, st
 
 #### Tool Call
 
-```
-tool_call := 'tool_call' '('function_name')' '('(model_call | expressions)?')'
-```
-
-Example (Native Sandboxed Dispatch):
+The `tool_call` expression allows native Sesi functions registered via `define_tool` to be invoked programmatically.
 
 ```sesi
-fn add(a: number, b: number) -> number { return a + b }
-let sum = tool_call(add)(10, 20)
+// 1. Define the native Sesi function
+fn calculateTax(amount: number, rate: number) -> number { return amount * rate }
+
+// 2. Register the function as a tool
+define_tool("calculateTax", calculateTax, "Calculate tax based on amount and rate")
+
+// 3. Invoke the tool programmatically
+let taxAmount = tool_call(calculateTax)(100, 0.08)
 ```
+
+The tool invocation is synchronous and executes the registered function within the current interpreter context. This mechanism can be used by AI agents to perform side-effects, but it functions independently as a core language primitive.
+
+
 
 #### Pipe Operator
 
@@ -733,11 +739,20 @@ print result["confidence"]  // Type-safe access
 
 ### Reasoning with Tool Calling
 
+While `tool_call()` is a core language feature, it is the primary interface for AI agents to interact with your Sesi scripts. When an agent is given access to tools, it can decide to invoke them based on its reasoning process.
+
 ```sesi
-fn calculateTax(amount: number, rate: number) {print amount * rate}
-let taxAmount = tool_call(calculateTax)(model("gemini-3.5-flash-lite") {"Calculate 8% tax on $100"})
-taxAmount
+fn calculateTax(amount: number, rate: number) -> number { return amount * rate }
+
+// Register as a tool
+define_tool("calculateTax", calculateTax, "Calculate tax based on amount and rate")
+
+// Agent-driven usage:
+// The model decides to invoke 'calculateTax' with specific parameters
+let taxAmount = tool_call(calculateTax)(model("gemini-3.5-flash-lite") {"Extract tax amount and rate from text"}, 0.08)
 ```
+
+
 
 ### Reasoning with Memory
 

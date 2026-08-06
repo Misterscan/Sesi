@@ -27,10 +27,10 @@ for val in highNumbers {
   print color("- ", "cyan") str(val)
 }
 try {
-  write_file("results.txt", "Processed " + len(highNumbers) + " items.")
+  "results.txt" | write_file("Processed " + len(highNumbers) + " items.")
   print "Log file created."
 } catch(e) {
-  print "File error: " + e
+  print "File error: "e
 }
 
 /* USING AI IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.

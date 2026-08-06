@@ -91,7 +91,7 @@ try { ... } catch (e) { ... }
 **Prompt Blocks**
 
 ```sesi
-prompt greeting {"Hello, " name "!"}
+prompt greeting {"Hello, "name"!"}
 ```
 
 **Structured Output**
@@ -119,7 +119,7 @@ let response = model("gemini-3.5-flash-lite") {search, max_tokens: 1000} {"What 
 
 ```sesi
 let logo = image("gemini-3.1-flash-image") {ratio: "1:1", size: "512"} {"Your prompt here"}
-write_image("logo.png", logo)
+"logo.png" | write_image(logo)
 ```
 
 **Temporal Context Injection** ✅
@@ -145,13 +145,12 @@ let result = tool_call(functionName)(model(gemini-3.5-flash-lite) {"Your prompt 
 ```sesi
 memory conversation {"Initial context"}
 conversation = conversation + "User: How are you?"
-print("Current Conversation Memory:")
-print(conversation)
+print "Current Conversation Memory:" conversation
 
 // Demonstrate using the memory in a model call
-print("Calling model with memory context...")
+print "Calling model with memory context..."
 let response = model("gemini-3-flash-preview") {conversation}
-print("Reasoning Response:", response)
+print "Reasoning Response:" response
 ```
 
 ## 🌍 Built-in Global Variables
@@ -440,7 +439,7 @@ npm test
 
 **Example Coverage**
 
-- 35 complete example programs
+- 35+ complete example programs
 - Covers all major language features
 - Demonstrates reasoning integration
 - Real-world use cases
@@ -482,7 +481,7 @@ npm test
 - ✅ API reference (450+ lines)
 - ✅ Systems reasoning guide (500+ lines)
 - ✅ Development roadmap (400+ lines)
-- ✅ 35 numbered example programs
+- ✅ 35+ numbered example programs
 - ✅ CLI executable
 - ✅ Test suite
 - ✅ Quick start guide

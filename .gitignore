@@ -147,6 +147,7 @@ agent_session.json
 SesiDo/database/.agent/default-memory-block.md
 local-ai-sys-prompt.txt
 agent-review.md
+chatbot/responses
 
 # Sesira generated training and release artifacts
 /sesira/

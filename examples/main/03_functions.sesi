@@ -213,7 +213,7 @@ print "name(sample_func):" name(sample_func)
 print "arity(sample_func):" arity(sample_func)
 // or simply sample_func | arity
 print "is_function(sample_func):" is_function(sample_func)
-// Piping isn't supported for is_function since it expects a value, not a function reference
+// or simply sample_func | is_function
 
 print "\n--- Collection / Type Checks ---"
 /*
@@ -224,11 +224,24 @@ print "\n--- Collection / Type Checks ---"
     5. is_bool(value): Checks if the value is a boolean.
     6. is_null(value): Checks if the value is null.
 
-    Piping isn't supported for these type-checking functions since they expect a value, not a function reference.
+    Wrap in parentheses to avoid ambiguity with the array literal syntax when using the pipe operator.
+    Same applies when used in if else statements or other expressions
 */
 print "is_array([1, 2]):" is_array([1, 2])
+// or simply [1, 2] | is_array
+// if !([1, 2] | is_array) {...}
 print "is_object({'a': 1}):" is_object({"a": 1})
+// or simply ({"a": 1}) | is_object
+// if !({"a": 1} | is_object) {...}
 print "is_string('hello'):" is_string("hello")
+// or simply "hello" | is_string
+// if !("hello" | is_string) {...}
 print "is_number(42):" is_number(42)
+// or simply 42 | is_number
+// if !(42 | is_number) {...}
 print "is_bool(true):" is_bool(true)
+// or simply true | is_bool
+// if !(true | is_bool) {...}
 print "is_null(null):" is_null(null)
+// or simply (null) | is_null
+// if !(null | is_null) {...}

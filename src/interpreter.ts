@@ -287,7 +287,7 @@ export class Interpreter {
     return Array.from(this.customTools.keys());
   }
 
-  private async executeStatement(statement: Statement): Promise<void> {
+  public async executeStatement(statement: Statement): Promise<RuntimeValue> {
     try {
       if (process.env.SESI_DEBUG === '1') {
         const lineInfo = (statement as any).line !== undefined ? ` line ${(statement as any).line}` : '';
@@ -296,28 +296,27 @@ export class Interpreter {
       switch (statement.type) {
         case 'LetStatement':
           await this.executeLet(statement);
-          break;
+          return null;
         case 'ConstStatement':
           await this.executeConst(statement);
-          break;
+          return null;
         case 'FunctionStatement':
-          await this.executeFunction(statement);
-          break;
+          this.executeFunction(statement);
+          return null;
         case 'ExpressionStatement':
-          await this.executeExpression(statement);
-          break;
+          return await this.executeExpression(statement);
         case 'BlockStatement':
           await this.executeBlock(statement, new Environment(this.currentEnv));
-          break;
+          return null;
         case 'IfStatement':
           await this.executeIf(statement);
-          break;
+          return null;
         case 'WhileStatement':
           await this.executeWhile(statement);
-          break;
+          return null;
         case 'ForStatement':
           await this.executeFor(statement);
-          break;
+          return null;
         case 'ReturnStatement':
           throw new ReturnValue(
             (statement).value
@@ -330,20 +329,21 @@ export class Interpreter {
           throw new ContinueException();
         case 'TryStatement':
           await this.executeTry(statement);
-          break;
+          return null;
         case 'MemoryStatement':
           await this.executeMemory(statement);
-          break;
+          return null;
         case 'ImportStatement':
           await this.executeImport(statement);
-          break;
+          return null;
         case 'AllowStatement':
           await this.executeAllow(statement);
-          break;
+          return null;
         case 'ExportStatement':
           await this.executeExport(statement);
-          break;
+          return null;
       }
+      return null;
     } catch (error) {
       if (error instanceof ReturnValue || error instanceof BreakException || error instanceof ContinueException) {
         throw error;
@@ -374,8 +374,8 @@ export class Interpreter {
     this.currentEnv.define(stmt.name, fn);
   }
 
-  private async executeExpression(stmt: ExpressionStatement): Promise<void> {
-    await this.evaluateExpression(stmt.expression);
+  private async executeExpression(stmt: ExpressionStatement): Promise<RuntimeValue> {
+    return await this.evaluateExpression(stmt.expression);
   }
 
   private async executeBlock(block: BlockStatement, env: Environment): Promise<void> {
