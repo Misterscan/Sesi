@@ -7,7 +7,7 @@ description: Debugging and validation of error prone sesi scripts.
 3. **Apply fix in file only after eval passes:** If eval fails, iterate on snippet; do not repeatedly run full scripts while syntax is unresolved.
 4. **Validate script with the `test-runner` first before full run:** Run your script actions with a test script using the exports from `bin/test-runner.sesi`. Refer to `main/tests/verify_db.sesi` for an example.
 5. **Run full script after validation:** Execute `npm run sesi <file>.sesi` only once the isolated logic is valid.
-6. **Use file-aware help when blocked:** Run `npm run sesi:help <file>.sesi "<question>"` to get context-grounded help tied to the active script.
+6. **Use file-aware help when blocked:** Run `npm run sesira "<question>" <file>.sesi` to get context-grounded help tied to the active script.
 7. **NEVER EDIT ANY .SESI FILES IN THE TERMINAL (ABSOLUTE RULE):**
    - Do NOT run `sed`, `awk`, `perl`, or any other shell text-processing tools on `.sesi` files.
    - Do NOT use `npm run sesi:eval` to modify files; it is only for syntax validation.
