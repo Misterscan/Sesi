@@ -6,6 +6,7 @@
   tiny sprite enlarged with SVG geometry or image scaling.
 */
 allow "std/draw" in with Draw
+allow "helpers/safe" in with Safe
 
 let canvas_size = 512
 let last_pixel = canvas_size - 1
@@ -94,8 +95,8 @@ while y < canvas_size {
     y = y + 1
 }
 let outputDir = "generated_images/"
-if list_dir(outputDir) == null {
-    make_dir(outputDir)
+if !(outputDir | Safe.isFolder) {
+    outputDir | Safe.makeFolder
 }
 let outputPath = outputDir + "placeholder_icon_512_detailed.png"
 Draw.save_png(outputPath, canvas_size, canvas_size)

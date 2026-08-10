@@ -7,6 +7,7 @@
   FFmpeg must be installed and available in PATH.
 */
 allow "std/draw" in with Draw
+allow "helpers/safe" in with Safe
 
 print "--- Regex ---"
 
@@ -24,8 +25,8 @@ print "Split fields:" fields
 print "\n--- Pixel frames ---"
 
 let outputDir = "generated_media/"
-if list_dir(outputDir) == null {
-    outputDir | make_dir
+if !(outputDir | Safe.isFolder) {
+    outputDir | Safe.makeFolder
 }
 
 let palette = {

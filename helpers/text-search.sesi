@@ -15,6 +15,7 @@ Examples:
     sesi helpers/text-search.sesi folder . TODO --ext sesi
     sesi helpers/text-search.sesi folder . TODO --ext sesi --skip node_modules --json reports/todos.json
 */
+allow "safe" in with safe
 
 fn show_help() {
   print "Usage:"
@@ -31,17 +32,8 @@ fn show_help() {
   print "  sesi helpers/text-search.sesi folder . TODO ext sesi skip node_modules json reports/todos.json"
 }
 
-fn get_extension(path: str) -> str {
-  let parts = split(path, ".")
-  if len(parts) <= 1 {
-    return "no_extension"
-  }
-
-  return parts[len(parts) - 1]
-}
-
 fn is_default_searchable_file(path: str) -> bool {
-  let ext = get_extension(path)
+  let ext = safe.extension(path)
 
   if ext == "sesi" { return true }
   if ext == "md" { return true }
@@ -127,7 +119,7 @@ fn should_search_file(path: str, options) -> bool {
   }
 
   if options["ext"] != null {
-    if get_extension(path) == options["ext"] {
+    if safe.extension(path) == options["ext"] {
       return true
     }
 
@@ -141,7 +133,7 @@ fn search_text(path: str, query: str) {
   let matches = []
 
   try {
-    let text = read_file(path)
+    let text = safe.read(path)
     let lines = split(text, "
 ")
 
@@ -206,7 +198,7 @@ fn search_folder(folder: str, query: str, options) {
   let all_matches = []
 
   try {
-    let files = list_dir(folder)
+    let files = safe.getFiles(folder)
 
     for file in files {
       let path = make_path(folder, file)
@@ -243,7 +235,7 @@ fn write_report(path: str, mode: str, target: str, query: str, options, matches)
   }
 
   try {
-    write_file(path, to_json(report))
+    safe.json(path, report)
     print "JSON report written:" path
   } catch (err) {
     print "Could not write JSON report:" err

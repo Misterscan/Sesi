@@ -8,6 +8,7 @@
   Usage:
     npm run css                                                           
     npm run css "Beautiful, premium modern UX design. Dynamic sky blues"  # custom style description
+    npm run css "Beautiful, premium modern UX design. Dynamic sky blues" new  # regenerate with cache off
 */
 
 allow "helpers/safe" in with Safe
@@ -20,15 +21,18 @@ let studioHtml = Safe.readFile("index.html")
 
 // Pass your style description as the first CLI argument.
 let style = ""
+let new = ""
 if len(args) > 0 {
   style = args[0]
+  if len(args) > 1 { new = args[1] == "new" }
 } else {
   style = input("Enter a style description for the theme: ")
+  new = input("Is this a regeneration? We'll turn cache off (y/n): ") | trim | to_lower
 }
 
 if len(style) > 0 {
   print "
-  Generating a custom theme for Sesi Studio based on (" style ")"
+Updating prompt: (" style ")"
 } else {
 
   // If no argument is provided the model uses its own defaults.
@@ -38,6 +42,18 @@ if len(style) > 0 {
   style = styleDefault
 }
 
+// Enhance the prompt with a pre-model call
+let updatedStyle = ""
+if new == "y" || new == "new" {
+  updatedStyle = model("gemini-3.1-flash-lite") {thinkingLevel: "medium", temperature: 0.7, max_tokens: 500, cache: false} {"Enhance the following style description for an IDE theme to be more specific and detailed, while keeping it concise: "style". Return only the enhanced style description without any extra text."}
+} else {
+  updatedStyle = model("gemini-3.1-flash-lite") {thinkingLevel: "medium", temperature: 0.7, max_tokens: 500, cache: true} {"Enhance the following style description for an IDE theme to be more specific and detailed, while keeping it concise: "style". Return only the enhanced style description without any extra text."}
+}
+style = updatedStyle
+print "Generating a custom theme for Sesi Studio based on the following style description:
+
+>" ""style""
+
 // Providing the README and index.html as context helps the model understand the IDE's density, feature set, and intended feel.
 prompt context {"Sesi Studio Overview (README): 
 " studioReadme "
@@ -45,15 +61,16 @@ prompt context {"Sesi Studio Overview (README):
 Sesi Studio UI Structure (index.html): 
 " studioHtml}
 
-prompt need {"IDE Theme Style: " style " 
+prompt need {"IDE Theme Style: "style" 
 Target elements: Sesi Studio UI components including panels, tabs, buttons, and specifically the CSS variables in :root (--bg-base, --bg-panel, --accent-cyan, etc.). Focus on the legiblity of text and surrounding elements."}
 
-print "Constructing prompt..."
+print "Constructing prompt...
+"
 
 prompt instruction {"You are a UI Theme Designer for Sesi Studio. 
 Produce a complete, valid CSS stylesheet that overrides the default studio theme. 
 You MUST target the CSS variables defined in :root (like --bg-base, --bg-panel, --accent-cyan, --accent-blue, --accent-green, --silver-light, --silver-mid, --silver-dark, --glass-bg, --glass-border, --glass-highlight) to change the overall look. 
-You can also add specific styles for .panel, .btn, .tab, .file-item, etc. to match the requested style: " style " 
+You can also add specific styles for .panel, .btn, .tab, .file-item, etc. to match the requested style. 
 Use the provided index.html structure for reference. 
 Output ONLY the raw CSS content with no explanations, no ```css backticks, or extra text."}
 
@@ -76,17 +93,29 @@ prompt required {"At the very top, you **MUST** include this schema:
 
 "}
 
+prompt sys {context instruction required}
+
 print "Retrieving CSS...
 "
 
 /* Change the model and parameters as needed. 
   - gemini-3-flash-preview is a good choice for code generation tasks, but feel free to experiment with other models or settings.
-  - gemini-3.5-flash for higher quality but token hungry
+  - gemini-3.5-flash for higher quality but token hungry.
+  - gemini-3.6-flash for consistency and high-quality CSS generation.
   - gemini-3.1-pro-preview for a more polished and refined output.
   - Both may take slightly longer than gemini-3-flash-preview, but can produce higher quality CSS with better adherence to best practices and design principles.
   Note: We set cache: false to ensure we get a fresh response each time, which is important during development when you may be iterating on the style description. 
 */
-let css = model("gemini-3-flash-preview") {thinkingLevel: "medium", temperature: 0.5, max_tokens: 8192, cache: false} {instruction required "User theme need: " need context ". Only output CSS."}
+let css = ""
+if new == "y" || new == "new" {
+  css = model("gemini-3-flash-preview") {system: sys, thinkingLevel: "medium", temperature: 0.5, max_tokens: 8192, cache: true} {"
+User theme need: "need".
+Only output CSS."}
+} else {
+  css = model("gemini-3-flash-preview") {system: sys, thinkingLevel: "medium", temperature: 0.5, max_tokens: 8192, cache: false} {"
+User theme need: "need".
+Only output CSS."}
+}
 
 print "Received CSS preview (first 6 lines):"
 try {
@@ -98,14 +127,21 @@ try {
   print "  (preview failed):" err
 }
 
-let filename = model("gemini-3.1-flash-lite") {temperature: 0} {"Return a filename for the theme from the name in the following CSS stylesheet: " css "
+let filename = model("gemini-3.5-flash-lite") {thinkingLevel: "minimal"} {"Return a filename for the theme from the name in the following CSS stylesheet: "css"
 
 If the name is two words use a hyphen to separate the two words. Only return the filename in the response without .css extension."}
+filename = trim(filename)
+let theme_path = "sesi-studio/extensions/themes/" + filename
 
 print "
-Writing sesi-studio/extensions/themes/" filename ".css..."
+Writing "theme_path".css..."
 try {
-  Safe.writeFile("extensions/themes/" + filename + ".css", css)
-  print "  ✓ sesi-studio/extensions/themes/" filename ".css written"
-} catch (err) {}
-print "Done. You can now select " filename " in Sesi Studio's theme settings."
+  let saved = Safe.css(theme_path, css)
+  if saved {
+    print "  ✓ "theme_path".css written
+    "
+    print "Done. You can now select "filename" in Sesi Studio's theme settings."
+  } else {
+    print "  ✗ Failed to write "theme_path".css"
+  }
+} catch (err) {print "  ✗ Failed to write CSS file:" err}

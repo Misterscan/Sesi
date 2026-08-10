@@ -1,0 +1,42 @@
+allow "helpers/safe" in with safe
+
+fn runTests() {
+    let testsDir = "tests/"
+    let directoryEntries = safe.getFiles(testsDir)
+    let testFiles = []
+
+    for file in directoryEntries {
+        if ends_with(file, ".ts") {
+            push(testFiles, file)
+        }
+    }
+
+    if len(testFiles) == 0 {
+        print "No .ts test files found in" testsDir
+        return false
+    }
+
+    let passed = 0
+    for file in testFiles {
+        let testPath = testsDir + file
+        try {
+            let output = exec("SESI_SAFE_MODE=true SESI_LOCAL_FS=false tsx " + testPath)
+            if len(trim(output)) > 0 {
+                print output
+            }
+            print "Test passed:" testPath
+            passed = passed + 1
+        } catch (e) {
+            print "Test failed:" testPath
+            print "Error:" e
+            return false
+        }
+    }
+
+    print "All tests completed:" passed "/" len(testFiles) "passed."
+    return true
+}
+
+if !runTests() {
+    raise_error("TestFailure", "Test suite failed.")
+}

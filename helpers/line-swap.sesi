@@ -2,92 +2,51 @@
     Line-by-line text swap helper for files.
 
     Reads a file, iterates every line, and replaces all occurrences
-    of a target string on each matching line with a replacement string.
-    Optionally limits swaps to a specific line range or reports a dry run.
+    matching a regular-expression pattern with a replacement string.
+    Optionally limits replacements to a line range or reports a dry run.
 
 Usage:
-    sesi helpers/line-swap.sesi <path> <from> <to>
-    sesi helpers/line-swap.sesi <path> <from> <to> dry-run
-    sesi helpers/line-swap.sesi <path> <from> <to> lines <start> <end>
-    sesi helpers/line-swap.sesi <path> <from> <to> backup
+    sesi helpers/line-swap.sesi <path> <pattern> <replacement>
+    sesi helpers/line-swap.sesi <path> <pattern> <replacement> dry-run
+    sesi helpers/line-swap.sesi <path> <pattern> <replacement> lines <start> <end>
+    sesi helpers/line-swap.sesi <path> <pattern> <replacement> flags <flags>
+    sesi helpers/line-swap.sesi <path> <pattern> <replacement> backup
     sesi helpers/line-swap.sesi help
 
 Examples:
     sesi helpers/line-swap.sesi src/main.sesi "let debug = true" "let debug = false"
-    sesi helpers/line-swap.sesi README.md "v1.0" "v2.0" dry-run
-    sesi helpers/line-swap.sesi app.sesi "old_fn" "new_fn" lines 10 50
-    sesi helpers/line-swap.sesi config.sesi "staging" "production" backup
+    sesi helpers/line-swap.sesi README.md "v[0-9]+\\.[0-9]+" "v2.0" dry-run
+    sesi helpers/line-swap.sesi app.sesi "\\bold_fn\\b" "new_fn" lines 10 50
+    sesi helpers/line-swap.sesi routes.sesi "\\bGET /v1/" "POST /v2/" flags i
 */
+allow "safe" in with safe
 
 fn show_help() {
   print "line-swap.sesi — line-by-line text swap helper"
   print ""
   print "Usage:"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to>"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> dry-run"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> lines <start> <end>"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> backup"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> exact"
+  print "  sesi helpers/line-swap.sesi <path> <pattern> <replacement> [options]"
   print ""
   print "Options:"
+  print "  pattern        JavaScript-compatible regular expression"
+  print "  replacement    Supports capture references such as $1 and $<name>"
   print "  dry-run        Preview changes without writing to disk"
   print "  lines N M      Only swap within line range N to M (1-indexed, inclusive)"
   print "  backup         Archive the original file before overwriting"
-  print "  exact          Skip matches where the next character is alphanumeric or _ (avoids substring collisions)"
+  print "  flags VALUE    Regex flags such as i, m, or s; global replacement is always enabled"
   print ""
   print "Examples:"
   print "  sesi helpers/line-swap.sesi src/main.sesi \"let debug = true\" \"let debug = false\""
-  print "  sesi helpers/line-swap.sesi README.md \"v1.0\" \"v2.0\" dry-run"
-  print "  sesi helpers/line-swap.sesi app.sesi \"old_fn\" \"new_fn\" lines 10 50"
-  print "  sesi helpers/line-swap.sesi config.sesi \"staging\" \"production\" backup"
-}
-
-let word_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
-
-fn is_word_char(c: str) -> bool {
-  return contains(word_chars, c)
-}
-
-fn exact_swap(line: str, from_text: str, to_text: str) -> str {
-  let result = ""
-  let remaining = line
-  let from_len = len(from_text)
-
-  let searching = true
-  while searching {
-    let idx = locate(remaining, from_text)
-    if idx == -1 {
-      result = result + remaining
-      searching = false
-    } else {
-      let after_idx = idx + from_len
-      let after_char = ""
-      if after_idx < len(remaining) {
-        after_char = slice(remaining, after_idx, after_idx + 1)
-      }
-
-      if after_char != "" {
-        if is_word_char(after_char) {
-          result = result + slice(remaining, 0, after_idx)
-          remaining = slice(remaining, after_idx, len(remaining))
-        } else {
-          result = result + slice(remaining, 0, idx) + to_text
-          remaining = slice(remaining, after_idx, len(remaining))
-        }
-      } else {
-        result = result + slice(remaining, 0, idx) + to_text
-        remaining = slice(remaining, after_idx, len(remaining))
-      }
-    }
-  }
-  return result
+  print "  sesi helpers/line-swap.sesi README.md \"v[0-9]+\\.[0-9]+\" \"v2.0\" dry-run"
+  print "  sesi helpers/line-swap.sesi app.sesi \"\\bold_fn\\b\" \"new_fn\" lines 10 50"
+  print "  sesi helpers/line-swap.sesi routes.sesi \"\\bGET /v1/\" \"POST /v2/\" flags i"
 }
 
 fn parse_options() {
   let options = {
     "dry_run": false,
     "backup": false,
-    "exact": false,
+    "flags": "g",
     "line_start": null,
     "line_end": null
   }
@@ -99,9 +58,14 @@ fn parse_options() {
     if key == "--dry-run" || key == "dry-run" {
       options["dry_run"] = true
       i = i + 1
-    } else if key == "--exact" || key == "exact" {
-      options["exact"] = true
-      i = i + 1
+    } else if key == "--flags" || key == "flags" {
+      if i + 1 < len(args) && regex("^[dgimsuvy]+$", args[i + 1], {"mode": "test"}) {
+        options["flags"] = args[i + 1]
+        i = i + 2
+      } else {
+        print "Missing or invalid regex flags"
+        i = i + 1
+      }
     } else if key == "--backup" || key == "backup" {
       options["backup"] = true
       i = i + 1
@@ -143,7 +107,7 @@ fn in_range(line_number: num, options) -> bool {
 
 fn read_text(path: str) {
   try {
-    return read_file(path)
+    return safe.read(path)
   } catch (err) {
     print "Read failed for" path ":" err
     return null
@@ -152,7 +116,7 @@ fn read_text(path: str) {
 
 fn write_text(path: str, text: str) -> bool {
   try {
-    write_file(path, text)
+    safe.write(path, text)
     return true
   } catch (err) {
     print "Write failed for" path ":" err
@@ -160,7 +124,7 @@ fn write_text(path: str, text: str) -> bool {
   }
 }
 
-fn run_swap(path: str, from_text: str, to_text: str, options) {
+fn run_swap(path: str, pattern: str, replacement: str, options) {
   let text = read_text(path)
 
   if text == null {
@@ -176,13 +140,14 @@ fn run_swap(path: str, from_text: str, to_text: str, options) {
 
   for line in lines {
     if in_range(line_number, options) {
-      if contains(line, from_text) {
-        let new_line = ""
-        if options["exact"] {
-          new_line = exact_swap(line, from_text, to_text)
-        } else {
-          new_line = swap(line, from_text, to_text)
+      let matches = regex(pattern, line, {"mode": "match", "flags": options["flags"], "limit": 1})
+
+      if len(matches) > 0 {
+        let flags = options["flags"]
+        if !contains(flags, "g") {
+          flags = flags + "g"
         }
+        let new_line = regex(pattern, line, {"mode": "replace", "flags": flags, "replacement": replacement})
 
         if new_line == line {
           push(updated_lines, line)
@@ -207,7 +172,7 @@ fn run_swap(path: str, from_text: str, to_text: str, options) {
   }
 
   if swap_count == 0 {
-    print "No matches found for:" from_text
+    print "No matches found for pattern:" pattern
     return null
   }
 

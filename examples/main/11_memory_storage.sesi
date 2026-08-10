@@ -1,5 +1,6 @@
 // You can use memory to store variables throughout your script without redeclaring it
 allow "std/terminal" in with { color }
+allow "helpers/safe" in with { json }
 
 memory database {"name: string, age: number, role: string"}
 
@@ -8,7 +9,7 @@ print color("Name:", "cyan") database["name"]
 print color("Age:", "cyan") str(database["age"])
 print color("Role:", "cyan") database["role"]
 try {
-  "data.txt" | write_file(database | to_json)
+  "data" | json(database)
   print color("Database saved!", "green", "bold")
 } catch(error) {
   print "Error:" error
@@ -24,7 +25,7 @@ print "Name:" database["name"]
 print "Age:" database["age"]
 print "Role:" database["role"]
 try {
-  "data.txt" | write_file(database | to_json)
+  "data" | json(database)
   print "Database updated!"
 } catch(error) {
   print "Error:" error

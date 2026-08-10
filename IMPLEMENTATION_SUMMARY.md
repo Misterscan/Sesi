@@ -387,12 +387,12 @@ npm test
 | optional/10_code_generation.sesi | Code generation |
 | main/11_memory_storage.sesi | Multi-turn with memory |
 | main/12_classification.sesi | Classification |
-| main/13_data_pipeline.sesi | Data pipeline |
+| main/13_data_pipeline.sesi | Data pipeline with lazy summaries |
 | optional/14_folder_explainer.sesi | Directory parsing & reasoning |
 | optional/15_image_generation.sesi | Image generation |
 | main/16_modules.sesi | Imports/exports & std namespaces |
 | main/17_http_client.sesi | HTTP GET and POST operations |
-| main/18_parallel_requests.sesi | Parallel request concurrency |
+| main/18_parallel_requests.sesi | Parallel request concurrency and profiling |
 | main/19_search_web.sesi | Web search integration |
 | optional/20_model_aliases.sesi | Custom model naming aliases |
 | main/21_custom_tools.sesi | Custom runtime tool definitions |
@@ -405,10 +405,10 @@ npm test
 | main/27_robust_web_db.sesi | Secured combined API server backed by persistent DB |
 | optional/28_streaming.sesi | Streaming API responses |
 | main/29_tool_piping.sesi | Tool-chaining and data pipelining |
-| main/30_error_recovery.sesi | Robust error handling and retry policies |
+| main/30_error_recovery.sesi | Robust error handling, retry policies, and timeout fallback |
 | main/31_synthesizer.sesi | Music and SVG native capabilities |
 | main/32_browser_automation.sesi | Headless browser automation with Playwright |
-| main/33_base64.sesi | Base64 encoding and decoding |
+| main/33_base64.sesi | Base64 encoding, decoding, and string encryption |
 | main/34_sesi_api.sesi | Sesi API and Swagger UI server setup |
 | main/35_speech_language.sesi | Speech and language helpers |
 | main/36_regex_media.sesi | Regex and media processing |

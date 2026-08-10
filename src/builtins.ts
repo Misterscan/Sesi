@@ -1,10 +1,12 @@
 // Built-in functions for Sesi
-import { RuntimeValue, RuntimeFunction, SesiRuntimeError } from './types';
+import { RuntimeValue, RuntimeFunction, RuntimeLazy, SesiRuntimeError } from './types';
+import { SesiProfiler, formatProfileReport } from './profiler';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, spawnSync, execSync, execFileSync } from 'child_process';
 import * as vm from 'vm';
 import * as os from 'os';
+import * as crypto from 'crypto';
 import { aiRuntime } from './ai-runtime';
 import * as http from 'http';
 import { estimateTokenCost } from './token-pricing';
@@ -427,6 +429,92 @@ function prepareMediaInput(
   };
 }
 
+async function resolveRuntimeResult(value: RuntimeValue): Promise<RuntimeValue> {
+  if (typeof value === 'object' && value !== null && (value as any).type === 'promise') {
+    return await (value as any).promise;
+  }
+  return value;
+}
+
+function requireCallable(value: RuntimeValue, name: string): RuntimeFunction {
+  if (typeof value !== 'object' || value === null || (value as any).type !== 'function') {
+    throw new Error(`${name} expects a function as the first argument`);
+  }
+  return value as RuntimeFunction;
+}
+
+function requireProfiler(interpreter?: any): SesiProfiler {
+  if (!interpreter || typeof interpreter.getProfiler !== 'function') {
+    throw new Error('profiler interpreter reference is missing');
+  }
+  return interpreter.getProfiler();
+}
+
+async function callRuntimeFunction(
+  interpreter: any,
+  fn: RuntimeFunction,
+  args: RuntimeValue[],
+): Promise<RuntimeValue> {
+  if (!interpreter || typeof interpreter.callSesiFunction !== 'function') {
+    throw new Error('runtime function call requires an interpreter reference');
+  }
+  return await resolveRuntimeResult(await interpreter.callSesiFunction(fn, args));
+}
+
+function normalizePositiveTimeout(value: RuntimeValue): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    throw new Error('timeout expects a positive timeout in milliseconds');
+  }
+  return Math.floor(value);
+}
+
+function encryptString(content: string, password: string): string {
+  const algorithm = 'aes-256-cbc';
+  const key = crypto.createHash('sha256').update(String(password)).digest();
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(algorithm, key, iv);
+  let encrypted = cipher.update(content, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return `${iv.toString('hex')}:${encrypted}`;
+}
+
+function decryptString(content: string, password: string): string {
+  const parts = content.split(':');
+  if (parts.length !== 2 || !/^[a-fA-F0-9]{32}$/.test(parts[0]) || !/^[a-fA-F0-9]+$/.test(parts[1])) {
+    throw new Error('Invalid encrypted format');
+  }
+  const algorithm = 'aes-256-cbc';
+  const iv = Buffer.from(parts[0], 'hex');
+  const key = crypto.createHash('sha256').update(String(password)).digest();
+  const decipher = crypto.createDecipheriv(algorithm, key, iv);
+  let decrypted = decipher.update(parts[1], 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+
+async function withTimeout(
+  action: () => Promise<RuntimeValue>,
+  ms: number,
+  fallback: RuntimeValue | undefined,
+): Promise<RuntimeValue> {
+  let timeoutId: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<RuntimeValue>((resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      if (fallback !== undefined) {
+        resolve(fallback);
+      } else {
+        reject(new SesiRuntimeError('TimeoutError', `Operation timed out after ${ms}ms`, { timeout_ms: ms }));
+      }
+    }, ms);
+  });
+
+  try {
+    return await Promise.race([action(), timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
   const builtins = new Map<string, RuntimeFunction>();
 
@@ -608,6 +696,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       if (Array.isArray(value)) return 'array';
       if (typeof value === 'object') {
         if ((value as any).type === 'promise') return 'promise';
+        if ((value as any).type === 'lazy') return 'lazy';
         return 'object';
       }
       return 'unknown';
@@ -653,6 +742,46 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         return stripPrototypes(JSON.parse(str));
       } catch (e) {
         return null;
+      }
+    },
+  });
+
+  builtins.set('encrypt', {
+    type: 'function',
+    name: 'encrypt',
+    params: [{ name: 'content' }, { name: 'password' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (content: RuntimeValue, password: RuntimeValue): RuntimeValue => {
+      if (typeof content !== 'string') {
+        throw new Error('encrypt expects string content as the first argument');
+      }
+      if (typeof password !== 'string' || password.length === 0) {
+        throw new Error('encrypt expects a non-empty string password as the second argument');
+      }
+      return encryptString(content, password);
+    },
+  });
+
+  builtins.set('decrypt', {
+    type: 'function',
+    name: 'decrypt',
+    params: [{ name: 'content' }, { name: 'password' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (content: RuntimeValue, password: RuntimeValue): RuntimeValue => {
+      if (typeof content !== 'string') {
+        throw new Error('decrypt expects encrypted string content as the first argument');
+      }
+      if (typeof password !== 'string' || password.length === 0) {
+        throw new Error('decrypt expects a non-empty string password as the second argument');
+      }
+      try {
+        return decryptString(content, password);
+      } catch (error: any) {
+        throw new Error(`decrypt failed: ${error.message}`);
       }
     },
   });
@@ -2689,7 +2818,8 @@ ${bodyText}
           allowLocalFs: interpreter.allowLocalFs,
           raw: interpreter.raw,
           allowedPaths: interpreter.allowedPaths,
-          args: interpreter.args
+          args: interpreter.args,
+          modelUsageState: (interpreter as any).modelUsageState,
         });
         // Copy globals
         for (const [k, v] of (interpreter as any).globalEnv.getValues().entries()) {
@@ -3122,6 +3252,128 @@ ${bodyText}
     }
   });
 
+  builtins.set('lazy', {
+    type: 'function',
+    name: 'lazy',
+    params: [{ name: 'action' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (...args: RuntimeValue[]): RuntimeValue => {
+      const action = requireCallable(args[0], 'lazy');
+      const capturedArgs = args.slice(1);
+      const lazyValue: RuntimeLazy = {
+        type: 'lazy',
+        name: action.name || '<anonymous>',
+        forced: false,
+        thunk: async (): Promise<RuntimeValue> => {
+          if (!lazyValue.forced) {
+            lazyValue.value = await callRuntimeFunction(interpreter, action, capturedArgs);
+            lazyValue.forced = true;
+          }
+          return lazyValue.value ?? null;
+        },
+      };
+      return lazyValue;
+    },
+  });
+
+  builtins.set('force', {
+    type: 'function',
+    name: 'force',
+    params: [{ name: 'value' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (value: RuntimeValue): Promise<RuntimeValue> => {
+      if (typeof value === 'object' && value !== null && (value as any).type === 'lazy') {
+        return await (value as RuntimeLazy).thunk();
+      }
+      return await resolveRuntimeResult(value);
+    },
+  });
+
+  builtins.set('timeout', {
+    type: 'function',
+    name: 'timeout',
+    params: [{ name: 'action' }, { name: 'ms' }, { name: 'fallback', defaultValue: undefined as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const action = requireCallable(args[0], 'timeout');
+      const ms = normalizePositiveTimeout(args[1]);
+      const fallback = args.length >= 3 ? args[2] : undefined;
+      return await withTimeout(() => callRuntimeFunction(interpreter, action, []), ms, fallback);
+    },
+  });
+
+  builtins.set('profile', {
+    type: 'function',
+    name: 'profile',
+    params: [{ name: 'name' }, { name: 'action' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: async (...args: RuntimeValue[]): Promise<RuntimeValue> => {
+      const label = typeof args[0] === 'string' ? args[0] : 'profile';
+      const action = requireCallable(args[1], 'profile');
+      const profiler = requireProfiler(interpreter);
+      const start = performance.now();
+      try {
+        return await callRuntimeFunction(interpreter, action, []);
+      } finally {
+        profiler.record(label, performance.now() - start);
+      }
+    },
+  });
+
+  builtins.set('profile_start', {
+    type: 'function',
+    name: 'profile_start',
+    params: [{ name: 'name' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (name: RuntimeValue): RuntimeValue => {
+      if (typeof name !== 'string') throw new Error('profile_start expects a string name');
+      return requireProfiler(interpreter).start(name);
+    },
+  });
+
+  builtins.set('profile_end', {
+    type: 'function',
+    name: 'profile_end',
+    params: [{ name: 'name' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (name: RuntimeValue): RuntimeValue => {
+      if (typeof name !== 'string') throw new Error('profile_end expects a string name');
+      const entry = requireProfiler(interpreter).end(name);
+      return {
+        name: entry.name,
+        count: entry.count,
+        total_ms: Math.round(entry.totalMs * 1000) / 1000,
+        last_ms: Math.round(entry.lastMs * 1000) / 1000,
+      };
+    },
+  });
+
+  builtins.set('profile_report', {
+    type: 'function',
+    name: 'profile_report',
+    params: [{ name: 'format', defaultValue: 'object' as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (format: RuntimeValue = 'object'): RuntimeValue => {
+      const profiler = requireProfiler(interpreter);
+      if (format === 'text') return formatProfileReport(profiler);
+      return profiler.toRuntimeValue();
+    },
+  });
+
   builtins.set('map', {
     type: 'function',
     name: 'map',
@@ -3313,7 +3565,8 @@ ${bodyText}
             safeMode: interpreter.safeMode,
             allowLocalFs: interpreter.allowLocalFs,
             allowedPaths: interpreter.allowedPaths,
-            args: interpreter.args
+            args: interpreter.args,
+            modelUsageState: (interpreter as any).modelUsageState,
           });
           await subInterpreter.interpret(program);
 
@@ -3571,7 +3824,12 @@ export function stringify(value: RuntimeValue): string {
   }
   if (typeof value === 'object') {
     if ((value as any).type === 'promise') return 'Promise { <pending> }';
+    if ((value as any).type === 'lazy') {
+      const lazyValue = value as RuntimeLazy;
+      return lazyValue.forced ? `Lazy { ${stringify(lazyValue.value ?? null)} }` : 'Lazy { <pending> }';
+    }
     const items = Object.entries(value)
+      .filter(([key]) => key !== 'thunk')
       .map(([key, val]) => `${key}: ${stringify(val)}`)
       .join(', ');
     return `{${items}}`;

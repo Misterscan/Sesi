@@ -1,7 +1,7 @@
 /*
     Test out Sesi's native local model.
     Flags:
-        custom/edit/system/basic/default -> choose or skip a custom system prompt
+        custom/edit/load/system/basic/default -> choose or skip a custom system prompt
         speak/on/true -> print the answer and read it aloud
         save/gemini -> print the answer and save it as audio
         text -> print the answer without reading it aloud
@@ -10,28 +10,149 @@
     The first call downloads the configured model. Later calls use the local cache.
 */
 allow "std/terminal" in with {color}
+allow "helpers/safe" in with safe
+allow "std/db" in with {db_open}
+allow "timestamp" in with timestamp
 
-fn isModeArg(arg: str) -> bool {return arg == "speak" || arg == "on" || arg == "true" || arg == "text" || arg == "custom" || arg == "edit" || arg == "system" || arg == "basic" || arg == "default" || arg == "save" || arg == "gemini" || arg == "help"}
-fn help() {print color("Usage:", "green"); print color("    sesi local_ai.sesi - Run interactive mode", "green"); print color("    sesi local_ai.sesi \"prompt\" - Ask a question", "green"); print color("    sesi local_ai.sesi \"prompt\" custom - Asks for a custom system prompt", "green"); print color("    sesi local_ai.sesi \"prompt\" default - Use the default system prompt", "green"); print color("    sesi local_ai.sesi \"prompt\" speak - Read the answer aloud", "green"); print color("    sesi local_ai.sesi \"prompt\" save - Save the answer as audio", "green"); print color("    sesi local_ai.sesi text - Print the answer without reading it aloud", "green"); print color("    sesi local_ai.sesi speak - Skips interactive input", "green"); print color("    sesi local_ai.sesi save - Skips interactive input", "green"); print color("    sesi local_ai.sesi custom - Asks for custom system prompt. Presets are 'basic' and 'default', or 'ai' for AI-generated prompts", "green"); print color("    sesi local_ai.sesi default - Skips interactive input", "green"); print ""}
+let memoryDB = db_open("local-chat.db")
+let conversations = memoryDB.collection("conversations")
+let savedSettings = memoryDB.collection("saved-settings")
+
+fn updateMemoryUSER(question: str) -> str {
+    try {
+        let users = conversations.find({"name": "USER"})
+        if len(users) == 0 {
+            conversations.insert({"name": "USER", "messages": [question], "date": timestamp.localTime("in_ms")})
+        } else {
+            let messages = users[0]["messages"]
+            push(messages, question)
+            conversations.update({"_id": users[0]["_id"]}, {"messages": messages, "date": timestamp.localTime("in_ms")})
+        }
+        return "Updated user messages."
+    } catch (e) {
+        return "Error updating user messages: " + e
+    }
+} 
+
+fn updateMemorySESIRA(answer: str) -> str {
+    try {
+        let sesira = conversations.find({"name": "SESIRA"})
+        if len(sesira) == 0 {
+            conversations.insert({"name": "SESIRA", "messages": [answer], "date": timestamp.localTime("in_ms")})
+        } else {
+            let messages = sesira[0]["messages"]
+            push(messages, answer)
+            conversations.update({"_id": sesira[0]["_id"]}, {"messages": messages, "date": timestamp.localTime("in_ms")})
+        }
+        return "Updated Sesira messages."
+    } catch (e) {
+        return "Error updating sesira messages: " + e
+    }
+}
+
+fn getConversationMemory() -> str {
+    try {
+        let users = conversations.find({"name": "USER"})
+        let sesiraRecords = conversations.find({"name": "SESIRA"})
+        let userMessages = []
+        let sesiraMessages = []
+        if len(users) > 0 {userMessages = users[0]["messages"]}
+        if len(sesiraRecords) > 0 {sesiraMessages = sesiraRecords[0]["messages"]}
+
+        let messageCount = len(userMessages)
+        if len(sesiraMessages) > messageCount {messageCount = len(sesiraMessages)}
+        let start = 0
+        if messageCount > 10 {start = messageCount - 10}
+
+        let history = ""
+        let i = start
+        while i < messageCount {
+            if i < len(userMessages) {history = history + "USER: " + userMessages[i] + "\n"}
+            if i < len(sesiraMessages) {history = history + "SESIRA: " + sesiraMessages[i] + "\n"}
+            i = i + 1
+        }
+        return history
+    } catch (e) {
+        return ""
+    }
+}
+
+fn loadSavedSystemPrompt() -> str {
+    try {
+        let prompts = savedSettings.find({"type": "system-prompt"})
+        if len(prompts) == 0 {return ""}
+        return prompts[len(prompts) - 1]["value"]
+    } catch (e) {
+        return ""
+    }
+}
+
+fn isModeArg(arg: str) -> bool {
+    return arg == "speak" || arg == "on" || arg == "true" || arg == "text" || arg == "custom" || arg == "edit" || arg == "system" || arg == "basic" || arg == "default" || arg == "load" || arg == "save" || arg == "gemini" || arg == "help"
+}
+
+fn help() {
+    print color("Usage:", "green"); 
+    print color("    npm run local_ai                    - Run interactive mode", "green") 
+    print color("    npm run local_ai \"prompt\"         - Ask a question", "green") 
+    print color("    npm run local_ai \"prompt\" custom  - Asks for a custom system prompt", "green") 
+    print color("    npm run local_ai \"prompt\" load    - Use the most recently saved custom or AI system prompt", "green") 
+    print color("    npm run local_ai \"prompt\" default - Use the default system prompt", "green") 
+    print color("    npm run local_ai \"prompt\" speak   - Read the answer aloud", "green") 
+    print color("    npm run local_ai \"prompt\" save    - Save the answer as audio", "green") 
+    print color("    npm run local_ai text               - Print the answer without reading it aloud", "green") 
+    print color("    npm run local_ai speak              - Skips interactive input", "green") 
+    print color("    npm run local_ai save               - Skips interactive input", "green") 
+    print color("    npm run local_ai custom             - Asks for custom system prompt. Presets are 'basic' and 'default', or 'ai' for AI-generated prompts", "green") 
+    print color("    npm run local_ai default            - Skips interactive input", "green") 
+    print ""}
 
 let helpMode = false
 
-if len(args) > 0 {let i = 0; while i < len(args) {if args[i] == "help" {helpMode = true} i = i + 1}}
-if helpMode {help()} else {
+if len(args) > 0 {
+    let i = 0
+    while i < len(args) {
+        if args[i] == "help" {helpMode = true}
+        i = i + 1
+    }
+}
+
+if helpMode {
+
+help()
+
+} else {
+
 let question = ""
-if len(args) > 0 && !isModeArg(args[0]) {let promptParts = []; let i = 0
-    while i < len(args) {if !isModeArg(args[i]) {push(promptParts, args[i])} i = i + 1}
+
+if len(args) > 0 && !isModeArg(args[0]) {
+    let promptParts = []
+    let i = 0
+    while i < len(args) {
+        if !isModeArg(args[i]) {
+            push(promptParts, args[i])
+        }
+        i = i + 1
+    }
     question = join(promptParts, " ")
-} else {question = input(color("[You]: ", "magenta"))}
+} else {
+    question = input(color("[You]: ", "magenta"))
+}
+
+let conversationMemory = getConversationMemory()
+updateMemoryUSER(question)
 
 let answer = ""
 let customSystem = false
 let ask = ""
 
 let i = 0; let customArg = ""
+
 while i < len(args) {
-    if args[i] == "custom" || args[i] == "edit" || args[i] == "system" || args[i] == "basic" || args[i] == "default" || args[i] == "y" || args[i] == "n" 
-    {customArg = args[i]} i = i + 1
+    if args[i] == "custom" || args[i] == "edit" || args[i] == "system" || args[i] == "basic" || args[i] == "default" || args[i] == "load" || args[i] == "y" || args[i] == "n" {
+        customArg = args[i]
+    }
+    i = i + 1
 }
 
 if customArg != "" {
@@ -39,27 +160,68 @@ if customArg != "" {
 } else {
     ask = input(color("Custom system prompt? (y/n): ", "yellow"))
 }
-if ask == "y" || ask == "custom" || ask == "edit" {
+
+if ask == "y" || ask == "custom" || ask == "edit" || ask == "load" {
     customSystem = true
 } else if ask == "n" || ask == "system" || ask == "basic" || ask == "default" {
     customSystem = false
 } else {print color("Invalid input. Using default system prompt.", "red"); customSystem = false}
 
 if customSystem == true {
-    let systemPrompt = input("Enter your custom system prompt: ")
+    let loadedSystemPrompt = ask == "load"
+    let systemPrompt = ""
+
+    if loadedSystemPrompt {
+        systemPrompt = loadSavedSystemPrompt()
+        if systemPrompt == "" {
+            print color("No saved system prompt found. Enter a new prompt.", "yellow")
+            loadedSystemPrompt = false
+            systemPrompt = input("Enter your custom system prompt: ")
+        }
+    } else {
+        systemPrompt = input("Enter your custom system prompt (or type 'load'): ")
+
+        if systemPrompt == "load" {
+            systemPrompt = loadSavedSystemPrompt()
+            loadedSystemPrompt = systemPrompt != ""
+
+            if !loadedSystemPrompt {
+                print color("No saved system prompt found. Enter a new prompt.", "yellow")
+                systemPrompt = input("Enter your custom system prompt: ")
+            }
+        }
+    }
+
+    let generatedSystemPrompt = systemPrompt == "ai"
+    
     if systemPrompt == "" || systemPrompt == "default" || systemPrompt == "basic" {
         systemPrompt = "You are an experienced ELI5 translator."
     } else if systemPrompt == "ai" {
-            systemPrompt = await model("gemini-3.5-flash-lite") {thinking: "medium", cache: true} {"Write a clear and detailed system instruction for an experienced and efficient coding assistant AI named 'Sesira'. Begin your response with '# SYSTEM INSTRUCTION: Your name is `Sesira`...'. Please respond in under 300 characters and all on one line."}
-            // Save the AI-generated system prompt to a file for future use
-            write_file("local-ai-sys-prompt.txt", "SESI_LOCAL_SYSTEM_PROMPT=\"" + systemPrompt + "\"")
-        }
+        systemPrompt = await model("gemini-3.5-flash-lite") {thinking: "medium", cache: true} {"Write a clear and detailed system instruction for an experienced and efficient coding assistant AI named 'Sesira'. Begin your response with '# SYSTEM INSTRUCTION: Your name is `Sesira`...'. Please respond in under 300 characters and all on one line."}
+    }
+
+    if !loadedSystemPrompt {
+        try {
+            let source = "custom"
+
+            if generatedSystemPrompt {source = "ai"}
+            savedSettings.insert({"type": "system-prompt", "source": source, "value": systemPrompt, "date": timestamp.localTime("in_ms")})
+        } catch (e) {}
+    }
+
+    if generatedSystemPrompt {
+        try {
+            safe.txt("local-ai-sys-prompt", "SESI_LOCAL_SYSTEM_PROMPT=\"" + systemPrompt + "\"")
+        } catch (e) {}
+    }
         print color("Sesira is thinking...", "cyan")
-        answer = model("local") {max_tokens: 2048, temperature: 0.3, stream: false, system: "# SYSTEM INSTRUCTION: " + systemPrompt} {question}
+        let sys = "# SYSTEM INSTRUCTION: " + systemPrompt + "\n\nPrevious conversation:\n" + conversationMemory
+        answer = model("local") {max_tokens: 2048, temperature: 0.3, stream: false, system: sys} {question}
+        updateMemorySESIRA(answer)
         print ""
 } else {customSystem = false}
 
-if customSystem == false {print color("Sesira is thinking...", "cyan"); answer = model("local") {max_tokens: 2048, temperature: 0.5, thinkingLevel: "medium", stream: false} {question} print ""}
+if customSystem == false {print color("Sesira is thinking...", "cyan"); let sys = "Previous conversation:\n" + conversationMemory;  answer = model("local") {max_tokens: 2048, temperature: 0.5, thinkingLevel: "medium", stream: false, system: sys} {question} updateMemorySESIRA(answer); print ""}
 
 fn speak(answer: str, on: bool = false, options = null) -> bool {
     if on == true && !is_null(options) {
@@ -67,10 +229,15 @@ fn speak(answer: str, on: bool = false, options = null) -> bool {
         if is_null(options.modelName) {options.modelName = "gemini-2.5-flash-preview-tts"}
 
         if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
-        write_file("ai-response.wav", speech(answer, options.voice, options.modelName), "base64")
-        print color("Saved to ai-response.wav!", "green")
+        try {
+            safe.saveMedia("ai-response.wav", speech(answer, options.voice, options.modelName))
+            print color("Saved to ai-response.wav!", "green")
+        } catch (e) {
+            print e
+        }
     } else {
         print color("\nSpeaking...", "green")
+
         if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
         speech(answer)
     }
@@ -81,22 +248,31 @@ let isSaveMode = false
 let isTextOnlyMode = false
 let helpMode = false
 
-if len(args) > 0 {let i = 0
-    while i < len(args) {let arg = args[i]
+if len(args) > 0 {
+    let i = 0
+    while i < len(args) {
+        let arg = args[i]
         if arg == "speak" || arg == "on" || arg == "true" {shouldSpeakMode = true}
         if arg == "save" || arg == "gemini" {isSaveMode = true}
         if arg == "text" && !isTextOnlyMode {isTextOnlyMode = true}
-        if arg == "help" {helpMode = true} i = i + 1
+        if arg == "help" {helpMode = true} 
+        i = i + 1
     }
 }
 
 if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
 
-if shouldSpeakMode {print color("[SESIRA]: " + answer, "cyan"); speak(answer, true)
-} else if isSaveMode {print color("[SESIRA]: " + answer, "cyan")
+if shouldSpeakMode {
+    print color("[SESIRA]: " + answer, "cyan")
+    speak(answer, true)
+} else if isSaveMode {
+    print color("[SESIRA]: " + answer, "cyan")
     speak(answer, true, {"voice": "Vindemiatrix", "modelName": "gemini-2.5-flash-preview-tts"})
-} else if isTextOnlyMode {print color("[SESIRA]: " + answer, "cyan")
-} else {print color("[SESIRA]: " + answer, "cyan")
+} else if isTextOnlyMode {
+    print color("[SESIRA]: " + answer, "cyan")
+} else {
+    print color("[SESIRA]: " + answer, "cyan")
+    
     let reqSpeak = input(color("Read answer aloud? (y/n): ", "yellow"))
     if reqSpeak == "y" {speak(answer, true)}
     }

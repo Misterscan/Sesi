@@ -448,7 +448,8 @@ export type RuntimeValue =
   | RuntimeObject
   | RuntimeFunction
   | RuntimeModule
-  | RuntimePromise;
+  | RuntimePromise
+  | RuntimeLazy;
 
 export interface RuntimeArray extends Array<RuntimeValue> {}
 
@@ -475,6 +476,14 @@ export interface RuntimeModule {
 export interface RuntimePromise {
   type: 'promise';
   promise: Promise<RuntimeValue>;
+}
+
+export interface RuntimeLazy {
+  type: 'lazy';
+  name: string;
+  forced: boolean;
+  value?: RuntimeValue;
+  thunk: () => Promise<RuntimeValue>;
 }
 
 // Environment for variable scoping

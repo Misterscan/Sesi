@@ -1,19 +1,22 @@
-/* Sesi Web Scraper
-Fetches a webpage, validates its URL, extracts structured metadata,
-saves a JSON data record, and compiles a Markdown report. 
-Usage:
-  sesi scraper.sesi [url]
+/* 
+    Sesi Web Scraper
+  
+    Fetches a webpage, validates its URL, extracts structured metadata, 
+    saves a JSON data record, and compiles a Markdown report. 
+  
+  Usage:
+    sesi scraper.sesi [url]
 */
-
+allow "helpers/safe" in with Safe
 allow "std/time" in with Time
 allow "std/browser" in with Browser
 let currentTime = Time.format(Time.now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "short"})
 
 // Ensure reports directory exists
-let outputDir = "reports"
-let existing = list_dir(outputDir)
+let outputDir = "reports/"
+let existing = Safe.getFiles(outputDir)
 if type(existing) == "null" {
-  make_dir(outputDir)
+  Safe.newDir(outputDir)
 }
 
 // Retrieve target URL from arguments or default to Hacker News
@@ -91,7 +94,7 @@ try {
 
   result = page.evaluate(extractScript)
   let cleanPath = swap(target_url, "https://", "")
-  page.screenshot({"path": outputDir + "/" + cleanPath + currentTime + "-screenshot.png"})
+  page.screenshot({"path": outputDir + cleanPath + currentTime + "-screenshot.png"})
   page.close()
   browser.close()
 } catch (e) {
@@ -122,7 +125,7 @@ let outputData = {
 }
 
 try {
-  write_file(outputDir + "/scraped_results.json", to_json(outputData))
+  Safe.json(outputDir + "scraped_results", outputData)
 } catch (e) {
   print "Error writing results JSON:" e
 }
@@ -155,8 +158,8 @@ prompt reportBody {"# Web Scraper Report
 " highlights}
 
 try {
-  write_file(outputDir + "/" + pageTitle + "-report-" + timestamp + ".md", reportBody)
+  Safe.md(outputDir + pageTitle + "-report-" + timestamp, reportBody)
 } catch (e) {
   print "Error writing report Markdown:" e
 }
-print "📄 Compiled and saved report to" outputDir "/" pageTitle "-report-" timestamp ".md"
+print "📄 Compiled and saved report to" outputDir pageTitle "-report-" timestamp ".md"

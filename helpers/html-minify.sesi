@@ -8,6 +8,7 @@
   Usage:
     sesi html-minify.sesi [input_file_or_dir] [output_dir]
 */
+allow "safe" in with safe
 
 let input_target = "index.html"
 let output_dir = "minified"
@@ -17,7 +18,7 @@ if len(args) > 1 { output_dir = args[1] }
 
 // Ensure output directory exists safely
 try {
-  make_dir(output_dir)
+  safe.newDir(output_dir)
 } catch (err) {}
 
 fn minify_html(html: string) -> string {
@@ -87,9 +88,9 @@ fn minify_html(html: string) -> string {
 fn process_file(in_path: string, out_path: string) {
   print "Processing:" in_path
   try {
-    let source_html = read_file(in_path)
+    let source_html = safe.read(in_path)
     let minified_html = minify_html(source_html)
-    let success = write_file(out_path, minified_html)
+    let success = safe.write(out_path, minified_html)
     
     if success {
       print "  -> Saved:" out_path "(" len(minified_html) "bytes )"
@@ -118,7 +119,7 @@ if ends_with(input_target, ".html") {
   print "Scanning directory:" input_target
   
   try {
-    let files = list_dir(input_target)
+    let files = safe.getFiles(input_target)
     let count = 0
     
     for file in files {

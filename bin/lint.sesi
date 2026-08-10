@@ -311,6 +311,283 @@ fn lex(content) {
   return tokens
 }
 
+// Independent scope audit for the native linter. This intentionally does not
+// call the IDE analyzer or the CLI dry-run checker.
+fn audit_scope(tokens) {
+  let issues = []
+  let scopes = [{"parent": -1, "isRoot": true, "isMakeScope": false}]
+  let scopeStack = [0]
+  let tokenScopes = []
+  let declarations = []
+  let declarationTokens = []
+  let currentScope = 0
+  let pendingScope = -1
+  let n = len(tokens)
+  let i = 0
+
+  fn new_scope(parent, isMakeScope) {
+    push(scopes, {"parent": parent, "isRoot": false, "isMakeScope": isMakeScope})
+    return len(scopes) - 1
+  }
+
+  fn declare_symbol(name, tokenIndex, scopeId, suppressUnused) {
+    push(declarationTokens, tokenIndex)
+    let existing = -1
+    let d = 0
+    while d < len(declarations) {
+      if declarations[d].scope == scopeId {
+        if declarations[d].name == name { existing = d }
+      }
+      d = d + 1
+    }
+    let binding = {
+        "name": name,
+        "tokenIndex": tokenIndex,
+        "scope": scopeId,
+        "reads": 0,
+        "suppressUnused": suppressUnused
+      }
+    if existing == -1 {
+      push(declarations, binding)
+    } else {
+      declarations[existing] = binding
+    }
+  }
+
+  while i < n {
+    let tok = tokens[i]
+
+    if tok.type == "RIGHT_BRACE" {
+      if len(scopeStack) > 1 {
+        pop(scopeStack)
+        currentScope = scopeStack[len(scopeStack) - 1]
+      }
+    }
+    push(tokenScopes, currentScope)
+
+    if tok.type == "FN" || tok.type == "MAKE" {
+      if i + 1 < n {
+        let nameTok = tokens[i + 1]
+        if nameTok.type == "IDENTIFIER" {
+          declare_symbol(nameTok.lexeme, i + 1, currentScope, false)
+        }
+      }
+      let isMakeScope = false
+      if tok.type == "MAKE" { isMakeScope = true }
+      let isMakeMethod = false
+      if tok.type == "FN" {
+        if scopes[currentScope].isMakeScope { isMakeMethod = true }
+      }
+      pendingScope = new_scope(currentScope, isMakeScope)
+      let cursor = i + 2
+      while cursor < n {
+        if tokens[cursor].type == "LEFT_PAREN" { break }
+        if tokens[cursor].type == "LEFT_BRACE" { break }
+        cursor = cursor + 1
+      }
+      if cursor < n {
+        if tokens[cursor].type == "LEFT_PAREN" {
+          cursor = cursor + 1
+          while cursor < n {
+            if tokens[cursor].type == "RIGHT_PAREN" { break }
+            if tokens[cursor].type == "IDENTIFIER" {
+              let previous = tokens[cursor - 1]
+              if previous.type == "LEFT_PAREN" || previous.type == "COMMA" {
+                let suppress = false
+                let prefix = slice(tokens[cursor].lexeme, 0, 1)
+                if prefix == "_" { suppress = true }
+                if isMakeMethod {
+                  if tokens[cursor].lexeme == "self" { suppress = true }
+                }
+                declare_symbol(tokens[cursor].lexeme, cursor, pendingScope, suppress)
+              }
+            }
+            cursor = cursor + 1
+          }
+        }
+      }
+    } else if tok.type == "FOR" {
+      pendingScope = new_scope(currentScope, false)
+      if i + 1 < n {
+        if tokens[i + 1].type == "IDENTIFIER" {
+          declare_symbol(tokens[i + 1].lexeme, i + 1, pendingScope, true)
+        }
+      }
+    } else if tok.type == "CATCH" {
+      pendingScope = new_scope(currentScope, false)
+      if i + 2 < n {
+        if tokens[i + 1].type == "LEFT_PAREN" {
+          if tokens[i + 2].type == "IDENTIFIER" {
+            declare_symbol(tokens[i + 2].lexeme, i + 2, pendingScope, true)
+          }
+        }
+      }
+    } else if tok.type == "LEFT_BRACE" {
+      if pendingScope != -1 {
+        currentScope = pendingScope
+        pendingScope = -1
+      } else {
+        currentScope = new_scope(currentScope, false)
+      }
+      push(scopeStack, currentScope)
+    } else if tok.type == "LET" || tok.type == "CONST" || tok.type == "MEMORY" || tok.type == "PROMPT" || tok.type == "STRUCTURED_OUTPUT" {
+      if i + 1 < n {
+        if tokens[i + 1].type == "IDENTIFIER" {
+          declare_symbol(tokens[i + 1].lexeme, i + 1, currentScope, false)
+        }
+      }
+    } else if tok.type == "IMPORT" {
+      let cursor = i + 1
+      while cursor < n {
+        if tokens[cursor].type == "FROM" { break }
+        if tokens[cursor].type == "EOF" { break }
+        if tokens[cursor].type == "IDENTIFIER" {
+          declare_symbol(tokens[cursor].lexeme, cursor, currentScope, false)
+        }
+        cursor = cursor + 1
+      }
+    } else if tok.type == "ALLOW" {
+      let cursor = i + 1
+      while cursor < n {
+        if tokens[cursor].type == "WITH" { break }
+        if tokens[cursor].type == "EOF" { break }
+        cursor = cursor + 1
+      }
+      cursor = cursor + 1
+      while cursor < n {
+        if tokens[cursor].type != "NEWLINE" { break }
+        cursor = cursor + 1
+      }
+      if cursor < n {
+        if tokens[cursor].type == "IDENTIFIER" {
+          declare_symbol(tokens[cursor].lexeme, cursor, currentScope, false)
+        } else if tokens[cursor].type == "LEFT_BRACE" {
+          cursor = cursor + 1
+          while cursor < n {
+            if tokens[cursor].type == "RIGHT_BRACE" { break }
+            if tokens[cursor].type == "EOF" { break }
+            if tokens[cursor].type == "IDENTIFIER" {
+              declare_symbol(tokens[cursor].lexeme, cursor, currentScope, false)
+            }
+            cursor = cursor + 1
+          }
+        }
+      }
+    } else if tok.type == "IDENTIFIER" {
+      if tok.lexeme == "define_tool" {
+        if i + 2 < n {
+          if tokens[i + 1].type == "LEFT_PAREN" {
+            if tokens[i + 2].type == "STRING" || tokens[i + 2].type == "IDENTIFIER" {
+              declare_symbol(tokens[i + 2].lexeme, i + 2, currentScope, false)
+            }
+          }
+        }
+      }
+    }
+    i = i + 1
+  }
+
+  let builtins = [
+    "print", "str", "type", "num", "float", "bool", "from_json", "to_json", "encrypt", "decrypt", "speech", "from_speech", "translate", "len",
+    "read_file", "write_file", "append_file", "write_image", "open", "open_file", "list_dir", "make_dir", "rename", "archive", "trash",
+    "exp", "trunc", "random", "sleep", "now", "model", "image", "js", "html", "structured_output", "tool_call", "spawn", "exec", "sesi",
+    "python", "time", "env", "range", "push", "append", "pop", "join", "split", "keys", "values", "array", "PI", "E", "sin", "cos",
+    "tan", "sqrt", "floor", "ceil", "abs", "pow", "log", "parse", "stringify", "workflow", "set_alias", "define_tool", "list_tools",
+    "error_type", "raise_error", "multi_req", "web_get", "web_send", "listen", "live", "convert", "api", "prompt", "debug", "to_upper",
+    "to_lower", "trim", "slice", "swap", "retry", "map", "filter", "reduce", "find", "format", "db_open", "args", "input", "contains",
+    "locate", "doc", "media", "audio", "launch", "memory_search", "memory_trim", "lazy", "force", "timeout", "profile", "profile_start",
+    "profile_end", "profile_report", "string", "number", "object", "null", "any", "name",
+    "arity", "is_function", "is_array", "is_object", "is_string", "is_number", "is_bool", "is_null", "length", "starts_with", "ends_with",
+    "index_of", "repeat", "includes", "reverse", "sort", "unique", "flatten", "play", "beep", "synth", "save", "sequence", "mix", "comp",
+    "render", "sf2", "chord", "scale", "transpose", "duration", "bar", "midi", "clear", "circle", "rect", "line", "text", "save_svg",
+    "ellipse", "polygon", "path", "gradient", "style", "raw", "regex", "tokenize", "count_tokens", "estimate_tokens", "estimate_cost",
+    "model_usage", "gif", "video", "ffmpeg", "matrix_dot", "matrix_transpose", "matrix_add", "matrix_sub", "matrix_mul_elements", "matrix_scale",
+    "matrix_sigmoid", "matrix_dsigmoid", "matrix_sum_rows", "matrix_mse"
+  ]
+
+  i = 0
+  while i < n {
+    let tok = tokens[i]
+    if tok.type == "IDENTIFIER" {
+      let isDeclaration = false
+      for declarationToken in declarationTokens {
+        if declarationToken == i { isDeclaration = true }
+      }
+
+      let skipReference = isDeclaration
+      if skipReference == false {
+        if i > 0 {
+          if tokens[i - 1].type == "DOT" { skipReference = true }
+        }
+      }
+      if skipReference == false {
+        if i + 1 < n {
+          if tokens[i + 1].type == "COLON" { skipReference = true }
+        }
+      }
+
+      if skipReference == false {
+        let resolvedIndex = -1
+        let searchScope = tokenScopes[i]
+        while searchScope != -1 {
+          let d = len(declarations) - 1
+          while d >= 0 {
+            let decl = declarations[d]
+            if decl.scope == searchScope {
+              if decl.name == tok.lexeme {
+                resolvedIndex = d
+                break
+              }
+            }
+            d = d - 1
+          }
+          if resolvedIndex != -1 { break }
+          searchScope = scopes[searchScope].parent
+        }
+
+        if resolvedIndex != -1 {
+          declarations[resolvedIndex]["reads"] = declarations[resolvedIndex].reads + 1
+        } else {
+          let isBuiltin = false
+          for builtinName in builtins {
+            if builtinName == tok.lexeme { isBuiltin = true }
+          }
+          if isBuiltin == false {
+            push(issues, {
+              "line": tok.line,
+              "message": "Undefined symbol: \"" + tok.lexeme + "\". Referenced but not declared in this scope."
+            })
+          }
+        }
+      }
+    }
+    i = i + 1
+  }
+
+  for decl in declarations {
+    if scopes[decl.scope].isRoot == false {
+      if scopes[decl.scope].isMakeScope == false {
+        if decl.reads == 0 {
+          if decl.suppressUnused == false {
+            if decl.name != "req" {
+              let prefix = slice(decl.name, 0, 1)
+              if prefix != "_" {
+                push(issues, {
+                  "line": tokens[decl.tokenIndex].line,
+                  "message": "Unused symbol: \"" + decl.name + "\". Declared but never read.",
+                  "isWarning": true
+                })
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return issues
+}
+
 fn audit_syntax(tokens) {
   let errors = []
   let n = len(tokens)
@@ -873,17 +1150,34 @@ fn audit_syntax(tokens) {
   return errors
 }
 
-fn mask_string_segments(line, startInString) {
+fn mask_non_code_segments(line, startInString, startInBlockComment, startQuote) {
   let chars = split(line, "")
   let n = len(chars)
   let i = 0
   let inString = startInString
-  let quote = '"'
+  let inBlockComment = startInBlockComment
+  let quote = startQuote
   let masked = ""
   
   while i < n {
     let c = chars[i]
     
+    if inBlockComment {
+      if c == "*" {
+        if i + 1 < n {
+          if chars[i + 1] == "/" {
+            masked = masked + "  "
+            inBlockComment = false
+            i = i + 2
+            continue
+          }
+        }
+      }
+      masked = masked + " "
+      i = i + 1
+      continue
+    }
+
     if inString {
       if c == "\\" {
         masked = masked + " "
@@ -903,6 +1197,24 @@ fn mask_string_segments(line, startInString) {
       masked = masked + " "
       i = i + 1
       continue
+    }
+
+    if c == "/" {
+      if i + 1 < n {
+        if chars[i + 1] == "/" {
+          while i < n {
+            masked = masked + " "
+            i = i + 1
+          }
+          continue
+        }
+        if chars[i + 1] == "*" {
+          masked = masked + "  "
+          inBlockComment = true
+          i = i + 2
+          continue
+        }
+      }
     }
     
     if c == '"' {
@@ -925,7 +1237,7 @@ fn mask_string_segments(line, startInString) {
     i = i + 1
   }
   
-  return {"line": masked, "inString": inString}
+  return {"line": masked, "inString": inString, "inBlockComment": inBlockComment, "quote": quote}
 }
 
 let targetFiles = []
@@ -1018,6 +1330,18 @@ for filePath in targetFiles {
         fileErrors = fileErrors + 1
       }
     }
+
+    // Step 2b: Run the linter's independent lexical scope audit.
+    let scopeIssues = audit_scope(fileTokens)
+    for scopeIssue in scopeIssues {
+      if scopeIssue.isWarning {
+        report = report + "* **Line " + str(scopeIssue.line) + color(":** ⚠️ [WARN] " + scopeIssue.message, "yellow") + "\n"
+        fileWarnings = fileWarnings + 1
+      } else {
+        report = report + "* **Line " + str(scopeIssue.line) + color(":** 🔴 [ERROR] " + scopeIssue.message, "red") + "\n"
+        fileErrors = fileErrors + 1
+      }
+    }
     
     // Step 3: Run Semantic audits on lines
     let lines = split(content, "\n")
@@ -1026,36 +1350,32 @@ for filePath in targetFiles {
     let fnStartDepth = -1
     let braceDepth = 0
     let inSemanticString = false
+    let inSemanticBlockComment = false
+    let semanticQuote = '"'
     
     for line in lines {
       idx = idx + 1
-      let maskedLine = mask_string_segments(line, inSemanticString)
+      let maskedLine = mask_non_code_segments(line, inSemanticString, inSemanticBlockComment, semanticQuote)
       let auditLine = maskedLine["line"]
       inSemanticString = maskedLine["inString"]
-      let doubleQuoteParts = split(auditLine, '"')
-      if len(doubleQuoteParts) > 1 {
-        auditLine = doubleQuoteParts[0]
-      }
-      let singleQuoteParts = split(auditLine, "'")
-      if len(singleQuoteParts) > 1 {
-        auditLine = singleQuoteParts[0]
-      }
-      let jsCodeCallParts = split(line, "js(")
+      inSemanticBlockComment = maskedLine["inBlockComment"]
+      semanticQuote = maskedLine["quote"]
+      let jsCodeCallParts = split(auditLine, "js(")
       if len(jsCodeCallParts) > 1 {
         auditLine = ""
       }
-      let pythonCodeCallParts = split(line, "python(")
+      let pythonCodeCallParts = split(auditLine, "python(")
       if len(pythonCodeCallParts) > 1 {
         auditLine = ""
       }
-      let jsSuffixParts = split(line, "let suffix =")
+      let jsSuffixParts = split(auditLine, "let suffix =")
       if len(jsSuffixParts) > 1 {
         auditLine = ""
       }
       
       // Calculate scopes
-      let openCount = len(split(line, "{")) - 1
-      let closeCount = len(split(line, "}")) - 1
+      let openCount = len(split(auditLine, "{")) - 1
+      let closeCount = len(split(auditLine, "}")) - 1
       
       let fnSegs = split(auditLine, "fn ")
       if len(fnSegs) > 1 { fnStartDepth = braceDepth }

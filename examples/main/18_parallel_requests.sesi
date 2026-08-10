@@ -3,9 +3,9 @@
     Demonstrates:
     - multi_req builtin to trigger multiple functions in parallel.
     - Concurrency duration benchmarking.
+    - "name" | profile(fn) and "text" | profile_report for performance analysis.
     - Dynamic array resolution.
 */
-
 allow "std/time" in with Time
 allow "std/terminal" in with { color }
 
@@ -23,22 +23,40 @@ fn slowTask2() {
   return "result_from_task_2"
 }
 
+fn runSequential() {
+  let first = slowTask1()
+  let second = slowTask2()
+  return [first, second]
+}
+
+// multi_req accepts an array of Sesi functions and executes them concurrently.
+fn runParallel() {
+  return [slowTask1, slowTask2] | multi_req
+}
+
 print "=== 2. Sequential Execution (Demonstration) ==="
 let seq_start = Time.now()
-let r1 = slowTask1()
-let r2 = slowTask2()
+let sequentialResults = "sequential tasks" | profile(runSequential)
 let seq_elapsed = Time.now() - seq_start
+
+print "Sequential Results:"
+print str(sequentialResults)
 print "Sequential took:" str(seq_elapsed) "ms (should be >= 300ms)"
 
 print "=== 3. Parallel Execution via multi_req ==="
 let start_time = Time.now()
-
-// multi_req accepts an array of Sesi functions and executes them concurrently.
-let results = [slowTask1, slowTask2] | multi_req
+let results = "parallel tasks" | profile(runParallel)
 let elapsed = Time.now() - start_time
+
 print "Returned Results array:"
 print str(results)
-print "Parallel took:" str(elapsed) "ms (should be ~150ms - physically parallel!)"
-if elapsed < 220 
-{print "✓ Success! Native Sesi concurrency verified: jobs ran in parallel."
-} else {print "✗ Failure: jobs ran sequentially."}
+print "Parallel took:" str(elapsed) "ms (should be faster than sequential execution)"
+
+if elapsed < seq_elapsed {
+  print "✓ Success! Native Sesi concurrency verified: jobs ran in parallel."
+} else {
+  print "✗ Failure: jobs ran sequentially."
+}
+
+print "=== 4. Profiler Report ==="
+print "text" | profile_report

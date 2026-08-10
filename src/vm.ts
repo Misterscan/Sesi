@@ -16,6 +16,7 @@ import {
 
 import { getBuiltins, isTruthy, isEqual, stringify, compareValues } from './builtins';
 import { aiRuntime } from './ai-runtime';
+import { formatProfileReport } from './profiler';
 
 // ---------------------------------------------------------------------------
 // Upvalue representation
@@ -64,11 +65,16 @@ export class VM {
   private openUpvalues: VMUpvalue[] = [];
   private handlers: ExceptionHandler[] = [];
   private pendingError: any = null;
+  private deadlineAt?: number;
+  private timeoutMs?: number;
+  private instructionCount = 0;
 
   constructor(
     private scriptDir?: string,
-    private options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; args?: string[] },
+    private options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; args?: string[]; profile?: boolean; timeoutMs?: number; deadlineAt?: number; modelUsageState?: any },
   ) {
+    this.timeoutMs = options?.timeoutMs;
+    this.deadlineAt = options?.deadlineAt ?? (this.timeoutMs ? Date.now() + this.timeoutMs : undefined);
     // Bootstrap: create a temporary Interpreter just to get the builtins map,
     // then extract every function into our global table.
     // We reuse the exact same builtin implementations — no duplication.
@@ -143,7 +149,14 @@ export class VM {
   // -------------------------------------------------------------------------
   async run(chunk: Chunk): Promise<void> {
     this.frames.push({ proto: null, chunk, ip: 0, base: 0, upvalues: [] });
-    await this.execute();
+    try {
+      await this.interpreter.getProfiler().timeAsync('vm:program', () => this.execute());
+    } finally {
+      const profiler = this.interpreter?.getProfiler?.();
+      if (profiler?.enabled && profiler.hasData()) {
+        console.log(formatProfileReport(profiler));
+      }
+    }
   }
 
   async callCompiledFunction(fn: RuntimeFunction, args: RuntimeValue[]): Promise<RuntimeValue> {
@@ -176,6 +189,7 @@ export class VM {
   // -------------------------------------------------------------------------
   private async execute(): Promise<void> {
     while (true) {
+      if ((this.instructionCount++ & 0x3ff) === 0) this.checkTimeout();
       const frame = this.currentFrame();
       const { chunk } = frame;
       const ipBefore = frame.ip;
@@ -787,7 +801,27 @@ export class VM {
     if (fn.isBuiltin && fn.builtin) {
       const args = this.stack.splice(this.stack.length - argc, argc);
       this.pop(); // pop callee
-      const result = await fn.builtin(...args);
+
+      if (fn.name === 'lazy') {
+        this.push(this.createLazy(args));
+        return;
+      }
+      if (fn.name === 'force') {
+        this.push(await this.forceValue(args[0]));
+        return;
+      }
+      if (fn.name === 'timeout') {
+        this.push(await this.callWithTimeout(args));
+        return;
+      }
+      if (fn.name === 'profile') {
+        this.push(await this.callWithProfile(args));
+        return;
+      }
+
+      const result = await this.runWithRemainingTimeout(() =>
+        this.interpreter.getProfiler().timeAsync(`builtin:${fn.name}`, () => fn.builtin!(...args)),
+      );
       this.push(result ?? null);
       return;
     }
@@ -796,7 +830,7 @@ export class VM {
     if (!proto) {
       // Fallback: user-defined function compiled by tree-walker — delegate to interpreter
       const { Interpreter } = require('./interpreter');
-      const interp = new Interpreter(this.scriptDir, this.options);
+      const interp = new Interpreter(this.scriptDir, { ...this.options, modelUsageState: (this.interpreter as any)?.modelUsageState });
       if (this.interpreter) {
         for (const [k, v] of (this.interpreter as any).modelAliases) {
           interp.setModelAlias(k, v);
@@ -822,6 +856,147 @@ export class VM {
 
     const upvalues: VMUpvalue[] = (fn as any)._upvalues ?? [];
     this.frames.push({ proto, chunk: proto.chunk, ip: 0, base: frameBase, upvalues });
+  }
+
+  private createLazy(args: RuntimeValue[]): RuntimeValue {
+    const action = this.requireCallable(args[0], 'lazy');
+    const capturedArgs = args.slice(1);
+    const lazyValue: any = {
+      type: 'lazy',
+      name: action.name || '<anonymous>',
+      forced: false,
+      thunk: async (): Promise<RuntimeValue> => {
+        if (!lazyValue.forced) {
+          lazyValue.value = await this.callFunctionInIsolatedVm(action, capturedArgs);
+          lazyValue.forced = true;
+        }
+        return lazyValue.value ?? null;
+      },
+    };
+    return lazyValue as RuntimeValue;
+  }
+
+  private async forceValue(value: RuntimeValue): Promise<RuntimeValue> {
+    if (typeof value === 'object' && value !== null && (value as any).type === 'lazy') {
+      return await (value as any).thunk();
+    }
+    if (typeof value === 'object' && value !== null && (value as any).type === 'promise') {
+      return await (value as any).promise;
+    }
+    return value ?? null;
+  }
+
+  private async callWithTimeout(args: RuntimeValue[]): Promise<RuntimeValue> {
+    const action = this.requireCallable(args[0], 'timeout');
+    const msVal = args[1];
+    if (typeof msVal !== 'number' || !Number.isFinite(msVal) || msVal <= 0) {
+      throw new Error('timeout expects a positive timeout in milliseconds');
+    }
+    const ms = Math.floor(msVal);
+    const fallback = args.length >= 3 ? args[2] : undefined;
+    let timeoutId: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<RuntimeValue>((resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        if (fallback !== undefined) {
+          resolve(fallback);
+        } else {
+          reject(new SesiRuntimeError('TimeoutError', `Operation timed out after ${ms}ms`, { timeout_ms: ms }));
+        }
+      }, ms);
+    });
+
+    try {
+      return await Promise.race([
+        this.callFunctionInIsolatedVm(action, []),
+        timeoutPromise,
+      ]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  }
+
+  private async callWithProfile(args: RuntimeValue[]): Promise<RuntimeValue> {
+    const label = typeof args[0] === 'string' ? args[0] : 'profile';
+    const action = this.requireCallable(args[1], 'profile');
+    const start = performance.now();
+    try {
+      return await this.callFunctionInIsolatedVm(action, []);
+    } finally {
+      this.interpreter.getProfiler().record(label, performance.now() - start);
+    }
+  }
+
+  private requireCallable(value: RuntimeValue, name: string): RuntimeFunction {
+    if (typeof value !== 'object' || value === null || (value as any).type !== 'function') {
+      throw new Error(`${name} expects a function as the first argument`);
+    }
+    return value as RuntimeFunction;
+  }
+
+  private async callFunctionInIsolatedVm(fn: RuntimeFunction, args: RuntimeValue[]): Promise<RuntimeValue> {
+    if ((fn as any)._proto) {
+      const vm = new VM(this.scriptDir, {
+        ...this.options,
+        modelUsageState: (this.interpreter as any)?.modelUsageState,
+        timeoutMs: this.timeoutMs,
+        deadlineAt: this.deadlineAt,
+      });
+      for (const [key, value] of this.globals.entries()) {
+        (vm as any).globals.set(key, value);
+        (vm as any).interpreter.globalEnv.define(key, value);
+      }
+      (vm as any).prompts = new Map(this.prompts);
+      (vm as any).memory = new Map(this.memory);
+
+      const result = await vm.callCompiledFunction(fn, args);
+
+      for (const [key, value] of (vm as any).globals.entries()) {
+        this.globals.set(key, value);
+        this.interpreter.globalEnv.define(key, value);
+      }
+      for (const [key, value] of (vm as any).memory.entries()) {
+        this.memory.set(key, value);
+      }
+      return result ?? null;
+    }
+
+    if (fn.isBuiltin && fn.builtin) {
+      return await this.runWithRemainingTimeout(() => fn.builtin!(...args)) ?? null;
+    }
+
+    if (this.interpreter && typeof this.interpreter.callSesiFunction === 'function') {
+      const result = await this.interpreter.callSesiFunction(fn, args);
+      return await this.forceValue(result);
+    }
+
+    return null;
+  }
+
+  private async runWithRemainingTimeout(action: () => RuntimeValue | Promise<RuntimeValue>): Promise<RuntimeValue> {
+    this.checkTimeout();
+    const remaining = this.deadlineAt === undefined ? undefined : this.deadlineAt - Date.now();
+    if (remaining === undefined) return await action();
+    if (remaining <= 0) {
+      throw new SesiRuntimeError('TimeoutError', `Execution timed out after ${this.timeoutMs ?? 0}ms`, { timeout_ms: this.timeoutMs ?? null });
+    }
+
+    let timeoutId: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<RuntimeValue>((_resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new SesiRuntimeError('TimeoutError', `Execution timed out after ${this.timeoutMs ?? 0}ms`, { timeout_ms: this.timeoutMs ?? null }));
+      }, remaining);
+    });
+    try {
+      return await Promise.race([Promise.resolve(action()), timeoutPromise]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  }
+
+  private checkTimeout(): void {
+    if (this.deadlineAt !== undefined && Date.now() > this.deadlineAt) {
+      throw new SesiRuntimeError('TimeoutError', `Execution timed out after ${this.timeoutMs ?? 0}ms`, { timeout_ms: this.timeoutMs ?? null });
+    }
   }
 
   // -------------------------------------------------------------------------

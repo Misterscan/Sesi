@@ -506,7 +506,7 @@ sesi examples/main/06_arrays_objects.sesi
 sesi examples/main/09_structured_output.sesi
 sesi examples/main/11_memory_storage.sesi
 sesi examples/main/12_classification.sesi
-sesi examples/main/13_data_pipeline.sesi
+sesi examples/main/13_data_pipeline.sesi      # lazy/force pipeline summary
 
 # Reasoning examples (automatically loads .env for Gemini API key)
 sesi examples/optional/08_model_call.sesi
@@ -519,7 +519,7 @@ sesi examples/optional/15_image_generation.sesi
 # Advanced Version 1.3 features
 sesi examples/main/16_modules.sesi
 sesi examples/main/17_http_client.sesi
-sesi examples/main/18_parallel_requests.sesi
+sesi examples/main/18_parallel_requests.sesi  # profile/report concurrency timing
 sesi examples/main/19_search_web.sesi
 sesi examples/optional/20_model_aliases.sesi
 sesi examples/main/21_custom_tools.sesi
@@ -534,12 +534,12 @@ sesi examples/main/26_database.sesi
 sesi examples/main/27_robust_web_db.sesi
 sesi examples/optional/28_streaming.sesi
 sesi examples/main/29_tool_piping.sesi
-sesi examples/main/30_error_recovery.sesi
+sesi examples/main/30_error_recovery.sesi     # retry plus timeout fallback
 sesi examples/main/31_synthesizer.sesi
 
 # Pre-2.0 features
 sesi examples/main/32_browser_automation.sesi
-sesi examples/main/33_base64.sesi
+sesi examples/main/33_base64.sesi             # Base64 plus encrypt/decrypt
 sesi examples/main/34_sesi_api.sesi
 sesi examples/main/35_speech_language.sesi
 sesi examples/main/36_regex_media.sesi

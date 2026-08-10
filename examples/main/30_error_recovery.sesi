@@ -4,23 +4,29 @@
   Demonstrates:
     1. Retrying Sesi functions using the retry(action, options) builtin.
     2. Configuring retries with exponential backoff. 
+    3. Bounding slow recovery work with action | timeout(ms, fallback).
 */
-
-let attempts = 0
+allow "std/time" in with {sleep}
 
 fn flakyAction() {
-  attempts = attempts + 1
-  print "Attempt number:" attempts
-  if attempts < 3 {
-    "TemporaryNetworkError" | raise_error("Connection reset by peer")
-  }
-  return "Successfully fetched data!"
+  print "Calling upstream API..."
+  "TemporaryNetworkError" | raise_error("Connection reset by peer")
 }
 
 print "=== Executing flaky action with retry ==="
 try {
-  let result = flakyAction | retry({"max_retries": 3, "initial_delay": 100, "backoff_factor": 2.0})
+  let result = flakyAction | retry({"max_retries": 2, "initial_delay": 100, "backoff_factor": 2.0})
   print "Result:" result
 } catch (error) {
   print "Failed permanently with error:" error["message"]
 }
+
+fn slowFallback() {
+  print "Starting slow fallback..."
+  250 | sleep
+  return "Recovered slowly"
+}
+
+print "=== Executing slow fallback with timeout ==="
+let fallbackResult = slowFallback | timeout(50, "Fallback timed out; using cached data.")
+print "Timeout result:" fallbackResult

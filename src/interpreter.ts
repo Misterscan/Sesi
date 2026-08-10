@@ -51,6 +51,7 @@ import { marked } from 'marked';
 import TurndownService from 'turndown';
 import sharp from 'sharp';
 import { estimateTokenCost } from './token-pricing';
+import { SesiProfiler, formatProfileReport } from './profiler';
 
 export class Interpreter {
   private globalEnv: Environment;
@@ -59,7 +60,10 @@ export class Interpreter {
   private memory: Map<string, string> = new Map();
   private modelAliases: Map<string, string> = new Map();
   private customTools: Map<string, { fn: RuntimeFunction; description?: string }> = new Map();
-  private lastModelUsage: RuntimeValue = null;
+  public modelUsageState: { lastModelUsage: RuntimeValue };
+  private profiler: SesiProfiler;
+  private deadlineAt?: number;
+  private timeoutMs?: number;
   public exports: Map<string, RuntimeValue> = new Map();
   private scriptDir: string | undefined;
 
@@ -72,7 +76,8 @@ export class Interpreter {
   public raw: boolean = false;
   public args: string[] = [];
 
-  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; encrypt?: boolean; decrypt?: boolean; password?: string; raw?: boolean; args?: string[] }) {
+  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; encrypt?: boolean; decrypt?: boolean; password?: string; raw?: boolean; args?: string[]; profile?: boolean; timeoutMs?: number; deadlineAt?: number; modelUsageState?: { lastModelUsage: RuntimeValue } }) {
+    this.modelUsageState = options?.modelUsageState || { lastModelUsage: null };
     this.safeMode = options?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
     this.allowLocalFs = options?.allowLocalFs ?? (process.env.SESI_LOCAL_FS === 'true');
     this.raw = options?.raw ?? false;
@@ -81,6 +86,9 @@ export class Interpreter {
     this.decrypt = options?.decrypt ?? false;
     this.password = options?.password ?? (process.env.SESI_PASSWORD ?? '');
     this.args = options?.args || [];
+    this.timeoutMs = options?.timeoutMs;
+    this.deadlineAt = options?.deadlineAt ?? (this.timeoutMs ? Date.now() + this.timeoutMs : undefined);
+    this.profiler = new SesiProfiler(options?.profile === true);
     if (scriptDir && !this.allowedPaths.includes(scriptDir)) {
       this.allowedPaths.push(scriptDir);
     }
@@ -112,7 +120,7 @@ export class Interpreter {
     const thinkingTokens = Math.max(0, Math.floor(usage?.thinkingTokens ?? 0));
     const billableOutputTokens = outputTokens + thinkingTokens;
     const estimate = estimateTokenCost(model, inputTokens, billableOutputTokens);
-    this.lastModelUsage = {
+    this.modelUsageState.lastModelUsage = {
       model: String(model).replace(/^models\//, ''),
       input_tokens: inputTokens,
       output_tokens: outputTokens,
@@ -131,7 +139,31 @@ export class Interpreter {
   }
 
   public getLastModelUsage(): RuntimeValue {
-    return this.lastModelUsage;
+    return this.modelUsageState.lastModelUsage;
+  }
+
+  public getProfiler(): SesiProfiler {
+    return this.profiler;
+  }
+
+  public getDeadlineAt(): number | undefined {
+    return this.deadlineAt;
+  }
+
+  public getTimeoutMs(): number | undefined {
+    return this.timeoutMs;
+  }
+
+  public checkTimeout(line?: number): void {
+    if (this.deadlineAt !== undefined && Date.now() > this.deadlineAt) {
+      throw new SesiRuntimeError(
+        'TimeoutError',
+        `Execution timed out after ${this.timeoutMs ?? 0}ms`,
+        { timeout_ms: this.timeoutMs ?? null },
+        line,
+        1,
+      );
+    }
   }
 
   /**
@@ -202,8 +234,15 @@ export class Interpreter {
   }
 
   async interpret(program: Program): Promise<void> {
-    for (const statement of program.statements) {
-      await this.executeStatement(statement);
+    try {
+      for (const statement of program.statements) {
+        this.checkTimeout((statement as any).line);
+        await this.executeStatement(statement);
+      }
+    } finally {
+      if (this.profiler.enabled && this.profiler.hasData()) {
+        console.log(formatProfileReport(this.profiler));
+      }
     }
   }
 
@@ -288,62 +327,66 @@ export class Interpreter {
   }
 
   public async executeStatement(statement: Statement): Promise<RuntimeValue> {
+    this.checkTimeout((statement as any).line);
+    const profileName = `statement:${statement.type}`;
     try {
-      if (process.env.SESI_DEBUG === '1') {
-        const lineInfo = (statement as any).line !== undefined ? ` line ${(statement as any).line}` : '';
-        console.log(`[DEBUG] Executing ${statement.type}${lineInfo}`);
-      }
-      switch (statement.type) {
-        case 'LetStatement':
-          await this.executeLet(statement);
-          return null;
-        case 'ConstStatement':
-          await this.executeConst(statement);
-          return null;
-        case 'FunctionStatement':
-          this.executeFunction(statement);
-          return null;
-        case 'ExpressionStatement':
-          return await this.executeExpression(statement);
-        case 'BlockStatement':
-          await this.executeBlock(statement, new Environment(this.currentEnv));
-          return null;
-        case 'IfStatement':
-          await this.executeIf(statement);
-          return null;
-        case 'WhileStatement':
-          await this.executeWhile(statement);
-          return null;
-        case 'ForStatement':
-          await this.executeFor(statement);
-          return null;
-        case 'ReturnStatement':
-          throw new ReturnValue(
-            (statement).value
-              ? await this.evaluateExpression((statement).value)
-              : null
-          );
-        case 'BreakStatement':
-          throw new BreakException();
-        case 'ContinueStatement':
-          throw new ContinueException();
-        case 'TryStatement':
-          await this.executeTry(statement);
-          return null;
-        case 'MemoryStatement':
-          await this.executeMemory(statement);
-          return null;
-        case 'ImportStatement':
-          await this.executeImport(statement);
-          return null;
-        case 'AllowStatement':
-          await this.executeAllow(statement);
-          return null;
-        case 'ExportStatement':
-          await this.executeExport(statement);
-          return null;
-      }
-      return null;
+      return await this.profiler.timeAsync(profileName, async () => {
+        if (process.env.SESI_DEBUG === '1') {
+          const lineInfo = (statement as any).line !== undefined ? ` line ${(statement as any).line}` : '';
+          console.log(`[DEBUG] Executing ${statement.type}${lineInfo}`);
+        }
+        switch (statement.type) {
+          case 'LetStatement':
+            await this.executeLet(statement);
+            return null;
+          case 'ConstStatement':
+            await this.executeConst(statement);
+            return null;
+          case 'FunctionStatement':
+            this.executeFunction(statement);
+            return null;
+          case 'ExpressionStatement':
+            return await this.executeExpression(statement);
+          case 'BlockStatement':
+            await this.executeBlock(statement, new Environment(this.currentEnv));
+            return null;
+          case 'IfStatement':
+            await this.executeIf(statement);
+            return null;
+          case 'WhileStatement':
+            await this.executeWhile(statement);
+            return null;
+          case 'ForStatement':
+            await this.executeFor(statement);
+            return null;
+          case 'ReturnStatement':
+            throw new ReturnValue(
+              (statement).value
+                ? await this.evaluateExpression((statement).value)
+                : null
+            );
+          case 'BreakStatement':
+            throw new BreakException();
+          case 'ContinueStatement':
+            throw new ContinueException();
+          case 'TryStatement':
+            await this.executeTry(statement);
+            return null;
+          case 'MemoryStatement':
+            await this.executeMemory(statement);
+            return null;
+          case 'ImportStatement':
+            await this.executeImport(statement);
+            return null;
+          case 'AllowStatement':
+            await this.executeAllow(statement);
+            return null;
+          case 'ExportStatement':
+            await this.executeExport(statement);
+            return null;
+        }
+        return null;
+      });
     } catch (error) {
       if (error instanceof ReturnValue || error instanceof BreakException || error instanceof ContinueException) {
         throw error;
@@ -433,6 +476,7 @@ export class Interpreter {
 
   private async executeWhile(stmt: WhileStatement): Promise<void> {
     while (isTruthy(await this.evaluateExpression(stmt.condition))) {
+      this.checkTimeout(stmt.line);
       try {
         await this.executeBlock(stmt.body, new Environment(this.currentEnv));
       } catch (e) {
@@ -458,6 +502,7 @@ export class Interpreter {
         const iterable = await this.evaluateExpression(stmt.iterable);
         if (Array.isArray(iterable)) {
           for (const item of iterable) {
+            this.checkTimeout(stmt.line);
             this.currentEnv.define(stmt.variable, item);
             try {
               await this.executeBlock(stmt.body, new Environment(this.currentEnv));
@@ -479,6 +524,7 @@ export class Interpreter {
 
         if (typeof start === 'number' && typeof end === 'number') {
           for (let i = start; i < end; i++) {
+            this.checkTimeout(stmt.line);
             this.currentEnv.define(stmt.variable, i);
             try {
               await this.executeBlock(stmt.body, new Environment(this.currentEnv));
@@ -508,6 +554,7 @@ export class Interpreter {
   }
 
   public async evaluateExpression(expr: Expression): Promise<RuntimeValue> {
+    this.checkTimeout((expr as any).line);
     try {
       switch (expr.type) {
         case 'Literal':
@@ -1054,13 +1101,17 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
   }
 
   public async callSesiFunction(fn: RuntimeFunction, args: RuntimeValue[]): Promise<RuntimeValue> {
+    this.checkTimeout();
     if ((fn as any)._proto) {
       const { VM } = require('./vm');
       const vm = new VM(this.scriptDir, {
         safeMode: this.safeMode,
         allowLocalFs: this.allowLocalFs,
         allowedPaths: this.allowedPaths,
-        args: this.args
+        args: this.args,
+        profile: this.profiler.enabled,
+        timeoutMs: this.timeoutMs,
+        deadlineAt: this.deadlineAt,
       });
       if ((vm as any).interpreter) {
         for (const [k, v] of this.modelAliases.entries()) {
@@ -1095,7 +1146,11 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         allowLocalFs: this.allowLocalFs,
         raw: this.raw,
         allowedPaths: [...this.allowedPaths],
-        args: [...this.args]
+        args: [...this.args],
+        profile: this.profiler.enabled,
+        timeoutMs: this.timeoutMs,
+        deadlineAt: this.deadlineAt,
+        modelUsageState: this.modelUsageState,
       });
       for (const [k, v] of this.globalEnv.getValues().entries()) {
         subInterpreter.globalEnv.define(k, v);
@@ -1204,7 +1259,8 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         safeMode: this.safeMode,
         allowLocalFs: this.allowLocalFs,
         allowedPaths: this.allowedPaths,
-        args: this.args
+        args: this.args,
+        modelUsageState: this.modelUsageState,
       });
       for (const [k, v] of this.modelAliases.entries()) {
         subInterpreter.setModelAlias(k, v);

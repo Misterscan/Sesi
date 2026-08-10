@@ -84,7 +84,7 @@ fn find_svg_content(icon_path, file_path) {
   
   for candidate in candidates {
     try {
-      let content = Safe.readFile(candidate)
+      let content = Safe.read(candidate)
       if content != "" && content != null {
         return { "content": content, "path": candidate }
       }
@@ -128,7 +128,7 @@ fn process_icon_svg(meta, file_path) {
         }
       } else {
         try {
-          encoded_uri = "data:image/svg+xml;base64," + read_file(svg_path, "base64")
+          encoded_uri = "data:image/svg+xml;base64," + Safe.viewMedia(svg_path)
           print "  → Inline encoded as Base64 SVG."
         } catch (e) {
           print "  ✗ Failed to Base64 encode SVG:" e
@@ -153,7 +153,7 @@ fn pack_extension(args_list) {
   }
   let file_path = args_list[0]
   let releaseDir = "../sesi-marketplace/releases/extensions"
-  make_dir(releaseDir)
+  Safe.newDir(releaseDir)
   let out_dir = releaseDir
   if len(args_list) > 1 {
     out_dir = args_list[1]
@@ -162,7 +162,7 @@ fn pack_extension(args_list) {
   print "Packing extension:" file_path
   let content = ""
   try {
-    content = Safe.readFile(file_path)
+    content = Safe.read(file_path)
   } catch (e) {
     print "Error: Failed to read extension JS file:" file_path
     return false
@@ -223,7 +223,7 @@ fn pack_extension(args_list) {
   }
 
   try {
-    make_dir(out_dir)
+    Safe.newDir(out_dir)
   } catch (e) {
     // Directory might already exist
   }
@@ -249,7 +249,7 @@ fn unpack_extension(args_list) {
   }
   let ext_path = args_list[0]
   let out_dir = "sesi-studio/extensions/downloaded"
-  make_dir(out_dir)
+  Safe.newDir(out_dir)
   if len(args_list) > 1 {
     out_dir = args_list[1]
   }
@@ -257,7 +257,7 @@ fn unpack_extension(args_list) {
   print "Unpacking extension:" ext_path
   let content = ""
   try {
-    content = Safe.readFile(ext_path)
+    content = Safe.read(ext_path)
   } catch (e) {
     print "Error: Failed to read extension bundle file:" ext_path
     return false
@@ -285,7 +285,7 @@ fn unpack_extension(args_list) {
   }
 
   try {
-    make_dir(out_dir)
+    Safe.newDir(out_dir)
   } catch (e) {
     // Directory might already exist
   }
@@ -313,7 +313,7 @@ fn validate_extension(args_list) {
   let file_path = args_list[0]
   let content = ""
   try {
-    content = Safe.readFile(file_path)
+    content = Safe.read(file_path)
   } catch (e) {
     print "Error: Failed to read JS file:" file_path
     return false

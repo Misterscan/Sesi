@@ -9,7 +9,7 @@
   Usage:
     sesi svg-compress.sesi [input_file_or_dir] [output_dir]
 */
-
+allow "safe" in with safe
 allow "std/math" in with Math
 
 let input_target = "vector.svg"
@@ -20,7 +20,7 @@ if len(args) > 1 { output_dir = args[1] }
 
 // Ensure output directory exists safely
 try {
-  make_dir(output_dir)
+  safe.newDir(output_dir)
 } catch (err) {}
 
 // Rounds numbers to a specific number of decimal places
@@ -100,7 +100,7 @@ fn compress_svg(svg: string) -> string {
 fn process_file(in_path: string, out_path: string) {
   print "Processing:" in_path
   try {
-    let raw_svg = read_file(in_path)
+    let raw_svg = safe.read(in_path)
     
     // 1. Apply Path Precision Reduction
     let min_svg = compress_svg(raw_svg)
@@ -119,7 +119,7 @@ fn process_file(in_path: string, out_path: string) {
     }
     min_svg = swap(min_svg, "> <", "><")
     
-    let success = write_file(out_path, min_svg)
+    let success = safe.write(out_path, min_svg)
     if success {
       print "  -> Saved:" out_path "(" len(min_svg) "bytes )"
     }
@@ -147,7 +147,7 @@ if ends_with(input_target, ".svg") {
   print "Scanning directory:" input_target
   
   try {
-    let files = list_dir(input_target)
+    let files = safe.getFiles(input_target)
     let count = 0
     
     for file in files {

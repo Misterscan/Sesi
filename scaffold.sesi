@@ -64,18 +64,18 @@ let srcHelpersDir = "helpers"
 
 // Create base directories
 try {
-  make_dir(target)
-  make_dir(target + "/bin")
-  make_dir(target + "/chatbot")
-  make_dir(target + "/sesi-db")
-  make_dir(agentsDir)
-  make_dir(rulesDir)
-  make_dir(workflowsDir)
-  make_dir(examplesMainDir)
-  make_dir(examplesOptionalDir)
-  make_dir(gettingStartedDir)
-  make_dir(gettingStartedOptionalDir)
-  make_dir(helpersDir)
+  Safe.newDir(target)
+  Safe.newDir(target + "/bin")
+  Safe.newDir(target + "/chatbot")
+  Safe.newDir(target + "/sesi-db")
+  Safe.newDir(agentsDir)
+  Safe.newDir(rulesDir)
+  Safe.newDir(workflowsDir)
+  Safe.newDir(examplesMainDir)
+  Safe.newDir(examplesOptionalDir)
+  Safe.newDir(gettingStartedDir)
+  Safe.newDir(gettingStartedOptionalDir)
+  Safe.newDir(helpersDir)
   print "✓ Directories created"
 } catch (err) {
   print "⚠️ Failed to create directories:" err
@@ -534,7 +534,7 @@ if len(lintContent) > 0 {
 
 // Copy the examples folder and all its files
 try {
-  let examplesMainContent = list_dir(srcExamplesMainDir)
+  let examplesMainContent = Safe.getFiles(srcExamplesMainDir)
   for file in examplesMainContent {
     let fileContent = Safe.readFile(srcExamplesMainDir + "/" + file)
     if len(fileContent) > 0 {
@@ -553,7 +553,7 @@ try {
 }
 
 try {
-  let examplesOptionalContent = list_dir(srcExamplesOptionalDir)
+  let examplesOptionalContent = Safe.getFiles(srcExamplesOptionalDir)
   for file in examplesOptionalContent {
     let fileContent = Safe.readFile(srcExamplesOptionalDir + "/" + file)
     if len(fileContent) > 0 {
@@ -586,7 +586,7 @@ if len(testRunnerContent) > 0 {
 
 // Copy the getting-started folder and all its files
 try {
-  let gettingStartedContent = list_dir(srcGettingStartedDir)
+  let gettingStartedContent = Safe.getFiles(srcGettingStartedDir)
   for file in gettingStartedContent {
     let fileContent = Safe.readFile(srcGettingStartedDir + "/" + file)
     if len(fileContent) > 0 {
@@ -606,7 +606,7 @@ try {
 
 // Copy the getting-started/optional folder and all its files
 try {
-  let gettingStartedOptionalContent = list_dir(srcGettingStartedOptionalDir)
+  let gettingStartedOptionalContent = Safe.getFiles(srcGettingStartedOptionalDir)
   for file in gettingStartedOptionalContent {
     let fileContent = Safe.readFile(srcGettingStartedOptionalDir + "/" + file)
     if len(fileContent) > 0 {
@@ -626,7 +626,7 @@ try {
 
 // Copy the helpers folder and all its files
 try {
-  let helpersContent = list_dir(srcHelpersDir)
+  let helpersContent = Safe.getFiles(srcHelpersDir)
   for file in helpersContent {
     let fileContent = Safe.readFile(srcHelpersDir + "/" + file)
     if len(fileContent) > 0 {
@@ -688,7 +688,7 @@ for arg in args {
 
 if len(specifiedFile) > 0 && wantRemove {
   try {
-    trash(specifiedFile, true)
+    Safe.remove(specifiedFile)
     print "✓ Removed" specifiedFile "from source directory"
   } catch (err) {
     print "⚠️ Failed to remove" specifiedFile "from source directory."

@@ -70,7 +70,7 @@ interface LoopInfo {
 
 // Known Sesi built-in names — compiled to CALL_BUILTIN for a speed win
 const BUILTINS = new Set([
-  'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json',
+  'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
   'speech', 'from_speech', 'translate', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
   'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call',
@@ -80,6 +80,7 @@ const BUILTINS = new Set([
   'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
   'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input',
   'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
+  'lazy', 'force', 'timeout', 'profile', 'profile_start', 'profile_end', 'profile_report',
   'string', 'number', 'bool', 'array', 'object', 'num', 'str', 'null', 'float',
   'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null',
   'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',

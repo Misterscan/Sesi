@@ -106,7 +106,7 @@ export fn list(args) {
     path = "."
   }
   try {
-    let items = list_dir(path)
+    let items = Safe.getFiles(path)
     let out = ""
     for item in items {
       out = out + item + "\n"
@@ -179,7 +179,7 @@ export fn evaluate(args) {
     let temp_file = "sesi-studio/temp_eval.sesi"
     Safe.writeFile(temp_file, final_code)
     let output = run_sesi(temp_file, true)
-    trash(temp_file, true)
+    Safe.remove(temp_file)
     return output
   } catch(e) {
     return "Error evaluating Sesi code: " + str(e)
@@ -307,7 +307,7 @@ export fn drawPicture(args) {
 
     if success == true {
       // Clean up the temporary Sesi script file after successful generation
-      trash(path, true)
+      Safe.remove(path)
       return "Successfully generated and saved image. Saved path: '" + path + "'"
     } else {
       path = swap(path, ".sesi", ".png")

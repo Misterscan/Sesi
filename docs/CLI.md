@@ -21,8 +21,10 @@ Sesi’s CLI is a powerful, zero-footprint environment orchestrator. It allows y
 | `sesi --tokens <file>`       | Token Stream          | Yes                               | Prints a structured, tabular grid detailing all tokens scanned by the Lexer.        |
 | `sesi --repl`                | Interactive REPL      | **No (Interactive)**              | Starts a live Sesi prompt session with auto-printing of evaluated expressions.      |
 | `sesi -enc <file> -p <pass>` | Encryption            | Yes                               | Secures a script file using AES-256 password protection.                            |
-| `sesi -c <file>`             | Dry Run               | Yes                               | Runs a dry run of the script.                                                       |
+| `sesi -c <file>`             | Dry Run               | Yes                               | Checks syntax, compilation, undefined symbols, and unused locals without executing. |
 | `sesi -dec <file> -p <pass>` | Decryption            | Yes                               | Decrypts an encrypted script file back to cleartext `.sesi`.                        |
+| `sesi --timeout <ms> <file>` | Timed Run             | Yes                               | Aborts execution after the given millisecond deadline.                              |
+| `sesi --profile <file>`      | Profiled Run          | Yes                               | Prints runtime performance measurements after execution.                            |
 
 ---
 

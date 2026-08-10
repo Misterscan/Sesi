@@ -544,7 +544,16 @@ filter(array, fn) -> array    // Filter array elements
 reduce(array, fn, any?) -> any // Accumulate array elements
 find(array, fn) -> any        // Find matching element
 retry(fn, number | object) -> any // Execute function with retry and backoff
+lazy(fn, ...args) -> lazy     // Create a memoized delayed computation
+force(any) -> any             // Resolve lazy values and promises
+timeout(fn, number, any?) -> any // Run function with millisecond deadline
+profile(string, fn) -> any    // Measure function runtime and return its result
+profile_start(string) -> string // Begin manual profiling section
+profile_end(string) -> object // End manual profiling section
+profile_report(string?) -> array | string // Return profiler measurements
 read_file(string, string?) -> string    // Read file contents (text or base64)
+encrypt(string, string) -> string       // AES-256-CBC encrypt UTF-8 string content
+decrypt(string, string) -> string       // AES-256-CBC decrypt iv:ciphertext content
 write_file(string, string) -> bool // Write file contents
 append_file(string, string) -> bool // Append string content to file
 write_image(string, string) -> bool // Write base64 image data to file

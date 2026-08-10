@@ -26,6 +26,7 @@ Examples:
     sesi helpers/agent-file-ops.sesi insert-after app.sesi "// IMPORTS" imports.sesi
     sesi helpers/agent-file-ops.sesi replace-block app.sesi "// START GENERATED" "// END GENERATED" generated.sesi
 */
+allow "safe" in with safe
 
 fn show_help() {
   print "agent-file-ops.sesi"
@@ -69,7 +70,7 @@ fn join_tail(parts, start: num, sep: str) -> str {
 
 fn write_text(path: str, text: str) -> bool {
   try {
-    write_file(path, text)
+    safe.write(path, text)
     print "Wrote:" path
     return true
   } catch (err) {
@@ -80,7 +81,7 @@ fn write_text(path: str, text: str) -> bool {
 
 fn read_text(path: str) {
   try {
-    return read_file(path)
+    return safe.read(path)
   } catch (err) {
     print "Read failed for" path ":" err
     return null

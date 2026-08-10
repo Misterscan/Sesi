@@ -38,6 +38,8 @@ Usage:
   sesi --tokens <file>   Show the tokens of a file
   sesi -t <file>         Run via legacy tree-walking interpreter
   sesi -bd <file>        Print disassembled bytecode
+  sesi --timeout <ms>    Abort execution after a deadline
+  sesi --profile <file>  Print runtime performance measurements
   sesi install           Install all dependencies listed in sesi.json
   sesi install <pkg>     Install a third-party package (e.g. owner/repo#ref)
 
@@ -55,11 +57,13 @@ Usage:
   -r, --raw              Show the raw parser output
   --cli                  Run script in standard CLI mode without the TUI dashboard
   -s, --studio           Launch Sesi Studio IDE
-  -c, --check, --dry     Perform a dry-run syntax check without executing
+  -c, --check, --dry     Check syntax, compilation, and symbols without executing
   --ast                  Show the AST
   --tokens               Show the tokens
   -t, --tree-walker      Run via legacy tree-walking interpreter fallback
   -bd, --byte-dump       Print disassembled bytecode and exit
+  --timeout <ms>         Abort execution after the given milliseconds
+  --profile              Collect and print runtime performance measurements
   -i, install            Install all dependencies listed in sesi.json
 
 `;
@@ -146,6 +150,15 @@ function parseArgs(args) {
       options.sesiOptions.bytecodeDump = true;
     } else if (arg === '-t' || arg === '--tree-walker') {
       options.sesiOptions.treeWalker = true;
+    } else if (arg === '--timeout') {
+      const timeoutMs = Number(args[++i]);
+      if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+        console.error('Error: --timeout expects a positive number of milliseconds.');
+        process.exit(1);
+      }
+      options.sesiOptions.timeoutMs = Math.floor(timeoutMs);
+    } else if (arg === '--profile') {
+      options.sesiOptions.profile = true;
     } else if (arg === '--repl') {
       options.repl = true;
     } else if (arg === '--studio' || arg === '-s') {

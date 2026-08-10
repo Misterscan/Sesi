@@ -2,11 +2,45 @@
     Safe File Access
    Resilient file operations wrapped in try-catch blocks with retry logic to prevent crashes.
 */
-
 allow "std/time" in with Time
 
+// Get the file extension from a given path
+fn getExtension(path: str) -> str {
+  let parts = split(path, ".")
+  if len(parts) <= 1 {
+    return "no_extension"
+  }
+
+  return parts[len(parts) - 1]
+}
+
+// Compatibility for versatility
+export fn getExt(path: str) -> str {
+  return getExtension(path)
+}
+
+export fn getFileExtension(path: str) -> str {
+  return getExtension(path)
+}
+
+export fn getFileExt(path: str) -> str {
+  return getExtension(path)
+}
+
+export fn getFileType(path: str) -> str {
+  return getExtension(path)
+}
+
+export fn extension(path: str) -> str {
+  return getExtension(path)
+}
+
+export fn ext(path: str) -> str {
+  return getExtension(path)
+}
+
 // Resilience Helper: Safe file read with retry logic
-export fn readFile(path: string, mode: string) -> string {
+export fn readFile(path: string, mode: string = "text") -> string {
   let result = ""
   let success = false
   let attempts = 0
@@ -25,13 +59,76 @@ export fn readFile(path: string, mode: string) -> string {
   return result
 }
 
+// Compatibiltity for versatility
+export fn read(path: string) -> string {
+  return readFile(path)
+}
+
+export fn getContent(path: string) -> string {
+  return readFile(path)
+}
+
+export fn contents(path: string, mode: string = "text") -> string {
+  if mode == "" || is_null(mode) {
+    mode = "text"
+  }
+  return readFile(path, mode)
+}
+
+export fn view(path: string, mode: string = "text") -> string {
+  if mode == "" || is_null(mode) {
+    mode = "text"
+  }
+  return readFile(path, mode)
+}
+
+export fn viewFile(path: string) -> string {
+  return readFile(path)
+}
+
+export fn viewMedia(path: string) -> string {
+  return readFile(path, "base64")
+}
+
+// Get contents from a file as a string but with the filename prepended (more useful for LLMs)
+export fn fromFile(path: string) -> string {
+  return "Filename: " + path + "\nContent: " + read(path)
+}
+
+// Get contents of multiple files as an array of strings (with filenames prepended)
+export fn fromFiles(paths: array) -> array<string> {
+  let contents = []
+  for path in paths {
+    push(contents, "Filename: " + path + "\nContents: " + readFile(path))
+  }
+  return contents
+}
+
+// Checks if a file exists and returns true if it does, false otherwise.
+export fn fileExists(path: string) -> bool {
+  try {
+    read_file(path, "base64")
+    return true
+  } catch (err) {
+    return false
+  }
+}
+
 // Resilience Helper: Safe file write with retry logic
-export fn writeFile(path: string, content: string) -> bool {
+export fn writeFile(path: string, content: string, mode: string = "text") -> bool {
   let success = false
   let attempts = 0
   while !success && attempts < 3 {
     try {
-      write_file(path, content)
+      if mode == "" || is_null(mode) {
+        mode = "text"
+      }
+      if ends_with(path, ".mp4") || ends_with(path, ".mp3") || ends_with(path, ".png") || ends_with(path, ".jpg") || ends_with(path, ".gif") || ends_with(path, ".webp") || ends_with(path, ".svg") || ends_with(path, ".heic") || ends_with(path, ".heif") || ends_with(path, ".tiff") || ends_with(path, ".bmp") || ends_with(path, ".mov") || ends_with(path, ".jpeg") || ends_with(path, ".webm") || ends_with(path, ".wav") || ends_with(path, ".m4a") || ends_with(path, ".ogg") || ends_with(path, ".flac") || ends_with(path, ".opus") || ends_with(path, ".aac") {
+        mode = "base64"
+      } else {
+        mode = mode
+      }
+      write_file(path, content, mode)
       success = true
     } catch (err) {
       attempts = attempts + 1
@@ -39,6 +136,74 @@ export fn writeFile(path: string, content: string) -> bool {
     }
   }
   return success
+}
+
+// Compatibiltity for versatility
+export fn write(path: string, content: string, mode: string = "text") -> bool {
+  return writeFile(path, content, mode)
+}
+
+export fn overwrite(path: string, content: string, mode: string = "text") -> bool {
+  if fileExists(path) {
+    return writeFile(path, content, mode)
+  } else {
+    print "No file to overwrite. Creating new file at" path "."
+    return writeFile(path, content, mode)
+  }
+}
+
+export fn makeFile(path: string, content: string = "", mode: string = "text") -> bool {
+  return writeFile(path, content, mode)
+}
+
+export fn newFile(path: string, content: string = "", mode: string = "text") -> bool {
+  if fileExists(path) {
+    print "File already exists at" path "."
+    return false
+  }
+  return writeFile(path, content, mode)
+}
+
+export fn makeNewFile(path: string, content: string = "", mode: string = "text") -> bool {
+  if fileExists(path) {
+    print "File already exists at" path "."
+    return false
+  }
+  return writeFile(path, content, mode)
+}
+
+export fn createFile(path: string, content: string = "", mode: string = "text") -> bool {
+  if fileExists(path) {
+    print "File already exists at" path "."
+    return false
+  }
+  return writeFile(path, content, mode)
+}
+
+export fn new(path: string, content: string = "", mode: string = "text") -> bool {
+  if fileExists(path) {
+    print "File already exists at" path "."
+    return false
+  }
+  return writeFile(path, content, mode)
+}
+
+// Similar to overwrite but more optimized
+export fn freshFile(path: string, content: string = "", mode: string = "text") -> bool {
+  if fileExists(path) {
+    try {
+      trash(path)
+    } catch (err) {
+      print "Failed to delete existing file at" path "."
+      return false
+    }
+  }
+  return writeFile(path, content, mode)
+}
+
+// Compatibiltity for versatility
+export fn fresh(path: string, content: string = "", mode: string = "text") -> bool {
+  return freshFile(path, content, mode)
 }
 
 // Resilience Helper: Safe file write with retry logic
@@ -57,6 +222,23 @@ export fn writeImage(path: string, content: string) -> bool {
   return success
 }
 
+// Compatibiltity for versatility
+export fn saveMedia(path: string, content: string) -> bool {
+  return new(path, content, "base64")
+}
+
+export fn saveImage(path: string, content: string) -> bool {
+  return writeImage(path, content)
+}
+
+export fn saveImg(path: string, content: string) -> bool {
+  return writeImage(path, content)
+}
+
+export fn saveIMG(path: string, content: string) -> bool {
+  return writeImage(path, content)
+}
+
 // Resilience Helper: Safe file append with retry logic
 export fn appendFile(path: string, content: string) -> bool {
   let success = false
@@ -73,6 +255,23 @@ export fn appendFile(path: string, content: string) -> bool {
   return success
 }
 
+// Compatibiltity for versatility
+export fn addContent(path: string, content: string) -> bool {
+  return appendFile(path, content)
+}
+
+export fn addToBottom(path: string, content: string) -> bool {
+  return appendFile(path, content)
+}
+
+export fn addToFile(path: string, content: string) -> bool {
+  return appendFile(path, content)
+}
+
+export fn addTo(path: string, content: string) -> bool {
+  return appendFile(path, content)
+}
+
 // Resilience Helper: Safe file move with retry logic
 export fn moveFile(path: string, dest: string) -> bool {
   let success = false
@@ -87,4 +286,349 @@ export fn moveFile(path: string, dest: string) -> bool {
     }
   }
   return success
+}
+
+// Compatibiltity for versatility
+export fn relocate(path: string, dest: string) -> bool {
+  return moveFile(path, dest)
+}
+
+export fn changeName(path: string, newName: string) -> bool {
+  return moveFile(path, newName)
+}
+
+export fn changeTo(path: string, newName: string) -> bool {
+  return moveFile(path, newName)
+}
+
+export fn moveTo(path: string, dest: string) -> bool {
+  return moveFile(path, dest)
+}
+
+export fn move(path: string, dest: string) -> bool {
+  return moveFile(path, dest)
+}
+
+export fn relocateTo(path: string, dest: string) -> bool {
+  return moveFile(path, dest)
+}
+
+// Resilience Helper: Safe file delete with retry logic
+export fn remove(path: string) -> bool {
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      trash(path, true)
+      success = true
+    } catch (err) {
+      attempts = attempts + 1
+      Time.sleep(100)
+    }
+  }
+  return success
+}
+
+// Compatibiltity for versatility
+export fn delete(path: string) -> bool {
+  return remove(path)
+}
+
+export fn deleteFile(path: string) -> bool {
+  return remove(path)
+}
+
+export fn deleteDir(path: string) -> bool {
+  return remove(path)
+}
+
+export fn nuke(path: string) -> bool {
+  return remove(path)
+}
+
+export fn trashFile(path: string) -> bool {
+  return remove(path)
+}
+
+export fn trashDir(path: string) -> bool {
+  return remove(path)
+}
+
+export fn dispose(path: string) -> bool {
+  return remove(path)
+}
+
+export fn disposeDir(path: string) -> bool {
+  return remove(path)
+}
+
+export fn purge(path: string) -> bool {
+  return remove(path)
+}
+
+// Resilience Helper: Safe archiving with retry logic
+export fn archiveFile(path: string) -> bool {
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      archive(path, ".backup/" + path + ".txt")
+      success = true
+    } catch (err) {
+      attempts = attempts + 1
+      Time.sleep(100)
+    }
+  }
+  return success
+}
+
+// Compatibiltity for versatility
+export fn backupFile(path: string) -> bool {
+  return archiveFile(path)
+}
+
+export fn backup(path: string) -> bool {
+  return archiveFile(path)
+}
+
+export fn recycleFile(path: string) -> bool {
+  return archiveFile(path)
+}
+
+export fn archiveDir(path: string) -> bool {
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      archive(path, ".backup/" + path)
+      success = true
+    } catch (err) {
+      attempts = attempts + 1
+      Time.sleep(100)
+    }
+  }
+  return success
+}
+
+export fn backupDir(path: string) -> bool {
+  return archiveDir(path)
+}
+
+export fn recycleDir(path: string) -> bool {
+  return archiveDir(path)
+}
+
+export fn recycle(path: string) -> bool {
+  return archiveDir(path)
+}
+
+// Resilience Helper: Safe directory listing with retry logic
+export fn listDir(path: string) -> array<string> {
+  let success = false
+  let attempts = 0
+  while !success && attempts < 3 {
+    try {
+      return list_dir(path)
+    } catch (err) {
+      attempts = attempts + 1
+      Time.sleep(100)
+    }
+  }
+  return []
+}
+
+// Compatibiltity for versatility
+export fn getDir(path: string) -> array<string> {
+  return listDir(path)
+}
+
+export fn getFiles(path: string) -> array<string> {
+  return listDir(path)
+}
+
+export fn getItems(path: string) -> array<string> {
+  return listDir(path)
+}
+
+export fn list(path: string) -> array<string> {
+  return listDir(path)
+}
+
+export fn listFiles(path: string) -> array<string> {
+  return listDir(path)
+}
+
+// Check if a directory exists and return true if it does, false otherwise.
+export fn dirExists(path: string) -> bool {
+  try {
+    listDir(path)
+    return true
+  } catch (err) {
+    return false
+  }
+}
+
+// Compatibiltity for versatility
+export fn folderExists(path: string) -> bool {
+  return dirExists(path)
+}
+
+export fn directoryExists(path: string) -> bool {
+  return dirExists(path)
+}
+
+export fn isFolder(path: string) -> bool {
+  // If it's a file, return false. If it's a directory, return true. If it doesn't exist, return false.
+  try {
+    read(path)
+  } catch (err) {
+    return false
+  }
+  return dirExists(path)
+}
+
+// Simply try/catch wrapper for make_dir
+export fn makeDir(path: string) -> bool {
+  try {
+    make_dir(path)
+    return true
+  } catch (err) {
+    return false
+  }
+}
+
+// Compatibiltity for versatility
+export fn newDir(path: string) -> bool {
+  return makeDir(path)
+}
+
+export fn newFolder(path: string) -> bool {
+  return makeDir(path)
+}
+
+export fn makeFolder(path: string) -> bool {
+  return makeDir(path)
+}
+
+export fn makeNewFolder(path: string) -> bool {
+  return makeDir(path)
+}
+
+export fn createFolder(path: string) -> bool {
+  return makeDir(path)
+}
+
+export fn emptyDir(path: string) -> bool {
+  let attempts = 0
+  while attempts < 3 {
+    try {
+      return len(list_dir(path)) == 0
+    } catch (err) {
+      attempts = attempts + 1
+      Time.sleep(100)
+    }
+  }
+  return false
+}
+
+// Compatibiltity for versatility
+export fn isEmpty(path: string) -> bool {
+  return emptyDir(path)
+}
+
+export fn isEmptyDir(path: string) -> bool {
+  return emptyDir(path)
+}
+
+export fn clearDir(path: string) -> bool {
+  remove(path)
+  make_dir(path)
+
+  if path | isEmpty {
+    print path "cleared!"
+    return true
+  } else {
+    print "Failed to clear directory:" path
+    return false
+  }
+}
+
+// Compatibiltity for versatility
+export fn empty(path: string) -> bool {
+  return clearDir(path)
+}
+
+export fn wipe(path: string) -> bool {
+  return clearDir(path)
+}
+
+export fn clean(path: string) -> bool {
+  return clearDir(path)
+}
+
+export fn nukeDir(path: string) -> bool {
+  return clearDir(path)
+}
+
+// Write to specific file formats
+export fn txt(filename: string, content: string) -> bool {
+  return write(filename + ".txt", content)
+}
+
+export fn md(filename: string, content: string) -> bool {
+  return write(filename + ".md", content)
+}
+
+export fn json(filename: string, content: any) -> bool {
+  return write(filename + ".json", content | to_json)
+}
+
+export fn yaml(filename: string, content: any) -> bool {
+  return write(filename + ".yaml", content)
+}
+
+export fn log(filename: string, content: string) -> bool {
+  return addTo(filename + ".log", "\n" + content)
+}
+
+export fn csv(filename: string, content: any) -> bool {
+  return write(filename + ".csv", content)
+}
+
+export fn tsv(filename: string, content: any) -> bool {
+  return write(filename + ".tsv", content)
+}
+
+export fn HTML(title: string, content: string, css: any = "", language: string = "en") -> string {
+  if css == "" || is_null(css) {
+    css = ""
+  } else if css == "style.css" {
+    css = "<link rel=\"stylesheet\" href=\"style.css\">"
+  } else {
+    "style.css" | write(css)
+    css = "<link rel=\"stylesheet\" href=\"style.css\">"
+  }
+  
+  let config = {
+    "title": title,
+    "head": css + "\n",
+    "lang": language
+  }
+
+  let webpage = html(content, config)
+
+  return webpage
+}
+
+// For quick web pages
+export fn web(filename: string, content: any) -> bool {
+  return write(filename + ".html", content)
+}
+
+export fn svg(filename: string, content: string) -> bool {
+  return write(filename + ".svg", content)
+}
+
+export fn css(filename: string, content: string) -> bool {
+  return write(filename + ".css", content)
 }

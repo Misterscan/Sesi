@@ -3,6 +3,7 @@
     Use web_get()
 */
 allow "std/terminal" in with { color }
+allow "helpers/safe" in with { json }
 
 try {
     let q = "Coding"
@@ -11,7 +12,7 @@ try {
     let data = content | from_json
     print color("Downloaded: ", "cyan") url
     print color("Saving results to search_results.json", "yellow")
-    "search_results.json" | write_file(data | to_json)
+    "search_results" | json(data)
     print color("Saved result to search_results.json", "green", "bold")
 } catch (err) {
     print "Error: " err

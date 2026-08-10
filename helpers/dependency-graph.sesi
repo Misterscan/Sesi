@@ -10,7 +10,7 @@ Options:
     all          Include Sesi standard library modules (std/*)
     help         Show this help menu
 */
-
+allow "safe" in with Safe
 allow "std/draw" in with Draw
 allow "std/math" in with Math
 
@@ -73,15 +73,6 @@ export fn normalize_path(path: string) -> string {
     return "/" + result
   }
   return result
-}
-
-fn file_exists(path: string) -> bool {
-  try {
-    read_file(path)
-    return true
-  } catch (err) {
-    return false
-  }
 }
 
 fn get_home_dir() -> string {
@@ -155,7 +146,7 @@ fn resolve_path(source: string, importing_file: string) -> string {
   
   for d in search_dirs {
     let resolved = normalize_path(join_paths(d, filename))
-    if file_exists(resolved) {
+    if Safe.fileExists(resolved) {
       return resolved
     }
   }
@@ -218,7 +209,7 @@ fn scan_recursive(file_path: string, parent_file: string, options) {
   
   let content = ""
   try {
-    content = read_file(norm_path)
+    content = Safe.read(norm_path)
   } catch (err) {
     if parent_file != null {
       print "⚠️ Module file not found or unreadable:" norm_path " (imported by" parent_file ")"
@@ -536,7 +527,7 @@ if len(args) == 0 {
     // Write JSON if requested
     if json_file != null {
       try {
-        write_file(json_file, to_json(graph))
+        Safe.json(json_file, graph)
         print "💾 Dependency graph JSON data saved to:" json_file
       } catch (err) {
         print "⚠️ Error writing JSON file:" json_file " (" str(err) ")"

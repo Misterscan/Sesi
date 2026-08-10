@@ -35,7 +35,7 @@ set_alias("search", "gemini-3-flash-preview")
 
 fn get_db_collections(db_path, password) {
   try {
-    let content = Safe.readFile(db_path)
+    let content = Safe.read(db_path)
     let is_encrypted = false
     let parts = split(content, ":")
     if len(parts) == 2 {
@@ -91,12 +91,12 @@ try {
 print "Starting Sesi Studio Sesi..."
 try {
   let logsDir = "sesi-studio/logs/"
-  make_dir(logsDir)
-  Safe.appendFile(logsDir + "studio_startup.log", "docs len: " + str(len(sesiDocs)) + " copilotMemory len: " + str(len(copilotMemory)) + " pwd: " + PROJECT_ROOT)
+  Safe.newDir(logsDir)
+  Safe.log(logsDir + "studio_startup", "docs len: " + str(len(sesiDocs)) + " copilotMemory len: " + str(len(copilotMemory)) + " pwd: " + PROJECT_ROOT)
 } catch (e) {}
 
 let favicon = ""
-favicon = Safe.readFile("sesi-studio/img/favicon.png", "base64")
+favicon = Safe.viewMedia("sesi-studio/img/favicon.png")
 
 let pending_file_to_open = ""
 
@@ -147,7 +147,7 @@ fn handle_http(req) {
   
   if path == "/" {
     try {
-      let content = Safe.readFile("sesi-studio/build/index.min.html")
+      let content = Safe.read("sesi-studio/build/index.min.html")
       return {"status": 200, "headers": {"Content-Type": "text/html"}, "body": content}
     } catch (e) {
       return {"status": 500, "body": "Failed to load index.html"}
@@ -164,7 +164,7 @@ fn handle_http(req) {
       if query_path == "" || query_path == null {
         query_path = "."
       }
-      let items = list_dir(query_path)
+      let items = Safe.getFiles(query_path)
       let result = []
       for item in items {
         if item != ".git" && item != "node_modules" && item != ".DS_Store" {
@@ -174,7 +174,7 @@ fn handle_http(req) {
             item_path = query_path + "/" + item
           }
           try {
-            let tmp = list_dir(item_path)
+            let tmp = Safe.getFiles(item_path)
             if tmp != null {
               isDir = true
             }
@@ -215,7 +215,7 @@ fn handle_http(req) {
   if path == "/api/file" && method == "POST" {
     try {
       let body_obj = from_json(req.body)
-      Safe.writeFile(body_obj["path"], body_obj["content"])
+      Safe.write(body_obj["path"], body_obj["content"])
       return {"status": 200, "body": {"success": true}}
     } catch (e) {
       return {"status": 500, "body": {"error": str(e)}}
@@ -438,7 +438,7 @@ fn handle_http(req) {
 
   if path == "/api/analyzer" {
     try {
-      let ext_content = Safe.readFile("editors/vscode/extension.js")
+      let ext_content = Safe.read("editors/vscode/extension.js")
       let prefix = "(function(require, module, process){\n"
       let exports = "\nwindow.sesiTokenizer = tokenize;\nwindow.sesiFindDecls = findDeclarationsAndReferences;\nwindow.sesiAnalyzeScope = analyzeScope;\nwindow.sesiScope = Scope;\nwindow.sesiIsConfigBlockKey = isConfigBlockKey;"
       let suffix = "\n})(function(name) { if (name === 'vscode') { return { Range: class { constructor(s, e) { this.start = s; this.end = e; } }, Position: class { constructor(l, c) { this.line = l; this.character = c; } }, Diagnostic: class { constructor(r, m, s) { this.range = r; this.message = m; this.severity = s; } }, DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 } }; } if (name === 'path') { return { dirname: (p) => p.split('/').slice(0, -1).join('/') || '.', join: (...args) => args.filter(Boolean).join('/').replace(/\\/+/g, '/'), resolve: (...args) => args.filter(Boolean).join('/').replace(/\\/+/g, '/') }; } if (name === 'fs') { return { existsSync: () => false, readFileSync: () => '' }; } if (name === 'os') { return { homedir: () => '' }; } return {}; }, { exports: {} }, { cwd: () => '', env: {}, platform: 'darwin' });"
@@ -455,7 +455,7 @@ fn handle_http(req) {
       let content = body_obj["content"]
       let temp_name = ".sesi_cache_temp_" + str(time()) + ".sesi"
       let temp_path = PROJECT_ROOT + "/" + temp_name
-      Safe.writeFile(temp_path, content)
+      Safe.write(temp_path, content)
       
       let check_result = ""
       let success = true
@@ -467,7 +467,7 @@ fn handle_http(req) {
       }
       
       try {
-        trash(temp_path, true)
+        Safe.remove(temp_path)
       } catch (e_rm) {}
       
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": success, "output": check_result}}
@@ -483,7 +483,7 @@ fn handle_http(req) {
       let temp_name = ".sesi_ast_temp_" + str(time()) + ".sesi"
       
       try {
-        Safe.writeFile(temp_name, content)
+        Safe.write(temp_name, content)
       } catch (e) {
         return {"status": 500, "body": {"error": "Failed to write temp file: " + str(e)}}
       }
@@ -498,7 +498,7 @@ fn handle_http(req) {
       }
       
       try {
-        trash(temp_name, true)
+        Safe.remove(temp_name)
       } catch (e_rm) {}
       
       if success {
@@ -534,7 +534,7 @@ fn handle_http(req) {
       let body_obj = from_json(req.body)
       let content = body_obj["content"]
       let temp_name = ".sesi_profile_temp_" + str(time()) + ".sesi"
-      Safe.writeFile(temp_name, content)
+      Safe.write(temp_name, content)
       let output_str = ""
       let success = true
       try {
@@ -548,7 +548,7 @@ fn handle_http(req) {
         success = false
       }
       try {
-        trash(temp_name, true)
+        Safe.remove(temp_name)
       } catch (e_rm) {}
       
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": success, "output": output_str}}
@@ -560,10 +560,10 @@ fn handle_http(req) {
 
   if path == "/api/extensions" {
     try {
-      make_dir("sesi-studio/extensions")
-      make_dir("sesi-studio/extensions/themes")
-      let items = list_dir("sesi-studio/extensions")
-      let theme_items = list_dir("sesi-studio/extensions/themes")
+      Safe.newDir("sesi-studio/extensions")
+      Safe.newDir("sesi-studio/extensions/themes")
+      let items = Safe.getFiles("sesi-studio/extensions")
+      let theme_items = Safe.getFiles("sesi-studio/extensions/themes")
       let result = []
       
       fn get_metadata(base_path, file_name) {
@@ -634,7 +634,7 @@ fn handle_http(req) {
       let body_obj = from_json(req.body)
       let content = ""
       if body_obj["filePath"] != null && body_obj["filePath"] != "" {
-        content = Safe.readFile(body_obj["filePath"])
+        content = Safe.read(body_obj["filePath"])
       } else if body_obj["themeContent"] != null && body_obj["themeContent"] != "" {
         content = body_obj["themeContent"]
       } else {
@@ -660,13 +660,13 @@ fn handle_http(req) {
       let safe_name = join(split(theme_name, " "), "-")
       safe_name = join(split(safe_name, "/"), "-")
       
-      make_dir("sesi-studio/extensions")
-      make_dir("sesi-studio/extensions/themes")
+      Safe.newDir("sesi-studio/extensions")
+      Safe.newDir("sesi-studio/extensions/themes")
       
       let out_path = "sesi-studio/extensions/themes/" + safe_name + ".css"
       let css_file_content = "/*\n" + to_json(meta) + "\n*/\n" + css
       
-      Safe.writeFile(out_path, css_file_content)
+      Safe.write(out_path, css_file_content)
       return {"status": 200, "body": {"success": true, "themeName": theme_name, "installedPath": out_path}}
     } catch (e) {
       return {"status": 500, "body": {"error": str(e)}}
@@ -678,7 +678,7 @@ fn handle_http(req) {
       let body_obj = from_json(req.body)
       let content = ""
       if body_obj["filePath"] != null && body_obj["filePath"] != "" {
-        content = Safe.readFile(body_obj["filePath"])
+        content = Safe.read(body_obj["filePath"])
       } else if body_obj["extensionContent"] != null && body_obj["extensionContent"] != "" {
         content = body_obj["extensionContent"]
       } else {
@@ -704,12 +704,12 @@ fn handle_http(req) {
       let safe_name = join(split(ext_name, " "), "-")
       safe_name = join(split(safe_name, "/"), "-")
       
-      make_dir("sesi-studio/extensions")
+      Safe.newDir("sesi-studio/extensions")
       
       let out_path = "sesi-studio/extensions/" + safe_name + ".js"
       let js_file_content = "/*\n" + to_json(meta) + "\n*/\n" + js
       
-      Safe.writeFile(out_path, js_file_content)
+      Safe.write(out_path, js_file_content)
       return {"status": 200, "body": {"success": true, "extensionName": ext_name, "installedPath": out_path}}
     } catch (e) {
       return {"status": 500, "body": {"error": str(e)}}
@@ -718,7 +718,7 @@ fn handle_http(req) {
 
   if path == "/marketplace.json" {
     try {
-      let content = Safe.readFile("sesi-studio/marketplace.json")
+      let content = Safe.read("sesi-studio/marketplace.json")
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": content}
     } catch (e) {
       return {"status": 404, "body": "Marketplace catalog not found"}
@@ -729,7 +729,7 @@ fn handle_http(req) {
   if len(rel_parts) == 2 && rel_parts[0] == "" {
     let subpath = rel_parts[1]
     try {
-      let content = Safe.readFile("sesi-studio/releases/" + subpath)
+      let content = Safe.read("sesi-studio/releases/" + subpath)
       let content_type = "application/json"
       return {"status": 200, "headers": {"Content-Type": content_type}, "body": content}
     } catch (e) {
@@ -784,20 +784,20 @@ fn handle_http(req) {
         if css == null {
           return {"status": 400, "body": {"error": "Theme bundle is missing 'css' payload"}}
         }
-        make_dir("sesi-studio/extensions/themes")
+        Safe.newDir("sesi-studio/extensions/themes")
         let out_path = "sesi-studio/extensions/themes/" + safe_name + ".css"
         let css_file_content = "/*\n" + to_json(meta) + "\n*/\n" + css
-        Safe.writeFile(out_path, css_file_content)
+        Safe.write(out_path, css_file_content)
         return {"status": 200, "body": {"success": true, "name": item_name, "installedPath": out_path}}
       } else if item_type == "extension" {
         let js = bundle["js"]
         if js == null {
           return {"status": 400, "body": {"error": "Extension bundle is missing 'js' payload"}}
         }
-        make_dir("sesi-studio/extensions")
+        Safe.newDir("sesi-studio/extensions")
         let out_path = "sesi-studio/extensions/" + safe_name + ".js"
         let js_file_content = "/*\n" + to_json(meta) + "\n*/\n" + js
-        Safe.writeFile(out_path, js_file_content)
+        Safe.write(out_path, js_file_content)
         return {"status": 200, "body": {"success": true, "name": item_name, "installedPath": out_path}}
       } else {
         return {"status": 400, "body": {"error": "Invalid type parameter. Must be 'theme' or 'extension'."}}
@@ -811,7 +811,7 @@ fn handle_http(req) {
   if len(nm_parts) == 2 && nm_parts[0] == "" {
     let subpath = nm_parts[1]
     try {
-      let content = Safe.readFile("sesi-studio/node_modules/" + subpath)
+      let content = Safe.read("sesi-studio/node_modules/" + subpath)
       let content_type = "text/plain"
       let file_parts = split(subpath, ".")
       let ext = file_parts[len(file_parts) - 1]
@@ -926,7 +926,7 @@ fn handle_http(req) {
       if action == "commit" {
         let msg = body_obj["message"]
         try {
-          Safe.writeFile("sesi-studio/.git-commit-msg.tmp", msg)
+          Safe.write("sesi-studio/.git-commit-msg.tmp", msg)
         } catch (e) {
           return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": "Failed to write temp file: " + str(e)}}
         }
@@ -936,12 +936,12 @@ fn handle_http(req) {
           out = split(out, "\r")[0]
         } catch (e) {
           try {
-            trash("sesi-studio/.git-commit-msg.tmp", true)
+            Safe.remove("sesi-studio/.git-commit-msg.tmp")
           } catch (e2) {}
           return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": str(e)}}
         }
         try {
-          trash("sesi-studio/.git-commit-msg.tmp", true)
+          Safe.remove("sesi-studio/.git-commit-msg.tmp")
         } catch (e2) {}
         
         return {
@@ -981,7 +981,7 @@ fn handle_http(req) {
         }
         
         try {
-          current = Safe.readFile(file)
+          current = Safe.read(file)
         } catch (e) {
           current = ""
         }
@@ -1014,24 +1014,23 @@ fn handle_http(req) {
       if action == "generate_commit_msg" {
         let generated_msg = ""
         try {
-          generated_msg = sesi("helpers/commit_message.sesi", true)
-          
+          generated_msg = exec_in_project("sesi --cli -l sesi-studio/agent/commit-message.sesi")
           let lines = split(generated_msg, "\n")
           let filtered = []
           let i = 0
           while i < len(lines) {
             let line = lines[i]
-            if !contains(line, "injected env") {
+            if !contains(line, "injected env") && !starts_with(line, "⚡") && !starts_with(line, "✓") && !starts_with(line, "M") && !starts_with(line, "A") && !starts_with(line, "D") && !starts_with(line, "??") && !starts_with(line, "R") && !starts_with(line, "MM") && !ends_with(line, "-") && !ends_with(line, "+") && !ends_with(line, "bytes") && !ends_with(line, ")") {
               push(filtered, line)
             }
             i = i + 1
           }
           generated_msg = trim(join(filtered, "\n"))
         } catch (e) {
-          generated_msg = ""
+          return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": "Commit-message helper failed: " + str(e)}}
         }
         
-        if generated_msg == "" || contains(generated_msg, "No diff found") {
+        if contains(generated_msg, "No diff found") {
           return {
             "status": 200,
             "headers": {"Content-Type": "application/json"},
@@ -1040,6 +1039,10 @@ fn handle_http(req) {
               "error": "No staged changes detected. Please stage files first."
             }
           }
+        }
+
+        if generated_msg == "" {
+          return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": "Commit-message helper returned no output."}}
         }
         
         return {
@@ -1069,7 +1072,7 @@ fn handle_http(req) {
       }
       
       if action == "list_databases" {
-        let items = list_dir(".")
+        let items = Safe.getFiles(".")
         let dbs = []
         for item in items {
           let parts = split(item, ".")
@@ -1106,7 +1109,7 @@ fn handle_http(req) {
         
         let is_enc = false
         try {
-          let content = Safe.readFile(db_path)
+          let content = Safe.read(db_path)
           let parts = split(content, ":")
           if len(parts) == 2 {
             is_enc = true

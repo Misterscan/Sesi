@@ -4,6 +4,7 @@
   Demonstrates:
     - Functions and control flow
     - Loops and arrays
+    - Lazy evaluation for deferred pipeline summaries
     - Model calls with configuration
     - Structured output parsing
     - Memory for multi-step processing
@@ -26,6 +27,18 @@ print color("Numbers above " str(threshold) ":", "magenta")
 for val in highNumbers {
   print color("- ", "cyan") str(val)
 }
+
+fn buildSummary(values: array) -> string {
+  print color("Building delayed summary now...", "yellow")
+  return "Summary: kept " + len(values) + " values above the threshold."
+}
+
+let delayedSummary = buildSummary | lazy(highNumbers)
+print "Created a lazy summary. It has not run yet."
+print delayedSummary | force
+print "Forcing again uses the cached summary:"
+print delayedSummary | force
+
 try {
   "results.txt" | write_file("Processed " + len(highNumbers) + " items.")
   print "Log file created."

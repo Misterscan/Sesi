@@ -14,7 +14,6 @@ Usage:
     npm run version:bump
     sesi helpers/version-bump.sesi --custom // Prompts for custom FROM and TO values
 */
-
 allow "safe" in with Safe
 allow "std/terminal" in with {color}
 
@@ -30,9 +29,9 @@ fn isFile(fileName) {
     }
 }
 
-let sesiBin = Safe.readFile("bin/sesi.js")
+let sesiBin = Safe.read("bin/sesi.js")
 
-let docsDir = list_dir("docs")
+let docsDir = Safe.getFiles("docs")
 let docsFiles = []
 for file in docsDir {
     if isFile(file) {
@@ -41,7 +40,7 @@ for file in docsDir {
     }
 }
 
-let rootDir = list_dir(".")
+let rootDir = Safe.getFiles(".")
 let rootFiles = []
 for file in rootDir {
     if isFile(file) {
@@ -49,7 +48,7 @@ for file in rootDir {
     }
 }
 
-let exampleDir = list_dir("examples/main")
+let exampleDir = Safe.getFiles("examples/main")
 let exampleFiles = []
 for file in exampleDir {
     if isFile(file) {
@@ -58,7 +57,7 @@ for file in exampleDir {
     }
 }
 
-let gettingStartedDir = list_dir("getting-started")
+let gettingStartedDir = Safe.getFiles("getting-started")
 let gettingStartedFiles = []
 for file in gettingStartedDir {
     if isFile(file) {
@@ -81,7 +80,7 @@ gettingStartedFiles:
 "
 
 fn getVersionFromFile(fileName) {
-    let fileContents = Safe.readFile(fileName)
+    let fileContents = Safe.read(fileName)
     let lines = split(fileContents, "\n")
     let version = ""
     for line in lines {
@@ -121,15 +120,15 @@ print "
 ================
 "
 
-let getPkgJSON = Safe.readFile(pkgJSON)
+let getPkgJSON = Safe.read(pkgJSON)
 let newPkgJSON = swap(getPkgJSON, v, toVar)
-Safe.writeFile(pkgJSON, newPkgJSON)
+Safe.write(pkgJSON, newPkgJSON)
 print color("Swapped "+v+" to "+toVar+" in "+pkgJSON, "green")"
 "
 if getVersionFromFile(editorsPkgJSON) == v {
-    getPkgJSON = Safe.readFile(editorsPkgJSON)
+    getPkgJSON = Safe.read(editorsPkgJSON)
     newPkgJSON = swap(getPkgJSON, v, toVar)
-    Safe.writeFile(editorsPkgJSON, newPkgJSON)
+    Safe.write(editorsPkgJSON, newPkgJSON)
     print color("Swapped "+v+" to "+toVar+" in "+editorsPkgJSON, "green")"\n"
 }
 
@@ -142,7 +141,7 @@ try {
     let newContents = ""
     if contains(contents, fromVar) {
         newContents = swap(contents, fromVar, toVar)
-        Safe.writeFile(file, newContents)
+        Safe.write(file, newContents)
         swapTag(file)
     } else {
         skipTag(file)
@@ -155,11 +154,11 @@ try {
 
 for file in docsFiles {
     try {
-        let contents = Safe.readFile(file)
+        let contents = Safe.read(file)
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
-            Safe.writeFile(file, newContents)
+            Safe.write(file, newContents)
             swapTag(file)
         } else {
             skipTag(file)
@@ -173,11 +172,11 @@ for file in docsFiles {
 
 for file in rootFiles {
     try {
-        let contents = Safe.readFile(file)
+        let contents = Safe.read(file)
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
-            Safe.writeFile(file, newContents)
+            Safe.write(file, newContents)
             swapTag(file)
         } else {
             skipTag(file)
@@ -191,11 +190,11 @@ for file in rootFiles {
 
 for file in exampleFiles {
     try {
-        let contents = Safe.readFile(file)
+        let contents = Safe.read(file)
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
-            Safe.writeFile(file, newContents)
+            Safe.write(file, newContents)
             swapTag(file)
         } else {
             skipTag(file)
@@ -209,11 +208,11 @@ for file in exampleFiles {
 
 for file in gettingStartedFiles {
     try {
-        let contents = Safe.readFile(file)
+        let contents = Safe.read(file)
         let newContents = ""
         if contains(contents, fromVar) {
             newContents = swap(contents, fromVar, toVar)
-            Safe.writeFile(file, newContents)
+            Safe.write(file, newContents)
             swapTag(file)
         } else {
             skipTag(file)

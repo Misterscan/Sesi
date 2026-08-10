@@ -352,10 +352,10 @@ examples/
 │   ├── 09_structured_output.sesi # Type-safe reasoning responses
 │   ├── 11_memory_storage.sesi   # Multi-turn stateful reasoning
 │   ├── 12_classification.sesi   # Systems classification loop
-│   ├── 13_data_pipeline.sesi    # Complete systems pipeline
+│   ├── 13_data_pipeline.sesi    # Complete systems pipeline with lazy summaries
 │   ├── 16_modules.sesi          # Modules & standard library imports
 │   ├── 17_http_client.sesi      # Native HTTP client (web_get/web_send)
-│   ├── 18_parallel_requests.sesi # Parallel request concurrency (multi_req)
+│   ├── 18_parallel_requests.sesi # Parallel request concurrency with profiling
 │   ├── 19_search_web.sesi       # Built-in search_web integration
 │   ├── 21_custom_tools.sesi     # Declaring and using custom tools
 │   ├── 23_file_conversion.sesi  # File and format conversions
@@ -365,10 +365,10 @@ examples/
 │   ├── 26_database.sesi         # Embedded document database operations
 │   ├── 27_robust_web_db.sesi    # Dynamic database-backed web analytics
 │   ├── 29_tool_piping.sesi      # Functional piping operator (|)
-│   ├── 30_error_recovery.sesi   # Error retry backoff handling
+│   ├── 30_error_recovery.sesi   # Error retry, backoff, and timeout handling
 │   ├── 31_synthesizer.sesi      # Sound/music synthesis & SVG drawing
 │   ├── 32_browser_automation.sesi # Headless browser automation with Playwright
-│   ├── 33_base64.sesi           # Base64
+│   ├── 33_base64.sesi           # Base64 encoding and string encryption
 │   ├── 34_sesi_api.sesi         # SwaggerUI API setup
 │   ├── 35_speech_language.sesi  # Speech and language helpers
 │   └── 36_regex_media.sesi     # Regex and media processing

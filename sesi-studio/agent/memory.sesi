@@ -1,12 +1,12 @@
 allow "helpers/safe" in with Safe
 
-let docs_list = list_dir("getting-started")
+let docs_list = Safe.getFiles("getting-started")
 let more_files = ""
 try {
-  more_files = Safe.readFile("docs/WRITING_SCRIPTS.md")
+  more_files = Safe.read("docs/WRITING_SCRIPTS.md")
   more_files = "\n\n=== DOCUMENT: " + "WRITING_SCRIPTS.md" + " ===\n" + more_files
-  more_files = more_files + "\n\n=== DOCUMENT: " + "BUILTINS.md" + " ===\n" + Safe.readFile("docs/BUILTINS.md")
-  more_files = more_files + "\n\n=== DOCUMENT: " + "README.md" + " ===\n" + Safe.readFile("./README.md")
+  more_files = more_files + "\n\n=== DOCUMENT: " + "BUILTINS.md" + " ===\n" + Safe.read("docs/BUILTINS.md")
+  more_files = more_files + "\n\n=== DOCUMENT: " + "README.md" + " ===\n" + Safe.read("./README.md")
 } catch (e) {
   print "Error reading docs:" e
 }
@@ -17,7 +17,7 @@ for f_name in docs_list {
     continue
   }
   try {
-    let doc_content = Safe.readFile("getting-started/" + f_name)
+    let doc_content = Safe.read("getting-started/" + f_name)
     sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
   } catch (e) {}
 }

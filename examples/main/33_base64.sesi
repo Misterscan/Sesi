@@ -1,10 +1,11 @@
 /*
-  Example 33: Base64 Encoding and Decoding
+  Example 33: Base64 Encoding, Decoding, and Encryption
 
   Demonstrates:
   1. Text Base64 encoding/decoding with std/base64
   2. Byte-array Base64 encoding/decoding with std/base64
   3. Reading a file as Base64 with read_file(path, "base64")
+  4. Encrypting and decrypting private string content
 */
 
 allow "std/base64" in with Base64
@@ -32,8 +33,19 @@ sleep(1000)
 
 print "=== 3. Image to Base64 ==="
 let file_b64 = "docs/notebook.png" | read_file("base64")
-print "File as base64:" file_b64
+let file_preview = file_b64 | slice(0, 80)
+print "File base64 preview:" file_preview "..."
 print "File length: " str(len(file_b64)) " characters"
+print ""
+
+print "=== 4. Encrypt and Decrypt Private Text ==="
+let private_text = "launch-code: SESI-42"
+let password = "example-passphrase"
+let encrypted_text = private_text | encrypt(password)
+let decrypted_text = encrypted_text | decrypt(password)
+print "Original private text:" private_text
+print "Encrypted envelope:" encrypted_text
+print "Decrypted private text:" decrypted_text
 print ""
 
 print "Done."

@@ -11,6 +11,7 @@ Usage:
   Note: This example requires CMake to be installed for the `from_speech()` function to work.
 */
 allow "shell-automation" in with {brew_install}
+allow "helpers/safe" in with safe
 
 fn getOS() {return trim(js("console.log(require('os').platform())"))}
 let platform = getOS()
@@ -66,8 +67,8 @@ if tts != "" && (args[0] != "ai" || args[0] == null) {
   
 } else if tts != "" && args[0] == "ai" { // Use AI for translation
   let audio = tts | speech("Kore", "gemini-2.5-flash-preview-tts")
-  "audio_text.wav" | write_file(audio, "base64")
   let audioPath = "audio_text.wav"
+  audioPath | safe.saveMedia(audio)
   let transcript = ""
 
   try {
@@ -77,7 +78,7 @@ if tts != "" && (args[0] != "ai" || args[0] == null) {
   } catch (e) {
     print color("Error transcribing audio: " + str(e), "red")
   }
-  audioPath | trash(true); "audio_text.wav.txt" | trash(true)
+  audioPath | safe.remove; "audio_text.wav.txt" | safe.remove
 
   // If transcription fails or is empty, fallback to original text for translation
   if is_null(transcript) || trim(transcript) == "" || includes(transcript, "Error:") {

@@ -100,26 +100,50 @@ let app = ({
 
 let server = 8080 | app.listen
 
-let health = "http://localhost:8080/health" | web_get
-print "Health:        " health
+try {
+  let health = "http://localhost:8080/health" | web_get
+  print "Health:        " health
+} catch (error) {
+  print "Health check failed:" error
+}
 
-let created = "http://localhost:8080/users" | web_send({"name": "Alice", "email": "alice@example.com"})
-print "POST /users:   " created
+try {
+  let created = "http://localhost:8080/users" | web_send({"name": "Alice", "email": "alice@example.com"})
+  print "POST /users:   " created
+} catch (error) {
+  print "Create user failed:" error
+}
 
-let list = "http://localhost:8080/users" | web_get
-print "GET /users:    " list
+try {
+  let list = "http://localhost:8080/users" | web_get
+  print "GET /users:    " list
+} catch (error) {
+  print "List users failed:" error
+}
 
-let specRaw = "http://localhost:8080/openapi.json" | web_get
-let spec = specRaw | from_json
-print "OpenAPI title: " spec.info.title
-print "Paths:         " spec.paths | keys | join(", ")
+try {
+  let specRaw = "http://localhost:8080/openapi.json" | web_get
+  let spec = specRaw | from_json
+  print "OpenAPI title: " spec.info.title
+  print "Paths:         " spec.paths | keys | join(", ")
+} catch (error) {
+  print "Fetch OpenAPI spec failed:" error
+}
 
-let docsHtml = "http://localhost:8080/docs" | web_get
-print "GET /docs HTML starts with: " docsHtml | trunc(15)
+try {
+  let docsHtml = "http://localhost:8080/docs" | web_get
+  print "GET /docs HTML starts with: " docsHtml | trunc(15)
+} catch (error) {
+  print "Fetch /docs failed:" error
+}
 
 // 422 on missing required field
-let badReq = "http://localhost:8080/users" | web_send({"name": "Bob"})
-print "Missing email: " badReq
+try {
+  let badReq = "http://localhost:8080/users" | web_send({"name": "Bob"})
+  print "Missing email: " badReq
+} catch (error) {
+  print "Missing email request failed:" error
+}
 
 let end = "Press enter to close the server and exit..." | input
 server.close(end)

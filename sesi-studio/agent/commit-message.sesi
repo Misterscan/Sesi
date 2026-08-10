@@ -9,8 +9,17 @@ Usage:
     sesi -l helpers/commit-message.sesi all
     sesi -l helpers/commit-message.sesi staged --write commit_message.txt
 */
-allow "shell-automation" in with {run_command}
-allow "safe" in with safe
+allow "helpers/safe" in with safe
+
+let project_root = ""
+try {
+  project_root = env("SESI_STUDIO_PROJECT_ROOT")
+} catch (err) {}
+if project_root == null || project_root == "" {
+  try {
+    project_root = env("PWD")
+  } catch (err) {}
+}
 
 fn show_help() {
   print "Usage:"
@@ -71,7 +80,10 @@ fn parse_options() {
 
 fn run_git(command: str) -> str {
   try {
-    return run_command(command)
+    if project_root != null && project_root != "" {
+      return exec("cd \"" + project_root + "\" && " + command)
+    }
+    return exec(command)
   } catch (err) {
     print "Git command failed:" command
     print err
@@ -85,7 +97,11 @@ fn read_git_diff(command: str, temp_path: str) -> str {
   } catch (cleanup_err) {}
 
   try {
-    run_command(command + " --output=\"" + temp_path + "\"")
+    let diff_command = command + " --output=\"" + temp_path + "\""
+    if project_root != null && project_root != "" {
+      diff_command = "cd \"" + project_root + "\" && " + diff_command
+    }
+    exec(diff_command)
     let full_diff = safe.read(temp_path)
     try {
       safe.remove(temp_path)
@@ -107,6 +123,10 @@ fn read_git_diff(command: str, temp_path: str) -> str {
 }
 
 fn get_diff(mode: str) {
+  let temp_prefix = ""
+  if project_root != null && project_root != "" {
+    temp_prefix = project_root + "/"
+  }
   let data = {
     "mode": mode,
     "status": "",
@@ -118,15 +138,15 @@ fn get_diff(mode: str) {
 
   if mode == "staged" {
     data["stat"] = run_git("git diff --cached --stat")
-    data["diff"] = read_git_diff("git diff --cached", ".sesi_commit_message_staged.diff")
+    data["diff"] = read_git_diff("git diff --cached", temp_prefix + ".sesi_commit_message_staged.diff")
   } else if mode == "unstaged" {
     data["stat"] = run_git("git diff --stat")
-    data["diff"] = read_git_diff("git diff", ".sesi_commit_message_unstaged.diff")
+    data["diff"] = read_git_diff("git diff", temp_prefix + ".sesi_commit_message_unstaged.diff")
   } else if mode == "all" {
     let staged_stat = run_git("git diff --cached --stat")
     let unstaged_stat = run_git("git diff --stat")
-    let staged_diff = read_git_diff("git diff --cached", ".sesi_commit_message_staged.diff")
-    let unstaged_diff = read_git_diff("git diff", ".sesi_commit_message_unstaged.diff")
+    let staged_diff = read_git_diff("git diff --cached", temp_prefix + ".sesi_commit_message_staged.diff")
+    let unstaged_diff = read_git_diff("git diff", temp_prefix + ".sesi_commit_message_unstaged.diff")
 
     data["stat"] = "STAGED:
 " + staged_stat + "

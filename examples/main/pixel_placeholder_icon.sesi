@@ -5,6 +5,7 @@
   expanded to 32x32 real raster pixels per cell by Draw.pixel_grid().
 */
 allow "std/draw" in with Draw
+allow "helpers/safe" in with Safe
 
 let palette = {
     ".": "#202957",
@@ -46,8 +47,8 @@ Draw.clear()
 Draw.pixel_grid(icon_grid, palette, 32)
 
 let outputDir = "generated_images/"
-if list_dir(outputDir) == null {
-    make_dir(outputDir)
+if !(outputDir | Safe.isFolder) {
+    outputDir | Safe.makeFolder
 }
 let outputPath = outputDir + "placeholder_icon_512.png"
 Draw.save_png(outputPath, 512, 512)

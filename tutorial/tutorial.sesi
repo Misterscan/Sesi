@@ -9,8 +9,9 @@
   Index:  npm run tutorial:cli list
   Reset:  npm run tutorial:cli reset
 */
+allow "helpers/safe" in with safe
 
-let PROGRESS_FILE = "tutorial/.sesi_tutorial_progress.json"
+let PROGRESS_FILE = "tutorial/.sesi_tutorial_progress"
 let accessibility = false
 if is_null(accessibility) || accessibility == "" || accessibility == false {
   accessibility = "n"
@@ -172,7 +173,7 @@ try {
 
 fn load_progress() {
   try {
-    let saved = from_json(read_file(PROGRESS_FILE))
+    let saved = from_json(safe.read(PROGRESS_FILE + ".json"))
     if type(saved) == "object" {
       return saved
     }
@@ -184,7 +185,7 @@ fn load_progress() {
 
 fn save_progress(progress) {
   try {
-    write_file(PROGRESS_FILE, to_json(progress))
+    safe.json(PROGRESS_FILE, progress)
   } catch (err) {
     print "Warning: tutorial progress could not be saved."
     print err

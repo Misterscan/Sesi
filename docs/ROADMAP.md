@@ -126,14 +126,14 @@
 - [x] Custom error types
 - [x] Error recovery strategies
 - [x] Retry logic with exponential backoff
-- [ ] Timeout handling
+- [x] Timeout handling (`timeout(...)` helper and CLI `--timeout`)
 
 ### Performance
 
 - [x] Bytecode compilation (VM + compiler foundation: expressions, loops, functions, closures, try/catch, imports)
 - [x] Logic caching
 - [x] Token counting and cost estimation (`count_tokens`, explicit `estimate_tokens`, `estimate_cost`, and provider-backed `model_usage`)
-- [ ] Lazy evaluation
+- [x] Lazy evaluation (`lazy(...)` / `force(...)` memoized delayed computations)
 
 ### New Built-ins
 
@@ -154,7 +154,7 @@
 ### Tooling
 
 - [x] Debugger with breakpoints
-- [ ] Profiler for performance analysis
+- [x] Profiler for performance analysis (`profile(...)`, manual sections, and CLI `--profile`)
 - [x] AST visualization
 - [x] Token stream visualization
 - [ ] Type checking tool

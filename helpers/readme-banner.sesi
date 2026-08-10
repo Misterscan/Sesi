@@ -29,7 +29,7 @@ Examples:
     sesi helpers/readme-banner.sesi "Sesi" img/banner.svg tagline "A Concise, Legible Language" theme ocean
     sesi helpers/readme-banner.sesi "MyApp" img/banner.svg theme ember inject README.md
 */
-
+allow "safe" in with Safe
 allow "std/draw" in with Draw
 
 let W = 860
@@ -300,7 +300,7 @@ fn draw_banner(title: str, output: str, options) {
 
 fn inject_banner(readme: str, output: str) {
   try {
-    let content = read_file(readme)
+    let content = Safe.read(readme)
     let tag = "<img src=\"" + output + "\" alt=\"banner\" width=\"100%\" />"
     let marker = "<!-- banner -->"
 
@@ -311,7 +311,7 @@ fn inject_banner(readme: str, output: str) {
         let updated = parts[0] + marker + "
 " + tag + "
 " + marker + parts[2]
-        write_file(readme, updated)
+        Safe.write(readme, updated)
         print "Injected banner between <!-- banner --> markers in" readme
         return null
       }
@@ -323,7 +323,7 @@ fn inject_banner(readme: str, output: str) {
 </div>
 
 " + content
-    write_file(readme, updated)
+    Safe.write(readme, updated)
     print "Prepended banner to" readme
   } catch (err) {
     print "Inject failed:" err

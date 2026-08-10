@@ -3,7 +3,7 @@
   Handles visual dashboard requests and executes pure Sesi model queries offline! 
 */
 
-allow "helpers/safe" in with {readFile}
+allow "helpers/safe" in with safe
 
 // Global session store
 let sessions = {}
@@ -12,8 +12,8 @@ let sessions = {}
 let docs_list = []
 let getting_started_list = []
 try {
-  docs_list = list_dir("docs")
-  getting_started_list = list_dir("getting-started")
+  docs_list = safe.getFiles("docs")
+  getting_started_list = safe.getFiles("getting-started")
 } catch (e) {}
 
 let sesiDocs = ""
@@ -26,7 +26,7 @@ while d < len(docs_list) {
   if ext == "md" {
     let doc_content = ""
     try {
-      doc_content = readFile("docs/" + f_name)
+      doc_content = safe.read("docs/" + f_name)
     } catch (e2) {}
     sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
   }
@@ -42,7 +42,7 @@ while g < len(getting_started_list) {
   if ext == "md" {
     let doc_content = ""
     try {
-      doc_content = readFile("getting-started/" + f_name)
+      doc_content = safe.read("getting-started/" + f_name)
     } catch (e2) {}
     sesiDocs = sesiDocs + "\n\n=== GETTING STARTED: " + f_name + " ===\n" + doc_content
   }
@@ -166,14 +166,14 @@ async fn handleRequest(req) {
 
   if req.path == "/" {
     try {
-      body = readFile("chatbot/index.html")
+      body = safe.read("chatbot/index.html")
     } catch (e) {
       status = 404
       body = "File not found"
     }
   } else if req.path == "/index.html" {
     try {
-      body = readFile("chatbot/index.html")
+      body = safe.read("chatbot/index.html")
     } catch (e) {
       status = 404
       body = "File not found"
@@ -189,11 +189,11 @@ async fn handleRequest(req) {
     let read_success = false
 
     try {
-      body = readFile("chatbot/" + filename)
+      body = safe.read("chatbot/" + filename)
       read_success = true
     } catch (e) {
       try {
-        body = readFile(filename)
+        body = safe.read(filename)
         read_success = true
       } catch (e2) {}
     }

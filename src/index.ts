@@ -11,6 +11,7 @@ export { disassemble } from './chunk';
 export { runInstall } from './pm';
 import { Lexer } from './lexer';
 import { Parser } from './parser';
+import { runDryRunSemanticChecks } from './dry-checker';
 import { Interpreter } from './interpreter';
 import { Compiler } from './compiler';
 import { VM } from './vm';
@@ -57,6 +58,9 @@ export interface SesiOptions {
   bytecode?: boolean;      // run via bytecode VM (default: true unless treeWalker is specified)
   bytecodeDump?: boolean;  // print disassembled bytecode then exit
   treeWalker?: boolean;    // run via tree-walking interpreter fallback
+  timeoutMs?: number;      // abort execution after this many milliseconds
+  deadlineAt?: number;     // internal absolute deadline shared by nested runtimes
+  profile?: boolean;       // collect and print runtime profile measurements
 }
 
 function printTokensTable(tokens: any[]): void {
@@ -134,6 +138,8 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
       process.exit(1);
     }
 
+    const dryRunDiagnostics = options?.dry ? runDryRunSemanticChecks(source) : [];
+
     if (options?.encrypt) {
       if (!options.password) {
         console.error('Error: Password is required for encryption.');
@@ -175,7 +181,16 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
       }
 
       if (options?.dry) {
-        console.log('✓ Syntax and Compilation valid');
+        for (const diagnostic of dryRunDiagnostics) {
+          const output = `${diagnostic.severity} [${diagnostic.code}] at line ${diagnostic.line}, column ${diagnostic.column}: ${diagnostic.message}`;
+          if (diagnostic.severity === 'error') console.error(output);
+          else console.warn(output);
+        }
+        const errors = dryRunDiagnostics.filter(diagnostic => diagnostic.severity === 'error').length;
+        const warnings = dryRunDiagnostics.length - errors;
+        if (errors > 0) process.exitCode = 1;
+        if (dryRunDiagnostics.length === 0) console.log('✓ Syntax, compilation, and semantic checks valid');
+        else console.log(`Dry run: ${errors} error(s), ${warnings} warning(s)`);
         return;
       }
 
@@ -190,7 +205,16 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
     }
 
     if (options?.dry) {
-      console.log('✓ Syntax is valid');
+      for (const diagnostic of dryRunDiagnostics) {
+        const output = `${diagnostic.severity} [${diagnostic.code}] at line ${diagnostic.line}, column ${diagnostic.column}: ${diagnostic.message}`;
+        if (diagnostic.severity === 'error') console.error(output);
+        else console.warn(output);
+      }
+      const errors = dryRunDiagnostics.filter(diagnostic => diagnostic.severity === 'error').length;
+      const warnings = dryRunDiagnostics.length - errors;
+      if (errors > 0) process.exitCode = 1;
+      if (dryRunDiagnostics.length === 0) console.log('✓ Syntax and semantic checks valid');
+      else console.log(`Dry run: ${errors} error(s), ${warnings} warning(s)`);
       return;
     }
 

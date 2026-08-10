@@ -20,6 +20,7 @@ print [1, 2, 3]
 **Returns**: `null`
 
 > `<content> | print` is also supported, but the normal way is reccomended.
+
 ---
 
 ### input(prompt) -> string
@@ -191,6 +192,33 @@ print piped["b"][1]   // 2
 
 ---
 
+### encrypt(content, password) -> string
+
+Encrypt UTF-8 string content with AES-256-CBC. The result uses the same `iv:ciphertext` envelope format as Sesi CLI encryption.
+
+```sesi
+let secret = encrypt("private notes", "passphrase")
+print secret
+```
+
+**Returns**: `string` - encrypted `iv:ciphertext` payload
+
+---
+
+### decrypt(content, password) -> string
+
+Decrypt an AES-256-CBC `iv:ciphertext` payload produced by `encrypt(...)` or the compatible Sesi CLI encryption format.
+
+```sesi
+let secret = encrypt("private notes", "passphrase")
+let plain = decrypt(secret, "passphrase")
+print plain // "private notes"
+```
+
+**Returns**: `string` - decrypted UTF-8 content
+
+---
+
 ### num(value) -> number
 
 Convert a value to a number.
@@ -274,22 +302,27 @@ null | bool
 Return `true` if the value matches the respective type.
 
 - `is_array(value) -> bool`
-  
+
   `value | is_array`
+
 - `is_object(value) -> bool`
-  
+
   `value | is_object`
+
 - `is_string(value) -> bool`
-  
+
   `value | is_string`
+
 - `is_number(value) -> bool`
-  
+
   `value | is_number`
+
 - `is_bool(value) -> bool`
-  
+
   `value | is_bool`
+
 - `is_null(value) -> bool`
-  
+
   `value | is_null`
 
 ---
@@ -736,27 +769,35 @@ The following utilities work on strings and arrays natively:
 - `starts_with(string, prefix) -> bool`
 
   `string | starts_with(prefix)`
+
 - `ends_with(string, suffix) -> bool`
 
   `string | ends_with(suffix)`
+
 - `index_of(collection, value) -> number`
 
   `collection | index_of(value)`
+
 - `includes(collection, value) -> bool`
 
   `collection | includes(value)`
+
 - `repeat(string, count) -> string`
 
   `string | repeat(count)`
+
 - `reverse(array) -> array`
 
   `array | reverse`
+
 - `sort(array, compareFn?) -> array`
 
   `array | sort(compareFn?)`
+
 - `unique(array) -> array`
 
   `array | unique`
+
 - `flatten(array) -> array`
 
   `array | flatten`
@@ -1194,15 +1235,16 @@ paths. This requires the `ffmpeg` CLI and is disabled in Sesi safe mode.
 let frames = ["frames/001.png", "frames/002.png", "frames/003.png"]
 let out_filename = "build/preview.gif"
 let config = {
-  "fps": 12, 
-  "width": 640, 
+  "fps": 12,
+  "width": 640,
   "loop": 0
 }
 let output = ""
 let output_plain = ""
 
-if (["-version"] | ffmpeg | is_null) == false {
+if !(["-version"] | ffmpeg | is_null) {
   print "FFmpeg is installed and available."
+
   try {
     output = gif(frames, out_filename, config)
     output_plain = frames | gif("build/plain.gif")
@@ -2434,6 +2476,81 @@ volatileTask | retry(config)
 
 ---
 
+### lazy(action, ...args) -> lazy
+
+Creates a memoized delayed computation from a function and optional captured arguments. The function is not run until the lazy value is passed to `force(...)`; after the first force, the result is cached.
+
+```sesi
+fn expensive() {
+  print "computed once"
+  return 42
+}
+
+let delayed = lazy(expensive)
+print type(delayed) // "lazy"
+print force(delayed) // 42
+print force(delayed) // 42, cached
+```
+
+### force(value) -> any
+
+Resolves a lazy value or promise. Non-lazy values are returned unchanged.
+
+```sesi
+let delayed = lazy(expensive)
+let value = force(delayed)
+```
+
+---
+
+### timeout(action, ms, fallback = unset) -> any
+
+Runs a function with a millisecond deadline. If the action does not complete before the deadline, `timeout(...)` returns the optional fallback value; without a fallback, it throws a `TimeoutError`.
+
+```sesi
+fn slow() {
+  sleep(1000)
+  return "done"
+}
+
+let value = timeout(slow, 100, "too slow")
+```
+
+For whole-script deadlines, use the CLI flag `--timeout <ms>`.
+
+---
+
+### profile(name, action) -> any
+
+Runs a function and records its elapsed time under `name`. The wrapped function's return value is passed through unchanged.
+
+```sesi
+fn work() {
+  let total = 0
+  for i = 0 to 1000 { total = total + i }
+  return total
+}
+
+let result = profile("work-loop", work)
+print profile_report("text")
+```
+
+### profile_start(name) -> string
+
+Starts a named manual profiling section and returns the normalized section name.
+
+### profile_end(name) -> object
+
+Ends a named manual profiling section and returns the latest measurement summary.
+
+### profile_report(format = "object") -> array | string
+
+Returns profiler measurements sorted by total runtime. Use `profile_report("text")` for a printable table.
+
+Use `sesi --profile <file>` to collect statement, VM, and builtin timings for an entire script.
+
+---
+
 ### random() -> number
 
 Returns a random floating-point number between 0 (inclusive) and 1 (exclusive).
@@ -2520,7 +2637,7 @@ let y = 20
 debug()
 
 // You can also leave a comment inside the function for referencing, it won't affect your script
-debug("Verify x and y using 'print' in eval") 
+debug("Verify x and y using 'print' in eval")
 "Verify x and y using 'print' in eval" | debug
 
 print x + y
@@ -2753,7 +2870,7 @@ is_array([1, 2])         // true
 [1, 2] | is_array
 
 is_object({"a": 1})      // true
-{"a": 1} | is_object 
+{"a": 1} | is_object
 
 is_string("hello")       // true
 "hello" | is_string
@@ -3063,7 +3180,7 @@ print formatted // e.g. "2:27:02 AM"
 
 ### std/json
 
-Includes JSON serialization: `parse(str)`, `stringify(val)`. 
+Includes JSON serialization: `parse(str)`, `stringify(val)`.
 
 **Will be deprecated in v2, use `from_json` and `to_json` instead.**
 

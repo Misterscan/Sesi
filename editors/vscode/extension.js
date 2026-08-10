@@ -4,7 +4,8 @@ const fs = require('fs');
 const os = require('os');
 
 function getModuleSpecifierAtPosition(document, position) {
-    const lineText = document.lineAt(position.line).text;
+    if (isPositionInComment(document, position)) return null;
+    const lineText = stripComments(document.getText()).split('\n')[position.line] || '';
     const stringRegex = /(["'])(.*?)\1/g;
     let match;
     while ((match = stringRegex.exec(lineText)) !== null) {
@@ -31,7 +32,8 @@ function getModuleSpecifierAtPosition(document, position) {
 }
 
 function getStringLiteralAtPosition(document, position) {
-    const lineText = document.lineAt(position.line).text;
+    if (isPositionInComment(document, position)) return null;
+    const lineText = stripComments(document.getText()).split('\n')[position.line] || '';
     const stringRegex = /(["'])(.*?)\1/g;
     let match;
     while ((match = stringRegex.exec(lineText)) !== null) {
@@ -272,6 +274,13 @@ function stripComments(text) {
         }
     }
     return result;
+}
+
+function isPositionInComment(document, position) {
+    const text = document.getText();
+    const offset = document.offsetAt(position);
+    const stripped = stripComments(text);
+    return offset < text.length && text[offset] !== stripped[offset];
 }
 
 class Scope {
@@ -851,7 +860,7 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json',
+        'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
   'speech', 'from_speech', 'translate', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
   'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call',
@@ -861,6 +870,7 @@ function analyzeScope(tokens, decls, refs) {
   'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
   'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input',
   'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
+  'lazy', 'force', 'timeout', 'profile', 'profile_start', 'profile_end', 'profile_report',
   'string', 'number', 'bool', 'array', 'object', 'num', 'str', 'null', 'float', 'any',
   'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null',
   'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
@@ -1313,6 +1323,18 @@ function activate(context) {
             source: 'Serialization Standard Library',
             description: 'Parses a structured JSON string and converts it directly into native, indexable Sesi objects or collections.',
             example: 'let raw = \'{"result": "success", "code": 200}\'\nlet obj = from_json(raw)\nprint obj["result"]'
+        },
+        'encrypt': {
+            signature: 'encrypt(content, password) -> string',
+            source: 'Cryptography Standard Library',
+            description: 'Encrypts UTF-8 string content with AES-256-CBC and returns the same iv:ciphertext format used by the Sesi CLI encryption flow.',
+            example: 'let secret = encrypt("private notes", "passphrase")\nprint secret'
+        },
+        'decrypt': {
+            signature: 'decrypt(content, password) -> string',
+            source: 'Cryptography Standard Library',
+            description: 'Decrypts an AES-256-CBC iv:ciphertext string produced by encrypt(...) or the compatible Sesi CLI encryption format.',
+            example: 'let secret = encrypt("private notes", "passphrase")\nprint decrypt(secret, "passphrase")'
         },
         'speech': {
             signature: 'speech(text, voice = null, gemini_model = null) -> bool|string',
@@ -1908,6 +1930,48 @@ function activate(context) {
             description: 'Executes the given function with automatic retry and exponential backoff configuration upon encountering an exception.',
             example: 'fn dangerousAction() { ... }\nlet res = retry(dangerousAction, { "max_retries": 3 })'
         },
+        'lazy': {
+            signature: 'lazy(fn, ...args)',
+            source: 'Runtime Control Standard Library',
+            description: 'Creates a memoized delayed computation. The function is not executed until the lazy value is passed to `force(...)`, and the result is cached after the first force.',
+            example: 'fn expensive() { return 42 }\nlet delayed = lazy(expensive)\nprint force(delayed)'
+        },
+        'force': {
+            signature: 'force(value)',
+            source: 'Runtime Control Standard Library',
+            description: 'Resolves a lazy value or promise. Non-lazy values are returned unchanged.',
+            example: 'let delayed = lazy(expensive)\nlet value = force(delayed)'
+        },
+        'timeout': {
+            signature: 'timeout(fn, ms, fallback = unset)',
+            source: 'Fault Tolerance Standard Library',
+            description: 'Runs a function with a millisecond deadline. If it times out, returns the optional fallback value or throws a TimeoutError when no fallback is provided.',
+            example: 'fn slow() { sleep(1000); return "done" }\nlet value = timeout(slow, 100, "too slow")'
+        },
+        'profile': {
+            signature: 'profile(name, fn)',
+            source: 'Profiler Standard Library',
+            description: 'Measures a function call under the given profile name and returns the wrapped function result unchanged.',
+            example: 'fn work() { return 42 }\nlet result = profile("work", work)'
+        },
+        'profile_start': {
+            signature: 'profile_start(name)',
+            source: 'Profiler Standard Library',
+            description: 'Starts a named manual profiling section and returns the normalized section name.',
+            example: 'profile_start("load")\nlet data = read_file("input.txt")\nprofile_end("load")'
+        },
+        'profile_end': {
+            signature: 'profile_end(name)',
+            source: 'Profiler Standard Library',
+            description: 'Ends a named manual profiling section and returns the latest measurement summary object.',
+            example: 'profile_start("work")\nrun_work()\nlet measurement = profile_end("work")'
+        },
+        'profile_report': {
+            signature: 'profile_report(format = "object")',
+            source: 'Profiler Standard Library',
+            description: 'Returns recorded profiler measurements sorted by total runtime. Pass "text" for a printable table.',
+            example: 'print profile_report("text")'
+        },
         'name': {
             signature: 'name(func)',
             source: 'Function Introspection',
@@ -2038,6 +2102,7 @@ function activate(context) {
 
     const hoverProvider = vscode.languages.registerHoverProvider('sesi', {
         provideHover(document, position, token) {
+            if (isPositionInComment(document, position)) return null;
             const moduleInfo = getModuleSpecifierAtPosition(document, position);
             if (moduleInfo) {
                 const resolved = resolveSesiModule(moduleInfo.specifier, document.uri.fsPath, workspaceRoot);
@@ -2214,6 +2279,7 @@ function activate(context) {
 
     const definitionProvider = vscode.languages.registerDefinitionProvider('sesi', {
         provideDefinition(document, position, token) {
+            if (isPositionInComment(document, position)) return null;
             const moduleInfo = getModuleSpecifierAtPosition(document, position);
             if (moduleInfo) {
                 const resolved = resolveSesiModule(moduleInfo.specifier, document.uri.fsPath, workspaceRoot);
@@ -2263,9 +2329,10 @@ function activate(context) {
     const documentLinkProvider = vscode.languages.registerDocumentLinkProvider('sesi', {
         provideDocumentLinks(document) {
             const links = [];
+            const commentStrippedLines = stripComments(document.getText()).split('\n');
 
             for (let lineIdx = 0; lineIdx < document.lineCount; lineIdx++) {
-                const lineText = document.lineAt(lineIdx).text;
+                const lineText = commentStrippedLines[lineIdx] || '';
                 const stringRegex = /(["'])(.*?)\1/g;
                 let match;
 
@@ -2452,5 +2519,14 @@ function deactivate() {}
 
 module.exports = {
     activate,
-    deactivate
+    deactivate,
+    _test: {
+        stripComments,
+        isPositionInComment,
+        getModuleSpecifierAtPosition,
+        validateImports,
+        tokenize,
+        findDeclarationsAndReferences,
+        analyzeScope
+    }
 };

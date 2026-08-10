@@ -144,7 +144,7 @@ Misterscan_portfolio.html
 gemini-transcript.txt
 tutorial/.sesi_tutorial_progress.json
 agent_session.json
-SesiDo/database/.agent/default-memory-block.md
+SesiDo/database/.agent/*-memory-block.md
 local-ai-sys-prompt.txt
 agent-review.md
 chatbot/responses

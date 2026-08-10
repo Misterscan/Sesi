@@ -116,7 +116,9 @@ if (args | length) > 1 && (args[0] == "new-chat" || args[0] == "new") {
 } else {
   print "Continue from previous conversation? (y/n):"
   if (" " | input) == "n" {
-    logFile | rename("chatbot/archive/sesira-" + Stamp.formattedTime() + ".log")
+    try {
+      logFile | rename("chatbot/archive/sesira-" + Stamp.formattedTime() + ".log")
+    } catch (e) {print e}
     queryText = "Enter your question: " | input
   } else {
     queryText = getHistory() + "Enter your question: " | input
@@ -240,7 +242,7 @@ try {
     "SESI" | writeLog("Low confidence routing. Asked user to retry.")
   } else {
     let rec = database[best_class]
-    let docs_list = "getting-started" | list_dir
+    let docs_list = "getting-started" | Safe.getFiles
     let sesiDocs = ""
     for f_name in docs_list {
       try {
@@ -260,8 +262,23 @@ try {
       skills = "docs/SKILLS.md" | Safe.readFile
     } catch (e) {}
 
-    prompt instructions {"Sesi Official Reference Documentation:
+    let expandedLibs = ""
+    try {
+      expandedLibs = "=== LIB: File System (Built-in via \"helpers/safe\") ===\n" + Safe.readFile("helpers/safe.sesi")
+      expandedLibs = expandedLibs + "\n\n=== LIB: Math (via sesi install Misterscan/math) ===\n" + Safe.readFile("sesi_modules/math/main.sesi")
+      expandedLibs = expandedLibs + "\n\n=== LIB: Shell (via sesi install Misterscan/shell-automation) ===\n" + Safe.readFile("sesi_modules/shell-automation/index.sesi")
+      expandedLibs = expandedLibs + "\n\n=== LIB: Web Diagnostics (via sesi install Misterscan/AutoWebpageDiagnostics) ===\n" + Safe.readFile("sesi_modules/AutoWebpageDiagnostics/main.sesi")
+    } catch (e) {}
+
+    prompt instructions {"
+    Sesi Official Reference Documentation:
     "sesiDocs"
+
+    Expanded Libraries:
+    - `math` uses `allow 'math' in with ...`
+    - `shell-automation` uses `allow 'shell-automation' in with ...`
+    - `AutoWebpageDiagnostics` uses `allow 'AutoWebpageDiagnostics' in with ...`
+    "expandedLibs"
     
     Instructions: 
     "skills" 
@@ -320,16 +337,17 @@ try {
 
     prompt persona {"Your name is Sesira. Do not mention your name for no reason, only if the user asks. 
     - You are an expert in Sesi and very efficient at coding. 
-    - You prefer an original way of doing things. "}
+    - You prefer an original way of doing things."}
 
+    let sys = persona + instructions
     let generated_response = ""
 
     if !("OPENAI_API_KEY" | shell.env_get | is_null){
       try {
-        generated_response = model("gpt-5.6-luna") {system: persona + instructions, thinkingLevel: "medium", max_tokens: 4096} {ragPrompt}
-      } catch (e) {generated_response = model("gemini-3.1-flash-lite") {system: persona + instructions, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}}
+        generated_response = model("gpt-5.6-luna") {system: sys, thinkingLevel: "medium", max_tokens: 4096} {ragPrompt}
+      } catch (e) {generated_response = model("gemini-3.1-flash-lite") {system: sys, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}}
     } else {
-      generated_response = model("gemini-3.1-flash-lite") {system: persona + instructions, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}
+      generated_response = model("gemini-3.1-flash-lite") {system: sys, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}
     }
     
     let helpResponse = false

@@ -8,10 +8,11 @@
       Video generation can be expensive and may take a while. 
     You can use the "gemini-omni-flash-preview" model for fast previews, or the "veo-3.1-generate-preview" model for higher quality videos with audio.
 */
+allow "helpers/safe" in with Safe
 
 let outputDir = "generated_media/"
-if list_dir(outputDir) == null {
-    outputDir | make_dir
+if !(outputDir | Safe.isFolder) {
+    outputDir | Safe.makeFolder
 }
 
 let promptText = "A tiny glass robot walks through a rain-soaked neon garden, cinematic tracking shot"
@@ -20,7 +21,7 @@ let outputPath = outputDir + "ai-video.mp4"
 // Gemini Omni Flash is the default choice for fast text-to-video generation.
 let clip = video("gemini-omni-flash-preview") {ratio: "16:9"} {promptText}
 try {
-    outputPath | write_file(clip, "base64")
+    outputPath | Safe.saveMedia(clip)
     print "Saved generated video to" outputPath
 } catch (e) {
     print "Error saving video:" e

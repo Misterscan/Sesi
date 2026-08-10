@@ -788,7 +788,8 @@ Module resolution also supports configured library paths through `SESI_PATH` and
 
 ## 19. Debugging Scripts
 
-Start with a dry run when you only want to check syntax.
+Start with a dry run when you want to check syntax, compilation, undefined symbols,
+and unused local symbols without executing the script.
 
 ```bash
 sesi -c my_script.sesi

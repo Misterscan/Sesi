@@ -2,6 +2,7 @@
   AI Agent Module for Sesi
   Implements an intelligent conversational agent with native tool execution capabilities.
 */
+allow "helpers/safe" in with safe
 
 fn list_tools_description(tools) {
   let desc = ""
@@ -412,7 +413,7 @@ export fn save(agent, path) {
     "history": agent["history"]
   }
   try {
-    return write_file(path, to_json(data))
+    return safe.json(path, data)
   } catch (err) {
     print "Error saving agent:" err
   }
@@ -421,7 +422,7 @@ export fn save(agent, path) {
 export fn load(agent, path) {
   let content = ""
   try {
-    content = read_file(path)
+    content = safe.read(path)
   } catch (err) {
     print "Error loading agent:" err
   }
