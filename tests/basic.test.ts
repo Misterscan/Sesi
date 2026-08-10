@@ -56,7 +56,7 @@ async function main() {
   }
   console.log('✓ Make keyword tokenization');
 
-  const reservedWords = ['prompt', 'make'];
+  const reservedWords = ['prompt', 'make', 'const'];
   const originalConsoleError = console.error;
   console.error = () => {};
   try {
@@ -70,7 +70,19 @@ async function main() {
   } finally {
     console.error = originalConsoleError;
   }
-  console.log('✓ Prompt and make reserved binding names');
+  console.log('✓ Reserved binding names');
+
+  const constParser = new Parser(new Lexer('const x = 1').scanTokens());
+  console.error = () => {};
+  try {
+    constParser.parse();
+  } finally {
+    console.error = originalConsoleError;
+  }
+  if (constParser.errors.length === 0 || !constParser.errors[0].includes('not supported')) {
+    throw new Error('const declarations must be rejected');
+  }
+  console.log('✓ Const declarations are rejected');
 
   // Parser tests
   console.log('\n=== Parser Tests ===');

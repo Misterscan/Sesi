@@ -148,6 +148,13 @@ SesiDo/database/.agent/*-memory-block.md
 local-ai-sys-prompt.txt
 agent-review.md
 chatbot/responses
+generated_media
+.sesira
+img-tools
+build
+decoded_output
+autoencoder_output
+
 
 # Sesira generated training and release artifacts
 /sesira/

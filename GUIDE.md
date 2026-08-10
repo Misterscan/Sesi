@@ -19,6 +19,7 @@ Sesi is a **clean, minimal, side-effect-oriented** scripting language. It is:
 
 ```sesi
 let name    = "Sesi"
+let retries: number = 3
 let version = 1.8.0
 let active  = true
 let missing         // null (uninitialized)
@@ -42,6 +43,14 @@ count = count + 1   // count is now 1
 | `array`  | —     | `[1, 2, 3]`              |
 | `object` | —     | `{"key": "value"}`       |
 | `any`    | —     | any value, no type check |
+
+Type annotations are optional and belong after the variable name:
+
+```sesi
+let total: number = 42
+let label: string = "draft"
+let ready: bool = true
+```
 
 > **CRITICAL:** Object literals require **quoted string keys**: `{"name": "Ada"}`  
 > Schema objects (in `model()` configs/outputs) require **unquoted keys**: `{key: string}`

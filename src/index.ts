@@ -12,6 +12,7 @@ export { runInstall } from './pm';
 import { Lexer } from './lexer';
 import { Parser } from './parser';
 import { runDryRunSemanticChecks } from './dry-checker';
+import { runTypeChecks } from './type-checker';
 import { Interpreter } from './interpreter';
 import { Compiler } from './compiler';
 import { VM } from './vm';
@@ -88,8 +89,6 @@ function printAstTree(node: any, indent: string = ''): string {
   
   if (node.type === 'LetStatement') {
     result += ` (name: "${node.name.lexeme}")`;
-  } else if (node.type === 'ConstStatement') {
-    result += ` (name: "${node.name.lexeme}")`;
   } else if (node.type === 'Identifier') {
     result += ` (name: "${node.lexeme || node.name}")`;
   } else if (node.type === 'Literal') {
@@ -138,7 +137,12 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
       process.exit(1);
     }
 
-    const dryRunDiagnostics = options?.dry ? runDryRunSemanticChecks(source) : [];
+    const dryRunDiagnostics = options?.dry
+      ? [
+          ...runDryRunSemanticChecks(source),
+          ...runTypeChecks(program).map(d => ({ ...d, column: 1 })),
+        ]
+      : [];
 
     if (options?.encrypt) {
       if (!options.password) {

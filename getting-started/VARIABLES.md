@@ -7,13 +7,15 @@ Variables are the fundamental way to store and name values in Sesi. They are dec
 ## Declaration
 
 ```
-let_stmt := 'let' identifier ('=' expression)? (';' | newline)
+let_stmt := 'let' identifier (':' type)? ('=' expression)? (';' | newline)
 ```
 
 All variables are declared with `let`. There is no `const`, `var`, or any other binding keyword.
 
 ```sesi
 let name = "Sesi"
+let retries: number = 3
+let title: string = "Welcome"
 let version = 1.8.0
 let active = true
 let missing        // declared but uninitialized — value is null
@@ -73,6 +75,17 @@ let config = {"theme": "dark", "limit": 20} // object
 ```sesi
 fn double(x: num) -> num { return x * 2 }
 fn greet(name: str) { print "Hello," name }
+```
+
+### Variable Type Annotations
+
+You can explicitly annotate a variable by placing `: type` after its name and before `=`. Annotations are optional; use them when you want the declaration to state the expected value type.
+
+```sesi
+let age: number = 42
+let username: string = "Ada"
+let enabled: bool = true
+let tags: array<string> = ["sesi", "lang"]
 ```
 
 ### The `any` Type

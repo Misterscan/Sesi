@@ -1,13 +1,13 @@
 /*
   Sesi command-line tutorial
 
-  Start:  npm run tutorial:cli
-  Set name: npm run tutorial:cli name <your-name>
-  Narrate: npm run tutorial:cli narrate
-  Move:   npm run tutorial:cli next
-  Review: npm run tutorial:cli back
-  Index:  npm run tutorial:cli list
-  Reset:  npm run tutorial:cli reset
+  Start:  npm run tutorial
+  Set name: npm run tutorial name <your-name>
+  Narrate: npm run tutorial narrate
+  Move:   npm run tutorial next
+  Review: npm run tutorial back
+  Index:  npm run tutorial list
+  Reset:  npm run tutorial reset
 */
 allow "helpers/safe" in with safe
 
@@ -28,7 +28,7 @@ let lessons = [
     ],
     "example": "print \"Hello from Sesi!\"
 print \"The answer is:\" 6 * 7",
-    "challenge": "Create hello.sesi, print your name and a number, then run: sesi --cli hello.sesi"
+    "challenge": "Create hello.sesi, print your name and a number, then run: sesi   hello.sesi"
   },
   {
     "title": "Values and variables",
@@ -150,7 +150,7 @@ if len(args) > 0 {
   name = args[0]
 }
 print \"Hello,\" name + \"!\"",
-    "challenge": "Save the example as greet.sesi, then run: sesi --cli greet.sesi Ada"
+    "challenge": "Save the example as greet.sesi, then run: sesi   greet.sesi Ada"
   },
   {
     "title": "Optional reasoning",
@@ -194,24 +194,24 @@ fn save_progress(progress) {
 
 fn print_help() {
   print "Commands:"
-  print "  npm run tutorial:cli narrate    Read the lesson aloud (accessibility)"
-  print "  npm run tutorial:cli next       Go to the next lesson"
-  print "  npm run tutorial:cli back       Review the previous lesson"
-  print "  npm run tutorial:cli list       Show the course index"
-  print "  npm run tutorial:cli name Ada   Personalize the greeting"
-  print "  npm run tutorial:cli reset      Clear saved progress"
+  print "  npm run tutorial: narrate    Read the lesson aloud (accessibility)"
+  print "  npm run tutorial: next       Go to the next lesson"
+  print "  npm run tutorial: back       Review the previous lesson"
+  print "  npm run tutorial: list       Show the course index"
+  print "  npm run tutorial: name Ada   Personalize the greeting"
+  print "  npm run tutorial: reset      Clear saved progress"
   print ""
   print "For the full interactive course, run: npm run tutorial"
   accessibility = input("Enable accessibility features (text-to-speech) (y/n, default: n): ")
   enableAccessibility = accessibility == "y" || accessibility == "Y"
   if enableAccessibility {
     speech("Commands:
-  npm run tutorial: see el eye narrate,    Read the lesson aloud (accessibility)
-  npm run tutorial: see el eye next,       Go to the next lesson
-  npm run tutorial: see el eye back,      Review the previous lesson
-  npm run tutorial: see el eye list,       Show the course index
-  npm run tutorial: see el eye name Ada,   Personalize the greeting
-  npm run tutorial: see el eye reset,      Clear saved progress
+  npm run tutorial:   narrate,    Read the lesson aloud (accessibility)
+  npm run tutorial:   next,       Go to the next lesson
+  npm run tutorial:   back,      Review the previous lesson
+  npm run tutorial:   list,       Show the course index
+  npm run tutorial:   name Ada,   Personalize the greeting
+  npm run tutorial:   reset,      Clear saved progress
 For the full interactive course, run: npm run tutorial")
   }
 }
@@ -223,7 +223,7 @@ fn print_index(progress) {
   print "Sesi CLI Tutorial — Course Index"
   print "────────────────────────────────"
   if enableAccessibility {
-    speech("Sey-see see el eye tutorial. Course index.")
+    speech("Sey-see   tutorial. Course index.")
   }
   for i = 0 to len(lessons) {
     let marker = " "
@@ -248,7 +248,7 @@ fn print_lesson(progress) {
   print "  SESI CLI TUTORIAL · LESSON" index + 1 "OF" len(lessons)
   print "╰────────────────────────────────────────────────────────────╯"
   if enableAccessibility {
-    speech("Sey-see see el eye tutorial. Lesson " + str(index + 1) + " of " + str(len(lessons)) + ".")
+    speech("Sey-see   tutorial. Lesson " + str(index + 1) + " of " + str(len(lessons)) + ".")
   }
   print ""
   print lesson["title"]
@@ -274,10 +274,10 @@ fn print_lesson(progress) {
   print "──────────────────────────────────────────────────────────────"
   print lesson["example"]
   if enableAccessibility {
-    if contains(lesson["example"], "--cli") || contains(lesson["example"], "CLI") || contains(lesson["example"], "cli") {
-      let accessCli = swap(lesson["example"], "--cli", "dash dash see el eye")
-      accessCli = swap(accessCli, "CLI", "see el eye")
-      accessCli = swap(accessCli, "cli", "see el eye")
+    if contains(lesson["example"], " ") || contains(lesson["example"], "CLI") || contains(lesson["example"], "cli") {
+      let accessCli = swap(lesson["example"], " ", "dash dash  ")
+      accessCli = swap(accessCli, "CLI", " ")
+      accessCli = swap(accessCli, "cli", " ")
       speech("Example: " + accessCli)
     } else if contains(lesson["example"], "--") {
       let accessExample = swap(lesson["example"], "--", "dash dash ")
@@ -293,10 +293,10 @@ fn print_lesson(progress) {
   print "Practice"
   print "  " + lesson["challenge"]
   if enableAccessibility {
-    if contains(lesson["challenge"], "--cli") || contains(lesson["challenge"], "CLI") || contains(lesson["challenge"], "cli") {
-      let accessCli = swap(lesson["challenge"], "--cli", "see el eye")
-      accessCli = swap(accessCli, "CLI", "see el eye")
-      accessCli = swap(accessCli, "cli", "see el eye")
+    if contains(lesson["challenge"], " ") || contains(lesson["challenge"], "CLI") || contains(lesson["challenge"], "cli") {
+      let accessCli = swap(lesson["challenge"], " ", " ")
+      accessCli = swap(accessCli, "CLI", " ")
+      accessCli = swap(accessCli, "cli", " ")
       speech("Practice: " + accessCli)
     } else if contains(lesson["challenge"], "--") {
       let accessExample = swap(lesson["challenge"], "--", "dash dash ")
@@ -311,19 +311,19 @@ fn print_lesson(progress) {
 
   if index == len(lessons) - 1 {
     print "This is the final lesson."
-    print "Run 'npm run tutorial:cli next' to mark the course complete."
+    print "Run 'npm run tutorial: next' to mark the course complete."
     if enableAccessibility {
-      speech("This is the final lesson. Run 'npm run tutorial: see el eye next' to mark the course complete.")
+      speech("This is the final lesson. Run 'npm run tutorial:   next' to mark the course complete.")
     }
   } else {
-    print "Continue: npm run tutorial:cli next"
+    print "Continue: npm run tutorial: next"
     if enableAccessibility {
-      speech("Continue: npm run tutorial: see el eye next")
+      speech("Continue: npm run tutorial:   next")
     }
   }
-  print "Auto-narrate: npm run tutorial:cli narrate"
-  print "Review:       npm run tutorial:cli back"
-  print "Index:        npm run tutorial:cli list"
+  print "Auto-narrate: npm run tutorial: narrate"
+  print "Review:       npm run tutorial: back"
+  print "Index:        npm run tutorial: list"
 }
 
 let progress = load_progress()
@@ -350,9 +350,9 @@ if command == "reset" {
   print_lesson(progress)
 } else if command == "name" {
   if len(args) < 2 {
-    print "Usage: npm run tutorial:cli name <your-name>"
+    print "Usage: npm run tutorial: name <your-name>"
     if enableAccessibility {
-      speech("Usage: npm run tutorial: see el eye name `your name`.")
+      speech("Usage: npm run tutorial:   name `your name`.")
     }
   } else {
     progress["name"] = args[1]
@@ -381,7 +381,7 @@ if command == "reset" {
     print ""
     print "Open the practice lab: npm run tutorial"
     print "Browse more examples: examples/main/"
-    print "Restart this course: npm run tutorial:cli reset"
+    print "Restart this course: npm run tutorial: reset"
   }
 } else if command == "back" {
   if progress["step"] > 0 {
@@ -422,7 +422,7 @@ if command == "reset" {
     print ""
     print "Open the practice lab: npm run tutorial"
     print "Browse more examples: examples/main/"
-    print "Restart this course: npm run tutorial:cli reset"
+    print "Restart this course: npm run tutorial: reset"
   }
 } else {
   print "Unknown tutorial command:" command

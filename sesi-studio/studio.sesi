@@ -538,9 +538,9 @@ fn handle_http(req) {
       let output_str = ""
       let success = true
       try {
-        let cmd = "SESI_DEBUG=1 node \"" + SESI_ROOT + "/bin/sesi.js\" -l --cli \"" + temp_name + "\""
+        let cmd = "SESI_DEBUG=1 node \"" + SESI_ROOT + "/bin/sesi.js\" -l \"" + temp_name + "\""
         if IS_WINDOWS {
-          cmd = "set SESI_DEBUG=1 && cmd.exe /c node \"" + SESI_ROOT + "/bin/sesi.js\" -l --cli \"" + temp_name + "\""
+          cmd = "set SESI_DEBUG=1 && cmd.exe /c node \"" + SESI_ROOT + "/bin/sesi.js\" -l \"" + temp_name + "\""
         }
         output_str = exec_in_project(cmd)
       } catch (e) {
@@ -1014,7 +1014,7 @@ fn handle_http(req) {
       if action == "generate_commit_msg" {
         let generated_msg = ""
         try {
-          generated_msg = exec_in_project("sesi --cli -l sesi-studio/agent/commit-message.sesi")
+          generated_msg = exec_in_project("sesi   -l sesi-studio/agent/commit-message.sesi")
           let lines = split(generated_msg, "\n")
           let filtered = []
           let i = 0

@@ -6,25 +6,24 @@ Sesi’s CLI is a powerful, zero-footprint environment orchestrator. It allows y
 
 ## 🗺️ CLI Command Reference Matrix
 
-| Command Syntax               | Execution Mode        | File Dependency                   | Description                                                                         |
-| :--------------------------- | :-------------------- | :-------------------------------- | :---------------------------------------------------------------------------------- |
-| `sesi <file>`                | **TUI Dashboard**     | Yes                               | Runs the Sesi script file within the graphical Terminal UI dashboard natively.      |
-| `sesi --cli <file>`          | Standard CLI          | Yes                               | Runs the Sesi script file sequentially without the TUI dashboard (raw stdout).      |
-| `sesi <file> <args...>`      | **Parametric Script** | Yes                               | Runs the script and exposes trailing parameters in `args`.                          |
-| `sesi -e "<code>"`           | Inline Eval           | **No (Fileless)**                 | Evaluates the string of Sesi code directly in-memory.                               |
-| `sesi -e "<code>" <args...>` | **Parametric Eval**   | **No (Fileless)**                 | Evaluates inline code and populates `args` array with inputs.                       |
-| `sesi -h "<query>"`          | Sesira Help           | **Yes (Internal chatbot script)** | Converses with Sesi's internal Vector-RAG chatbot (`chatbot/sesi_db_chatbot.sesi`). |
-| `sesi <file> -h "<query>"`   | Grounded Help         | **Yes (Chatbot + context file)**  | Converses with Sesira using both the vector DB and the user's file.                 |
-| `sesi --cli chatbot/sesira.sesi "<query>"` | Direct Sesira | Yes | Runs the bundled chatbot directly with raw terminal output. |
-| `sesi -r <file>`             | AST Dump              | Yes                               | Dumps raw syntax JSON AST payload without running code.                             |
-| `sesi --ast <file>`          | AST Visualization     | Yes                               | Prints a pretty-printed, indented hierarchical tree representation of the AST.      |
-| `sesi --tokens <file>`       | Token Stream          | Yes                               | Prints a structured, tabular grid detailing all tokens scanned by the Lexer.        |
-| `sesi --repl`                | Interactive REPL      | **No (Interactive)**              | Starts a live Sesi prompt session with auto-printing of evaluated expressions.      |
-| `sesi -enc <file> -p <pass>` | Encryption            | Yes                               | Secures a script file using AES-256 password protection.                            |
-| `sesi -c <file>`             | Dry Run               | Yes                               | Checks syntax, compilation, undefined symbols, and unused locals without executing. |
-| `sesi -dec <file> -p <pass>` | Decryption            | Yes                               | Decrypts an encrypted script file back to cleartext `.sesi`.                        |
-| `sesi --timeout <ms> <file>` | Timed Run             | Yes                               | Aborts execution after the given millisecond deadline.                              |
-| `sesi --profile <file>`      | Profiled Run          | Yes                               | Prints runtime performance measurements after execution.                            |
+| Command Syntax                         | Execution Mode         | File Dependency                   | Description                                                                         |
+| :------------------------------------- | :--------------------- | :-------------------------------- | :---------------------------------------------------------------------------------- |
+| `sesi <file>`                          | **Standard Execution** | Yes                               | Runs the Sesi script file to standard output stream.                                |
+| `sesi <file> <args...>`                | **Parametric Script**  | Yes                               | Runs the script and exposes trailing parameters in `args`.                          |
+| `sesi -e "<code>"`                     | Inline Eval            | **No (Fileless)**                 | Evaluates the string of Sesi code directly in-memory.                               |
+| `sesi -e "<code>" <args...>`           | **Parametric Eval**    | **No (Fileless)**                 | Evaluates inline code and populates `args` array with inputs.                       |
+| `sesi -h "<query>"`                    | Sesira Help            | **Yes (Internal chatbot script)** | Converses with Sesi's internal Vector-RAG chatbot (`chatbot/sesi_db_chatbot.sesi`). |
+| `sesi <file> -h "<query>"`             | Grounded Help          | **Yes (Chatbot + context file)**  | Converses with Sesira using both the vector DB and the user's file.                 |
+| `sesi   chatbot/sesira.sesi "<query>"` | Direct Sesira          | Yes                               | Runs the bundled chatbot directly with raw terminal output.                         |
+| `sesi -r <file>`                       | AST Dump               | Yes                               | Dumps raw syntax JSON AST payload without running code.                             |
+| `sesi --ast <file>`                    | AST Visualization      | Yes                               | Prints a pretty-printed, indented hierarchical tree representation of the AST.      |
+| `sesi --tokens <file>`                 | Token Stream           | Yes                               | Prints a structured, tabular grid detailing all tokens scanned by the Lexer.        |
+| `sesi --repl`                          | Interactive REPL       | **No (Interactive)**              | Starts a live Sesi prompt session with auto-printing of evaluated expressions.      |
+| `sesi -enc <file> -p <pass>`           | Encryption             | Yes                               | Secures a script file using AES-256 password protection.                            |
+| `sesi -c <file>`                       | Dry Run                | Yes                               | Checks syntax, compilation, undefined symbols, and unused locals without executing. |
+| `sesi -dec <file> -p <pass>`           | Decryption             | Yes                               | Decrypts an encrypted script file back to cleartext `.sesi`.                        |
+| `sesi --timeout <ms> <file>`           | Timed Run              | Yes                               | Aborts execution after the given millisecond deadline.                              |
+| `sesi --profile <file>`                | Profiled Run           | Yes                               | Prints runtime performance measurements after execution.                            |
 
 ---
 
@@ -117,7 +116,7 @@ sesi examples/main/01_hello.sesi -h "how can i improve this script?"
 Run the bundled chatbot directly when you need to start a new chat without conversational history context (logs are archived to chatbot/archive/):
 
 ```bash
-sesi --cli chatbot/sesi_db_chatbot.sesi new "how do I use memory?"
+sesi chatbot/sesi_db_chatbot.sesi new "how do I use memory?"
 ```
 
 ---
@@ -249,7 +248,7 @@ If you are working inside the Sesi repository, you can leverage native package m
 | `npm run sesi:encrypt <file>`       | `sesi -enc <file>`        | Encrypts a file (using env password fallback).        |
 | `npm run sesi:decrypt <file>`       | `sesi -dec <file>`        | Decrypts a file (using env password fallback).        |
 | `npm run repl`                      | `sesi --repl`             | Starts the interactive Sesi REPL.                     |
-| `npm run sesira "<query>"`         | `sesi -h "<query>"`       | Consults the RAG-trained Sesira assistant.            |
+| `npm run sesira "<query>"`          | `sesi -h "<query>"`       | Consults the RAG-trained Sesira assistant.            |
 | `npm run example:all`               | `sesi examples.sesi`      | Runs all examples in the examples/ directory.         |
 
 ### Usage Example

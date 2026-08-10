@@ -2448,27 +2448,37 @@ function activate(context) {
             // Clean up output (remove dotenvx log prefix)
             let cleanedOutput = output.replace(/◇ retrieving[\s\S]*?dotenvx@[\d.]+/g, '').trim();
             
-            const lineColMatch = cleanedOutput.match(/at line (\d+), column (-?\d+)/);
-            if (lineColMatch) {
-                const lineNum = parseInt(lineColMatch[1], 10) - 1; // 0-indexed in VS Code
-                let colNum = parseInt(lineColMatch[2], 10);
-                if (colNum < 0) colNum = 0;
-                
+            // Parse each diagnostic line emitted by `sesi -c`.
+            // Format: `error [code] at line N, column M: message`
+            //      or `warning [code] at line N, column M: message`
+            const diagLineRe = /^(error|warning)\s+\[([^\]]+)\]\s+at line (\d+), column (-?\d+):\s+(.+)$/gm;
+            let anyMatched = false;
+            let match;
+            while ((match = diagLineRe.exec(cleanedOutput)) !== null) {
+                anyMatched = true;
+                const severity = match[1] === 'error'
+                    ? vscode.DiagnosticSeverity.Error
+                    : vscode.DiagnosticSeverity.Warning;
+                const lineNum = parseInt(match[3], 10) - 1; // 0-indexed
+                let colNum = parseInt(match[4], 10);
+                if (colNum < 1) colNum = 1;
+                const message = match[5];
+                const code = match[2];
+
                 if (lineNum >= 0 && lineNum < document.lineCount) {
                     const lineText = document.lineAt(lineNum).text;
                     const range = new vscode.Range(
                         new vscode.Position(lineNum, Math.max(0, colNum - 1)),
                         new vscode.Position(lineNum, lineText.length)
                     );
-                    
-                    diagnostics.push(new vscode.Diagnostic(
-                        range,
-                        cleanedOutput,
-                        vscode.DiagnosticSeverity.Error
-                    ));
+                    const diag = new vscode.Diagnostic(range, message, severity);
+                    diag.code = code;
+                    diagnostics.push(diag);
                 }
-            } else if (code !== 0 && cleanedOutput) {
-                // Fallback for general execution errors
+            }
+
+            if (!anyMatched && code !== 0 && cleanedOutput) {
+                // Fallback for general execution errors with no structured lines
                 const range = new vscode.Range(
                     new vscode.Position(0, 0),
                     new vscode.Position(0, document.lineAt(0).text.length)

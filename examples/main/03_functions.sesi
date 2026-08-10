@@ -1,15 +1,15 @@
 // Functions
 allow "std/terminal" in with { color }
 
-fn add(a: number, b: number) {print color(str(a + b), "green")}
-fn greet(name: string = "World") {print color("Hello " + name + "!", "cyan")}
+fn add(a: number, b: number) -> number {print color(str(a + b), "green")}
+fn greet(name: string = "World") -> string {print color("Hello " + name + "!", "cyan")}
 
 add(5, 3) // or 5 | add(3)
 greet()
 greet("Alice") // or "Alice" | greet
 
 // Advanced Functions
-fn calculate(operation: string, a: number, b: number) {
+fn calculate(operation: string, a: number, b: number) -> any {
     if operation == "add" {
         print color(str(a + b), "green")
     } else if operation == "subtract" {
@@ -26,7 +26,7 @@ fn calculate(operation: string, a: number, b: number) {
 calculate("multiply", 5, 3) // or "multiply" | calculate(5, 3)
 
 // Define your functions and call it using a custom tool
-fn getSesi() {
+fn getSesi() -> string {
     return "1.8.0"
 }
 
@@ -35,13 +35,13 @@ let v = tool_call(getSesi)() // or simply getSesi() since tool_call is optional 
 
 print "Current version:" v
 
-/* 
+/*
     This section demonstrates the use of Sesi's built-in array functions:
     1. map: Transform elements of an array.
     2. filter: Select elements of an array based on a condition.
     3. reduce: Accumulate elements of an array.
     4. find: Find the first element matching a condition.
-    
+
     And string functions:
     1. to_upper: Convert string to uppercase.
     2. to_lower: Convert string to lowercase.
@@ -55,11 +55,11 @@ print "Current version:" v
 let numbers = [1, 2, 3, 4, 5, 6]
 print "Initial numbers:" numbers
 
-/* 
+/*
   1. map(array, callback)
   Transform each number to its square
 */
-fn square(x) {
+fn square(x: number) -> number {
   return x * x
 }
 let squares = map(numbers, square) // or simply numbers | map(square)
@@ -69,7 +69,7 @@ print "Squares (map):" squares
   2. filter(array, callback)
   Filter for even numbers
 */
-fn isEven(x) {
+fn isEven(x: number) -> bool {
   return x % 2 == 0
 }
 let evens = filter(numbers, isEven) // or simply numbers | filter(isEven)
@@ -79,14 +79,14 @@ print "Evens (filter):" evens
   3. reduce(array, callback, initialValue)
   Sum all numbers with no initial value
 */
-fn sum(accumulator, x) {
+fn sum(accumulator: number, x: number) -> number {
   return accumulator + x
 }
 let totalSum = reduce(numbers, sum) // or simply numbers | reduce(sum)
 print "Total Sum (reduce):" totalSum
 
 // Product of all numbers starting with initial value of 10
-fn multiply(accumulator, x) {
+fn multiply(accumulator: number, x: number) -> number {
   return accumulator * x
 }
 let product = reduce(numbers, multiply, 10) // or simply numbers | reduce(multiply, 10)
@@ -96,7 +96,7 @@ print "Product starting with 10 (reduce):" product
   4. find(array, callback)
   Find the first number greater than 4
 */
-fn greaterThanFour(x) {
+fn greaterThanFour(x: number) -> number {
   return x > 4
 }
 let match = find(numbers, greaterThanFour) // or simply numbers | find(greaterThanFour)
@@ -119,12 +119,12 @@ print "Lowercase:" whispered
 let cleaned = trim(original) // or simply original | trim
 print "Trimmed:" cleaned
 
-/* 
+/*
     4. slice(collection, start, end = null)
     Slicing a string
 */
 let part = slice(cleaned, 7, 11) // or simply cleaned | slice(7, 11) // "Sesi"
-print "Sliced string (index 7 to 11):" part 
+print "Sliced string (index 7 to 11):" part
 
 
 // Slicing an array
@@ -133,7 +133,7 @@ let subArr = slice(arr, 1, 4) // or simply arr | slice(1, 4) // [20, 30, 40]
 print "Original array:" arr
 print "Sliced array (index 1 to 4):" subArr
 
-/* 
+/*
     5. swap(string, target, replacement)
     Global replacement of characters
 */
@@ -155,7 +155,7 @@ print "Index of 'Sesi':" idx
 */
 print "Truncate float (45.89):" trunc(45.89)
 // or simply 45.89 | trunc
-print "Truncate string to length 4:" trunc(cleaned, 4) 
+print "Truncate string to length 4:" trunc(cleaned, 4)
 // or simply cleaned | trunc(4)
 
 print "\n--- New String Functions ---"
@@ -207,7 +207,7 @@ print "\n--- Function Introspection ---"
     2. arity(func): Returns the number of parameters the function expects.
     3. is_function(value): Checks if the value is a function.
 */
-fn sample_func(a, b) { return a + b }
+fn sample_func(a: number, b: number) -> number { return a + b }
 print "name(sample_func):" name(sample_func)
 // or simply sample_func | name
 print "arity(sample_func):" arity(sample_func)

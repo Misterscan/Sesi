@@ -390,7 +390,7 @@ Sesi/
 
 ### Core Language ✅
 
-- **Variables & Bindings**: `let` for all bindings (const is deprecated).
+- **Variables & Bindings**: `let` for all bindings; `const` is not supported.
 - **Functions**: Side-effect driven functions with typed parameters.
 - **Control Flow**: `if/else`, `while`, `for`, and `try/catch`.
 - **Collections**: Robust Arrays and Objects.

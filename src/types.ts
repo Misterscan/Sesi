@@ -97,7 +97,6 @@ export interface Program {
 
 export type Statement =
   | LetStatement
-  | ConstStatement
   | FunctionStatement
   | ExpressionStatement
   | BlockStatement
@@ -118,15 +117,6 @@ export interface LetStatement {
   name: string;
   typeAnnotation?: TypeAnnotation;
   value?: Expression;
-  line: number;
-  leadingComments?: string[];
-}
-
-export interface ConstStatement {
-  type: 'ConstStatement';
-  name: string;
-  typeAnnotation?: TypeAnnotation;
-  value: Expression;
   line: number;
   leadingComments?: string[];
 }
@@ -226,7 +216,7 @@ export interface AllowStatement {
 
 export interface ExportStatement {
   type: 'ExportStatement';
-  statement: FunctionStatement | LetStatement | ConstStatement;
+  statement: FunctionStatement | LetStatement;
   line: number;
   leadingComments?: string[];
 }

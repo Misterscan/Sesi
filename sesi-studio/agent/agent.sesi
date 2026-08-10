@@ -149,7 +149,7 @@ export fn runScript(args) {
   try {
     let clean_script = join(split(script_name, ".."), "")
     let helper_path = "helpers/" + clean_script
-    let cmd = "node bin/sesi.js --cli -l " + helper_path + " " + args_str
+    let cmd = "node bin/sesi.js -l " + helper_path + " " + args_str
     let output = exec_in_project(cmd)
     return output
   } catch(e) {

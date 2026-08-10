@@ -5,7 +5,6 @@ import {
   type Expression,
   type FunctionStatement,
   type LetStatement,
-  type ConstStatement,
   type IfStatement,
   type WhileStatement,
   type ForStatement,
@@ -178,7 +177,6 @@ export class Compiler {
     try {
       switch (stmt.type) {
         case 'LetStatement':       return this.compileLet(stmt);
-        case 'ConstStatement':     return this.compileConst(stmt);
         case 'FunctionStatement':  return this.compileFn(stmt);
         case 'ExpressionStatement':return this.compileExprStmt(stmt);
         case 'BlockStatement':     return this.compileBlock(stmt);
@@ -210,11 +208,6 @@ export class Compiler {
       this.emitOp(OpCode.NIL, line);
     }
     this.defineVariable(stmt.name, line);
-  }
-
-  private compileConst(stmt: ConstStatement): void {
-    this.compileExpression(stmt.value);
-    this.defineVariable(stmt.name, stmt.line);
   }
 
   private compileFn(stmt: FunctionStatement): void {

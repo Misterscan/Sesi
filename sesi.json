@@ -4,7 +4,7 @@
   "dependencies": {
     "AutoWebpageDiagnostics": "Misterscan/AutoWebpageDiagnostics",
     "SesiDo": "Misterscan/SesiDo#v1.2.3",
-    "shell-automation": "Misterscan/shell-automation#v1.0.2",
+    "shell-automation": "Misterscan/shell-automation#v1.0.3",
     "math": "Misterscan/math#v1.0.0",
     "SesiraAPI": "Misterscan/SesiraAPI#v1.0.0"
   }

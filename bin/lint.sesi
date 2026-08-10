@@ -238,7 +238,7 @@ fn lex(content) {
       }
       
       let type = "IDENTIFIER"
-      let keywords = ["let", "const", "fn", "make", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "import", "export", "memory", "true", "false", "null", "print", "prompt", "model", "image", "structured_output", "tool_call", "async", "await", "convert", "from", "to", "allow", "with", "workflow"]
+      let keywords = ["let", "fn", "make", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "import", "export", "memory", "true", "false", "null", "print", "prompt", "model", "image", "structured_output", "tool_call", "async", "await", "convert", "from", "to", "allow", "with", "workflow"]
       
       for kw in keywords {
         if lexeme == kw {
@@ -248,7 +248,6 @@ fn lex(content) {
       
       let upperType = type
       if type == "let" { upperType = "LET" }
-      if type == "const" { upperType = "CONST" }
       if type == "fn" { upperType = "FN" }
       if type == "make" { upperType = "MAKE" }
       if type == "if" { upperType = "IF" }
@@ -430,7 +429,7 @@ fn audit_scope(tokens) {
         currentScope = new_scope(currentScope, false)
       }
       push(scopeStack, currentScope)
-    } else if tok.type == "LET" || tok.type == "CONST" || tok.type == "MEMORY" || tok.type == "PROMPT" || tok.type == "STRUCTURED_OUTPUT" {
+    } else if tok.type == "LET" || tok.type == "MEMORY" || tok.type == "PROMPT" || tok.type == "STRUCTURED_OUTPUT" {
       if i + 1 < n {
         if tokens[i + 1].type == "IDENTIFIER" {
           declare_symbol(tokens[i + 1].lexeme, i + 1, currentScope, false)
@@ -1005,7 +1004,6 @@ fn audit_syntax(tokens) {
           if i > 0 {
             let prev = tokens[i-1]
             if prev.type == "LET" { isDeclarationName = true }
-            if prev.type == "CONST" { isDeclarationName = true }
           }
           if isDeclarationName == false {
             if i + 1 < n {
@@ -1029,7 +1027,6 @@ fn audit_syntax(tokens) {
           if i > 0 {
             let prev = tokens[i-1]
             if prev.type == "LET" { isDeclarationName = true }
-            if prev.type == "CONST" { isDeclarationName = true }
           }
           if isDeclarationName == false {
             if i + 1 < n {
@@ -1054,9 +1051,6 @@ fn audit_syntax(tokens) {
           let next = tokens[i+1]
           if next.type == "LET" {
             push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got 'let'"})
-          }
-          if next.type == "CONST" {
-            push(errors, {"line": line, "message": "Parser Mismatch: Expected end of statement, got 'const'"})
           }
           if next.type == "IDENTIFIER" {
             let isKeywordCall = false

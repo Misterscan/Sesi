@@ -112,13 +112,15 @@ statement := declaration | expression_statement | block_statement
 #### Variable Declaration
 
 ```
-let_stmt := 'let' identifier ('=' expression)? (';' | newline)
+let_stmt := 'let' identifier (':' type)? ('=' expression)? (';' | newline)
 ```
 
 Example:
 
 ```sesi
 let x = 10
+let count: number = 10
+let name: string = "Ada"
 let y = 20
 let z  // z is null initially
 ```
@@ -427,6 +429,13 @@ optional_type := type '?'
 ```
 
 **Type aliases:** `num` is an alias for `number`, `str` is an alias for `string`, and `any` accepts any value. These can be used interchangeably in function signatures, variable annotations, and return types.
+
+Variable annotations go between the variable name and `=`. They are optional, so either of these declarations is valid:
+
+```sesi
+let total: number = 42
+let label = "draft"
+```
 
 ## 5. Expression Evaluation Rules
 

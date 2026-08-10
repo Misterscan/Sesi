@@ -91,11 +91,11 @@
         },
         {
           "name": "constant.other.property.sesi",
-          "match": "\\b(temperature|max_tokens|top_p|top_k|thinkingLevel|cache|search|ratio|size|output_type|file_type|max_retries|stream|stop|seed|summary|tags|base_path|response|title|version|description|browser|editor|viewer|image_viewer|mode)\\b"
+          "match": "\\b(temperature|temp|max_tokens|maxTokens|maxT|top_p|top_k|thinkingLevel|thinking|cache|search|ratio|aspectRatio|size|output_type|file_type|max_retries|stream|stop|seed|summary|tags|base_path|response|title|version|description|browser|editor|viewer|image_viewer|mode)\\b"
         },
         {
           "name": "keyword.declaration.sesi",
-          "match": "\\b(let|const|fn|make|import|from|export)\\b"
+          "match": "\\b(let|fn|make|import|from|export)\\b"
         }
       ]
     },
@@ -103,12 +103,16 @@
       "patterns": [
         {
           "name": "support.type.sesi",
-            "match": "\\b(number|string|bool|null|array|object|any)\\b"
+          "match": "\\b(number|string|bool|null|array|object|any)\\b"
         }
       ]
     },
     "constants": {
       "patterns": [
+        {
+          "name": "constant.language.type.sesi",
+            "match": "\\b(number|string|bool|null|array|object|any)\\b"
+        },
         {
           "name": "constant.language.sesi",
           "match": "\\b(true|false|null)\\b"

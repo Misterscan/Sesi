@@ -1,0 +1,190 @@
+/*
+    accessibility.sesi
+    Importable accessibility preferences and semantic metadata helper.
+
+Usage:
+    allow "helpers/accessibility" in with { Accessibility }
+
+    let accessibility = Accessibility({
+      "language": "en",
+      "reduced_motion": true,
+      "high_contrast": false,
+      "screen_reader": true,
+      "text_scale": 1.25
+    })
+
+    let notice = accessibility.live_region("Saved successfully")
+    let logo = accessibility.image_attributes("Sesi logo")
+
+This module intentionally performs no work when imported.
+*/
+
+export make Accessibility {
+  let language = "en"
+  let reduced_motion = false
+  let high_contrast = false
+  let screen_reader = false
+  let text_scale = 1
+
+  fn start(self, options = null) {
+    if options != null {
+      self.configure(options)
+    }
+  }
+
+  fn configure(self, options) {
+    if type(options) != "object" {
+      return false
+    }
+
+    if options["language"] != null {
+      if type(options["language"]) == "string" {
+        if len(trim(options["language"])) > 0 {
+          self.language = options["language"]
+        }
+      }
+    }
+
+    if type(options["reduced_motion"]) == "bool" {
+      self.reduced_motion = options["reduced_motion"]
+    }
+
+    if type(options["high_contrast"]) == "bool" {
+      self.high_contrast = options["high_contrast"]
+    }
+
+    if type(options["screen_reader"]) == "bool" {
+      self.screen_reader = options["screen_reader"]
+    }
+
+    if type(options["text_scale"]) == "number" {
+      if options["text_scale"] >= 0.5 {
+        if options["text_scale"] <= 3 {
+          self.text_scale = options["text_scale"]
+        }
+      }
+    }
+
+    return true
+  }
+
+  fn enable(self, feature) {
+    if feature == "reduced_motion" {
+      self.reduced_motion = true
+      return true
+    }
+
+    if feature == "high_contrast" {
+      self.high_contrast = true
+      return true
+    }
+
+    if feature == "screen_reader" {
+      self.screen_reader = true
+      return true
+    }
+
+    return false
+  }
+
+  fn disable(self, feature) {
+    if feature == "reduced_motion" {
+      self.reduced_motion = false
+      return true
+    }
+
+    if feature == "high_contrast" {
+      self.high_contrast = false
+      return true
+    }
+
+    if feature == "screen_reader" {
+      self.screen_reader = false
+      return true
+    }
+
+    return false
+  }
+
+  fn is_enabled(self, feature) {
+    if feature == "reduced_motion" {
+      return self.reduced_motion
+    }
+
+    if feature == "high_contrast" {
+      return self.high_contrast
+    }
+
+    if feature == "screen_reader" {
+      return self.screen_reader
+    }
+
+    return false
+  }
+
+  fn preferences(self) {
+    return {
+      "language": self.language,
+      "reduced_motion": self.reduced_motion,
+      "high_contrast": self.high_contrast,
+      "screen_reader": self.screen_reader,
+      "text_scale": self.text_scale
+    }
+  }
+
+  fn live_region(self, message, politeness = "polite") {
+    let live = politeness
+    if live != "polite" {
+      if live != "assertive" {
+        live = "polite"
+      }
+    }
+
+    let role = "status"
+    if live == "assertive" {
+      role = "alert"
+    }
+
+    return {
+      "text": str(message),
+      "role": role,
+      "aria-live": live,
+      "aria-atomic": "true"
+    }
+  }
+
+  fn image_attributes(self, description, decorative = false) {
+    if decorative {
+      return {
+        "alt": "",
+        "aria-hidden": "true"
+      }
+    }
+
+    return {
+      "alt": str(description),
+      "aria-hidden": "false"
+    }
+  }
+
+  fn control(self, label, description_id = null, required = false) {
+    let attributes = {
+      "aria-label": str(label),
+      "aria-required": str(required)
+    }
+
+    if description_id != null {
+      attributes["aria-describedby"] = str(description_id)
+    }
+
+    return attributes
+  }
+
+  fn skip_link(self, target = "#main", label = "Skip to main content") {
+    return {
+      "href": str(target),
+      "text": str(label),
+      "class": "skip-link"
+    }
+  }
+}

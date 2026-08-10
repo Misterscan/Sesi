@@ -9,7 +9,6 @@ import {
   type Parameter,
   type TypeAnnotation,
   type LetStatement,
-  type ConstStatement,
   type ExpressionStatement,
   type BlockStatement,
   type IfStatement,
@@ -79,7 +78,9 @@ export class Parser {
       this.pendingComments = [];
 
       if (this.match('LET')) return this.letStatement(comments);
-      if (this.match('CONST')) return this.constStatement(comments);
+      if (this.match('CONST')) {
+        throw new Error(`\`const\` is not supported in Sesi; use \`let\` instead ${this.formatLocation(this.previous())}`);
+      }
       if (this.match('FN')) return this.functionStatement(false, comments);
       if (this.match('MAKE')) return this.makeStatement(comments);
       if (this.match('ASYNC')) {
@@ -124,29 +125,6 @@ export class Parser {
     this.consumeStatementEnd();
     return {
       type: 'LetStatement',
-      name,
-      typeAnnotation,
-      value,
-      line,
-      ...(leadingComments && leadingComments.length > 0 ? { leadingComments } : {}),
-    };
-  }
-
-  private constStatement(leadingComments?: string[]): ConstStatement {
-    const line = this.previous().line;
-    const name = this.consume('IDENTIFIER', 'Expected variable name').lexeme;
-    let typeAnnotation: TypeAnnotation | undefined;
-
-    if (this.match('COLON')) {
-      typeAnnotation = this.typeAnnotation();
-    }
-
-    this.consume('EQUAL', 'Expected = in const declaration');
-    const value = this.expression();
-    this.consumeStatementEnd();
-
-    return {
-      type: 'ConstStatement',
       name,
       typeAnnotation,
       value,
@@ -588,7 +566,7 @@ export class Parser {
 
   private exportStatement(leadingComments?: string[]): ExportStatement {
     const line = this.previous().line;
-    let statement: FunctionStatement | LetStatement | ConstStatement;
+    let statement: FunctionStatement | LetStatement;
 
     if (this.match('FN')) {
       statement = this.functionStatement(false);
@@ -599,8 +577,6 @@ export class Parser {
       statement = this.functionStatement(true);
     } else if (this.match('LET')) {
       statement = this.letStatement();
-    } else if (this.match('CONST')) {
-      statement = this.constStatement();
     } else {
       throw new Error(`Expected function or variable declaration after export ${this.formatLocation(this.peek())}`);
     }
@@ -1759,7 +1735,7 @@ export class Parser {
   private synchronize(): void {
     this.advance();
 
-    const syncTokens: TokenType[] = ['FN', 'LET', 'CONST', 'FOR', 'IF', 'WHILE', 'RETURN'];
+    const syncTokens: TokenType[] = ['FN', 'LET', 'FOR', 'IF', 'WHILE', 'RETURN'];
 
     while (!this.isAtEnd()) {
       if (this.previous().type === 'SEMICOLON' || this.previous().type === 'NEWLINE') {

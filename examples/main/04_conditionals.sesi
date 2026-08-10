@@ -1,11 +1,15 @@
 // Conditionals
 allow "std/terminal" in with { color }
 
-let age = 25
-if age >= 18 {print color("You are an adult", "green")} else {print color("You are a minor", "yellow")}
+let age: num = 25
+if age >= 18 {
+  print color("You are an adult", "green")
+} else {
+  print color("You are a minor", "yellow")
+}
 
 // Complex conditions
-let score = 85
+let score: num = 85
 if score >= 90 {
   print color("Grade: A", "green", "bold")
 } else if score >= 80 {

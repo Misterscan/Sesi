@@ -91,7 +91,7 @@
 
 ---
 
-## Version 2.0 - Advanced Concurrency & Logic (Q3-Q4 2026)
+## Version 2.0 - Advanced Concurrency & Logic (In Progress)
 
 **Focus**: Advanced reasoning features and native concurrency
 
@@ -157,7 +157,7 @@
 - [x] Profiler for performance analysis (`profile(...)`, manual sections, and CLI `--profile`)
 - [x] AST visualization
 - [x] Token stream visualization
-- [ ] Type checking tool
+- [x] Type checking tool
 - [x] Linter and formatter (Native, no external dependencies)
 
 ### Examples

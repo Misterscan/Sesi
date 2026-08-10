@@ -1,18 +1,30 @@
-/* Example: Batch Image Asset Generation
-Demonstrates how to use in a practical workflow with directories.
-COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
+// Example: Batch Image Asset Generation
+allow "helpers/safe" in with {newFolder, getFiles, saveMedia}
 
 let outputDir = "assets/products/"
-make_dir(outputDir)
-let products = ["coffee_mug", "desk_lamp", "notebook"]
-for product in products 
-{print "Generating asset for:" product
-prompt request {"A clean studio presentation photograph of a " product " on a solid white background."}
-prompt filename {outputDir product ".png"}
-try 
-{let imageData = image("gemini-3.1-flash-image") {ratio: "1:1", size: "1K"} {request}
-let success = write_image(filename, imageData)
-if success {print "Saved:" filename}} 
-catch (e) {print "Failed processing" product ":"
-print e}}
-print "Asset generation complete." */
+outputDir | newFolder
+
+let products: array<str> = ["coffee_mug", "desk_lamp", "notebook"]
+
+for product in products {
+    print "Generating asset for:" product
+    prompt request {"A clean studio presentation photograph of a " product " on a solid white background."}
+    prompt filename {outputDir product ".png"}
+
+    try {
+        let imageData = image("gemini-2.5-flash-image") {ratio: "1:1", size: "1K"} {request}
+        let success = filename | saveMedia(imageData)
+
+        if success {
+            print "Saved:" filename
+        }
+    } catch (e) {
+        print "Failed processing" product ":" e
+    }
+}
+
+if outputDir | getFiles | includes("notebook.png") {
+    print "Asset generation complete."
+} else {
+    print "Asset generation incomplete. There should be" products | length "images, but only" outputDir | getFiles | length "were generated."
+}

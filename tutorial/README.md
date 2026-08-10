@@ -46,18 +46,18 @@ Code submitted by the browser is compiled first, then run through the Sesi CLI i
 Start or resume:
 
 ```bash
-npm run tutorial:cli
+npm run tutorial
 ```
 
 Navigate:
 
 ```bash
-npm run tutorial:cli narrate
-npm run tutorial:cli next
-npm run tutorial:cli back
-npm run tutorial:cli list
-npm run tutorial:cli name Ada
-npm run tutorial:cli reset
+npm run tutorial narrate
+npm run tutorial next
+npm run tutorial back
+npm run tutorial list
+npm run tutorial name Ada
+npm run tutorial reset
 ```
 
 Notes:

@@ -1,8 +1,8 @@
 allow "std/terminal" in with {color}
 
-let accessibility = input("Enable accessibility features (text-to-speech) (y/n, default: n): ")
+let accessibility = input("Enable accessibility features (text-to-speech) (y/n, default: n): ") | trim | to_lower
 if is_null(accessibility) || accessibility == "" {accessibility = "n"}
-let enableAccessibility = accessibility == "y" || accessibility == "Y"
+let enableAccessibility = accessibility == "y"
 
 let examples = {
   "main": [
@@ -91,7 +91,7 @@ let all_examples = [
     {"title": optional[7], "cmd": "sesi examples/optional/37_ai_video_generation.sesi", "optional": true}
 ]
 
-let launchTag = "Launching example files. If you have the reasoning examples commented out, this should be quick. If you have the reasoning examples left in, this could take a while..."
+let launchTag = "Launching example files."
 let enterTag = "Press enter to continue, type 'skip' to move on or type 'exit' to quit."
 let exitTag = "Ending script early."
 let skipTag = "Skipping."
@@ -101,9 +101,7 @@ let doneTag = "All done!"
 let errorTag = "We're sorry but an error occurred: "
 
 try {
-    print color("Launching example .sesi files...
-    If you have the reasoning capabilites commented out, this should be quick.
-    If you have the reasoning capabilites uncommented, this could take a while...", "magenta")
+    print color("Launching example .sesi files...", "magenta")
     if enableAccessibility {
         speech(launchTag)
         speech(enterTag)
@@ -112,7 +110,7 @@ try {
         let ex = all_examples[i]
         let step = str(i + 1) + "/" + str(len(all_examples))
         let title_tag = "[" + step + "] [" + ex["title"] + "]"
-        
+
         if i > 0 {
             let prompt_text = title_tag + " Press enter to continue (or type 'skip' to bypass, 'exit' to quit)... "
             if ex["optional"] == true {
@@ -137,10 +135,10 @@ try {
         }
 
         if ex["cmd"] == "sesi examples/optional/15_image_generation.sesi" {
-            print "Only relevant for users who have the capability to generate images uncommented out: Image generation example may take a while..."
+            print imageTag
             if enableAccessibility {
                 speech(imageTag)
-            } 
+            }
         }
 
         if ex["cmd"] == "sesi examples/optional/37_ai_video_generation.sesi" {

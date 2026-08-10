@@ -101,11 +101,10 @@ prompt packageJson {"{
   \"scripts\": {
     \"sesi\": \"node node_modules/@misterscan/sesi/bin/sesi.js\",
     \"local\": \"node node_modules/@misterscan/sesi/bin/sesi.js -l\",
-    \"cli\": \"node node_modules/@misterscan/sesi/bin/sesi.js --cli\",
-    \"start\": \"node node_modules/@misterscan/sesi/bin/sesi.js --cli -l main.sesi\",
-    \"eval\": \"node node_modules/@misterscan/sesi/bin/sesi.js -cli -e\",
+    \"start\": \"node node_modules/@misterscan/sesi/bin/sesi.js -l main.sesi\",
+    \"eval\": \"node node_modules/@misterscan/sesi/bin/sesi.js -e\",
     \"help\": \"node node_modules/@misterscan/sesi/bin/sesi.js -h\",
-    \"lint\": \"node node_modules/@misterscan/sesi/bin/sesi.js -cli bin/lint.sesi\",
+    \"lint\": \"node node_modules/@misterscan/sesi/bin/sesi.js bin/lint.sesi\",
     \"encrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -enc\",
     \"decrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -dec\"
   },

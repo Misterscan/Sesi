@@ -10,7 +10,6 @@ import {
   BreakException,
   ContinueException,
   type LetStatement,
-  type ConstStatement,
   type FunctionStatement,
   type ExpressionStatement,
   type BlockStatement,
@@ -339,9 +338,6 @@ export class Interpreter {
           case 'LetStatement':
             await this.executeLet(statement);
             return null;
-          case 'ConstStatement':
-            await this.executeConst(statement);
-            return null;
           case 'FunctionStatement':
             this.executeFunction(statement);
             return null;
@@ -397,11 +393,6 @@ export class Interpreter {
 
   private async executeLet(stmt: LetStatement): Promise<void> {
     const value = stmt.value ? await this.evaluateExpression(stmt.value) : null;
-    this.currentEnv.define(stmt.name, value);
-  }
-
-  private async executeConst(stmt: ConstStatement): Promise<void> {
-    const value = await this.evaluateExpression(stmt.value);
     this.currentEnv.define(stmt.name, value);
   }
 
