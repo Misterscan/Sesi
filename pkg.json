@@ -6,6 +6,7 @@
     "scripts": [],
     "assets": [
       "node_modules/blessed/**/*",
+      "node_modules/sharp/**/*",
       "node_modules/onnxruntime-node/bin/**/*",
       "node_modules/@img/**/*",
       "node_modules/playwright/**/*",
