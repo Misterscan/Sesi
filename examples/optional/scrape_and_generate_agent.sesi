@@ -8,10 +8,10 @@
   Run with: sesi examples/optional/scrape_and_generate_agent.sesi -l
 */
 
-allow "ai_agent" in with Agent
+allow "ai_agent" in as Agent
 allow "std/browser" in with {launch}
 
-print "🚀 Initializing Scrape & Generate Agent..."
+show "🚀 Initializing Scrape & Generate Agent..."
 
 // Register model aliases
 set_alias("agent", "gemini-3.6-flash")
@@ -33,7 +33,7 @@ fn web_search(arg) -> string {
   if parsed != null && parsed["query"] != null {
     query = parsed["query"]
   }
-  print "🔍 Searching Google for:" query
+  show "🔍 Searching Google for:" query
   try {
     let result = model("search") {temperature: 0.3, search: true} {"Search the web for the following query and return key summaries along with reputable article/news URLs: " query}
     return result
@@ -59,7 +59,7 @@ fn browser_scrape(arg) -> string {
     url = parsed["url"]
   }
   
-  print "🌐 Browser navigating to:" url
+  show "🌐 Browser navigating to:" url
   let browser = null
   try {
     browser = launch({"headless": true})
@@ -123,7 +123,7 @@ fn write_webpage(arg) -> string {
       return "Failed: Code, content, or html_content key missing."
     }
     
-    print "💾 Writing webpage to:" filename
+    show "💾 Writing webpage to:" filename
     let ok = write_file(filename, code)
     if ok == null {
       return "Failed to write webpage file."
@@ -155,12 +155,12 @@ let task_prompt = "Perform the following actions:
 2. Identify a reputable news/summary URL from the search result, and call 'browser_scrape' on that URL to extract the detailed text.
 3. Synthesize the findings into a gorgeous HTML dashboard page named 'news_dashboard.html' featuring cards, modern styling (glassmorphism/gradients), and a responsive layout."
 
-print "
+show "
 Starting Scrape & Generate SesiDo Loop..."
 let final_answer = Agent.run_react(scraper_agent, task_prompt, 15)
 
-print "
+show "
 ========================================="
-print "FINAL ANSWER FROM SCRAPER AGENT:"
-print final_answer
-print "========================================="
+show "FINAL ANSWER FROM SCRAPER AGENT:"
+show final_answer
+show "========================================="

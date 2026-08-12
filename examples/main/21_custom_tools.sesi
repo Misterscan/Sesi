@@ -17,19 +17,19 @@ fn classifyLength(text) {
   }
 }
 
-print "=== Registering custom tools ==="
+show "=== Registering custom tools ==="
 define_tool("normalize_text", normalizeText, "Normalize input text for downstream steps")
 define_tool("classify_length", classifyLength, "Classify text by length")
-print ""
+show ""
 
-print "=== Custom tool names ==="
+show "=== Custom tool names ==="
 let names = list_tools()
-print names
-print ""
+show names
+show ""
 
-print "=== Calling custom tools ==="
+show "=== Calling custom tools ==="
 let raw = "Sesi can define and call custom tools at runtime."
 let normalized = tool_call(normalize_text)(raw)
 let label = tool_call(classify_length)(normalized)
-print "normalized -> " normalized
-print "label -> " label
+show "normalized -> " normalized
+show "label -> " label

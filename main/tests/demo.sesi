@@ -7,17 +7,17 @@ prompt quotePrompt {"Generate a short, motivational quote for " userName ". Only
 
 // Function to analyze sentiment using structured output
 fn analyzeSentiment(text: string) {return structured_output({sentiment: string, score: number, explanation: string})(model("gemini-3.1-flash-lite") {"Analyze the sentiment of the following quote, score it, and give an explanation. Return the result as JSON:" text})}
-print "--- Sesi Demo ---"
-print "Hello," userName
+show "--- Sesi Demo ---"
+show "Hello," userName
 
 // Call the model to get a quote
 let quote = model("gemini-3.1-flash-lite") {quotePrompt}
-print "Your quote for today:" quote
+show "Your quote for today:" quote
 
 // Analyze the quote's sentiment
-print "Analyzing sentiment..."
+show "Analyzing sentiment..."
 let analysis = analyzeSentiment(quote)
-print "Sentiment:" analysis.sentiment
-print "Score:" str(analysis.score)
-print "Explanation:" analysis.explanation
-print "Done."
+show "Sentiment:" analysis.sentiment
+show "Score:" str(analysis.score)
+show "Explanation:" analysis.explanation
+show "Done."

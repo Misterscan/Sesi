@@ -2,16 +2,19 @@
     Safe File Access
    Resilient file operations wrapped in try-catch blocks with retry logic to prevent crashes.
 */
-allow "std/time" in with Time
+allow "std/time" in as Time
 
 // Get the file extension from a given path
-fn getExtension(path: str) -> str {
-  let parts = split(path, ".")
-  if len(parts) <= 1 {
-    return "no_extension"
+export fn getExtension(path: str) -> str {
+  try {
+    let ext = get_ext(path)
+    if ext == "" || is_null(ext) {
+      return "No extension found"
+    }
+    return ext
+  } catch (err) {
+    return "Error getting extension: " + err | str
   }
-
-  return parts[len(parts) - 1]
 }
 
 // Compatibility for versatility
@@ -106,12 +109,24 @@ export fn fromFiles(paths: array) -> array<string> {
 
 // Checks if a file exists and returns true if it does, false otherwise.
 export fn fileExists(path: string) -> bool {
-  try {
-    read_file(path, "base64")
-    return true
-  } catch (err) {
-    return false
-  }
+  return exists(path)
+}
+
+// Compatibiltity for versatility
+export fn pathExists(path: string) -> bool {
+  return fileExists(path)
+}
+
+export fn verifyFile(path: string) -> bool {
+  return fileExists(path)
+}
+
+export fn verifyPath(path: string) -> bool {
+  return pathExists(path)
+}
+
+export fn verify(path: string) -> bool {
+  return fileExists(path)
 }
 
 // Resilience Helper: Safe file write with retry logic
@@ -151,7 +166,7 @@ export fn overwrite(path: string, content: string, mode: string = "text") -> any
   if fileExists(path) {
     return writeFile(path, content, mode)
   } else {
-    print "No file to overwrite. Creating new file at" path "."
+    show "No file to overwrite. Creating new file at" path "."
     return writeFile(path, content, mode)
   }
 }
@@ -162,7 +177,7 @@ export fn makeFile(path: string, content: string = "", mode: string = "text") ->
 
 export fn newFile(path: string, content: string = "", mode: string = "text") -> any {
   if fileExists(path) {
-    print "File already exists at" path "."
+    show "File already exists at" path "."
     return false
   }
   return writeFile(path, content, mode)
@@ -170,7 +185,7 @@ export fn newFile(path: string, content: string = "", mode: string = "text") -> 
 
 export fn makeNewFile(path: string, content: string = "", mode: string = "text") -> any {
   if fileExists(path) {
-    print "File already exists at" path "."
+    show "File already exists at" path "."
     return false
   }
   return writeFile(path, content, mode)
@@ -178,7 +193,7 @@ export fn makeNewFile(path: string, content: string = "", mode: string = "text")
 
 export fn createFile(path: string, content: string = "", mode: string = "text") -> any {
   if fileExists(path) {
-    print "File already exists at" path "."
+    show "File already exists at" path "."
     return false
   }
   return writeFile(path, content, mode)
@@ -186,7 +201,7 @@ export fn createFile(path: string, content: string = "", mode: string = "text") 
 
 export fn new(path: string, content: string = "", mode: string = "text") -> any {
   if fileExists(path) {
-    print "File already exists at" path "."
+    show "File already exists at" path "."
     return false
   }
   return writeFile(path, content, mode)
@@ -607,7 +622,7 @@ export fn md(filename: string, content: string) -> any {
 }
 
 export fn json(filename: string, content: any) -> any {
-  if content | contains("{") && content | contains("}") && content | is_string {
+  if is_string(content) && contains(content, "{") && contains(content, "}") {
     return write(filename + ".json", content)
   } else {
     return write(filename + ".json", content | to_json)

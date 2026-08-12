@@ -54,10 +54,10 @@ fn theory(output: string = "text", both: bool = false) -> string {
     if output == "audio" && both == false {
         speech(message)
     } else if (output == "text" || output == "audio") && both == true {
-        print message
+        show message
         speech(message)
     } else {
-        print message
+        show message
     }
 }
 

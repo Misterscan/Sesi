@@ -10,7 +10,7 @@
     sesi line-count.sesi README.md
 */
 
-allow "safe" in with Safe
+allow "safe" in as Safe
 allow "std/terminal" in with {color}
 
 // Check if file is provided as an argument, else prompt user for filename
@@ -33,4 +33,4 @@ export fn getLineCount(file) {
 
 // Print the number of lines in the file
 let lineCount = getLineCount(file)
-print "# of lines in" color(file, "yellow") ":\n" color(lineCount, "green")
+show "# of lines in" color(file, "yellow") ":\n" color(lineCount, "green")

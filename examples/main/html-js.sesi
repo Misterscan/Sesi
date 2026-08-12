@@ -281,7 +281,7 @@ buttons.forEach((button) => {
 }
 
 async fn handleRequest(req) {
-  print req.method req.path
+  show req.method req.path
 
   if req.path == "/" {
     return {
@@ -306,13 +306,13 @@ async fn handleRequest(req) {
 }
 
 let port = 8080
-print "Starting Sesi server on http://localhost:" port
+show "Starting Sesi server on http://localhost:" port
 let server = listen(port, handleRequest)
 
 try {
   open("http://localhost:" + port)
 } catch (e) {
-  print "Could not automatically open browser. Please visit http://localhost:" port
+  show "Could not automatically open browser. Please visit http://localhost:" port
 }
 
 let end = input("Press Enter to stop the server...\n")

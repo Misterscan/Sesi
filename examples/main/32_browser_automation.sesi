@@ -14,23 +14,23 @@
           sesi examples/main/32_browser_automation.sesi -l
 */
 
-print "=== Sesi Web Scraping & Browser Automation ==="
+show "=== Sesi Web Scraping & Browser Automation ==="
 
-allow "std/browser" in with Browser
+allow "std/browser" in as Browser
 
-print "Launching headless Chromium browser..."
+show "Launching headless Chromium browser..."
 let browser = {"headless": true} | Browser.launch
 let page = browser.newPage()
 
 // Part 1: Scrape Hacker News
-print ""
-print "1. Scraping top stories from Hacker News..."
+show ""
+show "1. Scraping top stories from Hacker News..."
 "https://news.ycombinator.com" | page.goto
 
 let jsQuery = "Array.from(document.querySelectorAll('.titleline > a')).slice(0, 5).map(a => ({ 'title': a.innerText, 'url': a.href }))"
 let stories = jsQuery | page.evaluate
 
-print "Top 5 Stories on Hacker News:"
+show "Top 5 Stories on Hacker News:"
 let file = ""
 fn append_stories(file, stories) {
     for story in stories {
@@ -44,14 +44,14 @@ file = file | append_stories(stories)
 
 try {
     "scraper-results.md" | write_file(file)
-    print "Scraped result and saved to scraper-results.md"
+    show "Scraped result and saved to scraper-results.md"
 } catch (e) {
-    print "Failed to write file:" e
+    show "Failed to write file:" e
 }
 
 // Part 2: Search on Wikipedia
-print ""
-print "2. Searching Wikipedia for 'Software engineering'..."
+show ""
+show "2. Searching Wikipedia for 'Software engineering'..."
 "https://en.wikipedia.org" | page.goto
 
 // Type query into the search input box
@@ -64,17 +64,17 @@ print "2. Searching Wikipedia for 'Software engineering'..."
 1000 | page.wait_for_timeout
 
 let wikiTitle = page.title()
-print "Search Result Page Title: " wikiTitle
+show "Search Result Page Title: " wikiTitle
 
 // Capture screenshot of the results
-print "Capturing page screenshot..."
+show "Capturing page screenshot..."
 ({"path": "wiki_search.png"}) | page.screenshot
-print "Saved screenshot to wiki_search.png"
+show "Saved screenshot to wiki_search.png"
 
 // Clean up
-print ""
-print "Closing browser session..."
+show ""
+show "Closing browser session..."
 page.close()
 browser.close()
 
-print "Done!"
+show "Done!"

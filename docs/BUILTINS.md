@@ -6,20 +6,20 @@
 
 ## I/O Functions
 
-### print(...args)
+### show(...args)
 
 Print values to standard output, separated by spaces.
 
 ```sesi
-print "Hello"
-print 42
-print "Value:" 10 + 20
-print [1, 2, 3]
+show "Hello"
+show 42
+show "Value:" 10 + 20
+show [1, 2, 3]
 ```
 
 **Returns**: `null`
 
-> `<content> | print` is also supported, but the normal way is reccomended.
+> `<content> | show` is also supported, but the normal way is reccomended.
 
 ---
 
@@ -30,7 +30,7 @@ Prompt the user for terminal input, wait for them to press Enter, and return the
 ```sesi
 let name = input("Enter your name: ")
 let age = "Enter your age" | input
-print "Hello," name ". You are" age "years old!"
+show "Hello," name ". You are" age "years old!"
 ```
 
 **Parameters**:
@@ -71,8 +71,8 @@ Transcribe an audio file using `nodejs-whisper`. `language` is optional (for exa
 let transcript = from_speech("meeting.wav", "en")
 let lyrics = "song.wav" | from_speech("en", "gemini-3.1-flash-lite")
 
-print transcript
-print lyrics
+show transcript
+show lyrics
 ```
 
 **Returns**: the transcript as text. `nodejs-whisper` and a downloaded model must be installed (`npx nodejs-whisper download base.en`).
@@ -89,8 +89,8 @@ Translate text with the [`translate`](https://www.npmjs.com/package/translate) p
 let greeting = translate("Good morning", "es", "en")
 let instructions = loadedFile | translate("en", "fr")
 
-print greeting
-print instructions
+show greeting
+show instructions
 ```
 
 **Returns**: translated text.
@@ -184,8 +184,8 @@ let raw = "{\"a\": 1, \"b\": [1, 2]}"
 let obj = from_json(raw)
 let piped = raw | from_json
 
-print obj["a"]     // 1
-print piped["b"][1]   // 2
+show obj["a"]     // 1
+show piped["b"][1]   // 2
 ```
 
 **Returns**: `any` - native Sesi primitive, array, or object, or `null` if parsing fails
@@ -198,7 +198,7 @@ Encrypt UTF-8 string content with AES-256-CBC. The result uses the same `iv:ciph
 
 ```sesi
 let secret = encrypt("private notes", "passphrase")
-print secret
+show secret
 ```
 
 **Returns**: `string` - encrypted `iv:ciphertext` payload
@@ -212,7 +212,7 @@ Decrypt an AES-256-CBC `iv:ciphertext` payload produced by `encrypt(...)` or the
 ```sesi
 let secret = encrypt("private notes", "passphrase")
 let plain = decrypt(secret, "passphrase")
-print plain // "private notes"
+show plain // "private notes"
 ```
 
 **Returns**: `string` - decrypted UTF-8 content
@@ -372,12 +372,12 @@ Add an element to the end of an array.
 let arr = [1, 2, 3]
 push(arr, 4)
 
-print arr          // [1, 2, 3, 4]
+show arr          // [1, 2, 3, 4]
 
 let newArr = arr
 newArr | push(5)
 
-print newArr      // [1, 2, 3, 4, 5]
+show newArr      // [1, 2, 3, 4, 5]
 ```
 
 **Note**: Modifies array in-place and returns it.
@@ -394,12 +394,12 @@ Append to an array or concatenate to a string.
 let arr = [1, 2]
 append(arr, 3)
 
-print arr            // [1, 2, 3]
+show arr            // [1, 2, 3]
 
 let newArr = arr
 newArr | append(4)
 
-print newArr         // [1, 2, 3, 4]
+show newArr         // [1, 2, 3, 4]
 
 append("Hello from", " Sesi")  // "Hello from Sesi"
 "Welcome to " | append("Sesi!")  // "Welcome to Sesi!"
@@ -419,12 +419,12 @@ Remove and return the last element of an array.
 let arr = [1, 2, 3]
 let last = pop(arr)
 
-print last         // 3
-print arr          // [1, 2]
+show last         // 3
+show arr          // [1, 2]
 
 let newLast = arr | pop
 
-print newLast      // 2
+show newLast      // 2
 ```
 
 **Returns**: The removed element, or `null` if array is empty
@@ -477,8 +477,8 @@ and named groups.
 ```sesi
 let matches = regex("(?<word>[A-Z]+)", "IDs ABC and XYZ")
 
-print matches[0]["match"]
-print matches[0]["groups"]["word"]
+show matches[0]["match"]
+show matches[0]["groups"]["word"]
 
 let valid = regex("^[a-z]+$", "Sesi", {"mode": "test", "flags": "i"})
 
@@ -504,7 +504,7 @@ Tokenize text into model token IDs (OpenAI-compatible tiktoken-style encoding).
 
 ```sesi
 let ids = tokenize("Hello Sesi.")
-print ids | length
+show ids | length
 
 let ids2 = "Hello Sesi" | tokenize("gpt-5.6-sol")
 
@@ -568,8 +568,8 @@ Estimate paid-tier text-token cost in USD. `input` and `output` may each be a to
 ```sesi
 let planned = estimate_cost("gemini-3.6-flash", prompt, 2000)
 
-print planned["input_tokens"]
-print planned["total_cost_usd"]
+show planned["input_tokens"]
+show planned["total_cost_usd"]
 
 // Unknown/private models can provide USD rates per one million tokens.
 let custom = "private-model" | estimate_cost(500000, 100000, {
@@ -594,8 +594,8 @@ Return provider-reported token usage and estimated cost for the most recent `mod
 let answer = model("gpt-5.6-sol") {"Explain closures briefly."}
 let usage = model_usage()
 
-print "Tokens:" usage["total_tokens"]
-print "Estimated USD:" usage["total_cost_usd"]
+show "Tokens:" usage["total_tokens"]
+show "Estimated USD:" usage["total_cost_usd"]
 ```
 
 Token counts come from the provider response. Gemini thinking tokens are reported separately as `thinking_tokens` and included in `billable_output_tokens`, `total_tokens`, and cost. Local logic-cache hits return `cached: true`, zero tokens, and zero added cost. Cost fields are `null` when the model has no built-in pricing entry.
@@ -612,8 +612,8 @@ Converts all alphabetic characters in a string to uppercase.
 to_upper("hello")      // "HELLO"
 "hello" | to_upper
 
-to_upper("Sesi V1.8.0")  // "SESI V1.8.0"
-"Sesi V1.8.0" | to_upper
+to_upper("Sesi V1.8.5")  // "SESI V1.8.5"
+"Sesi V1.8.5" | to_upper
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -628,8 +628,8 @@ Converts all alphabetic characters in a string to lowercase.
 to_lower("SESI")      // "sesi"
 "SESI" | to_lower
 
-to_lower("Sesi V1.8.0")  // "sesi v1.8.0"
-"Sesi V1.8.0" | to_lower
+to_lower("Sesi V1.8.5")  // "sesi v1.8.5"
+"Sesi V1.8.5" | to_lower
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -909,10 +909,10 @@ Modes:
 
 ```sesi
 let text = read_file("input.txt")
-print text
+show text
 
 let image_b64 = read_file("logo.png", "base64")
-print image_b64
+show image_b64
 
 let pkg = "package.json | read_file
 let audio = "audio.wav" | read_file("base64")
@@ -935,7 +935,7 @@ Encodings:
 
 ```sesi
 let success = write_file("output.txt", "Hello, Sesi!")
-if success {print "File written successfully"}
+if success {show "File written successfully"}
 
 let image_b64 = read_file("logo.png", "base64")
 write_file("logo-copy.png", image_b64, "base64")
@@ -972,7 +972,7 @@ Write base64 encoded string content as an image file. Overwrites the file if it 
 
 ```sesi
 let success = write_image("logo.png", logo_data)
-if success {print "Image safely stored"}
+if success {show "Image safely stored"}
 
 let copy = "favicon.png" | read_file("base64")
 if success {"favicon_copy.png" | write_image(copy)}
@@ -1052,14 +1052,14 @@ List the contents of a directory as an array of strings.
 
 ```sesi
 let files = list_dir(".")
-print files
+show files
 
 /*
   You can also just simply use "folder_name"
   Including the "/" helps with IDE highlighting and can help with debugging/verification
 */
 let docs = "docs/" | list_dir
-print docs
+show docs
 ```
 
 **Note**: Paths are resolved relative to the current working directory.
@@ -1074,7 +1074,7 @@ Create a new directory recursively. Returns `true` on success, `false` or throws
 
 ```sesi
 let success = make_dir("new_directory")
-if success {print "Directory created successfully"}
+if success {show "Directory created successfully"}
 
 let dirCheck = "new_directory" | list_dir
 if dirCheck | is_null {"new_directory" | make_dir}
@@ -1092,7 +1092,7 @@ Rename or move a file or directory.
 
 ```sesi
 let success = rename("old_name.txt", "new_name.txt")
-if success {print "File renamed successfully"}
+if success {show "File renamed successfully"}
 
 let reverted = "new_name.txt" | rename("old_name.txt")
 ```
@@ -1126,6 +1126,46 @@ archive("src/index.ts") // Saves to .archive/index.ts
 - `destPath` (`string`, optional): The destination path. Defaults to `.archive/<basename>` in the current working directory if omitted.
 
 **Returns**: `bool` (true on success, throws on error)
+
+---
+
+### get_ext(path) -> string
+
+Return the lowercase file extension without the leading dot. Compound archive extensions are preserved.
+
+```sesi
+show get_ext("photo.JPG")       // "jpg"
+show get_ext("backup.tar.gz")  // "tar.gz"
+```
+
+---
+
+### exists(path) -> bool
+
+Return whether a sandbox-approved file or directory exists.
+
+```sesi
+if exists("config.json") { show "Configuration found" }
+```
+
+---
+
+### zip(source, destination = null, operation = null)
+
+Create, list, or extract archives. ZIP-compatible containers are handled natively. RAR, 7z, and tar-family formats use an installed `7z`, `unrar`, or `tar` executable and require local mode.
+
+```sesi
+zip("assets", "assets.zip")       // Create
+let entries = zip("assets.zip")   // List
+zip("assets.zip", "restored")    // Extract
+
+// The optional operation removes ambiguity:
+zip("assets", "assets.7z", "create")
+zip("assets.7z", null, "list")
+zip("assets.7z", "restored", "extract")
+```
+
+Supported extensions include `zip`, `jar`, `apk`, `docx`, `xlsx`, `pptx`, `epub`, `7z`, `rar`, `tar`, `tar.gz`, `tgz`, `tar.bz2`, `tbz2`, `tar.xz`, and `txz`. Available non-ZIP operations depend on installed system tools.
 
 ---
 
@@ -1200,26 +1240,26 @@ Raster image to SVG conversion creates an SVG wrapper with the original image em
 ```sesi
 // Raw content conversion
 let html = convert(doc) {file_type: "md", output_type: "html"} {"# Hello"}
-print html // "<h1>Hello</h1>"
+show html // "<h1>Hello</h1>"
 
 let yaml = convert(doc) {file_type: "json", output_type: "yaml"} {"[{\"name\":\"Alice\"}]"}
-print yaml
+show yaml
 
 let markdown = convert(doc) {file_type: "html", output_type: "md"} {"<h1>Hello</h1><p>World</p>"}
-print markdown
+show markdown
 
 // File path conversion
 let out_path = convert(doc) {output_type: "html"} {"document.md"}
-print out_path // "document.html"
+show out_path // "document.html"
 
 let image_path = convert(media) {output_type: "png"} {"diagram.svg"}
-print image_path // "diagram.png"
+show image_path // "diagram.png"
 
 let svg_path = convert(media) {output_type: "svg"} {"photo.png"}
-print svg_path // "photo.svg"
+show svg_path // "photo.svg"
 
 let audio_path = convert(audio) {output_type: "mp3"} {"audio.wav"}
-print audio_path // "audio.mp3"
+show audio_path // "audio.mp3"
 ```
 
 **Returns**: `string` (converted content or path to the converted file)
@@ -1243,16 +1283,16 @@ let output = ""
 let output_plain = ""
 
 if !(["-version"] | ffmpeg | is_null) {
-  print "FFmpeg is installed and available."
+  show "FFmpeg is installed and available."
 
   try {
     output = gif(frames, out_filename, config)
     output_plain = frames | gif("build/plain.gif")
   } catch (e) {
-    print "Failed to create" out_filename "or build/plain.gif."
+    show "Failed to create" out_filename "or build/plain.gif."
   }
 } else {
-  print "FFmpeg is not installed or not available in the system PATH."
+  show "FFmpeg is not installed or not available in the system PATH."
 }
 ```
 
@@ -1332,7 +1372,7 @@ let args = [
 let result = ffmpeg(args)
 args | ffmpeg({"timeout": 5000})
 
-print result["ok"] result["code"]
+show result["ok"] result["code"]
 ```
 
 Options:
@@ -1358,7 +1398,7 @@ Perform a synchronous HTTP GET request and return the response body as a string.
 let response = web_get("https://jsonplaceholder.typicode.com/posts/1")
 "https://jsonplaceholder.typicode.com/posts/1" | web_get
 
-print response
+show response
 ```
 
 **Returns**: `string`
@@ -1375,7 +1415,7 @@ let payload = "{\"title\": \"foo\"}"
 let response = web_send("https://jsonplaceholder.typicode.com/posts", payload)
 "https://jsonplaceholder.typicode.com/posts/1" | web_send(payload)
 
-print response
+show response
 ```
 
 **Returns**: `string`
@@ -1406,7 +1446,7 @@ Returns a server control object with a `close()` function to stop the server pro
 
 ```sesi
 async fn handleRequest(req) {
-  print "Request path is:" req.path
+  show "Request path is:" req.path
   return {
     "status": 200,
     "body": "Hello from Sesi Server!"
@@ -1438,7 +1478,7 @@ Returns a server control object with a `close()` function to stop the server pro
 
 ```sesi
 fn handleMessage(client, msg) {
-  print "WS received:" msg
+  show "WS received:" msg
   client.send("Echo: " + msg)
 }
 
@@ -1457,7 +1497,7 @@ server.close()
 Includes Sesi's FastAPI-style HTTP API framework with auto-generated Swagger UI docs at `/docs` and OpenAPI 3.1 specification at `/openapi.json`.
 
 ```sesi
-allow "std/api" in with API
+allow "std/api" in as API
 
 fn listUsers(req) {
   return {"status": 200, "body": {"users": []}}
@@ -1520,7 +1560,7 @@ Starts the HTTP server listening on `port`. Options:
 The `std/audio` module provides functions for sound synthesis and playback.
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 let freq = 440
 let duration = 200
@@ -1639,13 +1679,13 @@ Loads a WAV file from disk and returns an `audio_sample` object containing the d
 - **Returns**: An `audio_sample` object with `samples` (array of normalized floats in `[-1, 1]`) and `sampleRate` (integer, Hz).
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 let sample = Audio.load("loop.wav")
 "loop.wav" | Audio.load
 
-print "Sample rate:" sample.sampleRate
-print "Samples:" len(sample.samples)
+show "Sample rate:" sample.sampleRate
+show "Samples:" len(sample.samples)
 ```
 
 ### kick(duration, volume)
@@ -1710,7 +1750,7 @@ Returns a high-level instrument constructor function bound to a specific SoundFo
 The `std/theory` module abstracts the mathematics of music into simple, reusable logic, perfect for algorithmic composition.
 
 ```sesi
-allow "std/theory" in with Music
+allow "std/theory" in as Music
 
 // Generate a C Major 7 chord array
 let c_maj7 = Music.chord("C4", "M7") // ["C4", "E4", "G4", "B4"]
@@ -1756,7 +1796,7 @@ Converts a number of musical bars into milliseconds based on BPM and time signat
 The `std/draw` module provides APIs for SVG graphics and raster pixel drawing.
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 // Setup gradients
 let config = [
@@ -1905,7 +1945,7 @@ Launch a Sesi script as a concurrent background process. Returns the process ID 
 let pid = spawn("worker.sesi")
 let pid2 = worker2.sesi" | spawn
 
-print "Launched workers with PIDs:" pid "and" pid2
+show "Launched workers with PIDs:" pid "and" pid2
 ```
 
 **Returns**: `number` (PID)
@@ -1937,7 +1977,7 @@ listen(8080, handler)
 
 ---
 
-### exec(command) -> string
+### exec(command) / run(command) -> string
 
 Execute a shell command synchronously and return its output.
 
@@ -1946,8 +1986,9 @@ let cmd = "ls -la"
 
 let files = exec(cmd)
 cmd | exec
+let sameOutput = run(cmd) // Exact alias of exec
 
-print files
+show files
 ```
 
 **Returns**: `string` (stdout)
@@ -1995,7 +2036,7 @@ let code = "print('Hello from Python!')"
 let output = python(code)
 code | python
 
-print output
+show output
 
 // Pass arguments to the Python environment:
 let customArgs = { "name": "Alice", "score": 98 }
@@ -2009,7 +2050,7 @@ print('Hello, ' + data['name'] + '! Score is ' + str(data['score']))
 let out = python(code, customArgs)
 code | python(customArgs)
 
-print out
+show out
 ```
 
 **Parameters**:
@@ -2035,7 +2076,7 @@ let code = "console.log('Hello from JavaScript!')"
 let output = js(code)
 code | js
 
-print output
+show output
 
 // Pass structured data to JavaScript:
 let customArgs = { "name": "Alice", "score": 98 }
@@ -2047,7 +2088,7 @@ console.log('Hello, ' + data.name + '! Score is ' + data.score)
 let out = js(code, customArgs)
 code | js(customArgs)
 
-print out
+show out
 
 // Pass positional command-line arguments:
 let termPass = "console.log(process.argv[2])"
@@ -2056,7 +2097,7 @@ let argIn = ["first"]
 let argOut = js(termPass, argIn)
 termPass | js(argIn)
 
-print argOut
+show argOut
 ```
 
 **Parameters**:
@@ -2185,7 +2226,7 @@ let filename = "sesi.html"
 write_file(filename, page)
 filename | write_file(page)
 
-print "Wrote sesi.html"
+show "Wrote sesi.html"
 ```
 
 **Parameters**:
@@ -2209,18 +2250,18 @@ Retrieve the value of an environment variable, or retrieve all environment varia
 let apiKey = env("GEMINI_API_KEY")
 "GEMINI_API_KEY" | env
 
-print apiKey
+show apiKey
 
 // Get with a fallback default value
 let port = env("PORT", "8080")
 "PORT" | env("8080")
 
-print port
+show port
 
 // Get all environment variables as an object
 let allEnvs = env()
 
-print allEnvs["HOME"]
+show allEnvs["HOME"]
 ```
 
 **Parameters**:
@@ -2241,7 +2282,7 @@ let start = time()
 // ... do work ...
 let total = time() - start
 
-print "Elapsed time:" total "ms"
+show "Elapsed time:" total "ms"
 ```
 
 **Returns**: `number`
@@ -2261,8 +2302,8 @@ timestamp | format({"dateStyle": "short"})
 let formattedBasic = format(timestamp)
 timestamp | format
 
-print formattedDate
-print formattedBasic
+show formattedDate
+show formattedBasic
 ```
 
 **Returns**: `string`
@@ -2286,7 +2327,7 @@ let jobs = [job1, job2]
 let results = multi_req(jobs)
 jobs | multi_req
 
-print results // ["a", "b"]
+show results // ["a", "b"]
 ```
 
 **Returns**: `array<any>` containing the resolved returned values of each function in original index order.
@@ -2312,7 +2353,7 @@ Each step is an object with at minimum a `"prompt"` string. Optional keys includ
 let steps = [{"prompt": "Summarize:"}, {"prompt": "Critique:"}, {"prompt": "Finalize:"}]
 let result = workflow(steps, "Design a landing page brief")
 
-print result["final"]
+show result["final"]
 ```
 
 **Returns**: `object` with keys `"input"`, `"steps"` (array of step outputs), and `"final"`.
@@ -2388,7 +2429,7 @@ List custom tool names registered by `define_tool`.
 
 ```sesi
 let tools = list_tools()
-print tools
+show tools
 ```
 
 **Returns**: `array<string>`
@@ -2420,7 +2461,7 @@ Throw a custom typed error that can be handled in `try/catch`.
 ```sesi
 try {
   "RateLimit" | raise_error("Too many requests", {"retryIn": 30})
-} catch (e) {print "type:" e["type"] "message:" e["message"]}
+} catch (e) {show "type:" e["type"] "message:" e["message"]}
 ```
 
 You can also pass an `error_type(...)` object directly:
@@ -2482,14 +2523,14 @@ Creates a memoized delayed computation from a function and optional captured arg
 
 ```sesi
 fn expensive() {
-  print "computed once"
+  show "computed once"
   return 42
 }
 
 let delayed = lazy(expensive)
-print type(delayed) // "lazy"
-print force(delayed) // 42
-print force(delayed) // 42, cached
+show type(delayed) // "lazy"
+show force(delayed) // 42
+show force(delayed) // 42, cached
 ```
 
 ### force(value) -> any
@@ -2532,7 +2573,7 @@ fn work() {
 }
 
 let result = profile("work-loop", work)
-print profile_report("text")
+show profile_report("text")
 ```
 
 ### profile_start(name) -> string
@@ -2557,7 +2598,7 @@ Returns a random floating-point number between 0 (inclusive) and 1 (exclusive).
 
 ```sesi
 let rand = random()
-if rand > 0.5 {print "Heads"} else {print "Tails"}
+if rand > 0.5 {show "Heads"} else {show "Tails"}
 ```
 
 ---
@@ -2581,9 +2622,9 @@ let results = memory_search("chat", "database storage")
 "chat" | memory_search("database storage")
 
 for item in results {
-  print "Score:" item["score"]
-  print "Text:" item["text"]
-  print "---"
+  show "Score:" item["score"]
+  show "Text:" item["text"]
+  show "---"
 }
 ```
 
@@ -2611,7 +2652,7 @@ memory conversation {"System: You are a research assistant."}
 let trimmed = memory_trim("conversation", 500000)
 "conversation" | memory_trim(500000)
 
-print "Memory now:" trimmed | length "characters"
+show "Memory now:" trimmed | length "characters"
 ```
 
 **Parameters**:
@@ -2637,10 +2678,10 @@ let y = 20
 debug()
 
 // You can also leave a comment inside the function for referencing, it won't affect your script
-debug("Verify x and y using 'print' in eval")
-"Verify x and y using 'print' in eval" | debug
+debug("Verify x and y using 'show' in eval")
+"Verify x and y using 'show' in eval" | debug
 
-print x + y
+show x + y
 ```
 
 **REPL Commands**:
@@ -2661,11 +2702,11 @@ print x + y
 An array of strings containing the command-line arguments passed to the Sesi script. This excludes any Sesi interpreter options (e.g. `-l`) and the script filename itself.
 
 ```sesi
-print "Number of script args:" length(args) // len() works too, length() works best for readability
+show "Number of script args:" length(args) // len() works too, length() works best for readability
 args | length
 
 if (args | length) > 0 {
-  print "First script argument:" args[0]
+  show "First script argument:" args[0]
 }
 ```
 
@@ -2740,7 +2781,7 @@ exp(1)             // 2.718281828459045
 let sigmoid = 1.0 / (1.0 + exp(0.0 - 0.5))
 1.0 / (1.0 + (0.0 - 0.5 | exp))
 
-print sigmoid      // 0.6224593312018546
+show sigmoid      // 0.6224593312018546
 ```
 
 **Returns**: `number`
@@ -2778,12 +2819,12 @@ trunc("Hello World", 5)  // "Hello"
 Additional math functions are available natively by importing the `"std/math"` module:
 
 ```sesi
-allow "std/math" in with Math
+allow "std/math" in as Math
 
-print Math.sqrt(16) // 4
+show Math.sqrt(16) // 4
 16 | Math.sqrt
 
-print Math.floor(3.7) // 3
+show Math.floor(3.7) // 3
 3.7 | Math.floor
 ```
 
@@ -2796,7 +2837,7 @@ Returns the name of a given function.
 ```sesi
 fn my_func() {}
 
-print name(my_func) // "my_func"
+show name(my_func) // "my_func"
 my_func | name
 ```
 
@@ -2815,7 +2856,7 @@ Returns the number of parameters a function expects.
 ```sesi
 fn add(a, b) { return a + b }
 
-print arity(add) // 2
+show arity(add) // 2
 add | arity
 ```
 
@@ -3049,7 +3090,7 @@ Sesi supports structured error handling via `try/catch` blocks.
 try {
   let data = "missing.txt" | read_file
 } catch (e) {
-  print "Caught error:" e
+  show "Caught error:" e
 }
 
 ```
@@ -3170,28 +3211,25 @@ allow "std/math" in with {
 Includes time, sleep, and timezone formatting functions: `now()`, `sleep(ms)`, `format(timestamp, options)`.
 
 ```sesi
-allow "std/time" in with Time
+allow "std/time" in as Time
 
 let t = Time.now()
 // Format time with a specific timezone
 let formatted = t | Time.format({"timeZone": "America/New_York", "timeStyle": "medium"})
-print formatted // e.g. "2:27:02 AM"
+show formatted // e.g. "2:27:02 AM"
 ```
 
-### std/json
+### JSON conversion
 
-Includes JSON serialization: `parse(str)`, `stringify(val)`.
-
-**Will be deprecated in v2, use `from_json` and `to_json` instead.**
+JSON serialization and parsing are built in as `to_json(value)` and `from_json(text)`. The former `std/json` module has been removed.
 
 ```sesi
-allow "std/json" in with Json
-
 let original = {
   "project": "Sesi",
-  "version": "1.8.0"
+  "version": "1.8.5"
 }
-print Json.stringify(original)
+let encoded = to_json(original)
+show from_json(encoded)["project"]
 ```
 
 ### std/base64
@@ -3207,17 +3245,17 @@ Modes:
 - `"bytes"`: encode/decode raw byte arrays (`array<number>` in range 0..255)
 
 ```sesi
-allow "std/base64" in with Base64
+allow "std/base64" in as Base64
 
 let encoded = Base64.encode("Hello, Sesi!")
 "Hello, Sesi!" | Base64.encode
 
-print encoded
+show encoded
 
 let decoded = Base64.decode(encoded)
 encoded | Base64.decode
 
-print decoded // "Hello, Sesi!"
+show decoded // "Hello, Sesi!"
 
 let bin = [0, 255, 16, 32]
 
@@ -3227,7 +3265,7 @@ bin | Base64.encode("bytes")
 let back = Base64.decode(b64, "bytes")
 b64 | Base64.decode("bytes")
 
-print back // [0, 255, 16, 32]
+show back // [0, 255, 16, 32]
 ```
 
 ### std/db
@@ -3257,7 +3295,7 @@ users.delete(query_object) -> Returns number of deleted documents */
 Includes raw ANSI terminal control functions for building CLI applications: `clear`, `cursor`, `color`.
 
 ```sesi
-allow "std/terminal" in with Terminal
+allow "std/terminal" in as Terminal
 
 // Clear the screen
 Terminal.clear()
@@ -3266,7 +3304,7 @@ Terminal.clear()
 Terminal.cursor(10, 5)
 
 // Output colored text
-print "Hello!" | Terminal.color("green")
+show "Hello!" | Terminal.color("green")
 ```
 
 **Available Colors**: `"red"`, `"green"`, `"yellow"`, `"blue"`, `"magenta"`, `"cyan"`, `"white"`, `"bold"`.
@@ -3290,11 +3328,11 @@ let page = browser.newPage()
 
 // Get the page title
 let title = page.title()
-print "Title:" title
+show "Title:" title
 
 // Get inner text of a selector
 let heading = "h1" | page.inner_text
-print "Heading:" heading
+show "Heading:" heading
 
 // Get an attribute of an element
 let link_href = "a" | page.attribute("href")
@@ -3443,7 +3481,7 @@ allow "mymodule1" in with {
   function1,
   function2
 }
-allow "mymodule2" in with Name
+allow "mymodule2" in as Name
 allow "mymodule3" in with {function4}
 ```
 
@@ -3478,7 +3516,7 @@ Tip: add a folder to SESI_PATH, or place shared modules in ~/.sesi/lib
 
 ## Performance Notes
 
-- **print()** is unbuffered (each call flushes)
+- **show()** is unbuffered (each call flushes)
 - **Array operations** are O(n) for most functions
 - **Object operations** are O(1) for key access
 - **String concatenation** with + is O(n) (consider pre-allocating)

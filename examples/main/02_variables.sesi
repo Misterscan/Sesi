@@ -10,11 +10,11 @@ let a: number = 10
 let b: string = "20"
 let c: any = a + b + ", a number and string cannot be added together without converting the type first!"
 
-print color("x = ", "yellow") color(str(x), "cyan")
-print color("y = ", "yellow") color(str(y), "cyan")
-print color("sum = ", "green") color(str(z), "bold")
-print color("c = ", "green") color(str(c), "yellow")
+show color("x = ", "yellow") color(str(x), "cyan")
+show color("y = ", "yellow") color(str(y), "cyan")
+show color("sum = ", "green") color(str(z), "bold")
+show color("c = ", "green") color(str(c), "yellow")
 
 // Reassignment
 x = 30
-print color("x updated:", "magenta") color(str(x), "cyan")
+show color("x updated:", "magenta") color(str(x), "cyan")

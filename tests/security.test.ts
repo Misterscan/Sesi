@@ -108,6 +108,11 @@ async function main() {
       'Security Violation: exec is disabled'
     );
     await runExpectError(
+      'Block run alias in safe mode',
+      'run("echo 123")',
+      'Security Violation: exec is disabled'
+    );
+    await runExpectError(
       'Block child process spawn in safe mode',
       'spawn("test.sesi")',
       'Security Violation: spawn is disabled'
@@ -151,6 +156,12 @@ async function main() {
   await runExpectError(
     'Block exec via static safeMode option (independent of env)',
     'exec("echo 123")',
+    'Security Violation: exec is disabled',
+    { safeMode: true }
+  );
+  await runExpectError(
+    'Block run alias via static safeMode option',
+    'run("echo 123")',
     'Security Violation: exec is disabled',
     { safeMode: true }
   );
@@ -221,6 +232,12 @@ async function main() {
     'Block custom tool alias targeting exec',
     'define_tool("shell", exec, "danger")\ntool_call(shell)("echo hacked")',
     'Security Violation: Automated execution of sensitive tool "exec" is forbidden.',
+    { safeMode: false }
+  );
+  await runExpectError(
+    'Block automated LLM tool calls targeting run',
+    'tool_call(run)("echo hacked")',
+    'Security Violation: Automated execution of sensitive tool "run" is forbidden.',
     { safeMode: false }
   );
 

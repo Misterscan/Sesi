@@ -1,4 +1,4 @@
-allow "helpers/safe" in with safe
+allow "helpers/safe" in as safe
 
 fn runTests() {
     let testsDir = "tests/"
@@ -12,7 +12,7 @@ fn runTests() {
     }
 
     if len(testFiles) == 0 {
-        print "No .ts test files found in" testsDir
+        show "No .ts test files found in" testsDir
         return false
     }
 
@@ -22,18 +22,18 @@ fn runTests() {
         try {
             let output = exec("SESI_SAFE_MODE=true SESI_LOCAL_FS=false tsx " + testPath)
             if len(trim(output)) > 0 {
-                print output
+                show output
             }
-            print "Test passed:" testPath
+            show "Test passed:" testPath
             passed = passed + 1
         } catch (e) {
-            print "Test failed:" testPath
-            print "Error:" e
+            show "Test failed:" testPath
+            show "Error:" e
             return false
         }
     }
 
-    print "All tests completed:" passed "/" len(testFiles) "passed."
+    show "All tests completed:" passed "/" len(testFiles) "passed."
     return true
 }
 

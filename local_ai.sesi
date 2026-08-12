@@ -2,17 +2,17 @@
     Test out Sesi's native local model.
     Flags:
         custom/edit/load/system/basic/default -> choose or skip a custom system prompt
-        speak/on/true -> print the answer and read it aloud
-        save/gemini -> print the answer and save it as audio
-        text -> print the answer without reading it aloud
-        help -> print usage instructions
+        speak/on/true -> show the answer and read it aloud
+        save/gemini -> show the answer and save it as audio
+        text -> show the answer without reading it aloud
+        help -> show usage instructions
 
     The first call downloads the configured model. Later calls use the local cache.
 */
 allow "std/terminal" in with {color}
-allow "helpers/safe" in with safe
+allow "helpers/safe" in as safe
 allow "std/db" in with {db_open}
-allow "timestamp" in with timestamp
+allow "timestamp" in as timestamp
 
 let memoryDB = db_open("local-chat.db")
 let conversations = memoryDB.collection("conversations")
@@ -32,7 +32,7 @@ fn updateMemoryUSER(question: str) -> str {
     } catch (e) {
         return "Error updating user messages: " + e
     }
-} 
+}
 
 fn updateMemorySESIRA(answer: str) -> str {
     try {
@@ -92,20 +92,20 @@ fn isModeArg(arg: str) -> bool {
 }
 
 fn help() {
-    print color("Usage:", "green"); 
-    print color("    npm run local_ai                    - Run interactive mode", "green") 
-    print color("    npm run local_ai \"prompt\"         - Ask a question", "green") 
-    print color("    npm run local_ai \"prompt\" custom  - Asks for a custom system prompt", "green") 
-    print color("    npm run local_ai \"prompt\" load    - Use the most recently saved custom or AI system prompt", "green") 
-    print color("    npm run local_ai \"prompt\" default - Use the default system prompt", "green") 
-    print color("    npm run local_ai \"prompt\" speak   - Read the answer aloud", "green") 
-    print color("    npm run local_ai \"prompt\" save    - Save the answer as audio", "green") 
-    print color("    npm run local_ai text               - Print the answer without reading it aloud", "green") 
-    print color("    npm run local_ai speak              - Skips interactive input", "green") 
-    print color("    npm run local_ai save               - Skips interactive input", "green") 
-    print color("    npm run local_ai custom             - Asks for custom system prompt. Presets are 'basic' and 'default', or 'ai' for AI-generated prompts", "green") 
-    print color("    npm run local_ai default            - Skips interactive input", "green") 
-    print ""}
+    show color("Usage:", "green");
+    show color("    npm run local_ai                    - Run interactive mode", "green")
+    show color("    npm run local_ai \"prompt\"         - Ask a question", "green")
+    show color("    npm run local_ai \"prompt\" custom  - Asks for a custom system prompt", "green")
+    show color("    npm run local_ai \"prompt\" load    - Use the most recently saved custom or AI system prompt", "green")
+    show color("    npm run local_ai \"prompt\" default - Use the default system prompt", "green")
+    show color("    npm run local_ai \"prompt\" speak   - Read the answer aloud", "green")
+    show color("    npm run local_ai \"prompt\" save    - Save the answer as audio", "green")
+    show color("    npm run local_ai text               - Print the answer without reading it aloud", "green")
+    show color("    npm run local_ai speak              - Skips interactive input", "green")
+    show color("    npm run local_ai save               - Skips interactive input", "green")
+    show color("    npm run local_ai custom             - Asks for custom system prompt. Presets are 'basic' and 'default', or 'ai' for AI-generated prompts", "green")
+    show color("    npm run local_ai default            - Skips interactive input", "green")
+    show ""}
 
 let helpMode = false
 
@@ -165,7 +165,7 @@ if ask == "y" || ask == "custom" || ask == "edit" || ask == "load" {
     customSystem = true
 } else if ask == "n" || ask == "system" || ask == "basic" || ask == "default" {
     customSystem = false
-} else {print color("Invalid input. Using default system prompt.", "red"); customSystem = false}
+} else {show color("Invalid input. Using default system prompt.", "red"); customSystem = false}
 
 if customSystem == true {
     let loadedSystemPrompt = ask == "load"
@@ -174,7 +174,7 @@ if customSystem == true {
     if loadedSystemPrompt {
         systemPrompt = loadSavedSystemPrompt()
         if systemPrompt == "" {
-            print color("No saved system prompt found. Enter a new prompt.", "yellow")
+            show color("No saved system prompt found. Enter a new prompt.", "yellow")
             loadedSystemPrompt = false
             systemPrompt = input("Enter your custom system prompt: ")
         }
@@ -186,14 +186,14 @@ if customSystem == true {
             loadedSystemPrompt = systemPrompt != ""
 
             if !loadedSystemPrompt {
-                print color("No saved system prompt found. Enter a new prompt.", "yellow")
+                show color("No saved system prompt found. Enter a new prompt.", "yellow")
                 systemPrompt = input("Enter your custom system prompt: ")
             }
         }
     }
 
     let generatedSystemPrompt = systemPrompt == "ai"
-    
+
     if systemPrompt == "" || systemPrompt == "default" || systemPrompt == "basic" {
         systemPrompt = "You are an experienced ELI5 translator."
     } else if systemPrompt == "ai" {
@@ -214,14 +214,14 @@ if customSystem == true {
             safe.txt("local-ai-sys-prompt", "SESI_LOCAL_SYSTEM_PROMPT=\"" + systemPrompt + "\"")
         } catch (e) {}
     }
-        print color("Sesira is thinking...", "cyan")
+        show color("Sesira is thinking...", "cyan")
         let sys = "# SYSTEM INSTRUCTION: " + systemPrompt + "\n\nPrevious conversation:\n" + conversationMemory
         answer = model("local") {max_tokens: 2048, temperature: 0.3, stream: false, system: sys} {question}
         updateMemorySESIRA(answer)
-        print ""
+        show ""
 } else {customSystem = false}
 
-if customSystem == false {print color("Sesira is thinking...", "cyan"); let sys = "Previous conversation:\n" + conversationMemory;  answer = model("local") {max_tokens: 2048, temperature: 0.5, thinkingLevel: "medium", stream: false, system: sys} {question} updateMemorySESIRA(answer); print ""}
+if customSystem == false {show color("Sesira is thinking...", "cyan"); let sys = "Previous conversation:\n" + conversationMemory;  answer = model("local") {max_tokens: 2048, temperature: 0.5, thinkingLevel: "medium", stream: false, system: sys} {question} updateMemorySESIRA(answer); show ""}
 
 fn speak(answer: str, on: bool = false, options = null) -> bool {
     if on == true && !is_null(options) {
@@ -231,12 +231,12 @@ fn speak(answer: str, on: bool = false, options = null) -> bool {
         if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
         try {
             safe.saveMedia("ai-response.wav", speech(answer, options.voice, options.modelName))
-            print color("Saved to ai-response.wav!", "green")
+            show color("Saved to ai-response.wav!", "green")
         } catch (e) {
-            print e
+            show e
         }
     } else {
-        print color("\nSpeaking...", "green")
+        show color("\nSpeaking...", "green")
 
         if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
         speech(answer)
@@ -255,7 +255,7 @@ if len(args) > 0 {
         if arg == "speak" || arg == "on" || arg == "true" {shouldSpeakMode = true}
         if arg == "save" || arg == "gemini" {isSaveMode = true}
         if arg == "text" && !isTextOnlyMode {isTextOnlyMode = true}
-        if arg == "help" {helpMode = true} 
+        if arg == "help" {helpMode = true}
         i = i + 1
     }
 }
@@ -263,16 +263,16 @@ if len(args) > 0 {
 if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
 
 if shouldSpeakMode {
-    print color("[SESIRA]: " + answer, "cyan")
+    show color("[SESIRA]: " + answer, "cyan")
     speak(answer, true)
 } else if isSaveMode {
-    print color("[SESIRA]: " + answer, "cyan")
+    show color("[SESIRA]: " + answer, "cyan")
     speak(answer, true, {"voice": "Vindemiatrix", "modelName": "gemini-2.5-flash-preview-tts"})
 } else if isTextOnlyMode {
-    print color("[SESIRA]: " + answer, "cyan")
+    show color("[SESIRA]: " + answer, "cyan")
 } else {
-    print color("[SESIRA]: " + answer, "cyan")
-    
+    show color("[SESIRA]: " + answer, "cyan")
+
     let reqSpeak = input(color("Read answer aloud? (y/n): ", "yellow"))
     if reqSpeak == "y" {speak(answer, true)}
     }

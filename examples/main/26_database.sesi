@@ -8,40 +8,40 @@
 allow "std/db" in with {db_open}
 allow "std/terminal" in with { color }
 
-print color("Initializing Sesi Database (local.db)...", "magenta")
+show color("Initializing Sesi Database (local.db)...", "magenta")
 let db = "local.db" | db_open
 let items = "items" | db.collection
 
 // Clear any existing items for a clean demo
 items.delete({})
 
-print "Inserting documents..."
+show "Inserting documents..."
 let item1 = {"name": "Widget A", "stock": 100, "category": "hardware"} | items.insert
 let item2 = {"name": "Widget B", "stock": 150, "category": "hardware"} | items.insert
 let item3 = {"name": "Gadget C", "stock": 50, "category": "electronics"} | items.insert
 
-print "Inserted item 1 with ID:" item1._id
+show "Inserted item 1 with ID:" item1._id
 
-print "Finding all items..."
+show "Finding all items..."
 let allItems = items.find()
-print "Total items:" len(allItems)
+show "Total items:" len(allItems)
 
-print "Finding hardware items..."
+show "Finding hardware items..."
 let hardware = {"category": "hardware"} | items.find()
-print "Found hardware items:" len(hardware)
+show "Found hardware items:" len(hardware)
 
-print "Updating stock for Widget A..."
+show "Updating stock for Widget A..."
 let updated = {"name": "Widget A"} | items.update({"stock": 120})
-print "Updated count:" updated
+show "Updated count:" updated
 
-print "Deleting Gadget C..."
+show "Deleting Gadget C..."
 let deleted = {"name": "Gadget C"} | items.delete
-print "Deleted count:" deleted
+show "Deleted count:" deleted
 
-print "Final list of items:"
+show "Final list of items:"
 let remaining = items.find()
 for it in remaining {
-  print "- Name:" it.name " | Stock:" it.stock " | Category:" it.category
+  show "- Name:" it.name " | Stock:" it.stock " | Category:" it.category
 }
 
-print "Demo completed."
+show "Demo completed."

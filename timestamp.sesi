@@ -105,8 +105,8 @@ export fn time_tools() {
   register_tool("formattedTime", formattedTime, "Retrieve a filesystem-safe timestamp (e.g., '12-04-32-PM') for file naming.")
 
   let _registry = list_tools()
-  print "⏱️ timestamp tool registry loaded —" str(len(_registry)) "tools available"
-  print to_json(tool_refs)
+  show "⏱️ timestamp tool registry loaded —" str(len(_registry)) "tools available"
+  show to_json(tool_refs)
 }
 
 /*
@@ -122,7 +122,7 @@ export fn time_tools() {
     let universal = TS.universalTime()
     let formatted = TS.formattedTime()
 
-    print "Current time:" local
-    print "Current time (UTC):" universal
-    print "Formatted time:" formatted
+    show "Current time:" local
+    show "Current time (UTC):" universal
+    show "Formatted time:" formatted
 */

@@ -9,7 +9,7 @@ allow "test-runner" in with {
 }
 allow "std/db" in with {db_open}
 
-print "Starting verification tests for Sesi Database..."
+show "Starting verification tests for Sesi Database..."
 
 let db = db_open("verify_test.db")
 let col = db.collection("logs")
@@ -59,7 +59,7 @@ push(results, res8)
 let success = run_test_suite("Sesi Built-in Database Module", results)
 
 if success {
-  print "Database verification passed."
+  show "Database verification passed."
 } else {
   raise_error("TestFailure", "One or more database verification assertions failed.")
 }

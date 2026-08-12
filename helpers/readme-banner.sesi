@@ -29,27 +29,27 @@ Examples:
     sesi helpers/readme-banner.sesi "Sesi" img/banner.svg tagline "A Concise, Legible Language" theme ocean
     sesi helpers/readme-banner.sesi "MyApp" img/banner.svg theme ember inject README.md
 */
-allow "safe" in with Safe
-allow "std/draw" in with Draw
+allow "safe" in as Safe
+allow "std/draw" in as Draw
 
 let W = 860
 let H = 180
 
 fn show_help() {
-  print "readme-banner.sesi — README SVG banner generator"
-  print ""
-  print "Usage:"
-  print "  sesi helpers/readme-banner.sesi <title> <output>"
-  print "  sesi helpers/readme-banner.sesi <title> <output> tagline <text>"
-  print "  sesi helpers/readme-banner.sesi <title> <output> theme <name>"
-  print "  sesi helpers/readme-banner.sesi <title> <output> inject <readme>"
-  print ""
-  print "Themes: midnight (default), ocean, ember, forest, slate, aurora, sunset, rose, violet, citrus"
-  print ""
-  print "Examples:"
-  print "  sesi helpers/readme-banner.sesi \"MySideProject\" img/banner.svg"
-  print "  sesi helpers/readme-banner.sesi \"Sesi\" img/banner.svg tagline \"A Concise Language\" theme ocean"
-  print "  sesi helpers/readme-banner.sesi \"MyApp\" img/banner.svg theme ember inject README.md"
+  show "readme-banner.sesi — README SVG banner generator"
+  show ""
+  show "Usage:"
+  show "  sesi helpers/readme-banner.sesi <title> <output>"
+  show "  sesi helpers/readme-banner.sesi <title> <output> tagline <text>"
+  show "  sesi helpers/readme-banner.sesi <title> <output> theme <name>"
+  show "  sesi helpers/readme-banner.sesi <title> <output> inject <readme>"
+  show ""
+  show "Themes: midnight (default), ocean, ember, forest, slate, aurora, sunset, rose, violet, citrus"
+  show ""
+  show "Examples:"
+  show "  sesi helpers/readme-banner.sesi \"MySideProject\" img/banner.svg"
+  show "  sesi helpers/readme-banner.sesi \"Sesi\" img/banner.svg tagline \"A Concise Language\" theme ocean"
+  show "  sesi helpers/readme-banner.sesi \"MyApp\" img/banner.svg theme ember inject README.md"
 }
 
 fn parse_options() {
@@ -68,7 +68,7 @@ fn parse_options() {
         options["tagline"] = args[i + 1]
         i = i + 2
       } else {
-        print "Missing value for tagline"
+        show "Missing value for tagline"
         i = i + 1
       }
     } else if key == "--theme" || key == "theme" {
@@ -76,7 +76,7 @@ fn parse_options() {
         options["theme"] = args[i + 1]
         i = i + 2
       } else {
-        print "Missing value for theme"
+        show "Missing value for theme"
         i = i + 1
       }
     } else if key == "--inject" || key == "inject" {
@@ -84,11 +84,11 @@ fn parse_options() {
         options["inject"] = args[i + 1]
         i = i + 2
       } else {
-        print "Missing value for inject"
+        show "Missing value for inject"
         i = i + 1
       }
     } else {
-      print "Ignoring unknown option:" key
+      show "Ignoring unknown option:" key
       i = i + 1
     }
   }
@@ -289,13 +289,13 @@ fn draw_banner(title: str, output: str, options) {
   }
 
   Draw.save_svg(output, W, H)
-  print "Banner written:" output
-  print "Title:" title
+  show "Banner written:" output
+  show "Title:" title
   if has_tagline {
-    print "Tagline:" options["tagline"]
+    show "Tagline:" options["tagline"]
   }
-  print "Theme:" options["theme"]
-  print "Size:" W "x" H
+  show "Theme:" options["theme"]
+  show "Size:" W "x" H
 }
 
 fn inject_banner(readme: str, output: str) {
@@ -312,7 +312,7 @@ fn inject_banner(readme: str, output: str) {
 " + tag + "
 " + marker + parts[2]
         Safe.write(readme, updated)
-        print "Injected banner between <!-- banner --> markers in" readme
+        show "Injected banner between <!-- banner --> markers in" readme
         return null
       }
     }
@@ -324,9 +324,9 @@ fn inject_banner(readme: str, output: str) {
 
 " + content
     Safe.write(readme, updated)
-    print "Prepended banner to" readme
+    show "Prepended banner to" readme
   } catch (err) {
-    print "Inject failed:" err
+    show "Inject failed:" err
   }
 }
 
@@ -335,7 +335,7 @@ if len(args) == 0 {
 } else if args[0] == "help" {
   show_help()
 } else if len(args) < 2 {
-  print "Missing arguments."
+  show "Missing arguments."
   show_help()
 } else {
   let title = args[0]
@@ -349,6 +349,6 @@ if len(args) == 0 {
       inject_banner(options["inject"], output)
     }
   } catch (err) {
-    print "Banner generation failed:" err
+    show "Banner generation failed:" err
   }
 }

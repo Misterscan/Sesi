@@ -9,30 +9,30 @@ let red_cross = "❌ "
 
 export fn assert_equals(actual, expected, testName: string) {
   if actual == expected {
-    print green_tick "PASS:" testName
+    show green_tick "PASS:" testName
     return true
   } else {
-    print red_cross "FAIL:" testName
-    print "  -> Expected:" expected
-    print "  -> Actual:" actual
+    show red_cross "FAIL:" testName
+    show "  -> Expected:" expected
+    show "  -> Actual:" actual
     return false
   }
 }
 
 export fn assert_not_null(val, testName: string) {
   if val == null {
-    print red_cross "FAIL:" testName "(Value is null)"
+    show red_cross "FAIL:" testName "(Value is null)"
     return false
   } else {
-    print green_tick "PASS:" testName
+    show green_tick "PASS:" testName
     return true
   }
 }
 
 export fn run_test_suite(suiteName: string, results: array) {
-  print "========================================="
-  print "   TEST SUITE RUNNER:" suiteName
-  print "========================================="
+  show "========================================="
+  show "   TEST SUITE RUNNER:" suiteName
+  show "========================================="
   
   let passed = 0
   let failed = 0
@@ -45,17 +45,17 @@ export fn run_test_suite(suiteName: string, results: array) {
     }
   }
   
-  print "-----------------------------------------"
-  print "📊 Final Summary:"
-  print "   Passed:" passed
-  print "   Failed:" failed
+  show "-----------------------------------------"
+  show "📊 Final Summary:"
+  show "   Passed:" passed
+  show "   Failed:" failed
   
   if failed == 0 {
-    print "🎉 ALL TESTS PASSED SUCCESSFULLY!"
+    show "🎉 ALL TESTS PASSED SUCCESSFULLY!"
   } else {
-    print "⚠️ SOME TESTS FAILED. PLEASE AUDIT SPECIFICATIONS."
+    show "⚠️ SOME TESTS FAILED. PLEASE AUDIT SPECIFICATIONS."
   }
-  print "========================================="
+  show "========================================="
   
   if failed == 0 {
     return true
@@ -71,14 +71,14 @@ export fn test_runner() {
     tool_refs[name] = desc
   }
 
-  register_tool("assert_equals", assert_equals, "Asserts if two values are equal, prints colored PASS/FAIL")
-  register_tool("assert_not_null", assert_not_null, "Asserts if a value is not null, prints colored PASS/FAIL")
-  register_tool("run_test_suite", run_test_suite, "Runs a test suite and prints a colored summary")
+  register_tool("assert_equals", assert_equals, "Asserts if two values are equal, shows colored PASS/FAIL")
+  register_tool("assert_not_null", assert_not_null, "Asserts if a value is not null, shows colored PASS/FAIL")
+  register_tool("run_test_suite", run_test_suite, "Runs a test suite and shows a colored summary")
   register_tool("test_runner", test_runner, "Returns a map of all test runner tools")
 
   let _registry = list_tools()
-  print "📦 test-runner tool registry loaded —" str(len(_registry)) "tools available"
-  print to_json(tool_refs)
+  show "📦 test-runner tool registry loaded —" str(len(_registry)) "tools available"
+  show to_json(tool_refs)
 }
 
 test_runner()

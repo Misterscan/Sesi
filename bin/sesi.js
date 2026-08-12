@@ -20,7 +20,7 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.8.0
+Sesi Programming Language v1.8.5
 
 Usage:
   sesi <file> [options] <args>  Run a Sesi program
@@ -44,9 +44,9 @@ Usage:
   sesi install <pkg>     Install a third-party package (e.g. owner/repo#ref)
 
   Options:
-  -v --version           Show version
+  -v, version            Show version
   --repl                 Start interactive Sesi REPL
-  -l, --local            Disable safe mode (careful!)
+  -l, local              Disable safe mode (Unsandboxed)
   -a, --allowed-paths    Comma-separated list of allowed directories
   -e, --eval             Evaluate Sesi code directly
   -enc, --encrypt        Encrypt a file
@@ -59,7 +59,7 @@ Usage:
   -c, --check, --dry     Check syntax, compilation, and symbols without executing
   --ast                  Show the AST
   --tokens               Show the tokens
-  -t, --tree-walker      Run via legacy tree-walking interpreter fallback
+  -t, --tree             Run via legacy tree-walking interpreter fallback
   -bd, --byte-dump       Print disassembled bytecode and exit
   --timeout <ms>         Abort execution after the given milliseconds
   --profile              Collect and print runtime performance measurements
@@ -100,10 +100,10 @@ function parseArgs(args) {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    const isHelpFlag = arg === '--help' || arg === '-help' || arg === '-h';
+    const isHelpFlag = arg === 'help' || arg === '-h';
 
-    if (arg === '-v' || arg === '--version') {
-      console.log('Sesi v1.8.0');
+    if (arg === '-v' || arg === 'version') {
+      console.log('Sesi v1.8.5');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -127,7 +127,7 @@ function parseArgs(args) {
       options.decryptFile = args[++i];
     } else if (arg === '-p' || arg === '--password') {
       options.password = args[++i];
-    } else if (arg === '-l' || arg === '--local') {
+    } else if (arg === '-l' || arg === 'local') {
       options.sesiOptions.safeMode = false;
       options.sesiOptions.allowLocalFs = true;
     } else if (arg === '-a' || arg === '--allowed-paths') {
@@ -145,7 +145,7 @@ function parseArgs(args) {
       options.sesiOptions.dry = true;
     } else if (arg === '-bd' || arg === '--byte-dump') {
       options.sesiOptions.bytecodeDump = true;
-    } else if (arg === '-t' || arg === '--tree-walker') {
+    } else if (arg === '-t' || arg === '--tree') {
       options.sesiOptions.treeWalker = true;
     } else if (arg === '--timeout') {
       const timeoutMs = Number(args[++i]);
@@ -200,7 +200,7 @@ async function startRepl() {
       fg: 'white',
       border: { fg: 'cyan' }
     },
-    label: ' Sesi Interactive Terminal (v1.8.0) ',
+    label: ' Sesi Interactive Terminal (v1.8.5) ',
     scrollable: true,
     alwaysScroll: true,
     mouse: true,

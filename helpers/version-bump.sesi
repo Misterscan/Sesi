@@ -14,7 +14,7 @@ Usage:
     npm run version:bump
     sesi helpers/version-bump.sesi --custom // Prompts for custom FROM and TO values
 */
-allow "safe" in with Safe
+allow "safe" in as Safe
 allow "std/terminal" in with {color}
 
 fn isFile(fileName) {
@@ -66,7 +66,7 @@ for file in gettingStartedDir {
     }
 }
 
-print "docsFiles:
+show "docsFiles:
 " color(docsFiles, "cyan")"
 
 rootFiles:
@@ -103,7 +103,7 @@ let pkgJSON = "package.json"
 let editorsPkgJSON = "editors/vscode/package.json"
 let v = getVersionFromFile(pkgJSON)
 
-print "Current version:" color(v, "green")"
+show "Current version:" color(v, "green")"
 "
 let fromVar = v
 let toVar = ""
@@ -114,7 +114,7 @@ if customSwap == "--custom" {
 } else {
     toVar = input("Enter version to swap to: ")
 }
-print "
+show "
 ================
 " color("Starting swap...", "green")"
 ================
@@ -123,17 +123,17 @@ print "
 let getPkgJSON = Safe.read(pkgJSON)
 let newPkgJSON = swap(getPkgJSON, v, toVar)
 Safe.write(pkgJSON, newPkgJSON)
-print color("Swapped "+v+" to "+toVar+" in "+pkgJSON, "green")"
+show color("Swapped "+v+" to "+toVar+" in "+pkgJSON, "green")"
 "
 if getVersionFromFile(editorsPkgJSON) == v {
     getPkgJSON = Safe.read(editorsPkgJSON)
     newPkgJSON = swap(getPkgJSON, v, toVar)
     Safe.write(editorsPkgJSON, newPkgJSON)
-    print color("Swapped "+v+" to "+toVar+" in "+editorsPkgJSON, "green")"\n"
+    show color("Swapped "+v+" to "+toVar+" in "+editorsPkgJSON, "green")"\n"
 }
 
-fn swapTag(file) {print color("Swapped "+fromVar+" to "+toVar+" in "+file, "green")"\n"}
-fn skipTag(file) {print color("Skipping file:", "yellow")file}
+fn swapTag(file) {show color("Swapped "+fromVar+" to "+toVar+" in "+file, "green")"\n"}
+fn skipTag(file) {show color("Skipping file:", "yellow")file}
 
 try {
     let file = "bin/sesi.js"
@@ -145,11 +145,11 @@ try {
         swapTag(file)
     } else {
         skipTag(file)
-        print "Reason:" file "already up to date."
-        print ""
+        show "Reason:" file "already up to date."
+        show ""
     }
 } catch(e) {
-    print "An error occured:" color(str(e), "red")
+    show "An error occured:" color(str(e), "red")
 }
 
 for file in docsFiles {
@@ -162,11 +162,11 @@ for file in docsFiles {
             swapTag(file)
         } else {
             skipTag(file)
-            print "Reason:" file "already up to date."
-            print ""
+            show "Reason:" file "already up to date."
+            show ""
         }
     } catch(e) {
-        print "An error occured:" color(str(e), "red")
+        show "An error occured:" color(str(e), "red")
     }
 }
 
@@ -180,11 +180,11 @@ for file in rootFiles {
             swapTag(file)
         } else {
             skipTag(file)
-            print "Reason:" file "already up to date or doesn't contain" fromVar "at all."
-            print ""
+            show "Reason:" file "already up to date or doesn't contain" fromVar "at all."
+            show ""
         }
     } catch(e) {
-        print "An error occured:" color(str(e), "red")
+        show "An error occured:" color(str(e), "red")
     }
 }
 
@@ -198,11 +198,11 @@ for file in exampleFiles {
             swapTag(file)
         } else {
             skipTag(file)
-            print "Reason:" file "already up to date or doesn't contain" fromVar "at all."
-            print ""
+            show "Reason:" file "already up to date or doesn't contain" fromVar "at all."
+            show ""
         }
     } catch(e) {
-        print "An error occured:" color(str(e), "red")
+        show "An error occured:" color(str(e), "red")
     }
 }
 
@@ -216,10 +216,10 @@ for file in gettingStartedFiles {
             swapTag(file)
         } else {
             skipTag(file)
-            print "Reason:" file "already up to date or doesn't contain" fromVar "at all."
-            print ""
+            show "Reason:" file "already up to date or doesn't contain" fromVar "at all."
+            show ""
         }
     } catch(e) {
-        print "An error occured:" color(str(e), "red")
+        show "An error occured:" color(str(e), "red")
     }
 }

@@ -9,14 +9,14 @@ Examples:
     sesi helpers/svg-badge.sesi Sesi passing "#22c55e" badge.svg
 */
 
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 fn show_help() {
-  print "Usage:"
-  print "  sesi helpers/svg-badge.sesi <label> <value> <color> <output>"
-  print ""
-  print "Example:"
-  print "  sesi helpers/svg-badge.sesi Sesi passing \"#22c55e\" badge.svg"
+  show "Usage:"
+  show "  sesi helpers/svg-badge.sesi <label> <value> <color> <output>"
+  show ""
+  show "Example:"
+  show "  sesi helpers/svg-badge.sesi Sesi passing \"#22c55e\" badge.svg"
 }
 
 fn estimate_width(text: str) -> num {
@@ -55,11 +55,11 @@ fn draw_badge(label: str, value: str, color: str, output: str) {
 
   Draw.save_svg(output, width, height)
 
-  print "Badge written:" output
-  print "Label:" label
-  print "Value:" value
-  print "Color:" color
-  print "Size:" width "x" height
+  show "Badge written:" output
+  show "Label:" label
+  show "Value:" value
+  show "Color:" color
+  show "Size:" width "x" height
 }
 
 if len(args) < 4 {
@@ -73,6 +73,6 @@ if len(args) < 4 {
   try {
     draw_badge(label, value, color, output)
   } catch (err) {
-    print "Could not generate badge:" err
+    show "Could not generate badge:" err
   }
 }

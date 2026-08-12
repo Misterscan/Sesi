@@ -3,12 +3,12 @@
   Run with: sesi run_self_correction_agent.sesi -l
 */
 allow "shell-automation" in with {run_command}
-allow "ai_agent" in with Agent
+allow "ai_agent" in as Agent
 
 // Set model alias for agent execution
 set_alias("agent", "gemini-3.1-pro-preview")
 
-print "Initializing Coding Assistant Agent..."
+show "Initializing Coding Assistant Agent..."
 
 // Tool to write a script
 fn write_script(arg: string) -> string {
@@ -31,7 +31,7 @@ fn write_script(arg: string) -> string {
     if code == null {
       return "Failed: 'code' or 'content' field is missing or not a string."
     }
-    print "💾 Writing script to:" filename
+    show "💾 Writing script to:" filename
     let ok = write_file(filename, code)
     if ok == null {
       return "Failed to write file (returned null from write_file)."
@@ -61,7 +61,7 @@ fn test_script(arg: string) -> string {
       }
     } catch(e) {}
   }
-  print "🧪 Testing script:" filename
+  show "🧪 Testing script:" filename
   
   let cmd = ""
   if contains(filename, ".js") {
@@ -94,7 +94,7 @@ fn generate_code_plan(arg: string) -> string {
       }
     } catch(e) {}
   }
-  print "🧠 Generating multi-stage code plan for task:" task
+  show "🧠 Generating multi-stage code plan for task:" task
   
   let steps = [
     {"prompt": "Generate a detailed software architecture plan to solve: "},
@@ -123,7 +123,7 @@ For complex tasks (like designing/training a CNN), call 'generate_code_plan' fir
   }
 })
 
-print "
+show "
 Starting SesiDo Coding & Self-Correction Task..."
 let task_prompt = "Perform the following steps:
 1. Generate an implementation plan for a robust Python script that trains a Convolutional Neural Network (CNN) to identify and classify different dog breeds from a provided image dataset.
@@ -134,8 +134,8 @@ let task_prompt = "Perform the following steps:
 
 let final_answer = Agent.run_react(coder, task_prompt, 6)
 
-print "
+show "
 ========================================="
-print "FINAL ANSWER FROM CODING AGENT:"
-print final_answer
-print "========================================="
+show "FINAL ANSWER FROM CODING AGENT:"
+show final_answer
+show "========================================="

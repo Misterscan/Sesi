@@ -26,7 +26,7 @@ export class Lexer {
     ['true', 'TRUE'],
     ['false', 'FALSE'],
     ['null', 'NULL'],
-    ['print', 'PRINT'],
+    ['show', 'SHOW'],
     ['prompt', 'PROMPT'],
     ['make', 'MAKE'],
     ['model', 'MODEL'],
@@ -42,6 +42,7 @@ export class Lexer {
     ['export', 'EXPORT'],
     ['to', 'TO'], // Used in for loops
     ['allow', 'ALLOW'],
+    ['as', 'AS'],
     ['with', 'WITH'],
   ]);
 

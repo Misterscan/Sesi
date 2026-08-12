@@ -104,8 +104,8 @@ Developers can import your library inside their projects as follows:
   This creates/updates `sesi.json` and extracts the library into `sesi_modules/repo`.
 - **Import**:
   ```sesi
-  allow "repo" in with MyLib
-  print MyLib.compute(42)
+  allow "repo" in as MyLib
+  show MyLib.compute(42)
   ```
 
 ## Submitting a Pull Request

@@ -30,13 +30,13 @@ allow "test-runner" in with {
     run_test_suite
 }
 
-print "Starting Module Import Test Suite..."
+show "Starting Module Import Test Suite..."
 let results = []
 
 // ==========================================
 // 1. Data-Analyzer Test cases (Expanded)
 // ==========================================
-print "\n--- Testing Data-Analyzer Module ---"
+show "\n--- Testing Data-Analyzer Module ---"
 let csv_data = "name,crew,reputationScore\nBlaze,D-Mob Crew,95\nDoc,D-Mob Crew,85\nCrow,Crow Syndicate,80"
 
 let records = parse_csv(csv_data)
@@ -70,7 +70,7 @@ push(results, assert_equals(exported_rows[1], "Blaze,95", "CSV exportation seria
 // ==========================================
 // 2. Markdown-Compiler Test cases (Expanded)
 // ==========================================
-print "\n--- Testing Markdown-Compiler Module ---"
+show "\n--- Testing Markdown-Compiler Module ---"
 let raw_markdown = "# Underground Rules
 ## Subway *Turf*
 - Rule 1: No weapons
@@ -110,7 +110,7 @@ push(results, assert_equals(compile_result, true, "Markdown file compiled and sa
 // ==========================================
 // 3. Flat-File DB Module Test cases (Expanded)
 // ==========================================
-print "\n--- Testing Flat-File DB Module ---"
+show "\n--- Testing Flat-File DB Module ---"
 let db_path = "main/test_database.json"
 
 // Clean insert some test fighters
@@ -135,7 +135,7 @@ delete_record(db_path, "test_fighters", f3["id"])
 // ==========================================
 // 4. Shell-Automation Test cases
 // ==========================================
-print "\n--- Testing Shell-Automation Module ---"
+show "\n--- Testing Shell-Automation Module ---"
 let log_path = "main/test_shell_command.log"
 let log_result = run_command_log("sesi --version", log_path)
 push(results, assert_equals(log_result, true, "Shell command logged successfully"))

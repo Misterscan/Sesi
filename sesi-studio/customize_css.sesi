@@ -11,9 +11,9 @@
     npm run css "Beautiful, premium modern UX design. Dynamic sky blues" new  # regenerate with cache off
 */
 
-allow "helpers/safe" in with Safe
+allow "helpers/safe" in as Safe
 
-print "Sesi Studio Theme Generator — creating a custom IDE theme
+show "Sesi Studio Theme Generator — creating a custom IDE theme
 "
 
 let studioReadme = Safe.readFile("README.md")
@@ -31,14 +31,14 @@ if len(args) > 0 {
 }
 
 if len(style) > 0 {
-  print "
+  show "
 Updating prompt: (" style ")"
 } else {
 
   // If no argument is provided the model uses its own defaults.
   let styleDefault = "Premium IDE interface with a neutral, balanced aesthetic and a clean, clutter-free workspace."
-  print "No style provided, using default:"
-  print styleDefault
+  show "No style provided, using default:"
+  show styleDefault
   style = styleDefault
 }
 
@@ -50,7 +50,7 @@ if new == "y" || new == "new" {
   updatedStyle = model("gemini-3.1-flash-lite") {thinkingLevel: "medium", temperature: 0.7, max_tokens: 500, cache: true} {"Enhance the following style description for an IDE theme to be more specific and detailed, while keeping it concise: "style". Return only the enhanced style description without any extra text."}
 }
 style = updatedStyle
-print "Generating a custom theme for Sesi Studio based on the following style description:
+show "Generating a custom theme for Sesi Studio based on the following style description:
 
 >" ""style""
 
@@ -64,7 +64,7 @@ Sesi Studio UI Structure (index.html):
 prompt need {"IDE Theme Style: "style" 
 Target elements: Sesi Studio UI components including panels, tabs, buttons, and specifically the CSS variables in :root (--bg-base, --bg-panel, --accent-cyan, etc.). Focus on the legiblity of text and surrounding elements."}
 
-print "Constructing prompt...
+show "Constructing prompt...
 "
 
 prompt instruction {"You are a UI Theme Designer for Sesi Studio. 
@@ -95,7 +95,7 @@ prompt required {"At the very top, you **MUST** include this schema:
 
 prompt sys {context instruction required}
 
-print "Retrieving CSS...
+show "Retrieving CSS...
 "
 
 /* Change the model and parameters as needed. 
@@ -117,14 +117,14 @@ User theme need: "need".
 Only output CSS."}
 }
 
-print "Received CSS preview (first 6 lines):"
+show "Received CSS preview (first 6 lines):"
 try {
   let lines = split(css, "\n")
   let n = len(lines)
   if n > 6 { n = 6 }
-  for i = 0 to n - 1 { print lines[i] }
+  for i = 0 to n - 1 { show lines[i] }
 } catch (err) {
-  print "  (preview failed):" err
+  show "  (preview failed):" err
 }
 
 let filename = model("gemini-3.5-flash-lite") {thinkingLevel: "minimal"} {"Return a filename for the theme from the name in the following CSS stylesheet: "css"
@@ -133,15 +133,15 @@ If the name is two words use a hyphen to separate the two words. Only return the
 filename = trim(filename)
 let theme_path = "sesi-studio/extensions/themes/" + filename
 
-print "
+show "
 Writing "theme_path".css..."
 try {
   let saved = Safe.css(theme_path, css)
   if saved {
-    print "  ✓ "theme_path".css written
+    show "  ✓ "theme_path".css written
     "
-    print "Done. You can now select "filename" in Sesi Studio's theme settings."
+    show "Done. You can now select "filename" in Sesi Studio's theme settings."
   } else {
-    print "  ✗ Failed to write "theme_path".css"
+    show "  ✗ Failed to write "theme_path".css"
   }
-} catch (err) {print "  ✗ Failed to write CSS file:" err}
+} catch (err) {show "  ✗ Failed to write CSS file:" err}

@@ -73,17 +73,15 @@ Sesi ships with built-in standard library modules:
 | ---------- | --------- | ------------------- |
 | `std/math` | `Math`    | Math operations     |
 | `std/time` | `Time`    | Time/date functions |
-| `std/json` | `JSON`    | JSON parsing        |
 | `std/db`   | —         | Database access     |
+... and more!
 
 ```sesi
 allow "std/math" in with Math
 allow "std/time" in with Time
-allow "std/json" in with JSON
 
 print Math.PI
 print Time.now()
-print JSON.parse("[1,2,3]")
 ```
 
 ---
@@ -187,7 +185,7 @@ $env:SESI_PATH = "C:\MyLibs\shared;C:\Projects\common"
 ```sesi
 // Export
 export fn greet(name) { print "Hello," name }
-export let VERSION = "1.8.0"
+export let VERSION = "1.8.5"
 
 // import (named)
 import { greet, VERSION } from "mymodule"
@@ -202,7 +200,6 @@ Mod.greet("Ada")
 // Standard library
 allow "std/math" in with Math
 allow "std/time" in with Time
-allow "std/json" in with JSON
 ```
 
 ---

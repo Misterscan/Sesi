@@ -101,7 +101,7 @@ let doneTag = "All done!"
 let errorTag = "We're sorry but an error occurred: "
 
 try {
-    print color("Launching example .sesi files...", "magenta")
+    show color("Launching example .sesi files...", "magenta")
     if enableAccessibility {
         speech(launchTag)
         speech(enterTag)
@@ -118,31 +118,31 @@ try {
             }
             let ans = input(prompt_text)
             if ans == "exit" {
-                print color("Ending examples early.", "yellow")
+                show color("Ending examples early.", "yellow")
                 if enableAccessibility {
                     speech(exitTag)
                 }
                 break
             } else if ans == "skip" {
-                print color("Skipped " + ex["title"], "yellow")
+                show color("Skipped " + ex["title"], "yellow")
                 if enableAccessibility {
                     speech(skipTag)
                 }
                 continue
             }
         } else {
-            print title_tag
+            show title_tag
         }
 
         if ex["cmd"] == "sesi examples/optional/15_image_generation.sesi" {
-            print imageTag
+            show imageTag
             if enableAccessibility {
                 speech(imageTag)
             }
         }
 
         if ex["cmd"] == "sesi examples/optional/37_ai_video_generation.sesi" {
-            print videoTag
+            show videoTag
             if enableAccessibility {
                 speech(videoTag)
             }
@@ -150,14 +150,14 @@ try {
 
         let parts = split(ex["cmd"], " ")
         let local = contains(ex["cmd"], " -l")
-        print sesi(parts[1], local)
+        show sesi(parts[1], local)
     }
-    print color("All done! No errors means Sesi is ready!", "green", "bold")
+    show color("All done! No errors means Sesi is ready!", "green", "bold")
     if enableAccessibility {
         speech(doneTag)
     }
 } catch (error) {
-    print color("An error occurred: " + str(error), "red")
+    show color("An error occurred: " + str(error), "red")
     if enableAccessibility {
         speech(errorTag + str(error))
     }

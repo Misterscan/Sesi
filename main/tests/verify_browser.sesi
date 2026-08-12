@@ -15,7 +15,7 @@ allow "test-runner" in with {
 }
 allow "std/browser" in with {launch}
 
-print "Starting verification tests for Sesi Browser Automation..."
+show "Starting verification tests for Sesi Browser Automation..."
 
 let results = []
 
@@ -72,7 +72,7 @@ push(results, res9)
 let success = run_test_suite("Sesi Built-in Browser Module", results)
 
 if success {
-  print "Browser verification passed."
+  show "Browser verification passed."
 } else {
   raise_error("TestFailure", "One or more browser verification assertions failed.")
 }

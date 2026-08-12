@@ -1,4 +1,4 @@
-allow "helpers/safe" in with Safe
+allow "helpers/safe" in as Safe
 allow "shell-automation" in with {run_command}
 
 export let SESI_ROOT = ""

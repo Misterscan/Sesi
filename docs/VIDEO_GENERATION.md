@@ -24,7 +24,7 @@ let prompt = "A tiny glass robot walks through a rain-soaked neon garden, cinema
 
 let clip = video("gemini-omni-flash-preview") {ratio: "16:9"} {prompt}
 output | write_file(clip, "base64")
-print "Saved" output
+show "Saved" output
 ```
 
 See [the runnable example](examples/optional/37_ai_video_generation.sesi).

@@ -1,77 +1,77 @@
 let markdown = "# Hello World\nThis is a convert test."
 let html = convert(doc) {file_type: "md", output_type: "html"} {markdown}
-print "=== Markdown to HTML ==="
-print html
+show "=== Markdown to HTML ==="
+show html
 
 let markdownAdvanced = "# Guide\n\n- one\n- two\n\n```js\nconst x = 1\n```"
 let htmlAdvanced = convert(doc) {file_type: "md", output_type: "html"} {markdownAdvanced}
-print "=== Advanced Markdown to HTML ==="
-print htmlAdvanced
+show "=== Advanced Markdown to HTML ==="
+show htmlAdvanced
 
 let htmlDoc = "<article><h1>Guide</h1><p>Hello <strong>world</strong>.</p><ul><li>one</li><li>two</li></ul></article>"
 let markdownOut = convert(doc) {file_type: "html", output_type: "md"} {htmlDoc}
-print "=== HTML to Markdown ==="
-print markdownOut
+show "=== HTML to Markdown ==="
+show markdownOut
 
 let textOut = convert(doc) {file_type: "html", output_type: "txt"} {htmlDoc}
-print "=== HTML to Text ==="
-print textOut
+show "=== HTML to Text ==="
+show textOut
 
 let csv = "name,age\nAlice,30\nBob,25"
 let json = convert(doc) {file_type: "csv", output_type: "json"} {csv}
-print "=== CSV to JSON ==="
-print json
+show "=== CSV to JSON ==="
+show json
 
 let tsv = "name\tage\nAlice\t30\nBob\t25"
 let tsvJson = convert(doc) {file_type: "tsv", output_type: "json"} {tsv}
-print "=== TSV to JSON ==="
-print tsvJson
+show "=== TSV to JSON ==="
+show tsvJson
 
 let jsonStr = "[{\"name\":\"Alice\",\"age\":\"30\"},{\"name\":\"Bob\",\"age\":\"25\"}]"
 let csvOut = convert(doc) {file_type: "json", output_type: "csv"} {jsonStr}
-print "=== JSON to CSV ==="
-print csvOut
+show "=== JSON to CSV ==="
+show csvOut
 
 let tsvOut = convert(doc) {file_type: "json", output_type: "tsv"} {jsonStr}
-print "=== JSON to TSV ==="
-print tsvOut
+show "=== JSON to TSV ==="
+show tsvOut
 
 let yamlOut = convert(doc) {file_type: "json", output_type: "yaml"} {jsonStr}
-print "=== JSON to YAML ==="
-print yamlOut
+show "=== JSON to YAML ==="
+show yamlOut
 
 let yamlStr = "people:\n  - name: Alice\n    age: 30\n  - name: Bob\n    age: 25"
 let yamlJson = convert(doc) {file_type: "yaml", output_type: "json"} {yamlStr}
-print "=== YAML to JSON ==="
-print yamlJson
+show "=== YAML to JSON ==="
+show yamlJson
 
 let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"40\"><text x=\"10\" y=\"25\">Sesi SVG</text></svg>"
 let svgHtml = convert(doc) {file_type: "svg", output_type: "html"} {svg}
-print "=== SVG to HTML ==="
-print svgHtml
+show "=== SVG to HTML ==="
+show svgHtml
 
 let svgOnly = convert(doc) {file_type: "html", output_type: "svg"} {svgHtml}
-print "=== HTML to SVG ==="
-print svgOnly
+show "=== HTML to SVG ==="
+show svgOnly
 
 let svgText = convert(doc) {file_type: "svg", output_type: "txt"} {svg}
-print "=== SVG to Text ==="
-print svgText
+show "=== SVG to Text ==="
+show svgText
 
-print "=== File conversion ==="
+show "=== File conversion ==="
 write_file("test_in.md", "# Heading\nParagraph")
 let out_path = convert(doc) {file_type: "md", output_type: "html"} {"test_in.md"}
-print "Output path:"
-print out_path
+show "Output path:"
+show out_path
 let converted_html = read_file(out_path)
-print "HTML file content:"
-print converted_html
+show "HTML file content:"
+show converted_html
 
 write_file("test_svg.svg", svg)
 let svg_png = convert(media) {output_type: "png"} {"test_svg.svg"}
-print "=== SVG to PNG File ==="
-print svg_png
+show "=== SVG to PNG File ==="
+show svg_png
 
 let png_svg = convert(media) {output_type: "svg"} {svg_png}
-print "=== PNG to SVG File ==="
-print png_svg
+show "=== PNG to SVG File ==="
+show png_svg

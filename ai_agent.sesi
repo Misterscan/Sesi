@@ -2,7 +2,7 @@
   AI Agent Module for Sesi
   Implements an intelligent conversational agent with native tool execution capabilities.
 */
-allow "helpers/safe" in with safe
+allow "helpers/safe" in as safe
 
 fn list_tools_description(tools) {
   let desc = ""
@@ -184,7 +184,7 @@ Assistant:"
     try {
       speech(resp)
     } catch (e) {
-      print "Agent failed to speak:" e
+      show "Agent failed to speak:" e
     }
   }
   return resp
@@ -237,7 +237,7 @@ Next Step JSON:"}
       let step = structured_output({thought: string, tool_name: string, tool_args_json: string, finished: bool, final_answer: string})(step_text)
 
       if step == null || len(keys(step)) == 0 {
-        print "Error: Agent returned invalid step format"
+        show "Error: Agent returned invalid step format"
         error_count = error_count + 1
         let stream_fn = agent["stream"]
         if stream_fn != null {
@@ -254,7 +254,7 @@ Observation: Invalid JSON format.
           break
         }
       } else {
-        print "💭 Thought:" step["thought"]
+        show "💭 Thought:" step["thought"]
         let stream_fn = agent["stream"]
         if stream_fn != null {
           try {
@@ -263,7 +263,7 @@ Observation: Invalid JSON format.
         }
 
         if step["finished"] {
-          print "🏁 Finished! Final Answer:" step["final_answer"]
+          show "🏁 Finished! Final Answer:" step["final_answer"]
           if stream_fn != null {
             try {
               stream_fn(step["final_answer"] + "\n")
@@ -285,7 +285,7 @@ Observation: Invalid JSON format.
           if tool_args == null {
             tool_args = {}
           }
-          print "🛠️ Calling tool:" tool_name "with args:" tool_args
+          show "🛠️ Calling tool:" tool_name "with args:" tool_args
           if stream_fn != null {
             try {
               stream_fn("🛠️ *Calling tool:* `" + tool_name + "`\n\n")
@@ -297,7 +297,7 @@ Observation: Invalid JSON format.
           let tool_fn = tools[tool_name]
           if tool_fn == null {
             obs = "Error: Tool " + tool_name + " is not registered."
-            print "❌ Error: Tool not found"
+            show "❌ Error: Tool not found"
             error_count = error_count + 1
             if stream_fn != null {
               try {
@@ -307,7 +307,7 @@ Observation: Invalid JSON format.
           } else {
             try {
               obs = tool_fn(tool_args)
-              print "📥 Observation:" obs
+              show "📥 Observation:" obs
               error_count = 0
               if stream_fn != null {
                 try {
@@ -317,13 +317,13 @@ Observation: Invalid JSON format.
                   try {
                     speech("Observation: " + obs)
                   } catch (e) {
-                    print "Agent failed to speak:" e
+                    show "Agent failed to speak:" e
                   }
                 }
               }
             } catch(e) {
               obs = "Error executing tool: " + e
-              print "❌ Tool Error:" e
+              show "❌ Tool Error:" e
               error_count = error_count + 1
               if stream_fn != null {
                 try {
@@ -339,7 +339,7 @@ Observation: Invalid JSON format.
               try {
                 speech(final_res)
               } catch (e) {
-                print "Agent failed to speak:" e
+                show "Agent failed to speak:" e
               }
             }
             break
@@ -415,7 +415,7 @@ export fn save(agent, path) {
   try {
     return safe.json(path, data)
   } catch (err) {
-    print "Error saving agent:" err
+    show "Error saving agent:" err
   }
 }
 
@@ -424,7 +424,7 @@ export fn load(agent, path) {
   try {
     content = safe.read(path)
   } catch (err) {
-    print "Error loading agent:" err
+    show "Error loading agent:" err
   }
   if content == null {
     return false
@@ -457,7 +457,7 @@ export fn get_last_response(agent, speech_enabled) {
       try {
         speech(last_turn["text"])
       } catch (e) {
-        print "Agent failed to speak:" e
+        show "Agent failed to speak:" e
       }
     }
     return last_turn["text"]

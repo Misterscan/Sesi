@@ -1,2 +1,2 @@
 let result = model("gemini-3.1-flash-lite"){"Hello"}
-print result
+show result

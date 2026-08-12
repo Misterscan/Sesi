@@ -8,7 +8,7 @@
   named file, checked by Sesi, executed in safe mode, and then deleted.
 */
 allow "shell-automation" in with {run_sesi}
-allow "helpers/safe" in with safe
+allow "helpers/safe" in as safe
 
 let PORT = 8080
 let FRONTEND = "tutorial/tutorial_frontend.html"
@@ -93,15 +93,15 @@ fn handleRequest(req) {
   return json_response(404, {"error": "Not found"})
 }
 
-print "======================================================"
-print "⚡ Sesi Learning Lab is online!"
-print "======================================================"
+show "======================================================"
+show "⚡ Sesi Learning Lab is online!"
+show "======================================================"
 
 let server = listen(PORT, handleRequest)
 try {
   open("http://localhost:" + str(PORT) + "/")
 } catch (e) {
-  print "Could not automatically open browser. Please visit http://localhost:" + str(PORT)
+  show "Could not automatically open browser. Please visit http://localhost:" + str(PORT)
 }
 
 let end = input("Press Enter to stop the server...\n")

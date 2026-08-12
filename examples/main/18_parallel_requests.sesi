@@ -6,20 +6,20 @@
     - "name" | profile(fn) and "text" | profile_report for performance analysis.
     - Dynamic array resolution.
 */
-allow "std/time" in with Time
+allow "std/time" in as Time
 allow "std/terminal" in with { color }
 
-print color("=== 1. Defining Concurrently Run Closures ===", "magenta")
+show color("=== 1. Defining Concurrently Run Closures ===", "magenta")
 fn slowTask1() {
-  print "Starting Task 1 (sleeping 150ms)..."
+  show "Starting Task 1 (sleeping 150ms)..."
   150 | Time.sleep
-  print "Task 1 complete!"
+  show "Task 1 complete!"
   return "result_from_task_1"
 }
 fn slowTask2() {
-  print "Starting Task 2 (sleeping 150ms)..."
+  show "Starting Task 2 (sleeping 150ms)..."
   150 | Time.sleep
-  print "Task 2 complete!"
+  show "Task 2 complete!"
   return "result_from_task_2"
 }
 
@@ -34,29 +34,29 @@ fn runParallel() {
   return [slowTask1, slowTask2] | multi_req
 }
 
-print "=== 2. Sequential Execution (Demonstration) ==="
+show "=== 2. Sequential Execution (Demonstration) ==="
 let seq_start = Time.now()
 let sequentialResults = "sequential tasks" | profile(runSequential)
 let seq_elapsed = Time.now() - seq_start
 
-print "Sequential Results:"
-print str(sequentialResults)
-print "Sequential took:" str(seq_elapsed) "ms (should be >= 300ms)"
+show "Sequential Results:"
+show str(sequentialResults)
+show "Sequential took:" str(seq_elapsed) "ms (should be >= 300ms)"
 
-print "=== 3. Parallel Execution via multi_req ==="
+show "=== 3. Parallel Execution via multi_req ==="
 let start_time = Time.now()
 let results = "parallel tasks" | profile(runParallel)
 let elapsed = Time.now() - start_time
 
-print "Returned Results array:"
-print str(results)
-print "Parallel took:" str(elapsed) "ms (should be faster than sequential execution)"
+show "Returned Results array:"
+show str(results)
+show "Parallel took:" str(elapsed) "ms (should be faster than sequential execution)"
 
 if elapsed < seq_elapsed {
-  print "✓ Success! Native Sesi concurrency verified: jobs ran in parallel."
+  show "✓ Success! Native Sesi concurrency verified: jobs ran in parallel."
 } else {
-  print "✗ Failure: jobs ran sequentially."
+  show "✗ Failure: jobs ran sequentially."
 }
 
-print "=== 4. Profiler Report ==="
-print "text" | profile_report
+show "=== 4. Profiler Report ==="
+show "text" | profile_report

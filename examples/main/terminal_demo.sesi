@@ -6,35 +6,35 @@
     sesi examples/main/terminal_demo.sesi
 */
 
-allow "std/terminal" in with Term
-allow "std/time" in with Time
+allow "std/terminal" in as Term
+allow "std/time" in as Time
 
 // Clear the screen to start fresh
 Term.clear()
 
 // Move cursor to top left
 1 | Term.cursor(1)
-print "⚡ Sesi Terminal UI Engine" | Term.color("cyan")
+show "⚡ Sesi Terminal UI Engine" | Term.color("cyan")
 
 1 | Term.cursor(3)
-print "Loading system modules..." | Term.color("yellow")
+show "Loading system modules..." | Term.color("yellow")
 
 1000 | Time.sleep
 
 1 | Term.cursor(4)
-print "[OK] File system ready" | Term.color("green")
+show "[OK] File system ready" | Term.color("green")
 
 500 | Time.sleep
 
 1 | Term.cursor(5)
-print "[OK] Network initialized" | Term.color("green")
+show "[OK] Network initialized" | Term.color("green")
 
 1 | Term.cursor(7)
-print "Ready for commands." | Term.color("white")
+show "Ready for commands." | Term.color("white")
 
 // Optional: you can combine with input
 1 | Term.cursor(9)
 let cmd = "admin@sesi> " | input | Term.color("magenta")
 
 1 | Term.cursor(11)
-print "You executed:" cmd | Term.color("bold")
+show "You executed:" cmd | Term.color("bold")

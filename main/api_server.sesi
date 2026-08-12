@@ -11,7 +11,7 @@ let db = db_open("tasks.db")
 let tasks = db.collection("tasks")
 
 async fn handleRequest(req) {
-  print "API Request:" req.method req.path
+  show "API Request:" req.method req.path
   
   // CORS Headers
   let corsHeaders = {
@@ -161,5 +161,5 @@ async fn handleRequest(req) {
 }
 
 let port = 8080
-print "Sesi RESTful API running at http://localhost:8080"
+show "Sesi RESTful API running at http://localhost:8080"
 let server = listen(port, handleRequest)

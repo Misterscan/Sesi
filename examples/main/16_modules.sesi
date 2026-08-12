@@ -8,47 +8,46 @@ Demonstrates:
 */
 allow "std/terminal" in with { color }
 
-print color("=== 1. Standard Math Module ===", "magenta")
+show color("=== 1. Standard Math Module ===", "magenta")
 
-allow "std/math" in with Math
+allow "std/math" in as Math
 
-print color("PI constant:", "cyan") str(Math.PI)
-print "Euler's number:" str(Math.E)
-print "Square root of 144:" str(Math.sqrt(144))
+show color("PI constant:", "cyan") str(Math.PI)
+show "Euler's number:" str(Math.E)
+show "Square root of 144:" str(Math.sqrt(144))
 // or 144 | Math.sqrt
-print "2 raised to power of 10:" str(Math.pow(2, 10))
+show "2 raised to power of 10:" str(Math.pow(2, 10))
 // or 2 | Math.pow(10)
-print "Sine of PI/2:" str(Math.sin(Math.PI / 2.0))
+show "Sine of PI/2:" str(Math.sin(Math.PI / 2.0))
 // or (Math.PI / 2.0) | Math.sin
 
-print "=== 2. Scoped Lib Scoping ==="
-allow "std/math" in with Math
+show "=== 2. Scoped Lib Scoping ==="
+allow "std/math" in as Math
 
-print "Area of circle with radius 5 (using Math lib namespace):" str(Math.PI * Math.pow(5, 2))
+show "Area of circle with radius 5 (using Math lib namespace):" str(Math.PI * Math.pow(5, 2))
 // or 5 | Math.pow(2) * Math.PI
 
-print "=== 3. Standard JSON Module ==="
-allow "std/json" in with Json
+show "=== 3. Built-in JSON Conversion ==="
+// "std/json" has been deprecated in favor of built-in to_json and from_json functions.
+let original = {"project": "Sesi Language", "version": "1.8.5", "features": ["modules", "http", "parallel"]}
+let json_str = to_json(original)
+show "Serialized JSON string:"
+show json_str
+let restored = from_json(json_str)
+show "Deserialized Project Name:" restored["project"]
+show "Deserialized Version:" restored["version"]
 
-let original = {"project": "Sesi Language", "version": "1.8.0", "features": ["modules", "http", "parallel"]}
-let json_str = Json.stringify(original) // or original | Json.stringify
-print "Serialized JSON string:"
-print json_str
-let restored = Json.parse(json_str) // or json_str | Json.parse
-print "Deserialized Project Name:" restored["project"]
-print "Deserialized Version:" restored["version"]
-
-print "=== 4. Custom Sesi Module ==="
+show "=== 4. Custom Sesi Module ==="
 
 /* Relative imports let you reuse Sesi code across files cleanly.
 We will import custom exported variables and functions from a local module. */
-allow "main/tests/temp_math_mod" in with LocalMath
+allow "main/tests/temp_math_mod" in as LocalMath
 
-print "Imported magic number from local module:" str(LocalMath.magic_number)
-print "Running imported multiply(5, 5):" str(LocalMath.multiply(5, 5))
+show "Imported magic number from local module:" str(LocalMath.magic_number)
+show "Running imported multiply(5, 5):" str(LocalMath.multiply(5, 5))
 // or 5 | LocalMath.multiply(5)
 
-print "=== 5. Third-Party Modules & Sesi Packages ==="
+show "=== 5. Third-Party Modules & Sesi Packages ==="
 
 /* Sesi supports downloading and importing third-party packages from Git.
 To install a package, run:
@@ -56,5 +55,5 @@ To install a package, run:
 The package will be installed in `sesi_modules/repo`.
 You can then import it like standard local modules:
 
-allow "repo" in with MyRepo
+allow "repo" in as MyRepo
 */

@@ -6,4 +6,4 @@ Generate JavaScript code for the following requirement:
 "requirement"
 Provide only the code, no explanation."}
 
-print "Generated Code:" generatedCode
+show "Generated Code:" generatedCode

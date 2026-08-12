@@ -81,7 +81,7 @@ async function main() {
     await runTest('Import local module', `
       import { multiply, key } from "temp_module"
       let result = multiply(3, 4)
-      print "Import result:" + str(result)
+      show "Import result:" + str(result)
     `, int2);
     
     // Verify bindings inside environment
@@ -133,21 +133,32 @@ async function main() {
     console.error(`  ✗ std/time validation failed: t1=${t1}, t2=${t2}, diff=${t2 - t1}, formatted=${formatted}`);
   }
 
-  // Test 5: Standard JSON module (std/json)
+  // Test 5: Built-in JSON conversion
   const int5 = new Interpreter();
-  await runTest('Import std/json module', `
-    import { stringify, parse } from "std/json"
+  await runTest('Use built-in JSON conversion', `
     let original = { "x": 10 }
-    let strObj = stringify(original)
-    let backObj = parse(strObj)
+    let strObj = to_json(original)
+    let backObj = from_json(strObj)
     let xVal = backObj["x"]
   `, int5);
   const xVal = (int5 as any).currentEnv.get('xVal');
   if (xVal === 10) {
-    console.log('  ✓ std/json stringify and parse validated successfully');
+    console.log('  ✓ to_json and from_json validated successfully');
   } else {
-    console.error(`  ✗ std/json validation failed, got: ${xVal}`);
+    console.error(`  ✗ built-in JSON conversion failed, got: ${xVal}`);
   }
+
+  let removedJsonRejected = false;
+  try {
+    const removedProgram = new Parser(new Lexer('import { parse } from "std/json"').scanTokens()).parse();
+    await new Interpreter().interpret(removedProgram);
+  } catch {
+    removedJsonRejected = true;
+  }
+  if (!removedJsonRejected) {
+    throw new Error('Removed std/json module must not resolve');
+  }
+  console.log('  ✓ removed std/json module is unavailable');
 
   // Test 5b: Standard Base64 module (std/base64)
   const int5b = new Interpreter();
@@ -266,17 +277,30 @@ async function main() {
   // Test 8: Allow statement with namespace scoping
   const int8 = new Interpreter();
   await runTest('Allow statement with library namespace scoping', `
-    allow "std/math" in with Math
+    allow "std/math" in as Math
     let piVal = Math.PI
     let sVal = Math.sqrt(25)
   `, int8);
   const piVal8 = (int8 as any).currentEnv.get('piVal');
   const sVal8 = (int8 as any).currentEnv.get('sVal');
   if (piVal8 === Math.PI && sVal8 === 5) {
-    console.log('  ✓ allow "module" in with LibName scoping validated successfully');
+    console.log('  ✓ allow "module" in as LibName scoping validated successfully');
   } else {
     console.error(`  ✗ allow namespace scoping validation failed: piVal8=${piVal8}, sVal8=${sVal8}`);
   }
+
+  const legacyAllowParser = new Parser(new Lexer('allow "std/math" in with Math').scanTokens());
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    legacyAllowParser.parse();
+  } finally {
+    console.error = originalConsoleError;
+  }
+  if (legacyAllowParser.errors.length === 0) {
+    throw new Error('Legacy allow "module" in with Name syntax must be rejected');
+  }
+  console.log('  ✓ legacy namespace allow syntax is rejected');
 
   // Test 9: Allow statement with specific function imports
   const int9 = new Interpreter();
@@ -311,7 +335,7 @@ async function main() {
   try {
     const int10 = new Interpreter();
     await runTest('Import third-party directory module from sesi_modules', `
-      allow "temp_test_pkg" in with Pkg
+      allow "temp_test_pkg" in as Pkg
       let doubleVal = Pkg.double_value(10)
       let nameVal = Pkg.pkg_name
     `, int10);

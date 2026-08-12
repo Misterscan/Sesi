@@ -6,4 +6,4 @@ Analyze the following text and provide 3 concise key insights:
 "text"
 Keep the total response under 120 words."}
 
-print "Analysis:" analysis
+show "Analysis:" analysis

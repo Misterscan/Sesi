@@ -1,4 +1,4 @@
-allow "helpers/safe" in with Safe
+allow "helpers/safe" in as Safe
 
 let docs_list = Safe.getFiles("getting-started")
 let more_files = ""
@@ -8,7 +8,7 @@ try {
   more_files = more_files + "\n\n=== DOCUMENT: " + "BUILTINS.md" + " ===\n" + Safe.read("docs/BUILTINS.md")
   more_files = more_files + "\n\n=== DOCUMENT: " + "README.md" + " ===\n" + Safe.read("./README.md")
 } catch (e) {
-  print "Error reading docs:" e
+  show "Error reading docs:" e
 }
 docs_list = docs_list
 let sesiDocs = ""
@@ -26,7 +26,7 @@ export let sesiDocs = sesiDocs
 prompt mandatory {"## Mandatory Syntax Rules & Quirks
 
 - **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
-- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print ""User:"" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
+- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `show` statements, literal strings and variables are placed sequentially naturally (e.g., `show ""User:"" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
 - **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{""key"": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
 - **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{""name"": ""Alice""}`).
 - **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.

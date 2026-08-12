@@ -5,7 +5,7 @@ let reviews = [
   {"id": 3, "text": "Terrible customer service and the app crashed instantly.", "rating": 1}
 ]
 
-print "--- Sesi: Sending data to Python ---"
+show "--- Sesi: Sending data to Python ---"
 
 // 2. Define the Python data-processing script
 let pythonCode = "
@@ -47,9 +47,9 @@ let rawResult = python(pythonCode, reviews)
 // 3. Sesi parses the JSON string back into a native Sesi object
 let processed = from_json(rawResult)
 
-print "--- Sesi: Received Results from Python ---"
-print "Average Rating:" processed["average_rating"]
+show "--- Sesi: Received Results from Python ---"
+show "Average Rating:" processed["average_rating"]
 
 for analysis in processed["analysis"] {
-  print "Review ID:" analysis["id"] "Rating:" analysis["rating"] "Sentiment:" analysis["sentiment"]
+  show "Review ID:" analysis["id"] "Rating:" analysis["rating"] "Sentiment:" analysis["sentiment"]
 }

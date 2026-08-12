@@ -1059,7 +1059,7 @@ export class Interpreter {
   }
 
 private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> {
-    const sensitiveBuiltins = ['exec', 'spawn', 'python', 'js', 'ffmpeg', 'gif', 'video'];
+    const sensitiveBuiltins = ['exec', 'run', 'spawn', 'python', 'js', 'ffmpeg', 'gif', 'video'];
     if (sensitiveBuiltins.includes(expr.functionName)) {
       throw new Error(`Security Violation: Automated execution of sensitive tool "${expr.functionName}" is forbidden.`);
     }
@@ -1664,37 +1664,6 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
             return new Date(t).toLocaleString(locale, formatOptions);
           } catch (e: any) {
             return new Date(t).toLocaleString();
-          }
-        }
-      });
-      return exports;
-    } else if (source === 'std/json') {
-      exports.set('stringify', {
-        type: 'function',
-        name: 'stringify',
-        params: [{ name: 'val' }],
-        body: {} as any,
-        closure: {} as any,
-        isBuiltin: true,
-        builtin: (...args: RuntimeValue[]): RuntimeValue => {
-          const [val] = args;
-          return JSON.stringify(val);
-        }
-      });
-      exports.set('parse', {
-        type: 'function',
-        name: 'parse',
-        params: [{ name: 'str' }],
-        body: {} as any,
-        closure: {} as any,
-        isBuiltin: true,
-        builtin: (...args: RuntimeValue[]): RuntimeValue => {
-          const [str] = args;
-          if (typeof str !== 'string') return null;
-          try {
-            return stripPrototypes(JSON.parse(str));
-          } catch (e) {
-            return null;
           }
         }
       });

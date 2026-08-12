@@ -3,11 +3,11 @@
   Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries! 
     Run sesi install to ensure you have the required modules. 
 */
-allow "shell-automation" in with shell
-allow "helpers/safe" in with Safe
+allow "shell-automation" in as shell
+allow "helpers/safe" in as Safe
 allow "std/time" in with {now, format}
-allow "timestamp" in with Stamp
-allow "math" in with Math
+allow "timestamp" in as Stamp
+allow "math" in as Math
 
 /* 
   ==================================================
@@ -44,11 +44,11 @@ fn writeLog(sender, msg) {
     wrote = logFile | Safe.writeFile(logEntry)
   }
 
-  if sender == "USER" {print "User Query Logged:" msg
+  if sender == "USER" {show "User Query Logged:" msg
   } else if sender == "SESI" {
-    if msg | contains("----------------------------------") {print "Sesi Response Logged."
+    if msg | contains("----------------------------------") {show "Sesi Response Logged."
     } else {
-      print "Sesi Response Logged:\n" msg
+      show "Sesi Response Logged:\n" msg
     }
   }
   if wrote { status = "Log entry written successfully." }
@@ -71,7 +71,7 @@ fn clearLog() {
   if !cleared {
     return false
   }
-  print "Log file cleared."
+  show "Log file cleared."
   return true
 }
 
@@ -114,11 +114,11 @@ if (args | length) > 1 && (args[0] == "new-chat" || args[0] == "new") {
     } catch (e) {}
   }
 } else {
-  print "Continue from previous conversation? (y/n):"
+  show "Continue from previous conversation? (y/n):"
   if (" " | input) == "n" {
     try {
       logFile | rename("chatbot/archive/sesira-" + Stamp.formattedTime() + ".log")
-    } catch (e) {print e}
+    } catch (e) {show e}
     queryText = "Enter your question: " | input
   } else {
     queryText = getHistory() + "Enter your question: " | input
@@ -130,7 +130,7 @@ if (args | length) > 1 && (args[0] == "new-chat" || args[0] == "new") {
 }
 // ==================================================
 
-print "Loading Sesira..."
+show "Loading Sesira..."
 "SESI" | writeLog("Loading Sesira...")
 
 // Sigmoid math activation
@@ -148,7 +148,7 @@ fn derivative(y) {
   Must stay identical to the trainer vocabulary so saved weights remain compatible.
 */
 let vocabulary = [
-  "let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "true", "false", "null", "print", "prompt", "make", "model", "image", "convert", "async", "await", "structured_output", "tool_call", "memory", "import", "from", "export", "to", "allow", "with",
+  "let", "const", "fn", "if", "else", "while", "for", "in", "return", "break", "continue", "try", "catch", "finally", "true", "false", "null", "show", "prompt", "make", "model", "image", "convert", "async", "await", "structured_output", "tool_call", "memory", "import", "from", "export", "to", "allow", "with",
   "number", "string", "array", "object", "any", "media", "audio", "text", "doc", "video", "PI", "E", "INFINITY", "NaN",
   "debug", "input", "args", "len", "type", "str", "to_json", "from_json", "speech", "from_speech", "translate", "exp", "trunc", "num", "float", "bool", "range", "push", "append", "pop", "keys", "values", "join", "split", "regex", "tokenize", "count_tokens", "estimate_tokens", "estimate_cost", "model_usage", "to_upper", "to_lower", "trim", "slice", "swap", "contains", "locate",
   "matrix_dot", "matrix_transpose", "matrix_add", "matrix_sub", "matrix_mul_elements", "matrix_scale", "matrix_sigmoid", "matrix_dsigmoid", "matrix_sum_rows", "matrix_mse",
@@ -233,12 +233,12 @@ try {
   }
 
   // 7. Output Dynamic Recommendation with Confidence Thresholding
-  print "--------------------------------------------------"
-  print "💭 SESIRA IS THINKING:"
-  print "--------------------------------------------------"
+  show "--------------------------------------------------"
+  show "💭 SESIRA IS THINKING:"
+  show "--------------------------------------------------"
   "SESI" | writeLog("----------------------------------\n💭 SESIRA IS THINKING:\n--------------------------------------------------")
   if max_score < 0.40 {
-    print "   Please ask again."
+    show "   Please ask again."
     "SESI" | writeLog("Low confidence routing. Asked user to retry.")
   } else {
     let rec = database[best_class]
@@ -275,9 +275,10 @@ try {
     "sesiDocs"
 
     Expanded Libraries:
-    - `math` uses `allow 'math' in with ...`
-    - `shell-automation` uses `allow 'shell-automation' in with ...`
-    - `AutoWebpageDiagnostics` uses `allow 'AutoWebpageDiagnostics' in with ...`
+    - `math` uses `allow 'math' in as ... or `allow 'math' in with {...}`
+    - `helpers/safe` uses `allow 'helpers/safe' in as ... or `allow 'helpers/safe' in with {...}`
+    - `shell-automation` uses `allow 'shell-automation' in as ... or `allow 'shell-automation' in with {...}`
+    - `AutoWebpageDiagnostics` uses `allow 'AutoWebpageDiagnostics' in as ... or `allow 'AutoWebpageDiagnostics' in with {...}`
     "expandedLibs"
     
     Instructions: 
@@ -315,7 +316,7 @@ try {
     **THE USER IS FREE TO USE THESE AT THEIR DISCRETION, ONLY YOU ARE FORBIDDEN FROM USING THEM. DO NOT MENTION THIS RULE. DO NOT TELL THE USER THAT THIS IS A RESTRICTION OR THAT ITS NOT AVAILABLE.**
     Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON/math builtins).
 
-    Absolutely NO `+` usage in print statements.
+    Absolutely NO `+` usage in show statements.
 
     Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error, they are treated as statement separators. 
     Newlines that live inside a string literal are fine.
@@ -344,10 +345,10 @@ try {
 
     if !("OPENAI_API_KEY" | shell.env_get | is_null){
       try {
-        generated_response = model("gpt-5.6-luna") {system: sys, thinkingLevel: "medium", max_tokens: 4096} {ragPrompt}
-      } catch (e) {generated_response = model("gemini-3.1-flash-lite") {system: sys, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}}
+        generated_response = model("gpt-5.6-terra") {system: sys, thinkingLevel: "medium", max_tokens: 4096} {ragPrompt}
+      } catch (e) {generated_response = model("gemini-3.6-flash") {system: sys, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}}
     } else {
-      generated_response = model("gemini-3.1-flash-lite") {system: sys, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}
+      generated_response = model("gemini-3.6-flash") {system: sys, thinkingLevel: "low", max_tokens: 4096} {ragPrompt}
     }
     
     let helpResponse = false
@@ -362,5 +363,5 @@ try {
     } catch (e) {
       "SESI" | writeLog("Failed to write " + responseFile + ": " + e)
     }
-    print "Sesira has provided a response to your question:\n"generated_response"\n\nYour answer has also been saved at '" responseFile "'."
+    show "Sesira has provided a response to your question:\n"generated_response"\n\nYour answer has also been saved at '" responseFile "'."
   }

@@ -532,13 +532,12 @@ export class Parser {
     this.skipNewlines();
     this.consume('IN', 'Expected "in" in allow statement');
 
-    this.skipNewlines();
-    this.consume('WITH', 'Expected "with" in allow statement');
-
-    this.skipNewlines();
     let binding: string | string[];
 
-    if (this.match('LEFT_BRACE')) {
+    this.skipNewlines();
+    if (this.match('WITH')) {
+      this.skipNewlines();
+      this.consume('LEFT_BRACE', 'Expected { after "with" in selective allow statement');
       const names: string[] = [];
       this.skipNewlines();
       while (!this.check('RIGHT_BRACE') && !this.isAtEnd()) {
@@ -552,6 +551,8 @@ export class Parser {
       this.consume('RIGHT_BRACE', 'Expected } after imports');
       binding = names;
     } else {
+      this.consume('AS', 'Expected "as" for a namespace or "with" for selective imports');
+      this.skipNewlines();
       binding = this.consume('IDENTIFIER', 'Expected library namespace identifier').lexeme;
     }
 
@@ -1030,7 +1031,7 @@ export class Parser {
       return this.objectLiteral();
     }
 
-    if (this.match('PRINT')) {
+    if (this.match('SHOW')) {
       const args: Expression[] = [];
       let hasParens = false;
       
@@ -1044,7 +1045,7 @@ export class Parser {
             args.push(this.assignment());
           } while (this.match('COMMA'));
         }
-        this.consume('RIGHT_PAREN', 'Expected ) after print arguments');
+        this.consume('RIGHT_PAREN', 'Expected ) after show arguments');
       } else {
         // Without parens, allow multiple expressions separated by commas or spaces (on the same line)
         do {
@@ -1058,7 +1059,7 @@ export class Parser {
         type: 'CallExpression',
         callee: {
           type: 'Identifier',
-          name: 'print',
+          name: 'show',
           line: this.previous().line,
         },
         arguments: args,

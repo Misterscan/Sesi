@@ -25,7 +25,7 @@ async function main() {
   const int1 = new Interpreter();
   await runTest('Execute HTTP GET via web_get', `
     let response = web_get("https://jsonplaceholder.typicode.com/posts/1")
-    print "GET Response summary:" + response
+    show "GET Response summary:" + response
   `, int1);
   const responseVal = (int1 as any).currentEnv.get('response');
   if (typeof responseVal === 'string' && responseVal.includes('"id": 1')) {
@@ -39,7 +39,7 @@ async function main() {
   await runTest('Execute HTTP POST via web_send', `
     let payload = "{ \\"title\\": \\"foo\\", \\"body\\": \\"bar\\", \\"userId\\": 1 }"
     let postResponse = web_send("https://jsonplaceholder.typicode.com/posts", payload)
-    print "POST Response summary:" + postResponse
+    show "POST Response summary:" + postResponse
   `, int2);
   const postResVal = (int2 as any).currentEnv.get('postResponse');
   if (typeof postResVal === 'string' && postResVal.includes('"id": 101')) {

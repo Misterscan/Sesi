@@ -5,27 +5,27 @@
   Piping is not supported for convert(). 
 */
 
-print "=== 1. Markdown to HTML ==="
+show "=== 1. Markdown to HTML ==="
 let md = "# Sesi Programming Language\nSesi is a clean, minimal, and highly legible language."
 let html = convert(doc) {file_type: "md", output_type: "html"} {md}
-print html
-print ""
+show html
+show ""
 
-print "=== 2. CSV to JSON ==="
+show "=== 2. CSV to JSON ==="
 let csvData = "id,name,role\n1,Alice,Engineer\n2,Bob,Designer"
 let json = convert(doc) {file_type: "csv", output_type: "json"} {csvData}
-print json
-print ""
+show json
+show ""
 
-print "=== 3. JSON to CSV ==="
+show "=== 3. JSON to CSV ==="
 let jsonStr = "[{\"id\":\"1\",\"name\":\"Alice\",\"role\":\"Engineer\"},{\"id\":\"2\",\"name\":\"Bob\",\"role\":\"Designer\"}]"
 let csv = convert(doc) {file_type: "json", output_type: "csv"} {jsonStr}
-print csv
-print ""
+show csv
+show ""
 
-print "=== 4. SVG to PNG (Image Conversion) ==="
+show "=== 4. SVG to PNG (Image Conversion) ==="
 let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"80\"><rect width=\"200\" height=\"80\" fill=\"#0f172a\"/><text x=\"24\" y=\"48\" fill=\"white\" font-size=\"28\">Sesi</text></svg>"
 "example_logo.svg" | write_file(svg)
 let pngPath = convert(media) {output_type: "png"} {"example_logo.svg"}
-print pngPath
-print ""
+show pngPath
+show ""

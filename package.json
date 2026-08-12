@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.8.0",
+  "version": "1.8.5",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -27,6 +27,7 @@
     "sf2"
   ],
   "scripts": {
+    "install": "node bin/sesi.js install",
     "lint": "sesi bin/lint.sesi",
     "build": "tsc",
     "commit:message": "sesi -l helpers/commit-message.sesi --staged",
@@ -83,11 +84,12 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "2.20.1",
+    "@dotenvx/dotenvx": "2.21.0",
     "@dotenvx/dotenvx-armor": "0.56.1",
     "@dotenvx/dotenvx-ops": "0.56.1",
     "@google/genai": "2.16.0",
     "@huggingface/transformers": "4.2.0",
+    "adm-zip": "0.6.0",
     "blessed": "^0.1.81",
     "html-to-text": "10.0.0",
     "image-size": "^2.0.2",
@@ -118,7 +120,8 @@
     "fast-uri": "^3.1.5",
     "find-my-way": "^9.7.0",
     "onnxruntime-node": "^1.27.0",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.3",
+    "adm-zip": "0.6.0"
   },
   "allowScripts": {
     "fsevents@2.3.2": true,

@@ -5,12 +5,12 @@ let targetDir = "docs"
 let files = []
 
 if targetDir | isEmpty {
-    print "Error: Could not list directory" targetDir
+    show "Error: Could not list directory" targetDir
 } else {
     files = targetDir | getFiles
-    print "Analyzing directory:" targetDir
+    show "Analyzing directory:" targetDir
 }
-print "Files found in directory:" files | length
+show "Files found in directory:" files | length
 
 let reports = []
 
@@ -32,25 +32,25 @@ fn analyzeFile(fullPath: string) -> object {
     if (parts | length) > 1 {
         let ext = parts[(parts | length) - 1]
         if ext == "md" {
-            print "Analyzing:" fullPath
+            show "Analyzing:" fullPath
             let report = fullPath | analyzeFile
             reports | push(report)
-            print "Summary:" report["summary"]
-            print "Complexity:" report["complexity"]
+            show "Summary:" report["summary"]
+            show "Complexity:" report["complexity"]
             }
         }
     }
 
-print "Generating folder overview..."
+show "Generating folder overview..."
 let folderSummary = structured_output({folderOverview: string, keyThemes: array<string>})(model("gemini-3.1-flash-lite") {temperature: 0.2, cache: false} {"
 You are summarizing the contents of a documentation folder based on file analyses.
 Return JSON with folderOverview and keyThemes.
 Analysis:
 "reports})
 
-print "=== Final Folder Summary ==="
-print "Overview:" folderSummary["folderOverview"]
-print "Key Themes:" folderSummary["keyThemes"] | join(", ")
+show "=== Final Folder Summary ==="
+show "Overview:" folderSummary["folderOverview"]
+show "Key Themes:" folderSummary["keyThemes"] | join(", ")
 
 let overview = folderSummary["folderOverview"]
 let themesStr = folderSummary["keyThemes"] | join(", ")
@@ -84,8 +84,8 @@ for report in reports {
     let outPath = "folder_analysis"
     try {
         outPath | md(finalMarkdown)
-        print "Wrote analysis to" outPath
+        show "Wrote analysis to" outPath
     } catch (e) {
-        print "Error writing file:" e
+        show "Error writing file:" e
     }
 }

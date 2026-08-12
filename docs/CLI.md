@@ -45,7 +45,7 @@ let total = len(args)
 
 // Access indices
 if total > 0 {
-  print "First argument:" args[0]
+  show "First argument:" args[0]
 }
 ```
 
@@ -64,7 +64,7 @@ Sesi requires statements to be terminated by either a **newline** or a **semicol
 If writing on a single terminal line, separate statements manually with `;`:
 
 ```bash
-sesi -e "let x = 10; let y = 20; print x + y"
+sesi -e "let x = 10; let y = 20; show x + y"
 ```
 
 #### Multiline Shell Pattern
@@ -75,7 +75,7 @@ If writing a multiline string in your shell, omit semicolons completely:
 sesi -e "
 let x = 10
 let y = 20
-print x + y
+show x + y
 "
 ```
 
@@ -86,7 +86,7 @@ You can pass CLI arguments to fileless inline scripts too! Any positional argume
 #### Example: Dynamic File Character Counter
 
 ```bash
-sesi -e "let path = args[0]; let content = read_file(path); print 'Character count:' len(content)" "package.json"
+sesi -e "let path = args[0]; let content = read_file(path); show 'Character count:' len(content)" "package.json"
 ```
 
 ---
@@ -201,10 +201,10 @@ sesi --repl
 sesi
 ```
 
-Inside the REPL, any **Expression Statement** (like mathematical equations, string variables, or expressions) will auto-print its evaluated result to the terminal.
+Inside the REPL, any **Expression Statement** (like mathematical equations, string variables, or expressions) will auto-show its evaluated result to the terminal.
 
 ```sesi
-Sesi Interactive Terminal (v1.8.0)
+Sesi Interactive Terminal (v1.8.5)
 Type ".exit" or press ESC to exit.
 sesi> let x = 10
 sesi> let y = 20
@@ -225,10 +225,10 @@ Sesi scripts can pause execution and prompt the user for interactive console inp
 let name = input("What is your name? ")
 let age = input("What is your age? ")
 
-print "User info:" name "is" age "years old"
+show "User info:" name "is" age "years old"
 ```
 
-When executing this script in the terminal, Sesi will print the prompts sequentially, waiting for you to type your response and press **Enter** before proceeding to the next statement.
+When executing this script in the terminal, Sesi will show the prompts sequentially, waiting for you to type your response and press **Enter** before proceeding to the next statement.
 
 ---
 
@@ -257,11 +257,11 @@ If you are working inside the Sesi repository, you can leverage native package m
 # Audit the entire workspace and save report to lint_report.md
 npm run lint
 
-# Audit a single file and print Errors & Warnings directly to stdout
+# Audit a single file and show Errors & Warnings directly to stdout
 npm run lint bad-syntax-file.sesi
 
 # Evaluate inline code
-npm run sesi:eval "print 'Sesi running via npm!'"
+npm run sesi:eval "show 'Sesi running via npm!'"
 
 # Encrypt a private script using the .env password
 npm run sesi:encrypt "my-pipeline.sesi"

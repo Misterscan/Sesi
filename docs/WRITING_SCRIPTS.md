@@ -37,13 +37,13 @@ Sesi programs are made of statements.
 
 ```sesi
 let name = "Sesi"
-print "Hello," name
+show "Hello," name
 ```
 
 For single-line inline scripts, use semicolons:
 
 ```bash
-sesi -e "let x = 10; let y = 20; print x + y"
+sesi -e "let x = 10; let y = 20; show x + y"
 ```
 
 Comments use `//` or `/* ... */`.
@@ -66,12 +66,12 @@ Create `report.sesi`:
 let started = time()
 let files = list_dir(".")
 
-print "Sesi Report"
-print "Generated at:" started
-print "File count:" len(files)
+show "Sesi Report"
+show "Generated at:" started
+show "File count:" len(files)
 
 for file in files {
-  print "-" file
+  show "-" file
 }
 ```
 
@@ -106,8 +106,8 @@ Sesi has numbers, strings, booleans, null, arrays, and objects.
 let scores = [10, 20, 30]
 let profile = {"name": "Ada", "role": "developer"}
 
-print scores[0]
-print profile["name"]
+show scores[0]
+show profile["name"]
 ```
 
 You can update variables and object fields:
@@ -125,7 +125,7 @@ Convert values when you need a specific type:
 ```sesi
 let raw = "42"
 let answer = num(raw)
-print "Answer:" str(answer)
+show "Answer:" str(answer)
 ```
 
 ---
@@ -142,10 +142,10 @@ sesi greet.sesi Alice
 
 ```sesi
 if len(args) == 0 {
-  print "Usage: sesi greet.sesi <name>"
+  show "Usage: sesi greet.sesi <name>"
 } else {
   let name = args[0]
-  print "Hello," name + "!"
+  show "Hello," name + "!"
 }
 ```
 
@@ -153,20 +153,20 @@ Validate inputs before using them. This makes scripts easier to run from termina
 
 ```sesi
 if len(args) < 2 {
-  print "Usage: sesi copy_text.sesi <input> <output>"
+  show "Usage: sesi copy_text.sesi <input> <output>"
 } else {
   let input_path = args[0]
   let output_path = args[1]
   let text = read_file(input_path)
   write_file(output_path, text)
-  print "Copied" input_path "to" output_path
+  show "Copied" input_path "to" output_path
 }
 ```
 
 Inline eval can receive arguments too:
 
 ```bash
-sesi -e "print 'First arg:' args[0]" hello
+sesi -e "show 'First arg:' args[0]" hello
 ```
 
 ---
@@ -179,11 +179,11 @@ Use `if` and `else` for branching.
 let score = 87
 
 if score >= 90 {
-  print "excellent"
+  show "excellent"
 } else if score >= 70 {
-  print "passing"
+  show "passing"
 } else {
-  print "needs work"
+  show "needs work"
 }
 ```
 
@@ -192,7 +192,7 @@ Use `while` when a loop depends on a condition:
 ```sesi
 let i = 0
 while i < 3 {
-  print i
+  show i
   i = i + 1
 }
 ```
@@ -201,7 +201,7 @@ Use numeric `for` loops for ranges:
 
 ```sesi
 for i = 0 to 5 {
-  print "Index:" i
+  show "Index:" i
 }
 ```
 
@@ -211,7 +211,7 @@ Use `for ... in` loops for arrays:
 let names = ["Ada", "Grace", "Linus"]
 
 for name in names {
-  print "Hello," name
+  show "Hello," name
 }
 ```
 
@@ -227,7 +227,7 @@ for item in [1, 2, 3, 4] {
     break
   }
 
-  print item
+  show item
 }
 ```
 
@@ -246,7 +246,7 @@ fn format_status(name: string, ok: bool) {
   return name + ": failed"
 }
 
-print format_status("database", true)
+show format_status("database", true)
 ```
 
 You can use functions as small task units:
@@ -266,7 +266,7 @@ Default parameters are supported:
 
 ```sesi
 fn greet(name: string = "World") {
-  print "Hello," name
+  show "Hello," name
 }
 
 greet()
@@ -288,10 +288,10 @@ fn mul(a, b) {
 
 // Flow 10 as first parameter into add(5), and then flow the result into mul(2)
 let result = 10 | add(5) | mul(2)
-print result // Prints 30
+show result // Prints 30
 ```
 _Rule of Thumb:_
-> Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | print).
+> Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | show).
 
 > Use standard syntax () for math, boolean logic (!, &&, ||), comparisons (==, !=), and inline checks.
 
@@ -307,8 +307,8 @@ push(tasks, "lint")
 push(tasks, "test")
 push(tasks, "build")
 
-print join(tasks, ", ")
-print pop(tasks)
+show join(tasks, ", ")
+show pop(tasks)
 ```
 
 ### Array Processing Functions
@@ -349,11 +349,11 @@ Objects are useful for configuration and structured records.
 ```sesi
 let app = {
   "name": "Sesi",
-  "version": "1.8.0"
+  "version": "1.8.5"
 }
 
 for key in keys(app) {
-  print key ":" app[key]
+  show key ":" app[key]
 }
 ```
 
@@ -364,7 +364,7 @@ let settings = {"theme": "dark", "limit": 20}
 let encoded = to_json(settings)
 let decoded = from_json(encoded)
 
-print decoded["theme"]
+show decoded["theme"]
 ```
 
 ---
@@ -382,12 +382,12 @@ Sesi provides native string utilities to format, transform, and slice text:
 - **`locate(string, sub)`**: Returns the zero-based index of the first occurrence of a substring, or `-1` if not found.
 
 ```sesi
-let original = "  Hello, Sesi V1.8.0!  "
+let original = "  Hello, Sesi V1.8.5!  "
 
-let cleaned = trim(original)                   // "Hello, Sesi V1.8.0!"
-let shouted = to_upper(cleaned)                // "HELLO, SESI V1.8.0!"
+let cleaned = trim(original)                   // "Hello, Sesi V1.8.5!"
+let shouted = to_upper(cleaned)                // "HELLO, SESI V1.8.5!"
 let part = slice(cleaned, 7, 11)               // "Sesi"
-let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V1.8.0!"
+let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V1.8.5!"
 let found = contains(cleaned, "Sesi")          // true
 let idx = locate(cleaned, "Sesi")             // 7
 ```
@@ -400,7 +400,7 @@ Sesi file paths are resolved relative to the current working directory unless yo
 
 ```sesi
 let text = read_file("notes.txt")
-print text
+show text
 ```
 
 Write files with `write_file`:
@@ -447,7 +447,7 @@ make_dir("reports")
 
 let files = list_dir(".")
 for file in files {
-  print file
+  show file
 }
 ```
 
@@ -458,7 +458,7 @@ try {
   let content = read_file("input.txt")
   write_file("output.txt", content)
 } catch (err) {
-  print "File operation failed:" err
+  show "File operation failed:" err
 }
 ```
 
@@ -470,14 +470,14 @@ Use `convert` for supported document, media, or audio conversions.
 
 ```sesi
 let html = convert(doc) {file_type: "md", output_type: "html"} {"# Hello"}
-print html
+show html
 ```
 
 When the input is a file path, Sesi writes the converted file next to the original and returns the new path.
 
 ```sesi
 let outPath = convert(doc) {output_type: "html"} {"README.md"}
-print "Wrote:" outPath
+show "Wrote:" outPath
 ```
 
 ---
@@ -503,7 +503,7 @@ let result = retry(flaky_task, {
   "backoff_factor": 2.0
 })
 
-print "Result:" result // Prints "success" after 2 retries
+show "Result:" result // Prints "success" after 2 retries
 ```
 
 ---
@@ -516,7 +516,7 @@ Use `web_get` for HTTP GET requests.
 let response = web_get("https://jsonplaceholder.typicode.com/posts/1")
 let post = from_json(response)
 
-print "Title:" post["title"]
+show "Title:" post["title"]
 ```
 
 Use `web_send` for HTTP POST requests.
@@ -529,7 +529,7 @@ let payload = to_json({
 })
 
 let response = web_send("https://jsonplaceholder.typicode.com/posts", payload)
-print response
+show response
 ```
 
 For scripts that rely on external services, always account for failures.
@@ -539,7 +539,7 @@ try {
   let response = web_get("https://example.com/data.json")
   write_file("data.json", response)
 } catch (err) {
-  print "Request failed:" err
+  show "Request failed:" err
 }
 ```
 
@@ -553,10 +553,10 @@ Use `exec` when you need to call an existing command and capture its output.
 let status = exec("git status --short")
 
 if len(status) > 0 {
-  print "Uncommitted changes:"
-  print status
+  show "Uncommitted changes:"
+  show status
 } else {
-  print "Working tree clean"
+  show "Working tree clean"
 }
 ```
 
@@ -564,7 +564,7 @@ Use `spawn` when you want to start another Sesi script in the background.
 
 ```sesi
 let pid = spawn("worker.sesi")
-print "Worker started with PID:" pid
+show "Worker started with PID:" pid
 ```
 
 Sesi runs in safe mode by default. Shell commands and broader filesystem access may be blocked unless you intentionally run locally.
@@ -597,14 +597,14 @@ let apiKey = env("GEMINI_API_KEY")
 let serverPort = env("PORT", "3000")
 
 if apiKey == null {
-  print "Warning: GEMINI_API_KEY is not set"
+  show "Warning: GEMINI_API_KEY is not set"
 }
 
-print "Server starting on port:" serverPort
+show "Server starting on port:" serverPort
 
 // Retrieve all environment variables
 let allVars = env()
-print "USER environment variable:" allVars["USER"]
+show "USER environment variable:" allVars["USER"]
 ```
 
 ---
@@ -623,8 +623,8 @@ fn fetch_todo() {
 }
 
 let results = multi_req([fetch_post, fetch_todo])
-print "Post response:" results[0]
-print "Todo response:" results[1]
+show "Post response:" results[0]
+show "Todo response:" results[1]
 ```
 
 This pattern is useful for independent API calls, independent checks, or work that does not need shared mutable state.
@@ -641,7 +641,7 @@ Use `model` for direct model calls:
 let text = read_file("notes.txt")
 let summary = model("gemini-3.5-flash-lite") {"Summarize this in 3 bullets: "text}
 
-print summary
+show summary
 ```
 
 ### Streaming Responses
@@ -657,7 +657,7 @@ let resp1 = model("gemini-3.5-flash-lite") {stream: true} {"Write a short poem a
 
 // Option 2: Handle chunks using a callback function
 fn onChunk(chunk) {
-  print "Chunk received:" chunk
+  show "Chunk received:" chunk
 }
 let resp2 = model("gemini-3.5-flash-lite") {stream: onChunk} {"Explain quantum mechanics."}
 ```
@@ -674,7 +674,7 @@ prompt request {"Classify this file as TECHNICAL, LEGAL, MARKETING, or OTHER.
   Content: "content}
 
 let category = model("gemini-3.5-flash-lite") {request}
-print file_name ":" category
+show file_name ":" category
 ```
 
 Use `structured_output` when the rest of your script needs reliable fields.
@@ -683,8 +683,8 @@ Use `structured_output` when the rest of your script needs reliable fields.
 let raw = "{\"title\": \"Buy milk\", \"completed\": false}"
 let task = structured_output({title: string, completed: bool})(raw)
 
-print task["title"]
-print task["completed"]
+show task["title"]
+show task["completed"]
 ```
 
 You can combine `model` and `structured_output`:
@@ -694,8 +694,8 @@ let review = "The tool is fast, but the setup was confusing."
 let result = structured_output({sentiment: string, summary: string})
   (model("gemini-3.5-flash-lite") {"Analyze this review and return JSON with sentiment and summary: "review})
 
-print result["sentiment"]
-print result["summary"]
+show result["sentiment"]
+show result["summary"]
 ```
 
 Use `workflow` for multi-step reasoning.
@@ -708,7 +708,7 @@ let steps = [
 ]
 
 let result = workflow(steps, read_file("proposal.txt"))
-print result["final"]
+show result["final"]
 ```
 
 Reasoning calls require a configured provider key, such as `GEMINI_API_KEY`, when you use provider-backed models.
@@ -723,11 +723,11 @@ Split larger scripts into modules with `export` and `allow ... in with ...`.
 
 ```sesi
 export fn info(message: string) {
-  print "[INFO]" message
+  show "[INFO]" message
 }
 
 export fn warn(message: string) {
-  print "[WARN]" message
+  show "[WARN]" message
 }
 ```
 
@@ -749,17 +749,15 @@ allow "std/math" in with {
 allow "std/time" in with {
   now, sleep
 }
-allow "std/json" in with {
-  parse, stringify
-}
 allow "std/base64" in with {
   encode, decode
 }
 allow "std/db" in with {db_open}
 
-print "sqrt(9):" sqrt(9)
-print "Current time:" now()
-print decode(encode("Sesi"))
+show "sqrt(9):" sqrt(9)
+show "Current time:" now()
+show from_json(to_json({"ready": true}))["ready"]
+show decode(encode("Sesi"))
 ```
 
 ### Scoped Namespace Imports (`allow`)
@@ -768,18 +766,15 @@ You can import standard modules or custom library namespaces into scoped objects
 
 ```sesi
 // Import entire math module under a single Namespace
-allow "std/math" in with Math
-print "PI constant:" Math.PI
+allow "std/math" in as Math
+show "PI constant:" Math.PI
 
-// Import specific exports into a scoped block
-allow "std/json" in with {
-  stringify, parse
-}
+// JSON conversion is built in; no module import is needed
 let original = {
   "project": "Sesi",
-  "version": "1.8.0"
+  "version": "1.8.5"
 }
-print stringify(original)
+show to_json(original)
 ```
 
 Module resolution also supports configured library paths through `SESI_PATH` and the global `~/.sesi/lib` library directory.
@@ -819,12 +814,12 @@ Ask the built-in co-pilot about a file:
 sesi my_script.sesi -h "What is this script doing?"
 ```
 
-Inside a script, print intermediate values and types.
+Inside a script, show intermediate values and types.
 
 ```sesi
 let value = read_file("data.txt")
-print "value type:" type(value)
-print "value length:" len(value)
+show "value type:" type(value)
+show "value length:" len(value)
 ```
 
 ---
@@ -850,7 +845,7 @@ Sesi provides the `input(prompt)` built-in function to query the user for data s
 let name = input("What is your name? ")
 let age = input("What is your age? ")
 
-print "Hello," name "! You are" age "years old."
+show "Hello," name "! You are" age "years old."
 ```
 
 If you are running the script in a non-interactive environment or need to fall back when arguments are not provided:
@@ -862,7 +857,7 @@ if len(args) > 0 {
 } else {
   queryText = input("Enter your question: ")
 }
-print "Processing query:" queryText
+show "Processing query:" queryText
 ```
 
 ---
@@ -901,7 +896,7 @@ fn run_analysis() {
 
 // Use retry for robust filesystem operations
 let report_path = retry(run_analysis, {"max_retries": 3, "initial_delay": 500})
-print "Wrote report to:" report_path
+show "Wrote report to:" report_path
 ```
 
 Run it:
@@ -919,9 +914,9 @@ let summary = model("gemini-3.5-flash-lite") {stream: true} {"Summarize this fol
   "report_text}
 try {
   write_file("reports/daily_report_summary.txt", summary)
-  print "Summary saved to reports/daily_report_summary.txt"
+  show "Summary saved to reports/daily_report_summary.txt"
 } catch (err) {
-  print "Analysis failed:" err
+  show "Analysis failed:" err
 }
 ```
 

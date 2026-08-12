@@ -7,9 +7,9 @@
   Usage:
     sesi scraper.sesi [url]
 */
-allow "helpers/safe" in with Safe
-allow "std/time" in with Time
-allow "std/browser" in with Browser
+allow "helpers/safe" in as Safe
+allow "std/time" in as Time
+allow "std/browser" in as Browser
 let currentTime = Time.format(Time.now(), {"locale": "en-US", "dateStyle": "medium", "timeStyle": "short"})
 
 // Ensure reports directory exists
@@ -43,12 +43,12 @@ define_tool("url_validator", validate_url, "Validates if the URL has http or htt
 // Validate the URL using the registered tool
 let isValid = tool_call(url_validator)(target_url)
 if !isValid {
-  print "Error: Invalid URL specified:" target_url
-  print "The scraper requires a valid URL starting with http:// or https://"
+  show "Error: Invalid URL specified:" target_url
+  show "The scraper requires a valid URL starting with http:// or https://"
   raise_error("ValidationError", "Invalid URL scheme")
 }
 
-print "🌐 Fetching webpage and extracting metadata via browser automation from:" target_url
+show "🌐 Fetching webpage and extracting metadata via browser automation from:" target_url
 let result = {}
 try {
   let browser = Browser.launch({"headless": true})
@@ -98,7 +98,7 @@ try {
   page.close()
   browser.close()
 } catch (e) {
-  print "❌ Failed to retrieve page content:" e
+  show "❌ Failed to retrieve page content:" e
   raise_error("NetworkError", "Failed to retrieve webpage content")
 }
 
@@ -108,10 +108,10 @@ let headlines = result["headlines"]
 let keyContent = result["keyContent"]
 let highlights = result["highlights"]
 
-print "✅ Extraction finished successfully!"
-print "Page Title:" pageTitle
-print "Primary Topic:" siteTopic
-print "Number of headlines found:" len(headlines)
+show "✅ Extraction finished successfully!"
+show "Page Title:" pageTitle
+show "Primary Topic:" siteTopic
+show "Number of headlines found:" len(headlines)
 
 // Construct structured JSON database entry
 let outputData = {
@@ -127,9 +127,9 @@ let outputData = {
 try {
   Safe.json(outputDir + "scraped_results", outputData)
 } catch (e) {
-  print "Error writing results JSON:" e
+  show "Error writing results JSON:" e
 }
-print "💾 Saved database entry to " outputDir "/scraped_results.json"
+show "💾 Saved database entry to " outputDir "/scraped_results.json"
 
 // Compile Markdown report
 let mdHeadlines = ""
@@ -160,6 +160,6 @@ prompt reportBody {"# Web Scraper Report
 try {
   Safe.md(outputDir + pageTitle + "-report-" + timestamp, reportBody)
 } catch (e) {
-  print "Error writing report Markdown:" e
+  show "Error writing report Markdown:" e
 }
-print "📄 Compiled and saved report to" outputDir pageTitle "-report-" timestamp ".md"
+show "📄 Compiled and saved report to" outputDir pageTitle "-report-" timestamp ".md"

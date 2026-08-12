@@ -1,8 +1,8 @@
 // Functions
 allow "std/terminal" in with { color }
 
-fn add(a: number, b: number) -> number {print color(str(a + b), "green")}
-fn greet(name: string = "World") -> string {print color("Hello " + name + "!", "cyan")}
+fn add(a: number, b: number) -> number {show color(str(a + b), "green")}
+fn greet(name: string = "World") -> string {show color("Hello " + name + "!", "cyan")}
 
 add(5, 3) // or 5 | add(3)
 greet()
@@ -11,15 +11,15 @@ greet("Alice") // or "Alice" | greet
 // Advanced Functions
 fn calculate(operation: string, a: number, b: number) -> any {
     if operation == "add" {
-        print color(str(a + b), "green")
+        show color(str(a + b), "green")
     } else if operation == "subtract" {
-        print a - b
+        show a - b
     } else if operation == "multiply" {
-        print a * b
+        show a * b
     } else if operation == "divide" {
-        print a / b
+        show a / b
     } else {
-        print "Invalid operation"
+        show "Invalid operation"
     }
 }
 
@@ -27,13 +27,13 @@ calculate("multiply", 5, 3) // or "multiply" | calculate(5, 3)
 
 // Define your functions and call it using a custom tool
 fn getSesi() -> string {
-    return "1.8.0"
+    return "1.8.5"
 }
 
 define_tool("get-sesi", getSesi, "Get the current Sesi version")
 let v = tool_call(getSesi)() // or simply getSesi() since tool_call is optional for direct calls
 
-print "Current version:" v
+show "Current version:" v
 
 /*
     This section demonstrates the use of Sesi's built-in array functions:
@@ -53,7 +53,7 @@ print "Current version:" v
     8. trunc: Truncate numbers to integers or trim strings to length.
 */
 let numbers = [1, 2, 3, 4, 5, 6]
-print "Initial numbers:" numbers
+show "Initial numbers:" numbers
 
 /*
   1. map(array, callback)
@@ -63,7 +63,7 @@ fn square(x: number) -> number {
   return x * x
 }
 let squares = map(numbers, square) // or simply numbers | map(square)
-print "Squares (map):" squares
+show "Squares (map):" squares
 
 /*
   2. filter(array, callback)
@@ -73,7 +73,7 @@ fn isEven(x: number) -> bool {
   return x % 2 == 0
 }
 let evens = filter(numbers, isEven) // or simply numbers | filter(isEven)
-print "Evens (filter):" evens
+show "Evens (filter):" evens
 
 /*
   3. reduce(array, callback, initialValue)
@@ -83,14 +83,14 @@ fn sum(accumulator: number, x: number) -> number {
   return accumulator + x
 }
 let totalSum = reduce(numbers, sum) // or simply numbers | reduce(sum)
-print "Total Sum (reduce):" totalSum
+show "Total Sum (reduce):" totalSum
 
 // Product of all numbers starting with initial value of 10
 fn multiply(accumulator: number, x: number) -> number {
   return accumulator * x
 }
 let product = reduce(numbers, multiply, 10) // or simply numbers | reduce(multiply, 10)
-print "Product starting with 10 (reduce):" product
+show "Product starting with 10 (reduce):" product
 
 /*
   4. find(array, callback)
@@ -100,65 +100,65 @@ fn greaterThanFour(x: number) -> number {
   return x > 4
 }
 let match = find(numbers, greaterThanFour) // or simply numbers | find(greaterThanFour)
-print "First match > 4 (find):" match
+show "First match > 4 (find):" match
 
 // String functions
 
-let original = "  Hello, Sesi V1.8.0!  "
-print "Original string:" original
+let original = "  Hello, Sesi V1.8.5!  "
+show "Original string:" original
 
 // 1. to_upper(string)
 let shouted = to_upper(original) // or simply original | to_upper
-print "Uppercase:" shouted
+show "Uppercase:" shouted
 
 // 2. to_lower(string)
 let whispered = to_lower(original) // or simply original | to_lower
-print "Lowercase:" whispered
+show "Lowercase:" whispered
 
 // 3. trim(string)
 let cleaned = trim(original) // or simply original | trim
-print "Trimmed:" cleaned
+show "Trimmed:" cleaned
 
 /*
     4. slice(collection, start, end = null)
     Slicing a string
 */
 let part = slice(cleaned, 7, 11) // or simply cleaned | slice(7, 11) // "Sesi"
-print "Sliced string (index 7 to 11):" part
+show "Sliced string (index 7 to 11):" part
 
 
 // Slicing an array
 let arr = [10, 20, 30, 40, 50]
 let subArr = slice(arr, 1, 4) // or simply arr | slice(1, 4) // [20, 30, 40]
-print "Original array:" arr
-print "Sliced array (index 1 to 4):" subArr
+show "Original array:" arr
+show "Sliced array (index 1 to 4):" subArr
 
 /*
     5. swap(string, target, replacement)
     Global replacement of characters
 */
 let replaced = swap(cleaned, " ", "_") // or simply cleaned | swap(" ", "_")
-print "Replaced spaces with underscores:" replaced
+show "Replaced spaces with underscores:" replaced
 
 // 6. contains(string, sub)
-let hasVersion = contains(cleaned, "V1.8.0") // or simply cleaned | contains("V1.8.0")
-print "Contains 'V1.8.0':" hasVersion
+let hasVersion = contains(cleaned, "V1.8.5") // or simply cleaned | contains("V1.8.5")
+show "Contains 'V1.8.5':" hasVersion
 
 // 7. locate(string, sub)
 let idx = locate(cleaned, "Sesi") // or simply cleaned | locate("Sesi")
-print "Index of 'Sesi':" idx
+show "Index of 'Sesi':" idx
 
 // 8. trunc(value, length)
 /*
     Truncate a float to an integer or truncate a string to a specified length.
     If the second argument is omitted, it defaults to truncating to an integer for numbers or the full length for strings.
 */
-print "Truncate float (45.89):" trunc(45.89)
+show "Truncate float (45.89):" trunc(45.89)
 // or simply 45.89 | trunc
-print "Truncate string to length 4:" trunc(cleaned, 4)
+show "Truncate string to length 4:" trunc(cleaned, 4)
 // or simply cleaned | trunc(4)
 
-print "\n--- New String Functions ---"
+show "\n--- New String Functions ---"
 /*
     1. length(string): Returns the length of the string.
     2. starts_with(string, prefix): Checks if the string starts with the given prefix.
@@ -166,18 +166,18 @@ print "\n--- New String Functions ---"
     4. index_of(string, sub): Returns the index of the first occurrence of sub in string, or -1 if not found.
     5. repeat(string, count): Repeats the string count times.
 */
-print "length('hello'):" length("hello")
+show "length('hello'):" length("hello")
 // or simply "hello" | length
-print "starts_with('hello', 'he'):" starts_with("hello", "he")
+show "starts_with('hello', 'he'):" starts_with("hello", "he")
 // or simply "hello" | starts_with("he")
-print "ends_with('hello', 'lo'):" ends_with("hello", "lo")
+show "ends_with('hello', 'lo'):" ends_with("hello", "lo")
 // or simply "hello" | ends_with("lo")
-print "index_of('hello', 'l'):" index_of("hello", "l")
+show "index_of('hello', 'l'):" index_of("hello", "l")
 // or simply "hello" | index_of("l")
-print "repeat('a', 3):" repeat("a", 3)
+show "repeat('a', 3):" repeat("a", 3)
 // or simply "a" | repeat(3)
 
-print "\n--- New Array Functions ---"
+show "\n--- New Array Functions ---"
 /*
     1. includes(array, value): Checks if the array includes the given value.
     2. reverse(array): Reverses the order of elements in the array.
@@ -187,35 +187,35 @@ print "\n--- New Array Functions ---"
     6. append(array, value): Appends a value to the end of the array.
 */
 let myArr = [3, 1, 4, 1, 5, 9]
-print "Original array:" myArr
-print "includes(myArr, 4):" includes(myArr, 4)
+show "Original array:" myArr
+show "includes(myArr, 4):" includes(myArr, 4)
 // or simply myArr | includes(4)
-print "reverse(myArr):" reverse(myArr)
+show "reverse(myArr):" reverse(myArr)
 // or simply myArr | reverse
-print "sort(myArr):" sort(myArr)
+show "sort(myArr):" sort(myArr)
 // or simply myArr | sort
-print "unique(myArr):" unique(myArr)
+show "unique(myArr):" unique(myArr)
 // or simply myArr | unique
-print "flatten([[1, 2], [3, 4]]):" flatten([[1, 2], [3, 4]])
+show "flatten([[1, 2], [3, 4]]):" flatten([[1, 2], [3, 4]])
 // or simply [[1, 2], [3, 4]] | flatten
-print "append(myArr, 2):" append(myArr, 2)
+show "append(myArr, 2):" append(myArr, 2)
 // or simply myArr | append(2)
 
-print "\n--- Function Introspection ---"
+show "\n--- Function Introspection ---"
 /*
     1. name(func): Returns the name of the function.
     2. arity(func): Returns the number of parameters the function expects.
     3. is_function(value): Checks if the value is a function.
 */
 fn sample_func(a: number, b: number) -> number { return a + b }
-print "name(sample_func):" name(sample_func)
+show "name(sample_func):" name(sample_func)
 // or simply sample_func | name
-print "arity(sample_func):" arity(sample_func)
+show "arity(sample_func):" arity(sample_func)
 // or simply sample_func | arity
-print "is_function(sample_func):" is_function(sample_func)
+show "is_function(sample_func):" is_function(sample_func)
 // or simply sample_func | is_function
 
-print "\n--- Collection / Type Checks ---"
+show "\n--- Collection / Type Checks ---"
 /*
     1. is_array(value): Checks if the value is an array.
     2. is_object(value): Checks if the value is an object (dictionary).
@@ -227,21 +227,21 @@ print "\n--- Collection / Type Checks ---"
     Wrap in parentheses to avoid ambiguity with the array literal syntax when using the pipe operator.
     Same applies when used in if else statements or other expressions
 */
-print "is_array([1, 2]):" is_array([1, 2])
+show "is_array([1, 2]):" is_array([1, 2])
 // or simply [1, 2] | is_array
 // if !([1, 2] | is_array) {...}
-print "is_object({'a': 1}):" is_object({"a": 1})
+show "is_object({'a': 1}):" is_object({"a": 1})
 // or simply ({"a": 1}) | is_object
 // if !({"a": 1} | is_object) {...}
-print "is_string('hello'):" is_string("hello")
+show "is_string('hello'):" is_string("hello")
 // or simply "hello" | is_string
 // if !("hello" | is_string) {...}
-print "is_number(42):" is_number(42)
+show "is_number(42):" is_number(42)
 // or simply 42 | is_number
 // if !(42 | is_number) {...}
-print "is_bool(true):" is_bool(true)
+show "is_bool(true):" is_bool(true)
 // or simply true | is_bool
 // if !(true | is_bool) {...}
-print "is_null(null):" is_null(null)
+show "is_null(null):" is_null(null)
 // or simply (null) | is_null
 // if !(null | is_null) {...}

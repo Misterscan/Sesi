@@ -1,4 +1,4 @@
 // Basic "Hello Sesi" example with terminal styling
 allow "std/terminal" in with { color }
 
-print color("Hello, Sesi!", "green")
+show color("Hello, Sesi!", "green")

@@ -29,7 +29,7 @@
 
 ### Built-in Functions ✅
 
-- [x] print, type, str, num, bool
+- [x] show (renamed from now deprecated `print` in v1.8.5), type, str, num, bool
 - [x] len, push, pop, join, split
 - [x] range, keys, values
 - [x] read_file, write_file

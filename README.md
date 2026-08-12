@@ -111,7 +111,7 @@ Useful CLI shortcuts:
 
 ```bash
 # Evaluate a quick snippet
-sesi -e "print 'hello'"
+sesi -e "show 'hello'"
 ```
 
 ```bash
@@ -168,7 +168,7 @@ npm run sesi examples/main/01_hello.sesi
 
 ```bash
 # Evaluate an inline snippet
-npm run sesi:eval "print 'Sesi running!'"
+npm run sesi:eval "show 'Sesi running!'"
 ```
 
 ```bash
@@ -227,12 +227,12 @@ Sesi is designed for developers who want to:
 let x = 10
 let y = 20
 let result = x + y
-print result // 30
+show result // 30
 
 // Reasoning-powered code generation
 prompt generateCode {"Write a TypeScript function that reverses a string"}
 let code = model("gemini-3.1-pro-preview") {generateCode}
-print code
+show code
 ```
 
 ## Security & Sandboxing
@@ -246,7 +246,7 @@ Sesi incorporates a **safe-by-default, zero-trust sandboxing engine**.
    - _Overriding Safety:_ Developers can explicitly bypass safe mode programmatically by initializing the interpreter with options, using the `-l` flag when running the `sesi` executable, or in the .env file by setting `SESI_SAFE_MODE=false`.
 
 2. **Absolute Prototype Pollution Immunity**:
-   - Sesi uses **prototype-free objects (`Object.create(null)`)** for all object literals, JSON parses (`from_json` or `std/json`), and structured model responses inside the interpreter.
+   - Sesi uses **prototype-free objects (`Object.create(null)`)** for all object literals, JSON parses (`from_json`), and structured model responses inside the interpreter.
    - Because these objects do not inherit from standard JavaScript prototypes and possess no `__proto__` or prototype chain, **prototype pollution is physically and architecturally impossible**.
 
 3. **Strict Path Whitelisting**:
@@ -399,7 +399,7 @@ Sesi/
 - **Standard Library Modules**: Native support for imported standard libraries, including:
   - `std/math` (providing `PI`, `E`, `sqrt`, `pow`, `sin`, `cos`, etc.)
   - `std/time` (providing `sleep` and `now`)
-  - `std/json` (providing JSON serialization/deserialization)
+  - JSON serialization/deserialization through the built-in `to_json` and `from_json` functions
 
 ### Reasoning-Native Features ✅
 

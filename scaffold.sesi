@@ -11,8 +11,8 @@
   Or simply run `sesi -l scaffold.sesi` and it will prompt you for the rest.
 */
 
-allow "std/time" in with Time
-allow "helpers/safe" in with Safe
+allow "std/time" in as Time
+allow "helpers/safe" in as Safe
 allow "shell-automation" in with {run_command_log}
 
 // Parse target folder name
@@ -44,7 +44,7 @@ cleanTarget = swap(cleanTarget, "G:\\", "")
 cleanTarget = swap(cleanTarget, " ", "-")
 cleanTarget = to_lower(cleanTarget)
 
-print "⚡ Scaffolding new Sesi project in:" target
+show "⚡ Scaffolding new Sesi project in:" target
 
 let agentsDir = target + "/.agents"
 let rulesDir = agentsDir + "/rules"
@@ -76,9 +76,9 @@ try {
   Safe.newDir(gettingStartedDir)
   Safe.newDir(gettingStartedOptionalDir)
   Safe.newDir(helpersDir)
-  print "✓ Directories created"
+  show "✓ Directories created"
 } catch (err) {
-  print "⚠️ Failed to create directories:" err
+  show "⚠️ Failed to create directories:" err
 }
 
 // Generate package.json
@@ -109,7 +109,7 @@ prompt packageJson {"{
     \"decrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -dec\"
   },
   \"dependencies\": {
-    \"@misterscan/sesi\": \"1.8.0\"
+    \"@misterscan/sesi\": \"1.8.5\"
   },
     \"allowScripts\": {
     \"fsevents@2.3.2\": true,
@@ -119,18 +119,18 @@ prompt packageJson {"{
 }"}
 
 if Safe.writeFile(target + "/package.json", packageJson) {
-  print "✓ Generated package.json"
+  show "✓ Generated package.json"
 } else {
-  print "⚠️ Failed to generate package.json"
+  show "⚠️ Failed to generate package.json"
 }
 
 // Add theory.sesi to the target folder
 let theoryContent = Safe.readFile("theory.sesi")
 if len(theoryContent) > 0 {
   if Safe.writeFile(target + "/theory.sesi", theoryContent) {
-    print "✓ Copied theory.sesi"
+    show "✓ Copied theory.sesi"
   } else {
-    print "⚠️ Failed to copy theory.sesi"
+    show "⚠️ Failed to copy theory.sesi"
   }
 }
 
@@ -143,9 +143,9 @@ dist/
 "}
 
 if Safe.writeFile(target + "/.gitignore", gitIgnore) {
-  print "✓ Generated .gitignore"
+  show "✓ Generated .gitignore"
 } else {
-  print "⚠️ Failed to generate .gitignore"
+  show "⚠️ Failed to generate .gitignore"
 }
 
 // Generate main.sesi (Starter Sesi script)
@@ -159,11 +159,11 @@ prompt mainSesi {'/*
 
 // 1. Variables and Types
 let language = "Sesi"
-let version = "1.8.0"
+let version = "1.8.5"
 let features = ["Reasoning", "Embedded DB", "SVG Drawing", "Audio Synthesis", "Browser Integration"]
 
-print "Welcome to" language "version" version "!"
-print "----------------------------------------"
+show "Welcome to" language "version" version "!"
+show "----------------------------------------"
 
 // 2. Command-Line Arguments & Interactive Input
 let userName = ""
@@ -173,8 +173,8 @@ if len(args) > 0 {
   userName = input("Please enter your name to begin: ")
 }
 
-print "Hello," userName "! Let\'s explore some Sesi syntax."
-print ""
+show "Hello," userName "! Let\'s explore some Sesi syntax."
+show ""
 
 // 3. Functions
 fn greet_user(name: string, lang: string) -> string {
@@ -183,22 +183,22 @@ fn greet_user(name: string, lang: string) -> string {
 }
 
 let greeting = greet_user(userName, language)
-print greeting
-print ""
+show greeting
+show ""
 
 // 4. Loops and Collections
-print "Here are some cool features of Sesi:"
+show "Here are some cool features of Sesi:"
 for feature in features {
-  print " - " feature
+  show " - " feature
 }
-print ""
+show ""
 
 // 5. Numeric Ranges (starts at 1, goes up to but excluding 4)
-print "Counting up to 3:"
+show "Counting up to 3:"
 for i = 1 to 4 {
-  print "Count:" i
+  show "Count:" i
 }
-print ""
+show ""
 
 // 6. Prompt Blocks (Sesi\'s unique string composition)
 let topic = "Sesi Programming"
@@ -206,7 +206,7 @@ prompt welcomeMessage {"Topic: " topic "
 User: " userName "
 Status: Ready for experimentation!"}
 
-print welcomeMessage
+show welcomeMessage
 
 // 7. Scrape a website
 allow "std/browser" with {launch}
@@ -224,9 +224,9 @@ browser.close()
 sesi("theory.sesi")'}
 
 if Safe.writeFile(target + "/main.sesi", mainSesi) {
-  print "✓ Generated main.sesi"
+  show "✓ Generated main.sesi"
 } else {
-  print "⚠️ Failed to generate main.sesi"
+  show "⚠️ Failed to generate main.sesi"
 }
 
 // Generate README.md
@@ -253,7 +253,7 @@ npm start
 To run inline Sesi code evaluations:
 
 ```bash
-npm run eval \"print 'Hello from eval'\"
+npm run eval \"show 'Hello from eval'\"
 ```
 
 To run the linter:
@@ -276,18 +276,18 @@ npm run decrypt <filename>
 "}
 
 if Safe.writeFile(target + "/README.md", readMe) {
-  print "✓ Generated README.md"
+  show "✓ Generated README.md"
 } else {
-  print "⚠️ Failed to generate README.md"
+  show "⚠️ Failed to generate README.md"
 }
 
 // Copy GUIDE.md to target/GUIDE.md
 let guideContent = Safe.readFile("GUIDE.md")
 if len(guideContent) > 0 {
   if Safe.writeFile(target + "/GUIDE.md", guideContent) {
-    print "✓ Copied GUIDE.md"
+    show "✓ Copied GUIDE.md"
   } else {
-    print "⚠️ Failed to copy GUIDE.md"
+    show "⚠️ Failed to copy GUIDE.md"
   }
 }
 
@@ -346,7 +346,7 @@ Sesi is **NOT** the following coding languages, therefore **NEVER UTILIZE THE SA
 ## Mandatory Syntax Rules & Quirks
 
 - **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
-- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print "User:" name`). It is highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
+- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `show` statements, literal strings and variables are placed sequentially naturally (e.g., `show "User:" name`). It is highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
 - **No Raw Newlines in Prompt Blocks:** Raw newlines (e.g. formatting layout carriage returns) are strictly forbidden outside of string literals inside prompt blocks `{}` (e.g., between `{` and the first string, or between elements). These will be parsed as statement separators and trigger syntax errors. Write prompt blocks inline on a single line (e.g., `{"prompt text " variable}`), or place newlines inside the double quotes of a multiline string. To include actual newlines in the **output**, place them literally inside the string quotes:
 
 ```sesi
@@ -372,9 +372,9 @@ For all quirks and specific syntaxing, visit GUIDE.md/, dist/, node_modules/@mis
 - `.sesi_cache.json`'}
 
 if Safe.writeFile(rulesDir + "/sesi-must-read.md", sesiMustReadRules) {
-  print "✓ Generated .agents/rules/sesi-must-read.md"
+  show "✓ Generated .agents/rules/sesi-must-read.md"
 } else {
-  print "⚠️ Failed to generate .agents/rules/sesi-must-read.md"
+  show "⚠️ Failed to generate .agents/rules/sesi-must-read.md"
 }
 
 // Generate .agents/workflows/create-sesi-script.md
@@ -397,7 +397,7 @@ description: Intent-based development workflow for generating concise, syntax-ac
 ## Mandatory Syntax Rules & Quirks
 
 - **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
-- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print "User:" name`). It is highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
+- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `show` statements, literal strings and variables are placed sequentially naturally (e.g., `show "User:" name`). It is highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
 - **No Raw Newlines in Prompt Blocks:** Raw newlines (e.g. formatting layout carriage returns) are strictly forbidden outside of string literals inside prompt blocks `{}` (e.g., between `{` and the first string, or between elements). These will be parsed as statement separators and trigger syntax errors. Write prompt blocks inline on a single line (e.g., `{"prompt text " variable}`), or place newlines inside the double quotes of a multiline string. To include actual newlines in the **output**, place them literally inside the string quotes:
 
 ```sesi
@@ -438,9 +438,9 @@ When AI agents write or edit `.sesi` scripts, they must use this debugging loop:
 8. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run eval ""sesi code""` or `node node_modules/@misterscan/sesi/bin/sesi.js -e ""...""`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.'}
 
 if Safe.writeFile(workflowsDir + "/create-sesi-script.md", createSesiScript) {
-  print "✓ Generated .agents/workflows/create-sesi-script.md"
+  show "✓ Generated .agents/workflows/create-sesi-script.md"
 } else {
-  print "⚠️ Failed to generate .agents/workflows/create-sesi-script.md"
+  show "⚠️ Failed to generate .agents/workflows/create-sesi-script.md"
 }
 
 // Generate .agents/workflows/fix-sesi-script.md
@@ -471,9 +471,9 @@ description: Debugging and validation of error prone sesi scripts.
 _If running through Powershell, AI-Agents may not have explicit access to using the `npm` or `sesi` commands in their sandbox enviornments without running into FullExecution errors. In this case, use `node node_modules/@misterscan/sesi/bin/sesi.js <file> <option>` in replacement of `npm run sesi`._'}
 
 if Safe.writeFile(workflowsDir + "/fix-sesi-script.md", fixSesiScript) {
-  print "✓ Generated .agents/workflows/fix-sesi-script.md"
+  show "✓ Generated .agents/workflows/fix-sesi-script.md"
 } else {
-  print "⚠️ Failed to generate .agents/workflows/fix-sesi-script.md"
+  show "⚠️ Failed to generate .agents/workflows/fix-sesi-script.md"
 }
 
 // Generate env.example
@@ -484,9 +484,9 @@ GEMINI_API_KEY=your-api-key-here
 SESI_PASSWORD=your-password-here"}
 
 if Safe.writeFile(target + "/env.example", envExample) {
-  print "✓ Generated env.example"
+  show "✓ Generated env.example"
 } else {
-  print "⚠️ Failed to generate env.example"
+  show "⚠️ Failed to generate env.example"
 }
 
 // Copy sesi-db-chatbot and all its .json files from sesi-db directory into the target folder.
@@ -495,12 +495,12 @@ let dbChatbotContent = Safe.readFile("chatbot/sesi_db_chatbot.sesi")
 if len(dbChatbotContent) > 0 {
   let dbChatbotDest = target + "/chatbot/sesi_db_chatbot.sesi"
   if Safe.writeFile(dbChatbotDest, dbChatbotContent) {
-    print "✓ Copied sesi-db-chatbot to chatbot/sesi_db_chatbot.sesi"
+    show "✓ Copied sesi-db-chatbot to chatbot/sesi_db_chatbot.sesi"
   } else {
-    print "⚠️ Failed to write sesi-db-chatbot"
+    show "⚠️ Failed to write sesi-db-chatbot"
   }
 } else {
-  print "⚠️ Could not read source sesi-db-chatbot"
+  show "⚠️ Could not read source sesi-db-chatbot"
 }
 
 let dbFiles = ["trained_brain.json"]
@@ -509,12 +509,12 @@ for file in dbFiles {
   if len(fileContent) > 0 {
     let fileDest = target + "/sesi-db/" + file
     if Safe.writeFile(fileDest, fileContent) {
-      print "✓ Copied" file "to sesi-db/" file
+      show "✓ Copied" file "to sesi-db/" file
     } else {
-      print "⚠️ Failed to write" file
+      show "⚠️ Failed to write" file
     }
   } else {
-    print "⚠️ Could not read source" file
+    show "⚠️ Could not read source" file
   }
 }
 
@@ -523,12 +523,12 @@ let lintContent = Safe.readFile("bin/lint.sesi")
 if len(lintContent) > 0 {
   let lintDest = target + "/bin/lint.sesi"
   if Safe.writeFile(lintDest, lintContent) {
-    print "✓ Copied bin/lint.sesi to:" target "/bin/lint.sesi"
+    show "✓ Copied bin/lint.sesi to:" target "/bin/lint.sesi"
   } else {
-    print "⚠️ Failed to write bin/lint.sesi"
+    show "⚠️ Failed to write bin/lint.sesi"
   }
 } else {
-  print "⚠️ Could not read source bin/lint.sesi"
+  show "⚠️ Could not read source bin/lint.sesi"
 }
 
 // Copy the examples folder and all its files
@@ -539,16 +539,16 @@ try {
     if len(fileContent) > 0 {
       let fileDest = examplesMainDir + "/" + file
       if Safe.writeFile(fileDest, fileContent) {
-        print "✓ Copied" file "to" examplesMainDir "/" file
+        show "✓ Copied" file "to" examplesMainDir "/" file
       } else {
-        print "⚠️ Failed to write" file
+        show "⚠️ Failed to write" file
       }
     } else {
-      print "⚠️ Could not read source" file
+      show "⚠️ Could not read source" file
     }
   }
 } catch (e) {
-  print "⚠️ Could not read source examples/main"
+  show "⚠️ Could not read source examples/main"
 }
 
 try {
@@ -558,16 +558,16 @@ try {
     if len(fileContent) > 0 {
       let fileDest = examplesOptionalDir + "/" + file
       if Safe.writeFile(fileDest, fileContent) {
-        print "✓ Copied" file "to" examplesOptionalDir "/" file
+        show "✓ Copied" file "to" examplesOptionalDir "/" file
       } else {
-        print "⚠️ Failed to write" file
+        show "⚠️ Failed to write" file
       }
     } else {
-      print "⚠️ Could not read source" file
+      show "⚠️ Could not read source" file
     }
   }
 } catch (e) {
-  print "⚠️ Could not read source examples/optional"
+  show "⚠️ Could not read source examples/optional"
 }
 
 // Copy test-runner.sesi to target/test-runner.sesi
@@ -575,12 +575,12 @@ let testRunnerContent = Safe.readFile("bin/test-runner.sesi")
 if len(testRunnerContent) > 0 {
   let testRunnerDest = target + "/bin/test-runner.sesi"
   if Safe.writeFile(testRunnerDest, testRunnerContent) {
-    print "✓ Copied bin/test-runner.sesi to:" target "/bin/test-runner.sesi"
+    show "✓ Copied bin/test-runner.sesi to:" target "/bin/test-runner.sesi"
   } else {
-    print "⚠️ Failed to write bin/test-runner.sesi"
+    show "⚠️ Failed to write bin/test-runner.sesi"
   }
 } else {
-  print "⚠️ Could not read source bin/test-runner.sesi"
+  show "⚠️ Could not read source bin/test-runner.sesi"
 }
 
 // Copy the getting-started folder and all its files
@@ -591,16 +591,16 @@ try {
     if len(fileContent) > 0 {
       let fileDest = gettingStartedDir + "/" + file
       if Safe.writeFile(fileDest, fileContent) {
-        print "✓ Copied" file "to getting-started/" file
+        show "✓ Copied" file "to getting-started/" file
       } else {
-        print "⚠️ Failed to write" file
+        show "⚠️ Failed to write" file
       }
     } else {
-      print "⚠️ Could not read source" file
+      show "⚠️ Could not read source" file
     }
   }
 } catch (e) {
-  print "⚠️ Could not read source getting-started"
+  show "⚠️ Could not read source getting-started"
 }
 
 // Copy the getting-started/optional folder and all its files
@@ -611,16 +611,16 @@ try {
     if len(fileContent) > 0 {
       let fileDest = gettingStartedOptionalDir + "/" + file
       if Safe.writeFile(fileDest, fileContent) {
-        print "✓ Copied" file "to" gettingStartedOptionalDir "/" file
+        show "✓ Copied" file "to" gettingStartedOptionalDir "/" file
       } else {
-        print "⚠️ Failed to write" file
+        show "⚠️ Failed to write" file
       }
     } else {
-      print "⚠️ Could not read source" file
+      show "⚠️ Could not read source" file
     }
   }
 } catch (e) {
-  print "⚠️ Could not read source getting-started/optional"
+  show "⚠️ Could not read source getting-started/optional"
 }
 
 // Copy the helpers folder and all its files
@@ -631,16 +631,16 @@ try {
     if len(fileContent) > 0 {
       let fileDest = helpersDir + "/" + file
       if Safe.writeFile(fileDest, fileContent) {
-        print "✓ Copied" file "to" helpersDir "/" file
+        show "✓ Copied" file "to" helpersDir "/" file
       } else {
-        print "⚠️ Failed to write" file
+        show "⚠️ Failed to write" file
       }
     } else {
-      print "⚠️ Could not read source" file
+      show "⚠️ Could not read source" file
     }
   }
 } catch (e) {
-  print "⚠️ Could not read source helpers"
+  show "⚠️ Could not read source helpers"
 }
 
 // Copy a specified file into the folder via CLi
@@ -660,12 +660,12 @@ if len(specifiedFile) > 0 {
     let filename = fileParts[len(fileParts) - 1]
     let specifiedFileDest = target + "/" + filename
     if Safe.writeFile(specifiedFileDest, specifiedFileContent) {
-      print "✓ Copied" filename "to" specifiedFileDest
+      show "✓ Copied" filename "to" specifiedFileDest
     } else {
-      print "⚠️ Failed to write" filename
+      show "⚠️ Failed to write" filename
     }
   } else {
-    print "⚠️ Could not read source" specifiedFile
+    show "⚠️ Could not read source" specifiedFile
   }
 }
 
@@ -688,24 +688,24 @@ for arg in args {
 if len(specifiedFile) > 0 && wantRemove {
   try {
     Safe.remove(specifiedFile)
-    print "✓ Removed" specifiedFile "from source directory"
+    show "✓ Removed" specifiedFile "from source directory"
   } catch (err) {
-    print "⚠️ Failed to remove" specifiedFile "from source directory."
+    show "⚠️ Failed to remove" specifiedFile "from source directory."
   }
 }
 
 // Run npm install to fetch @google/genai and @dotenvx/dotenvx
 if !skipInstall {
-  print "⚡ Running npm install to pull node_modules..."
+  show "⚡ Running npm install to pull node_modules..."
   let installLog = target + "/npm-install.log"
   let installed = run_command_log("npm install --prefix \"" + target + "\"", installLog)
   if installed {
-    print "✓ npm dependencies installed successfully!"
-    print "  Log saved to" installLog
+    show "✓ npm dependencies installed successfully!"
+    show "  Log saved to" installLog
   } else {
-    print "⚠️ Auto npm install failed. Check" installLog
+    show "⚠️ Auto npm install failed. Check" installLog
   }
 }
-print "🎉 Scaffolding complete! Run your new project using:"
-print "   cd" target
-print "   npm start"
+show "🎉 Scaffolding complete! Run your new project using:"
+show "   cd" target
+show "   npm start"

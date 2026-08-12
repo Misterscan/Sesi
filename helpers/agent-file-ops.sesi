@@ -26,32 +26,32 @@ Examples:
     sesi helpers/agent-file-ops.sesi insert-after app.sesi "// IMPORTS" imports.sesi
     sesi helpers/agent-file-ops.sesi replace-block app.sesi "// START GENERATED" "// END GENERATED" generated.sesi
 */
-allow "safe" in with safe
+allow "safe" in as safe
 
 fn show_help() {
-  print "agent-file-ops.sesi"
-  print ""
-  print "Commands:"
-  print "  help"
-  print "  write <path> <text...>"
-  print "  append <path> <text...>"
-  print "  copy <source> <target>"
-  print "  replace <path> <old> <new>"
-  print "  replace-from <path> <old_file> <new_file>"
-  print "  insert-before <path> <marker> <insert_file>"
-  print "  insert-after <path> <marker> <insert_file>"
-  print "  replace-block <path> <start_marker> <end_marker> <insert_file>"
-  print ""
-  print "Notes:"
-  print "  Use write/append for short text."
-  print "  Use replace-from, insert-before, insert-after, or replace-block for larger edits."
-  print "  For large generated code, put the generated content in a temporary file first."
+  show "agent-file-ops.sesi"
+  show ""
+  show "Commands:"
+  show "  help"
+  show "  write <path> <text...>"
+  show "  append <path> <text...>"
+  show "  copy <source> <target>"
+  show "  replace <path> <old> <new>"
+  show "  replace-from <path> <old_file> <new_file>"
+  show "  insert-before <path> <marker> <insert_file>"
+  show "  insert-after <path> <marker> <insert_file>"
+  show "  replace-block <path> <start_marker> <end_marker> <insert_file>"
+  show ""
+  show "Notes:"
+  show "  Use write/append for short text."
+  show "  Use replace-from, insert-before, insert-after, or replace-block for larger edits."
+  show "  For large generated code, put the generated content in a temporary file first."
 }
 
 fn require_args(count: num, usage: str) -> bool {
   if len(args) < count {
-    print "Missing arguments."
-    print usage
+    show "Missing arguments."
+    show usage
     return false
   }
 
@@ -71,10 +71,10 @@ fn join_tail(parts, start: num, sep: str) -> str {
 fn write_text(path: str, text: str) -> bool {
   try {
     safe.write(path, text)
-    print "Wrote:" path
+    show "Wrote:" path
     return true
   } catch (err) {
-    print "Write failed:" err
+    show "Write failed:" err
     return false
   }
 }
@@ -83,7 +83,7 @@ fn read_text(path: str) {
   try {
     return safe.read(path)
   } catch (err) {
-    print "Read failed for" path ":" err
+    show "Read failed for" path ":" err
     return null
   }
 }
@@ -151,7 +151,7 @@ fn command_replace() {
   }
 
   if !contains(text, old_text) {
-    print "No match found in:" path
+    show "No match found in:" path
     return null
   }
 
@@ -177,7 +177,7 @@ fn command_replace_from() {
   if new_text == null { return null }
 
   if !contains(text, old_text) {
-    print "Old block not found in:" path
+    show "Old block not found in:" path
     return null
   }
 
@@ -201,7 +201,7 @@ fn command_insert_before() {
   if insert_text == null { return null }
 
   if !contains(text, marker) {
-    print "Marker not found:" marker
+    show "Marker not found:" marker
     return null
   }
 
@@ -231,7 +231,7 @@ fn command_insert_after() {
   if insert_text == null { return null }
 
   if !contains(text, marker) {
-    print "Marker not found:" marker
+    show "Marker not found:" marker
     return null
   }
 
@@ -262,12 +262,12 @@ fn command_replace_block() {
   if insert_text == null { return null }
 
   if !contains(text, start_marker) {
-    print "Start marker not found:" start_marker
+    show "Start marker not found:" start_marker
     return null
   }
 
   if !contains(text, end_marker) {
-    print "End marker not found:" end_marker
+    show "End marker not found:" end_marker
     return null
   }
 
@@ -278,7 +278,7 @@ fn command_replace_block() {
   let end_parts = split(after_start, end_marker)
 
   if len(end_parts) < 2 {
-    print "End marker does not appear after start marker."
+    show "End marker does not appear after start marker."
     return null
   }
 
@@ -315,7 +315,7 @@ if len(args) == 0 {
   } else if cmd == "replace-block" {
     command_replace_block()
   } else {
-    print "Unknown command:" cmd
+    show "Unknown command:" cmd
     show_help()
   }
 }

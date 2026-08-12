@@ -3,7 +3,7 @@
   A native tool to pack, unpack, and validate Sesi Studio JS extensions.
 */
 allow "shell-automation" in with {run_command}
-allow "helpers/safe" in with Safe
+allow "helpers/safe" in as Safe
 
 // --- Helper: Clean Comment Asterisks ---
 fn clean_manifest_json(raw) {
@@ -32,7 +32,7 @@ fn validate_metadata(meta) {
   let required = ["name", "version", "description", "icon", "commands", "license"]
   for field in required {
     if meta[field] == null {
-      print "  ✗ Missing required manifest field: \"" field "\""
+      show "  ✗ Missing required manifest field: \"" field "\""
       return false
     }
   }
@@ -115,23 +115,23 @@ fn process_icon_svg(meta, file_path) {
       let svg_path = svg_info["path"]
       let size = len(svg_content)
       
-      print "  → Detected local SVG icon:" svg_path "(size:" str(size) "bytes)"
+      show "  → Detected local SVG icon:" svg_path "(size:" str(size) "bytes)"
       
       let encoded_uri = ""
       if size <= 2048 {
         let node_script = "const fs=require('fs');const s=fs.readFileSync('" + svg_path + "','utf8');process.stdout.write('data:image/svg+xml;utf8,'+encodeURIComponent(s))"
         try {
           encoded_uri = exec_node("-e \"" + node_script + "\"")
-          print "  → Inline encoded as URL-encoded SVG."
+          show "  → Inline encoded as URL-encoded SVG."
         } catch (e) {
-          print "  ✗ Failed to URL encode SVG:" e
+          show "  ✗ Failed to URL encode SVG:" e
         }
       } else {
         try {
           encoded_uri = "data:image/svg+xml;base64," + Safe.viewMedia(svg_path)
-          print "  → Inline encoded as Base64 SVG."
+          show "  → Inline encoded as Base64 SVG."
         } catch (e) {
-          print "  ✗ Failed to Base64 encode SVG:" e
+          show "  ✗ Failed to Base64 encode SVG:" e
         }
       }
       
@@ -139,7 +139,7 @@ fn process_icon_svg(meta, file_path) {
         meta["icon"] = encoded_uri
       }
     } else {
-      print "  ⚠ Warning: Could not locate SVG icon file:" icon
+      show "  ⚠ Warning: Could not locate SVG icon file:" icon
     }
   }
 }
@@ -148,7 +148,7 @@ fn process_icon_svg(meta, file_path) {
 
 fn pack_extension(args_list) {
   if len(args_list) < 1 {
-    print "Error: pack command requires a JS file path."
+    show "Error: pack command requires a JS file path."
     return false
   }
   let file_path = args_list[0]
@@ -159,18 +159,18 @@ fn pack_extension(args_list) {
     out_dir = args_list[1]
   }
 
-  print "Packing extension:" file_path
+  show "Packing extension:" file_path
   let content = ""
   try {
     content = Safe.read(file_path)
   } catch (e) {
-    print "Error: Failed to read extension JS file:" file_path
+    show "Error: Failed to read extension JS file:" file_path
     return false
   }
 
   let parts = split(content, "/*")
   if len(parts) < 2 {
-    print "Error: No manifest comment block (/* ... */) found in the JS file."
+    show "Error: No manifest comment block (/* ... */) found in the JS file."
     return false
   }
 
@@ -185,7 +185,7 @@ fn pack_extension(args_list) {
 
   let subparts = split(rest, "*/")
   if len(subparts) < 2 {
-    print "Error: Manifest comment block is not closed (missing */)."
+    show "Error: Manifest comment block is not closed (missing */)."
     return false
   }
 
@@ -206,14 +206,14 @@ fn pack_extension(args_list) {
   try {
     meta = from_json(cleaned_json)
   } catch (e) {
-    print "Error: Failed to parse manifest JSON. Make sure keys and strings are double-quoted."
+    show "Error: Failed to parse manifest JSON. Make sure keys and strings are double-quoted."
     return false
   }
 
   process_icon_svg(meta, file_path)
 
   if !validate_metadata(meta) {
-    print "Error: Extension metadata validation failed."
+    show "Error: Extension metadata validation failed."
     return false
   }
 
@@ -233,18 +233,18 @@ fn pack_extension(args_list) {
 
   try {
     Safe.writeFile(out_path, to_json(bundle))
-    print "✓ Packed extension successfully!"
-    print "  Bundle saved to:" out_path
+    show "✓ Packed extension successfully!"
+    show "  Bundle saved to:" out_path
     return true
   } catch (e) {
-    print "Error: Failed to write bundle file:" out_path
+    show "Error: Failed to write bundle file:" out_path
     return false
   }
 }
 
 fn unpack_extension(args_list) {
   if len(args_list) < 1 {
-    print "Error: unpack command requires a .sesiext file path."
+    show "Error: unpack command requires a .sesiext file path."
     return false
   }
   let ext_path = args_list[0]
@@ -254,12 +254,12 @@ fn unpack_extension(args_list) {
     out_dir = args_list[1]
   }
 
-  print "Unpacking extension:" ext_path
+  show "Unpacking extension:" ext_path
   let content = ""
   try {
     content = Safe.read(ext_path)
   } catch (e) {
-    print "Error: Failed to read extension bundle file:" ext_path
+    show "Error: Failed to read extension bundle file:" ext_path
     return false
   }
 
@@ -267,7 +267,7 @@ fn unpack_extension(args_list) {
   try {
     bundle = from_json(content)
   } catch (e) {
-    print "Error: Failed to parse bundle JSON."
+    show "Error: Failed to parse bundle JSON."
     return false
   }
 
@@ -275,12 +275,12 @@ fn unpack_extension(args_list) {
   let js = bundle["js"]
 
   if meta == null || js == null {
-    print "Error: Bundle is missing metadata or JS body."
+    show "Error: Bundle is missing metadata or JS body."
     return false
   }
 
   if !validate_metadata(meta) {
-    print "Error: Extension metadata validation failed inside bundle."
+    show "Error: Extension metadata validation failed inside bundle."
     return false
   }
 
@@ -296,18 +296,18 @@ fn unpack_extension(args_list) {
 
   try {
     Safe.writeFile(out_path, js_file_content)
-    print "✓ Unpacked extension successfully!"
-    print "  Installed JS extension to:" out_path
+    show "✓ Unpacked extension successfully!"
+    show "  Installed JS extension to:" out_path
     return true
   } catch (e) {
-    print "Error: Failed to write JS file:" out_path
+    show "Error: Failed to write JS file:" out_path
     return false
   }
 }
 
 fn validate_extension(args_list) {
   if len(args_list) < 1 {
-    print "Error: validate command requires a JS file path."
+    show "Error: validate command requires a JS file path."
     return false
   }
   let file_path = args_list[0]
@@ -315,13 +315,13 @@ fn validate_extension(args_list) {
   try {
     content = Safe.read(file_path)
   } catch (e) {
-    print "Error: Failed to read JS file:" file_path
+    show "Error: Failed to read JS file:" file_path
     return false
   }
 
   let parts = split(content, "/*")
   if len(parts) < 2 {
-    print "Error: No manifest comment block (/* ... */) found."
+    show "Error: No manifest comment block (/* ... */) found."
     return false
   }
 
@@ -336,7 +336,7 @@ fn validate_extension(args_list) {
 
   let subparts = split(rest, "*/")
   if len(subparts) < 2 {
-    print "Error: Manifest comment block is not closed (missing */)."
+    show "Error: Manifest comment block is not closed (missing */)."
     return false
   }
 
@@ -347,20 +347,20 @@ fn validate_extension(args_list) {
   try {
     meta = from_json(cleaned_json)
   } catch (e) {
-    print "Error: Failed to parse manifest JSON."
+    show "Error: Failed to parse manifest JSON."
     return false
   }
 
-  print "Validating extension manifest for:" file_path
+  show "Validating extension manifest for:" file_path
   if validate_metadata(meta) {
-    print "✓ Extension manifest is valid!"
-    print "  Name:" meta["name"]
-    print "  Version:" meta["version"]
-    print "  Description:" meta["description"]
-    print "  License:" meta["license"]
+    show "✓ Extension manifest is valid!"
+    show "  Name:" meta["name"]
+    show "  Version:" meta["version"]
+    show "  Description:" meta["description"]
+    show "  License:" meta["license"]
     return true
   } else {
-    print "✗ Extension validation failed."
+    show "✗ Extension validation failed."
     return false
   }
 }
@@ -373,15 +373,15 @@ define_tool("validate",  validate_extension, "Validates a JS extension manifest"
 // --- CLI Runner ---
 fn run_cli() {
   if len(args) < 1 {
-    print "Sesi Extension Packager CLI"
-    print "=========================="
-    print "Usage:"
-    print "  npm run studio:ext:pack <js-file-path> [output-dir]"
-    print "  npm run studio:ext:unpack <sesiext-file-path> [output-dir]"
-    print "  npm run studio:ext:validate <js-file-path>"
-    print ""
-    print "Examples:"
-    print "  npm run studio:ext:pack extensions/word-counter.js"
+    show "Sesi Extension Packager CLI"
+    show "=========================="
+    show "Usage:"
+    show "  npm run studio:ext:pack <js-file-path> [output-dir]"
+    show "  npm run studio:ext:unpack <sesiext-file-path> [output-dir]"
+    show "  npm run studio:ext:validate <js-file-path>"
+    show ""
+    show "Examples:"
+    show "  npm run studio:ext:pack extensions/word-counter.js"
     return null
   }
 
@@ -398,7 +398,7 @@ fn run_cli() {
   } else if command == "validate" {
     tool_call(validate)(cmd_args)
   } else {
-    print "Unknown command:" command
+    show "Unknown command:" command
   }
 }
 

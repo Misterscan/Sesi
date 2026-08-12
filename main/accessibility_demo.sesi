@@ -6,7 +6,7 @@
 
   Run: npm run sesi main/accessible_page.sesi
 */
-allow "helpers/safe" in with {HTML}
+allow "helpers/safe" in with { HTML }
 allow "helpers/accessibility" in with { Accessibility }
 
 let a11y = Accessibility({
@@ -258,4 +258,4 @@ prompt body {"<a href='"skip.href"' class='skip-link'>"skip.text"</a>
 
 let lang = prefs.language
 
-print HTML("Sesi Accessible Page", body, header, css, lang)
+show HTML("Sesi Accessible Page", body, header, css, lang)

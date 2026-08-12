@@ -69,13 +69,13 @@ interface LoopInfo {
 
 // Known Sesi built-in names — compiled to CALL_BUILTIN for a speed win
 const BUILTINS = new Set([
-  'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
+  'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
   'speech', 'from_speech', 'translate', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
-  'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'trunc',
+  'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call',
-  'spawn', 'exec', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split',
+  'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split',
   'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log',
-  'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req',
+  'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req',
   'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
   'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input',
   'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
@@ -219,17 +219,17 @@ export class Compiler {
 
   private compileExprStmt(stmt: ExpressionStatement): void {
     this.compileExpression(stmt.expression);
-    // Discard result unless it was a print (which has no stack value)
+    // Discard result unless it was a show call (which has no stack value)
     if (stmt.expression.type !== 'CallExpression' ||
         (stmt.expression as CallExpression).callee.type !== 'Identifier' ||
-        !this.isPrintCall(stmt.expression as CallExpression)) {
+        !this.isShowCall(stmt.expression as CallExpression)) {
       this.emitOp(OpCode.POP, stmt.line);
     }
   }
 
-  private isPrintCall(expr: CallExpression): boolean {
+  private isShowCall(expr: CallExpression): boolean {
     return expr.callee.type === 'Identifier' &&
-           (expr.callee as Identifier).name === 'print';
+           (expr.callee as Identifier).name === 'show';
   }
 
   private compileBlock(block: BlockStatement): void {
@@ -717,8 +717,8 @@ export class Compiler {
     const line = expr.line;
     const callee = expr.callee;
 
-    // print(...) — special PRINT opcode
-    if (callee.type === 'Identifier' && (callee as Identifier).name === 'print') {
+    // show(...) — special PRINT opcode
+    if (callee.type === 'Identifier' && (callee as Identifier).name === 'show') {
       for (const arg of expr.arguments) this.compileExpression(arg);
       emitBytes(this.chunk, OpCode.PRINT, expr.arguments.length, line);
       return;

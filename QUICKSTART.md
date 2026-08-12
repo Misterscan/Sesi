@@ -99,7 +99,7 @@ Create a file called `hello.sesi` and run it:
 
 ```bash
 sesi -e 'let filename = "hello.sesi"
-prompt file {"print \"Hello, Sesi!\""}
+prompt file {"show \"Hello, Sesi!\""}
 filename | write_file(file)
 filename | sesi'
 ```
@@ -112,15 +112,15 @@ filename | sesi'
 let x = 10
 let name = "Alice"
 let score = 95.5
-print x
-print name
-print score
+show x
+show name
+show score
 ```
 
 ### Functions
 
 ```sesi
-fn add(a: number, b: number) {print a + b}
+fn add(a: number, b: number) {show a + b}
 5 | add(3)  // 8
 ```
 
@@ -128,7 +128,7 @@ fn add(a: number, b: number) {print a + b}
 
 ```sesi
 let age = 25
-if age >= 18 {print "Adult"} else {print "Minor"}
+if age >= 18 {show "Adult"} else {show "Minor"}
 ```
 
 ### Loops
@@ -137,26 +137,26 @@ if age >= 18 {print "Adult"} else {print "Minor"}
 // While loop
 let i = 0
 while i < 5 {
-  print i
+  show i
   i = i + 1
 }
 
 // For loop
-for j = 0 to 5 {print j}
+for j = 0 to 5 {show j}
 
 // For-in loop
-for item in [1, 2, 3] {print item}
+for item in [1, 2, 3] {show item}
 ```
 
 ### Arrays & Objects
 
 ```sesi
 let numbers = [1, 2, 3, 4, 5]
-print numbers[0]        // 1
-print len(numbers)      // 5
+show numbers[0]        // 1
+show len(numbers)      // 5
 let age = numbers[4] * 5   // 5 * 5 = 25
 let person = {"name": "Alice", "age": age}
-print person["name"] "is" person["age"] "years old."    // "Alice is 25 years old."
+show person["name"] "is" person["age"] "years old."    // "Alice is 25 years old."
 ```
 
 Prompts are **composable message templates** that evaluate to strings. You can also utilize these to write clean and concise sesi scripts by nesting variables and even other prompts within prompts.
@@ -165,7 +165,7 @@ Prompts are **composable message templates** that evaluate to strings. You can a
 
 ```sesi
 prompt simplePrompt {"Hello, Sesi!"}
-print simplePrompt  // "Hello, Sesi!"
+show simplePrompt  // "Hello, Sesi!"
 ```
 
 ### Prompts with Variables
@@ -173,7 +173,7 @@ print simplePrompt  // "Hello, Sesi!"
 ```sesi
 let name = "Alice"
 prompt greeting {"Hello, "name"! How are you?"}
-print greeting  // "Hello, Alice! How are you?"
+show greeting  // "Hello, Alice! How are you?"
 ```
 
 ### Composing Prompts
@@ -181,7 +181,7 @@ print greeting  // "Hello, Alice! How are you?"
 ```sesi
 prompt part1 {"First part "}
 prompt part2 {part1 "Second part"}
-print part2  // "First part Second part"
+show part2  // "First part Second part"
 ```
 
 ### Prompts in Functions
@@ -198,14 +198,14 @@ fn makePage(title: string, theme: string, output: string) -> string {
   try {
     generated = model("gemini-3.5-flash-lite") {build}
   } catch (e) {
-    print e
+    show e
   }
   output | write_file(generated)
 
   return generated
 }
 
-print title | makePage(theme, output)
+show title | makePage(theme, output)
 ```
 
 Structured output allows you to extract structured data natively or via Reasoning. It uses a JSON Schema to define the structure of the output.
@@ -213,11 +213,11 @@ Structured output allows you to extract structured data natively or via Reasonin
 ### Basic Structured Output
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.0\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.5\", \"status\": \"active\"}"
 let analysis = structured_output({projectName: string, version: string, status: string})(rawJson)
-print "Project: " analysis["projectName"]
-print "Version: " analysis["version"]
-print "Status: " analysis["status"]
+show "Project: " analysis["projectName"]
+show "Version: " analysis["version"]
+show "Status: " analysis["status"]
 ```
 
 ## Reasoning Features
@@ -247,15 +247,15 @@ Reasoning features allow passing configuration options via a block format before
 
 ```sesi
 let response = model("gemini-3-flash-preview") {temperature: 0.8, max_tokens: 1000} {"What is 2 + 2?"}
-print response
+show response
 ```
 
 ### Reasoning with Structured Output
 
 ```sesi
 let analysis = structured_output({sentiment: string, score: number})(model("gemini-3.5-flash-lite") {"Analyze sentiment of: This product is great!"})
-print "Sentiment: " analysis["sentiment"]
-print "Score: " analysis["score"]
+show "Sentiment: " analysis["sentiment"]
+show "Score: " analysis["score"]
 ```
 
 ### Image Generation
@@ -265,7 +265,7 @@ Like `model`, the `image` command takes configuration parameters.
 ```sesi
 let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512", temperature: 0.3} {"Make a beautiful logo for the word Sesi"}
 "logo.png" | write_image(logo)
-print "Generated image successfully!"
+show "Generated image successfully!"
 ```
 
 ### Memory & Conversation
@@ -273,7 +273,7 @@ print "Generated image successfully!"
 ```sesi
 memory chat {"You are helpful."}
 let response = model("gemini-3-flash-preview") {chat "User: Hello!"}
-print response
+show response
 chat = chat "Assistant:" response
 ```
 
@@ -285,7 +285,7 @@ Sesi can orchestrate multiple concurrent scripts using the `spawn()` builtin.
 // master.sesi
 "worker_1.sesi" | spawn
 "worker_2.sesi" | spawn
-print "Both workers are now running concurrently."
+show "Both workers are now running concurrently."
 ```
 
 ---
@@ -332,7 +332,7 @@ sesi --local open_report.sesi
 ### I/O
 
 ```sesi
-print value        // Print to stdout
+show value        // Print to stdout
 prompt | input     // Prompt user for terminal input
 text | speech(voice?, gemini_model?) // Speak text
 audio_path | from_speech(language?, gemini_model?) // Transcribe an audio file
@@ -348,6 +348,10 @@ string | from_json  // Parse JSON string back to value
 convert(type) { config } { file } // Convert documents/media/audio between formats
 
 path | list_dir     // List directory contents
+path | exists       // Check whether a sandbox-approved path exists
+path | get_ext      // Get lowercase extension (for example, "tar.gz")
+"folder" | zip("bundle.zip") // Create; omit destination to list an archive
+"bundle.zip" | zip("output") // Extract
 path | make_dir     // Create a new directory
 old | rename(new)   // Rename or move a file/directory
 src | archive(dest) // Backup/copy file/directory recursively
@@ -467,27 +471,26 @@ debug(message?)                            // Pause execution and launch interac
 
 ### Standard Library Modules
 
-Standard library features are available using `allow ... in with ...` statements:
+Standard library features are available with selective `allow ... in with {...}` imports or namespace `allow ... in as Name` imports:
 
 ```sesi
 allow "std/math" in with {PI, sqrt}
-allow "std/json" in with {
-  stringify, parse
-}
-allow "std/time" in with Time
+let jsonText = to_json({"ready": true})
+let jsonValue = from_json(jsonText)
+allow "std/time" in as Time
 // Time.sleep(), Time.now()
 
 allow "std/db" in with {db_open}
 // "data.db" | db_open("password") -> Encrypted document DB
 
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 let note = "C4"
 // note | Audio.play(500), Audio.synth(), Audio.save(), Audio.mix()
 
-allow "std/theory" in with Music
+allow "std/theory" in as Music
 // note | Music.chord(, "M7"), Music.scale("A3", "minor")
 
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 // Draw.rect(), Draw.circle(), "drawing.svg" | Draw.save_svg(100, 100)
 ```
 
@@ -554,12 +557,12 @@ sesi examples/optional/37_ai_video_generation.sesi
 let numbers = [1, 2, 3, 4, 5]
 
 // Iterate
-for n in numbers {print n}
+for n in numbers {show n}
 
 // Build new array
 let doubled = []
 for n in numbers {doubled | push(n * 2)}
-print doubled  // [2, 4, 6, 8, 10]
+show doubled  // [2, 4, 6, 8, 10]
 ```
 
 ### String Operations
@@ -585,7 +588,7 @@ let rejoined = words | join("-")
 ### Reasoning Classification
 
 ```sesi
-fn classify(item: string) {print model("gemini-3-flash-preview"){"Classify as: FRUIT, VEGETABLE, or GRAIN. Item: "item}}
+fn classify(item: string) {show model("gemini-3-flash-preview"){"Classify as: FRUIT, VEGETABLE, or GRAIN. Item: "item}}
 
 "apple" | classify
 "carrot" | classify
@@ -599,9 +602,9 @@ fn classify(item: string) {print model("gemini-3-flash-preview"){"Classify as: F
 ```sesi
 fn complex(x: number) {
   let step1 = x * 2
-  print "Step 1:" step1
+  show "Step 1:" step1
   let step2 = step1 + 10
-  print "Step 2:" step2
+  show "Step 2:" step2
 }
 
 5 | complex
@@ -611,8 +614,8 @@ fn complex(x: number) {
 
 ```sesi
 let value = "hello"
-print value | type  // "string"
-if (value | type) == "string" {print "It's a string!"}
+show value | type  // "string"
+if (value | type) == "string" {show "It's a string!"}
 ```
 
 ### Validate Model Responses
@@ -620,10 +623,10 @@ if (value | type) == "string" {print "It's a string!"}
 ```sesi
 let response = model("gemini-3-flash-preview") {"Respond with YES or NO"}
 if response == "" {
-  print "Error: no response"
+  show "Error: no response"
 } else if (response | len) > 100 {
-  print "Warning: response too long"
-} else {print "Response:" response}
+  show "Warning: response too long"
+} else {show "Response:" response}
 ```
 
 ## Performance Considerations
@@ -664,7 +667,7 @@ Other useful CLI options:
 
 ```bash
 # Run a one-line snippet (inline)
-sesi -e "print 'hello'"
+sesi -e "show 'hello'"
 ```
 
 ### Security & Sandboxing
@@ -697,7 +700,7 @@ If working directly inside the Sesi codebase, you can use convenient npm shortcu
 
 ```bash
 # Evaluate inline code
-npm run sesi:eval "print 'Hello from npm!'"
+npm run sesi:eval "show 'Hello from npm!'"
 
 # Encrypt / Decrypt files using SESI_PASSWORD environment fallback
 npm run sesi:encrypt "my_script.sesi"

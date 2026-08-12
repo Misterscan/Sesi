@@ -26,7 +26,7 @@ let siteData = {
   "stats": [
     {
       "label": "Language Version",
-      "value": "v1.8.0"
+      "value": "v1.8.5"
     },
     {
       "label": "Test Coverage",
@@ -74,7 +74,7 @@ fn renderStats(stats) {
 }
 
 async fn handleRequest(req) {
-  print "Request path is:" req.path "with method:" req.method
+  show "Request path is:" req.path "with method:" req.method
   
   if req.path == "/" {
     let featuresHtml = siteData.features | renderFeatures
@@ -297,12 +297,12 @@ async fn handleRequest(req) {
 
 // Start HTTP server on port 8080 (feel free to change the port to your preference)
 let port = 8080
-print "Starting native HTTP server at localhost:8080"
+show "Starting native HTTP server at localhost:8080"
 let server = port | listen(handleRequest)
 
 /* For automated examples/test run, close the server after 2 seconds. */
 allow "std/time" in with {sleep}
 2000 | sleep
-print "Closing webpage server..."
+show "Closing webpage server..."
 server.close()
-print "Webpage server closed successfully."
+show "Webpage server closed successfully."

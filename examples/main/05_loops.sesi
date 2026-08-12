@@ -1,20 +1,20 @@
 // Loops
 allow "std/terminal" in with { color }
 
-print color("While loop:", "magenta")
+show color("While loop:", "magenta")
 let i = 0
 while i < 5 {
-  print color(str(i), "cyan")
+  show color(str(i), "cyan")
   i = i + 1
 }
 
-print color("For loop (range):", "magenta")
+show color("For loop (range):", "magenta")
 for j = 0 to 5 {
-  print "Iteration:" color(str(j), "yellow")
+  show "Iteration:" color(str(j), "yellow")
 }
 
-print color("For loop (array):", "magenta")
+show color("For loop (array):", "magenta")
 let arr = [10, 20, 30, 40]
 for item in arr {
-  print "Item:" color(str(item), "green")
+  show "Item:" color(str(item), "green")
 }

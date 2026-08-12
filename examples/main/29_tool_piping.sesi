@@ -18,7 +18,7 @@ fn formatResult(val) {
   return "Final result: " + str(val)
 }
 
-print "=== Piping values through functions ==="
+show "=== Piping values through functions ==="
 
 /* 
   5 goes into addTen(5) -> 15
@@ -26,11 +26,11 @@ print "=== Piping values through functions ==="
   30 goes into formatResult(30) -> "Final result: 30"
 */
 let output = 5 | addTen | multiplyByTwo | formatResult
-print output
+show output
 
 /* 
   Rule of Thumb:
-    - Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | print).
+    - Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | show).
     - Use standard syntax () for math, boolean logic (!, &&, ||), comparisons (==, !=), and inline checks.
   
   If using | for math, boolean logic, or comparisons, wrap the expression in parentheses to avoid ambiguity.

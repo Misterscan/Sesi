@@ -21,7 +21,7 @@ memory use increase sharply with longer prompts.
 ```sesi
 let tokens = count_tokens(document, "local")
 if tokens > 2048 {
-  print "Consider chunking this document before local inference."
+  show "Consider chunking this document before local inference."
 }
 ```
 

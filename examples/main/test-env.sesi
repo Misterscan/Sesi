@@ -2,20 +2,20 @@ allow "std/terminal" in with {color}
 
 try {
     let env = env()
-    print color(".env successfully loaded", "green") "
+    show color(".env successfully loaded", "green") "
     "
 
     let geminiKey = env.GEMINI_API_KEY // or GEMINI_API_KEY | env
     let isSafeMode = env.SESI_SAFE_MODE // or SESI_SAFE_MODE | env
     let sesiPass = env.SESI_PASSWORD // or SESI_PASSWORD | env
 
-    print color("[Gemini API Key (encrypted)]:
+    show color("[Gemini API Key (encrypted)]:
 ", "cyan") color(geminiKey, "magenta")
-    print color("[Sesi Safe Mode ?]:
+    show color("[Sesi Safe Mode ?]:
 ", "cyan") color(isSafeMode, "magenta")
-    print color("[Sesi Password]:
+    show color("[Sesi Password]:
 ", "cyan") color(sesiPass, "magenta")
 } catch (e) {
-    print color("Warning: .env file could not be read or is not present. Please create one at the root of the project directory.", "yellow")
-    print color(str(e), "red")
+    show color("Warning: .env file could not be read or is not present. Please create one at the root of the project directory.", "yellow")
+    show color(str(e), "red")
 }

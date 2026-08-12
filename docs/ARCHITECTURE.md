@@ -39,7 +39,7 @@
 │ Builtins            │  │ AI Runtime          │
 │ (src/builtins.ts)   │  │ (src/ai-runtime.ts) │
 │                     │  │                     │
-│ - print()           │  │ - Gemini API calls  │
+│ - show()           │  │ - Gemini API calls  │
 │ - len()             │  │ - Memory mgmt       │
 │ - read_file()       │  │ - Structured output │
 │ - write_file()      │  │ - Tool calling      │
@@ -111,7 +111,7 @@ Tokens: [LET, IDENTIFIER("x"), EQUAL, NUMBER(10), EOF]
   - Dispatches OpCode instructions in a tight loop
   - Maintains a value stack and call frame stack
   - Calls into builtins and AI runtime as needed
-- **Output**: Program side effects (print, Reasoning calls, etc.)
+- **Output**: Program side effects (show, Reasoning calls, etc.)
 
 > **Note**: The original tree-walking interpreter (`src/interpreter.ts`) is retained as a fallback execution path for any constructs not yet supported by the compiler.
 

@@ -296,6 +296,82 @@ export function ensureSafePath(filePath: string, interpreter?: any, baseDir: str
   return resolved;
 }
 
+const compoundExtensions = ['tar.gz', 'tar.bz2', 'tar.xz'];
+const zipContainerExtensions = new Set(['zip', 'jar', 'apk', 'docx', 'xlsx', 'pptx', 'epub']);
+const externalArchiveExtensions = new Set(['7z', 'rar', 'tar', 'tar.gz', 'tgz', 'tar.bz2', 'tbz2', 'tar.xz', 'txz']);
+
+function getFileExtension(filePath: string): string {
+  const base = path.basename(filePath).toLowerCase();
+  for (const extension of compoundExtensions) {
+    if (base.endsWith(`.${extension}`)) return extension;
+  }
+  if (base.startsWith('.') && base.indexOf('.', 1) === -1) return '';
+  const extension = path.extname(base);
+  return extension.startsWith('.') ? extension.slice(1) : extension;
+}
+
+function validateArchiveEntry(entryName: string, destination: string): string {
+  const normalized = entryName.replace(/\\/g, '/');
+  if (!normalized || normalized.includes('\0') || path.posix.isAbsolute(normalized)) {
+    throw new Error(`Unsafe archive entry: "${entryName}"`);
+  }
+  const target = path.resolve(destination, normalized);
+  const relative = path.relative(destination, target);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`Unsafe archive entry: "${entryName}"`);
+  }
+  return target;
+}
+
+function findArchiveCommand(candidates: string[]): string | null {
+  for (const command of candidates) {
+    const probe = spawnSync(command, ['--help'], { encoding: 'utf-8', stdio: 'pipe' });
+    if (!probe.error || (probe.error as NodeJS.ErrnoException).code !== 'ENOENT') return command;
+  }
+  return null;
+}
+
+function runArchiveCommand(command: string, args: string[], cwd?: string): string {
+  const result = spawnSync(command, args, { cwd, encoding: 'utf-8', stdio: 'pipe' });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(String(result.stderr || result.stdout || `${command} exited with status ${result.status}`).trim());
+  }
+  return String(result.stdout || '');
+}
+
+function requireExternalArchiveAccess(interpreter?: any): void {
+  const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
+  if (safeMode) {
+    throw new Error('Security Violation: non-ZIP archive access is disabled in Sesi safe mode.');
+  }
+}
+
+function listExternalArchive(archivePath: string, extension: string): string[] {
+  if (['tar', 'tar.gz', 'tgz', 'tar.bz2', 'tbz2', 'tar.xz', 'txz'].includes(extension)) {
+    const tar = findArchiveCommand(['tar']);
+    if (!tar) throw new Error('tar is required to access this archive format');
+    return runArchiveCommand(tar, ['-tf', archivePath]).split(/\r?\n/).filter(Boolean);
+  }
+
+  const sevenZip = findArchiveCommand(['7zz', '7z']);
+  if (sevenZip) {
+    const output = runArchiveCommand(sevenZip, ['l', '-slt', archivePath]);
+    const separator = output.indexOf('----------');
+    const entries = separator >= 0 ? output.slice(separator) : output;
+    return entries.split(/\r?\n/)
+      .filter(line => line.startsWith('Path = '))
+      .map(line => line.slice('Path = '.length))
+      .filter(Boolean);
+  }
+
+  if (extension === 'rar') {
+    const unrar = findArchiveCommand(['unrar']);
+    if (unrar) return runArchiveCommand(unrar, ['lb', archivePath]).split(/\r?\n/).filter(Boolean);
+  }
+  throw new Error(`7-Zip${extension === 'rar' ? ' or unrar' : ''} is required to access .${extension} archives`);
+}
+
 function requireMediaProcessAccess(name: string, interpreter?: any): void {
   const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
   if (safeMode) {
@@ -518,9 +594,9 @@ async function withTimeout(
 export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
   const builtins = new Map<string, RuntimeFunction>();
 
-  builtins.set('print', {
+  builtins.set('show', {
     type: 'function',
-    name: 'print',
+    name: 'show',
     params: [],
     body: {} as any,
     closure: {} as any,
@@ -1980,6 +2056,151 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
+  builtins.set('get_ext', {
+    type: 'function',
+    name: 'get_ext',
+    params: [{ name: 'path' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (filePath: RuntimeValue): RuntimeValue => {
+      if (typeof filePath !== 'string') return null;
+      return getFileExtension(filePath);
+    },
+  });
+
+  builtins.set('exists', {
+    type: 'function',
+    name: 'exists',
+    params: [{ name: 'path' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (filePath: RuntimeValue): RuntimeValue => {
+      if (typeof filePath !== 'string') return false;
+      return fs.existsSync(ensureSafePath(filePath, interpreter));
+    },
+  });
+
+  builtins.set('zip', {
+    type: 'function',
+    name: 'zip',
+    params: [
+      { name: 'source' },
+      { name: 'destination', defaultValue: null as any },
+      { name: 'operation', defaultValue: null as any },
+    ],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (...args: RuntimeValue[]): RuntimeValue => {
+      const [sourceVal, destinationVal = null, operationVal = null] = args;
+      if (typeof sourceVal !== 'string') throw new Error('zip expects a string source path');
+      if (destinationVal !== null && typeof destinationVal !== 'string') throw new Error('zip destination must be a string or null');
+      if (operationVal !== null && typeof operationVal !== 'string') throw new Error('zip operation must be create, list, or extract');
+
+      const source = ensureSafePath(sourceVal, interpreter);
+      if (!fs.existsSync(source)) throw new Error(`zip source does not exist: "${sourceVal}"`);
+      const sourceExtension = getFileExtension(source);
+      const isArchive = zipContainerExtensions.has(sourceExtension) || externalArchiveExtensions.has(sourceExtension);
+      const inferredOperation = isArchive ? (destinationVal === null ? 'list' : 'extract') : 'create';
+      const operation = typeof operationVal === 'string' ? operationVal.toLowerCase() : inferredOperation;
+      if (!['create', 'list', 'extract'].includes(operation)) throw new Error('zip operation must be create, list, or extract');
+
+      if (operation === 'create') {
+        if (typeof destinationVal !== 'string') throw new Error('zip create requires a destination archive path');
+        const destination = ensureSafePath(destinationVal, interpreter);
+        const extension = getFileExtension(destination);
+        fs.mkdirSync(path.dirname(destination), { recursive: true });
+
+        if (zipContainerExtensions.has(extension)) {
+          const AdmZip = require('adm-zip');
+          const archive = new AdmZip();
+          const stat = fs.statSync(source);
+          if (stat.isDirectory()) archive.addLocalFolder(source, path.basename(source));
+          else archive.addLocalFile(source);
+          archive.writeZip(destination);
+          return destinationVal;
+        }
+
+        requireExternalArchiveAccess(interpreter);
+        if (['tar', 'tar.gz', 'tgz', 'tar.bz2', 'tbz2', 'tar.xz', 'txz'].includes(extension)) {
+          const tar = findArchiveCommand(['tar']);
+          if (!tar) throw new Error('tar is required to create this archive format');
+          const flag = ['tar.gz', 'tgz'].includes(extension) ? '-czf'
+            : ['tar.bz2', 'tbz2'].includes(extension) ? '-cjf'
+            : ['tar.xz', 'txz'].includes(extension) ? '-cJf' : '-cf';
+          runArchiveCommand(tar, [flag, destination, path.basename(source)], path.dirname(source));
+          return destinationVal;
+        }
+
+        if (extension === 'rar') {
+          const rar = findArchiveCommand(['rar']);
+          if (!rar) throw new Error('rar is required to create .rar archives');
+          runArchiveCommand(rar, ['a', '-idq', destination, path.basename(source)], path.dirname(source));
+          return destinationVal;
+        }
+
+        if (extension === '7z') {
+          const sevenZip = findArchiveCommand(['7zz', '7z']);
+          if (!sevenZip) throw new Error('7-Zip is required to create .7z archives');
+          runArchiveCommand(sevenZip, ['a', '-y', destination, path.basename(source)], path.dirname(source));
+          return destinationVal;
+        }
+        throw new Error(`Unsupported archive extension: .${extension || '(none)'}`);
+      }
+
+      if (!isArchive) throw new Error(`Unsupported archive extension: .${sourceExtension || '(none)'}`);
+      let entries: string[];
+      if (zipContainerExtensions.has(sourceExtension)) {
+        const AdmZip = require('adm-zip');
+        entries = new AdmZip(source).getEntries().map((entry: any) => entry.entryName);
+      } else {
+        requireExternalArchiveAccess(interpreter);
+        entries = listExternalArchive(source, sourceExtension);
+      }
+      if (operation === 'list') return entries;
+
+      if (typeof destinationVal !== 'string') throw new Error('zip extract requires a destination directory');
+      const destination = ensureSafePath(destinationVal, interpreter);
+      for (const entry of entries) validateArchiveEntry(entry, destination);
+      fs.mkdirSync(destination, { recursive: true });
+
+      if (zipContainerExtensions.has(sourceExtension)) {
+        const AdmZip = require('adm-zip');
+        const archive = new AdmZip(source);
+        for (const entry of archive.getEntries()) {
+          const target = validateArchiveEntry(entry.entryName, destination);
+          if (entry.isDirectory) fs.mkdirSync(target, { recursive: true });
+          else {
+            fs.mkdirSync(path.dirname(target), { recursive: true });
+            fs.writeFileSync(target, entry.getData());
+          }
+        }
+        return destinationVal;
+      }
+
+      if (['tar', 'tar.gz', 'tgz', 'tar.bz2', 'tbz2', 'tar.xz', 'txz'].includes(sourceExtension)) {
+        const tar = findArchiveCommand(['tar']);
+        if (!tar) throw new Error('tar is required to extract this archive format');
+        runArchiveCommand(tar, ['-xf', source, '-C', destination]);
+        return destinationVal;
+      }
+
+      const sevenZip = findArchiveCommand(['7zz', '7z']);
+      if (sevenZip) {
+        runArchiveCommand(sevenZip, ['x', '-y', `-o${destination}`, source]);
+        return destinationVal;
+      }
+      const unrar = sourceExtension === 'rar' ? findArchiveCommand(['unrar']) : null;
+      if (unrar) {
+        runArchiveCommand(unrar, ['x', '-o+', source, `${destination}${path.sep}`]);
+        return destinationVal;
+      }
+      throw new Error(`No extractor is available for .${sourceExtension} archives`);
+    },
+  });
+
   builtins.set('make_dir', {
     type: 'function',
     name: 'make_dir',
@@ -2150,7 +2371,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
-  builtins.set('exec', {
+  const execBuiltin: RuntimeFunction = {
     type: 'function',
     name: 'exec',
     params: [{ name: 'command' }],
@@ -2169,7 +2390,9 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         throw new Error(`Failed to execute command: ${command}. Reason: ${e.message}`);
       }
     },
-  });
+  };
+  builtins.set('exec', execBuiltin);
+  builtins.set('run', execBuiltin);
 
   builtins.set('ffmpeg', {
     type: 'function',

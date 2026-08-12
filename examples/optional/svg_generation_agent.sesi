@@ -10,10 +10,10 @@
   Run with: sesi examples/optional/svg_generation_agent.sesi -l
 */
 allow "shell-automation" in with {run_command, run_sesi}
-allow "ai_agent" in with Agent
+allow "ai_agent" in as Agent
 allow "std/browser" in with {launch}
 
-print "🚀 Initializing SVG Generator Agent..."
+show "🚀 Initializing SVG Generator Agent..."
 
 // Register model aliases
 set_alias("agent", "gemini-3.5-flash-lite")
@@ -99,7 +99,7 @@ fn write_sesi_script(arg) -> string {
     let content = get_content_from_args(parsed)
     if content == null { return "Failed: 'content' key is missing." }
     
-    print "💾 Saving Sesi script to:" filename
+    show "💾 Saving Sesi script to:" filename
     let ok = write_file(filename, content)
     if ok == null { return "Failed to write Sesi script." }
     return "Successfully wrote Sesi script to " + filename
@@ -114,7 +114,7 @@ fn execute_sesi_script(arg) -> string {
   if filename == null {
     return "Failed: File path/filename is missing."
   }
-  print "⚡ Executing Sesi script:" filename
+  show "⚡ Executing Sesi script:" filename
   try {
     let result = run_sesi(filename, true)
     return "Execution Succeeded!\nOutput:\n" + result
@@ -133,7 +133,7 @@ fn verify_svg_file(arg) -> string {
   // Resolve absolute path for browser local load
   let cwd = swap(run_command("pwd"), "\n", "")
   let file_url = "file://" + cwd + "/" + filename
-  print "🌐 Navigating browser to:" file_url
+  show "🌐 Navigating browser to:" file_url
   
   let browser = null
   try {
@@ -183,7 +183,7 @@ fn write_report(arg) -> string {
     let content = get_content_from_args(parsed)
     if content == null { return "Failed: 'content' key is missing." }
     
-    print "📝 Writing report to:" filename
+    show "📝 Writing report to:" filename
     let ok = write_file(filename, content)
     if ok == null { return "Failed to write report file." }
     return "Successfully wrote report to " + filename
@@ -260,8 +260,8 @@ if baseFilename == "" || baseFilename == null {
 let svg_filename = swap(filename, ".sesi", ".svg")
 svg_filename = swap(svg_filename, "playground/create/", "playground/svgs/")
 
-print "🎨 Generating SVG for prompt:" user_prompt
-print "Starting SesiDo Loop..."
+show "🎨 Generating SVG for prompt:" user_prompt
+show "Starting SesiDo Loop..."
 
 prompt task_instruction {"Perform the following actions:
 1. Use 'read_file' to read 'getting-started/SVG.md' to check the exact function signatures and syntax rules of Sesi's 'std/draw' module.
@@ -274,8 +274,8 @@ prompt task_instruction {"Perform the following actions:
 
 let final_answer = Agent.run_react(svg_agent, task_instruction, 10, true)
 
-print "
+show "
 ========================================="
-print "FINAL ANSWER FROM SVG GENERATOR AGENT:"
-print final_answer
-print "========================================="
+show "FINAL ANSWER FROM SVG GENERATOR AGENT:"
+show final_answer
+show "========================================="

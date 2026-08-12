@@ -97,7 +97,7 @@ prompt greeting {"Hello, "name"!"}
 **Structured Output**
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.0\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.5\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -232,7 +232,6 @@ Sesi supports importing standard utility library modules natively at runtime:
 
 - **`std/math`**: Constants `PI`, `E`, and functions `sin`, `cos`, `tan`, `sqrt`, `floor`, `ceil`, `abs`, `pow`, `log`, `exp`
 - **`std/time`**: `now()`, `sleep(ms)`, and `format(timestamp, options)` for timezone/locale formatting
-- **`std/json`**: `stringify(val)` and `parse(str)`
 - **`std/audio`**: `play`, `beep`, `synth`, `save`, `sequence`, `mix` for sound synthesis. Upgraded to a professional DSP backend with **Stereo Panning**, **ADSR Envelopes**, **Low-Pass Filtering**, **Soft-Clipping**, physical modeling drums (`kick`, `snare`, `hat`, `clap`), and `sf2` (High-speed FluidSynth batch-rendering for SoundFonts).
 - **`std/theory`**: `chord(root, type)`, `scale(root, type)`, `transpose(notes, steps)`, `duration(minutes, seconds)`, and `bar(bars, bpm, beatsPerBar?)` for algorithmic composition, timing conversions, and harmonic logic.
 - **`std/draw`**: Upgraded SVG generation library supporting complex shapes (`ellipse`, `polygon`, `path`), definition management (`gradient`, `style`), inline XML (`raw`), formatting/indentation, and class/attribute mappings via optional trailing `options` dictionaries.

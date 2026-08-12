@@ -9,7 +9,7 @@ Usage:
     sesi -l helpers/commit-message.sesi all
     sesi -l helpers/commit-message.sesi staged --write commit_message.txt
 */
-allow "helpers/safe" in with safe
+allow "helpers/safe" in as safe
 
 let project_root = ""
 try {
@@ -22,20 +22,20 @@ if project_root == null || project_root == "" {
 }
 
 fn show_help() {
-  print "Usage:"
-  print "  sesi -l helpers/commit-message.sesi"
-  print "  sesi -l helpers/commit-message.sesi staged"
-  print "  sesi -l helpers/commit-message.sesi unstaged"
-  print "  sesi -l helpers/commit-message.sesi all"
-  print "  sesi -l helpers/commit-message.sesi staged write commit_message.txt"
-  print ""
-  print "Modes:"
-  print "  staged    Use git diff --cached"
-  print "  unstaged  Use git diff"
-  print "  all       Use staged and unstaged diffs"
-  print ""
-  print "Default:"
-  print "  staged"
+  show "Usage:"
+  show "  sesi -l helpers/commit-message.sesi"
+  show "  sesi -l helpers/commit-message.sesi staged"
+  show "  sesi -l helpers/commit-message.sesi unstaged"
+  show "  sesi -l helpers/commit-message.sesi all"
+  show "  sesi -l helpers/commit-message.sesi staged write commit_message.txt"
+  show ""
+  show "Modes:"
+  show "  staged    Use git diff --cached"
+  show "  unstaged  Use git diff"
+  show "  all       Use staged and unstaged diffs"
+  show ""
+  show "Default:"
+  show "  staged"
 }
 
 fn parse_options() {
@@ -66,11 +66,11 @@ fn parse_options() {
         options["write"] = args[i + 1]
         i = i + 2
       } else {
-        print "Missing value for write"
+        show "Missing value for write"
         i = i + 1
       }
     } else {
-      print "Ignoring unknown option:" arg
+      show "Ignoring unknown option:" arg
       i = i + 1
     }
   }
@@ -85,8 +85,8 @@ fn run_git(command: str) -> str {
     }
     return exec(command)
   } catch (err) {
-    print "Git command failed:" command
-    print err
+    show "Git command failed:" command
+    show err
     return ""
   }
 }
@@ -113,8 +113,8 @@ fn read_git_diff(command: str, temp_path: str) -> str {
     }
     return full_diff
   } catch (err) {
-    print "Git diff command failed:" command
-    print err
+    show "Git diff command failed:" command
+    show err
     try {
       safe.remove(temp_path)
     } catch (cleanup_err) {}
@@ -202,9 +202,9 @@ Diff:
 fn write_output(path: str, message: str) {
   try {
     safe.write(path, message)
-    print "Commit message written:" path
+    show "Commit message written:" path
   } catch (err) {
-    print "Could not write commit message:" err
+    show "Could not write commit message:" err
   }
 }
 
@@ -216,12 +216,12 @@ if options["help"] {
   let data = get_diff(options["mode"])
 
   if !has_changes(data) {
-    print "No diff found for mode:" options["mode"]
-    print "Try unstaged or all if your changes are not staged."
+    show "No diff found for mode:" options["mode"]
+    show "Try unstaged or all if your changes are not staged."
   } else {
     let message = generate_commit_message(data)
 
-    print message
+    show message
 
     if options["write"] != null {
       write_output(options["write"], message)

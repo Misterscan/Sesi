@@ -23,7 +23,7 @@ export type TokenType =
   | 'TRUE'
   | 'FALSE'
   | 'NULL'
-  | 'PRINT'
+  | 'SHOW'
   | 'PROMPT'
   | 'MAKE'
   | 'MODEL'
@@ -39,6 +39,7 @@ export type TokenType =
   | 'ASYNC'
   | 'AWAIT'
   | 'ALLOW'
+  | 'AS'
   | 'WITH'
   // Operators
   | 'PLUS'

@@ -3,19 +3,19 @@ allow "std/terminal" in with { color }
 
 let age: num = 25
 if age >= 18 {
-  print color("You are an adult", "green")
+  show color("You are an adult", "green")
 } else {
-  print color("You are a minor", "yellow")
+  show color("You are a minor", "yellow")
 }
 
 // Complex conditions
 let score: num = 85
 if score >= 90 {
-  print color("Grade: A", "green", "bold")
+  show color("Grade: A", "green", "bold")
 } else if score >= 80 {
-  print color("Grade: B", "blue")
+  show color("Grade: B", "blue")
 } else if score >= 70 {
-  print color("Grade: C", "yellow")
+  show color("Grade: C", "yellow")
 } else {
-  print color("Grade: F", "red", "bold")
+  show color("Grade: F", "red", "bold")
 }

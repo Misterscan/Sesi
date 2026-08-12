@@ -41,7 +41,7 @@ Sesi is built on these core principles:
 - ✅ Process and Desktop Integration (`spawn`, `exec`, `open`, `open_file`, `time`, `random`, `convert`, `format`)
 - ✅ Comments (`//`, `/* */`) — text is preserved in AST as `leadingComments` on declarations for doc tooling
 - ✅ Operators (arithmetic, logical, comparison)
-- ✅ Standard library (print, len, range, etc.)
+- ✅ Standard library (show, len, range, etc.)
 - ✅ Interactive REPL shell environment (`sesi`)
 - ✅ Diagnostic Tools (`--ast` and `--tokens` pretty visualization)
 - ✅ Statement execution tracing (`SESI_DEBUG=1` env variable)
@@ -78,7 +78,7 @@ Sesi is built on these core principles:
 #### Keywords
 
 ```
-let if else while for fn make print import export async
+let if else while for fn make show import export async
 prompt model image convert memory structured_output tool_call break continue try catch true false null await
 ```
 
@@ -135,8 +135,8 @@ parameters := (identifier ':' type ('=' expr)?)? (',' identifier ':' type ('=' e
 Example:
 
 ```sesi
-fn add(a: number, b: number) {print a + b}
-fn greet(name: string = "World") {print "Hello," name}
+fn add(a: number, b: number) {show a + b}
+fn greet(name: string = "World") {show "Hello," name}
 ```
 
 #### Import/Export
@@ -153,7 +153,7 @@ Example:
 allow "math" in with {
   add, subtract
 }
-export fn multiply(a, b) {print a * b}
+export fn multiply(a, b) {show a * b}
 ```
 
 ### 4.4 Control Flow
@@ -187,11 +187,13 @@ continue_stmt := 'continue'
 Example:
 
 ```sesi
-for i = 0 to 10 {print i}
-try
-{let result = "Hello"
+for i = 0 to 10 {show i}
+
+try {
+  let result = "Hello"
 } catch (e) {
-print e}
+  show e
+}
 ```
 
 ### 4.5 Expressions
@@ -247,8 +249,8 @@ make Person {
 }
 
 let ada = Person("Ada")
-print ada.kind
-print ada.greet()
+show ada.kind
+show ada.greet()
 ```
 
 #### Function Call
@@ -359,7 +361,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.0\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.5\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -399,7 +401,7 @@ fn double(x) { return x * 2 }
 let result = 5 | increment | double // evaluates to 12
 ```
 _Rule of Thumb:_
-> Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | print).
+> Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | show).
 
 > Use standard syntax () for math, boolean logic (!, &&, ||), comparisons (==, !=), and inline checks.
 
@@ -505,7 +507,7 @@ In `"auto"` mode, Sesi uses the requested image viewer for image extensions, the
 ## 8. Built-in Functions
 
 ```
-print(any)                    // Output to stdout
+show(any)                    // Output to stdout
 debug()                       // Pauses and opens interactive REPL debugger
 len(array | string | object)  // Length
 range(number) -> array        // [0, 1, ..., n-1]
@@ -572,6 +574,10 @@ list_dir(string) -> array<string> // List directory contents
 make_dir(string) -> bool          // Create directory (recursive)
 spawn(string) -> number           // Concurrent process creation
 exec(string) -> string            // Synchronous shell execution
+run(string) -> string             // Exact alias of exec
+get_ext(string) -> string         // Lowercase extension without a dot
+exists(string) -> bool            // Sandbox-aware path existence check
+zip(source, destination?, operation?) // Create, list, or extract archives
 sesi(string, bool?, bool?) -> string // Synchronous in-process Sesi execution or compile check
 python(string, args) -> string    // Inline Python code execution
 js(strings, args) -> string       // In-proccess Javascript execution
@@ -595,8 +601,8 @@ Runtime module execution and standard library modules are fully implemented and 
 
 ```sesi
 // math.sesi
-export fn add(a, b) {print a + b}
-export fn multiply(a, b) {print a * b}
+export fn add(a, b) {show a + b}
+export fn multiply(a, b) {show a * b}
 export let PI = 3.14159
 ```
 
@@ -614,7 +620,7 @@ import {
 let result = add(10, 20)
 
 // Option 2: allow module to bind under a scoped library namespace
-allow "math" in with Math
+allow "math" in as Math
 let result = Math.add(10, 20)
 
 // Option 3: allow module to bind specific names directly
@@ -627,15 +633,15 @@ let result = add(10, 20)
 ### Built-in Standard Library Modules
 
 ```sesi
-allow "std/time" in with Time    // Time/date functions
-allow "std/math" in with Math    // Math operations
-allow "std/json" in with JSON    // JSON parsing
-allow "std/draw" in with Draw    // SVG/Pixel creation
-allow "std/audio" in with Audio  // Audio synthesis
-allow "std/theory" in with Music   // Music Theory
-allow "std/terminal" in with Term  // Terminal options
-allow "std/base64" in with Base64 // Base64 encode/decode
-allow "std/api" in with API       // FastAPI-style HTTP API framework
+allow "std/time" in as Time    // Time/date functions
+allow "std/math" in as Math    // Math operations
+// JSON conversion uses the built-in from_json and to_json functions.
+allow "std/draw" in as Draw    // SVG/Pixel creation
+allow "std/audio" in as Audio  // Audio synthesis
+allow "std/theory" in as Music   // Music Theory
+allow "std/terminal" in as Term  // Terminal options
+allow "std/base64" in as Base64 // Base64 encode/decode
+allow "std/api" in as API       // FastAPI-style HTTP API framework
 ```
 
 ### Module Resolution Order (v1.x)
@@ -674,7 +680,7 @@ allow "mymodule" in with {
   function2,
   function3
 }
-allow "another-module" in with Name
+allow "another-module" in as Name
 ```
 
 ### Custom Library Paths: `SESI_PATH`
@@ -714,11 +720,11 @@ Model calls can take optional configuration parameters (written on a single line
 ```sesi
 // Model call with native thinking effort level
 let response = model("gemini-3.6-flash") {thinkingLevel: "low"} {"Say hello"}
-print response  // Returns string
+show response  // Returns string
 
 let logo = image("gemini-3.1-flash-image") {ratio: "1:1", size: "512"} {"A vector logo"}
 write_image("logo.png", logo)
-print "Image written to logo.png"
+show "Image written to logo.png"
 ```
 
 #### Config Block Options:
@@ -739,7 +745,7 @@ Sesi provides built-ins for spoken output, transcription, and translation.
 speech("Analysis complete")
 let transcript = from_speech("interview.wav", "en")
 let spanish = translate(transcript, "es", "en")
-print spanish
+show spanish
 ```
 
 - `speech(text, voice = null, gemini_model = null)` speaks through the operating system's local voice tool, or uses the optional Gemini model.
@@ -751,8 +757,8 @@ print spanish
 ```sesi
 let result = structured_output({title: string, category: string, confidence: number})
 (model("gemini-3.5-flash-lite") {"Extract metadata from this text: "text})
-print result["title"]       // Access fields
-print result["confidence"]  // Type-safe access
+show result["title"]       // Access fields
+show result["confidence"]  // Type-safe access
 ```
 
 ### Reasoning with Tool Calling
@@ -790,7 +796,7 @@ fn askQuestion(question: string) {
 ```sesi
 let x = 10
 let y = 20
-print x + y  // Output: 30
+show x + y  // Output: 30
 ```
 
 ### Example 2: Function with Reasoning
@@ -798,7 +804,7 @@ print x + y  // Output: 30
 ```sesi
 let text = "Reasoning is transforming industries!"
 fn analyzeText(text: string) -> string {return model("gemini-3.6-flash") {thinkingLevel: "low"} {"Analyze this text and return key insights: "text}}
-print analyzeText()
+show analyzeText()
 ```
 
 ### Example 3: Reasoning with Structured Output
@@ -806,8 +812,8 @@ print analyzeText()
 ```sesi
 let userInput = "I love working with Sesi!"
 let sentiment = structured_output({label: string, score: number})(model("gemini-3-flash-preview") {"Analyze sentiment of: "userInput})
-print sentiment.label
-print sentiment.score
+show sentiment.label
+show sentiment.score
 ```
 
 ## 12. Undefined Behavior & Limitations

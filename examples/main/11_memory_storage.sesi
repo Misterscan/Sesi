@@ -5,14 +5,14 @@ allow "helpers/safe" in with { json }
 memory database {"name: string, age: number, role: string"}
 
 database = {"name": "John", "age": 30, "role": "developer"}
-print color("Name:", "cyan") database["name"]
-print color("Age:", "cyan") str(database["age"])
-print color("Role:", "cyan") database["role"]
+show color("Name:", "cyan") database["name"]
+show color("Age:", "cyan") str(database["age"])
+show color("Role:", "cyan") database["role"]
 try {
   "data" | json(database)
-  print color("Database saved!", "green", "bold")
+  show color("Database saved!", "green", "bold")
 } catch(error) {
-  print "Error:" error
+  show "Error:" error
 }
 
 let new_info = {"name": "Jane", "age": 25, "role": "designer"}
@@ -21,14 +21,14 @@ for key in new_info | keys {
   merged[key] = new_info[key]
 }
 database = merged
-print "Name:" database["name"]
-print "Age:" database["age"]
-print "Role:" database["role"]
+show "Name:" database["name"]
+show "Age:" database["age"]
+show "Role:" database["role"]
 try {
   "data" | json(database)
-  print "Database updated!"
+  show "Database updated!"
 } catch(error) {
-  print "Error:" error
+  show "Error:" error
 }
 
 /* USING IT FOR AI IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
@@ -41,10 +41,10 @@ let response = model("gemini-3.5-flash-lite") {message}
 conversation = message + "Assistant:" + response
 return response
 }
-print "Starting conversation..."
+show "Starting conversation..."
 let answer1 = askBot("What is a closure in JavaScript?")
-print "Q1 Answer:" answer1
+show "Q1 Answer:" answer1
 let answer2 = askBot("Can you give me an example?")
-print "Q2 Answer:" answer2
+show "Q2 Answer:" answer2
 let answer3 = askBot("How do I use it in practice?")
-print "Q3 Answer:" answer3 */
+show "Q3 Answer:" answer3 */

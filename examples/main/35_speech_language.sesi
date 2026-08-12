@@ -11,7 +11,7 @@ Usage:
   Note: This example requires CMake to be installed for the `from_speech()` function to work.
 */
 allow "shell-automation" in with {brew_install}
-allow "helpers/safe" in with safe
+allow "helpers/safe" in as safe
 
 fn getOS() {return trim(js("console.log(require('os').platform())"))}
 let platform = getOS()
@@ -22,7 +22,7 @@ let tts = "Text to speak: " | input
 let fromLang = "Source language (default: en): " | input
 if is_null(fromLang) || fromLang == "" {fromLang = "en"}
 let toLang = "Target language (default: es): " | input
-print ""
+show ""
 if is_null(toLang) || toLang == "" {toLang = "es"}
 
 // Check if CMake is installed
@@ -30,39 +30,39 @@ let cmakeFound = "const cp=require('child_process');const p=require('os').platfo
 let installCMake = ""
 
 if cmakeFound == "yes" {
-  print color("CMake is already installed.\n", "green")
+  show color("CMake is already installed.\n", "green")
 } else if platform == "darwin" {
   let brewFound = "const cp=require('child_process');try{cp.execFileSync('which',['brew'],{stdio:['ignore','pipe','ignore']});console.log('yes')}catch(e){console.log('no')}" | js | trim
   if brewFound == "yes" {
-    print color("CMake is not installed. It is required for the 'from_speech()' demonstration.", "yellow")
+    show color("CMake is not installed. It is required for the 'from_speech()' demonstration.", "yellow")
     // Prompt user to install CMake via Homebrew
     installCMake = color("Allow Sesi to install CMake with Homebrew? (y/n): ", "yellow") | input
   } else {
-    print color("CMake is not installed. Install Homebrew from https://brew.sh, then run: brew install cmake", "yellow")
+    show color("CMake is not installed. Install Homebrew from https://brew.sh, then run: brew install cmake", "yellow")
   }
 } else if platform == "win32" {
-  print color("CMake is not installed. Install it from https://cmake.org/download/ or run: winget install Kitware.CMake", "yellow")
+  show color("CMake is not installed. Install it from https://cmake.org/download/ or run: winget install Kitware.CMake", "yellow")
 } else {
-  print color("CMake is not installed. Install it with your system package manager before using from_speech().", "yellow")
+  show color("CMake is not installed. Install it with your system package manager before using from_speech().", "yellow")
 }
 
 if trim(installCMake) == "y" {
   try { // Install CMake via Homebrew
       "cmake" | brew_install
-      print color("CMake installed successfully.", "green")
+      show color("CMake installed successfully.", "green")
   } catch (e) {
-      print color("Error installing CMake: " + str(e), "red")
+      show color("Error installing CMake: " + str(e), "red")
   }
 }
-if (installCMake | trim) == "n" {print color("Skipping 'from_speech()' demonstration.", "yellow")}
+if (installCMake | trim) == "n" {show color("Skipping 'from_speech()' demonstration.", "yellow")}
 
 // Check if the user wants to use AI for translation
 if tts != "" && (args[0] != "ai" || args[0] == null) {
-  print "Original language transcribed (" fromLang "):" tts
+  show "Original language transcribed (" fromLang "):" tts
   tts | speech
 
   tts = tts | translate(toLang, fromLang)
-  print "Translated language transcribed (" toLang "):" tts
+  show "Translated language transcribed (" toLang "):" tts
   tts | speech("Mónica")
   
 } else if tts != "" && args[0] == "ai" { // Use AI for translation
@@ -76,20 +76,20 @@ if tts != "" && (args[0] != "ai" || args[0] == null) {
     // Clean up common subtitle timestamps in Whisper transcription output
     if contains(transcript, "[") && contains(transcript, "-->") {transcript = js("const t=" + to_json(transcript) + ";console.log(t.replace(/\\[\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\s*-->\\s*\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\]/g,'').trim())")}
   } catch (e) {
-    print color("Error transcribing audio: " + str(e), "red")
+    show color("Error transcribing audio: " + str(e), "red")
   }
   audioPath | safe.remove; "audio_text.wav.txt" | safe.remove
 
   // If transcription fails or is empty, fallback to original text for translation
   if is_null(transcript) || trim(transcript) == "" || includes(transcript, "Error:") {
-    print color("Fallback: Using original text for translation.", "yellow")
-    print "Original language (" fromLang ") transcribed:" tts
+    show color("Fallback: Using original text for translation.", "yellow")
+    show "Original language (" fromLang ") transcribed:" tts
     tts | speech
     
     tts = tts | translate(toLang, fromLang)
 
     // Speak the translated text in the target language
-    print "Translated language (" toLang ") transcribed:" tts
+    show "Translated language (" toLang ") transcribed:" tts
     if platform == "darwin" {
       if toLang == "es" {tts | speech("Mónica")}
       if toLang == "fr" {tts | speech("Amélie")}
@@ -104,10 +104,10 @@ if tts != "" && (args[0] != "ai" || args[0] == null) {
     }
   } else { // Run translation and speech synthesis if transcription is successful
     let translated = transcript | translate(toLang, fromLang)
-    print "Original language(" fromLang ") transcribed:" transcript
+    show "Original language(" fromLang ") transcribed:" transcript
     tts | speech
 
-    print "Translated language (" toLang ") transcribed:" translated
+    show "Translated language (" toLang ") transcribed:" translated
     if platform == "darwin" {
       if toLang == "es" {translated | speech("Mónica")}
       if toLang == "fr" {translated | speech("Amélie")}

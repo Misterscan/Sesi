@@ -54,7 +54,7 @@ In Sesi, there are no SDK imports, no manual API key initializations, no complex
 
 ```sesi
 fn escalateTicket(customerId: string, reason: string) {
-  print "ESCALATION: Customer" customerId "for" reason
+  show "ESCALATION: Customer" customerId "for" reason
   return "Escalation logged."
 }
 memory processingLog {"Pipeline Start:"}
@@ -63,13 +63,13 @@ for feedback in rawFeedback {
   processingLog = processingLog + "Processing:" + feedback
   let analysis = structured_output({sentiment: string, category: string, isUrgent: bool, summary: string})
   (model("gemini-3.5-flash-lite") {"Analyze the customer feedback. Category should be Billing, UI, or Technical. Feedback:" feedback})
-  print "Result for:" analysis["summary"]
+  show "Result for:" analysis["summary"]
   if analysis["isUrgent"] {
     let resolution = tool_call(escalateTicket)(model("gemini-3.5-flash-lite") {"Call escalateTicket for customer '1234' with an exact reason based on:" feedback})
   processingLog = processingLog + "Urgent action taken:" + resolution} else {processingLog = processingLog + "Logged routinely."}
 }
-print "--- Final Processing Log ---"
-print processingLog
+show "--- Final Processing Log ---"
+show processingLog
 ```
 
 ### 2. The TypeScript Implementation (105 Lines)
@@ -299,7 +299,7 @@ while research == "" {
     let i = 0 while i < 1000 { i = i + 1 }
   }
 }
-print model("gemini-3.5-flash-lite") {"Synthesize: " research}
+show model("gemini-3.5-flash-lite") {"Synthesize: " research}
 ```
 
 **Analysis**:

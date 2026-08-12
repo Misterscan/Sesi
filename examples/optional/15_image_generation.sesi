@@ -7,7 +7,7 @@ outputDir | newFolder
 let products: array<str> = ["coffee_mug", "desk_lamp", "notebook"]
 
 for product in products {
-    print "Generating asset for:" product
+    show "Generating asset for:" product
     prompt request {"A clean studio presentation photograph of a " product " on a solid white background."}
     prompt filename {outputDir product ".png"}
 
@@ -16,15 +16,15 @@ for product in products {
         let success = filename | saveMedia(imageData)
 
         if success {
-            print "Saved:" filename
+            show "Saved:" filename
         }
     } catch (e) {
-        print "Failed processing" product ":" e
+        show "Failed processing" product ":" e
     }
 }
 
 if outputDir | getFiles | includes("notebook.png") {
-    print "Asset generation complete."
+    show "Asset generation complete."
 } else {
-    print "Asset generation incomplete. There should be" products | length "images, but only" outputDir | getFiles | length "were generated."
+    show "Asset generation incomplete. There should be" products | length "images, but only" outputDir | getFiles | length "were generated."
 }

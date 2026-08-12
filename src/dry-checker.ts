@@ -106,8 +106,8 @@ function tokenize(text: string): ScopeToken[] {
   const keywords = new Set([
     'let', 'fn', 'if', 'else', 'while', 'for', 'in', 'return',
     'break', 'continue', 'try', 'catch', 'finally', 'true', 'false', 'null',
-    'print', 'prompt', 'model', 'image', 'make', 'async', 'await', 'import', 'from',
-    'export', 'to', 'allow', 'with', 'convert', 'memory', 'structured_output', 'tool_call',
+    'show', 'prompt', 'model', 'image', 'make', 'async', 'await', 'import', 'from',
+    'export', 'to', 'allow', 'as', 'with', 'convert', 'memory', 'structured_output', 'tool_call',
   ]);
   const stripped = stripComments(text);
   const tokenRegex = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b[a-zA-Z_][a-zA-Z0-9_]*\b|[{}[\](),;.:=+\-*/%&|!<>]/g;
@@ -226,7 +226,7 @@ function findDeclarationsAndReferences(tokens: ScopeToken[]): { decls: Declarati
       }
     } else if (token.type === 'ALLOW') {
       let cursor = i + 1;
-      while (cursor < tokens.length && tokens[cursor].type !== 'WITH') cursor++;
+      while (cursor < tokens.length && tokens[cursor].type !== 'WITH' && tokens[cursor].type !== 'AS') cursor++;
       cursor++;
       while (tokens[cursor]?.type === 'NEWLINE') cursor++;
       if (tokens[cursor]?.type === 'IDENTIFIER') {
@@ -362,11 +362,11 @@ function shouldPushScope(index: number, tokens: ScopeToken[]): boolean {
 }
 
 const BUILTINS = new Set([
-  'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt', 'speech', 'from_speech', 'translate', 'len',
-  'read_file', 'write_file', 'append_file', 'write_image', 'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'trunc',
-  'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call', 'spawn', 'exec', 'sesi', 'python', 'time', 'env',
+  'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt', 'speech', 'from_speech', 'translate', 'len',
+  'read_file', 'write_file', 'append_file', 'write_image', 'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
+  'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call', 'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env',
   'range', 'push', 'append', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs',
-  'pow', 'log', 'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get',
+  'pow', 'log', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get',
   'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter',
   'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
   'lazy', 'force', 'timeout', 'profile', 'profile_start', 'profile_end', 'profile_report',

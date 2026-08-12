@@ -43,14 +43,14 @@ fn isAddress(item: string) -> bool {
   return hasNumber && hasWord && len(parts) >= 2
 }
 
-print color("Classifying items natively:", "magenta")
+show color("Classifying items natively:", "magenta")
 for item in items {
   if item | isEmail {
-    print color(item, "cyan") "->" color("EMAIL", "green")
+    show color(item, "cyan") "->" color("EMAIL", "green")
   } else if item | isAddress {
-    print color(item, "cyan") "->" color("ADDRESS", "yellow")
+    show color(item, "cyan") "->" color("ADDRESS", "yellow")
   } else {
-    print color(item, "cyan") "->" color("TEXT/LOCATION", "white")
+    show color(item, "cyan") "->" color("TEXT/LOCATION", "white")
   }
 }
 
@@ -60,7 +60,7 @@ COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
 
 let items = ["A quick brown fox", "123 Main Street", "user@example.com", "New York City"]
 fn classifyItem(item: string) -> string {return model("gemini-3.5-flash-lite") {"Classify this item into one of: TEXT, ADDRESS, EMAIL, LOCATION " "Item: " item}}
-print "Classifying items..."
+show "Classifying items..."
 for item in items 
 {let classification = classifyItem(item)
-print item "->" classification} */
+show item "->" classification} */

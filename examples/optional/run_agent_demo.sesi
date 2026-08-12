@@ -3,13 +3,13 @@
   Run with: sesi run_agent_demo.sesi
 */
 
-allow "ai_agent" in with Agent
+allow "ai_agent" in as Agent
 
 // Set model aliases
 set_alias("tutor", "gemini-2.5-flash")
 set_alias("developer", "gemini-3.5-flash-lite")
 
-print "=== Part 1: Streaming Conversational Agent ==="
+show "=== Part 1: Streaming Conversational Agent ==="
 
 let chat_agent = Agent.create({
   "model": "tutor",
@@ -18,13 +18,13 @@ let chat_agent = Agent.create({
   "stream": true
 })
 
-print "Prompting streaming agent: 'What is the speed of light?'"
-print "--- Agent Output ---"
+show "Prompting streaming agent: 'What is the speed of light?'"
+show "--- Agent Output ---"
 let response = Agent.chat(chat_agent, "What is the speed of light?", true)
-print "
+show "
 --------------------"
 
-print "
+show "
 === Part 2: SesiDo File Analyzer Agent ==="
 
 // We can register native Sesi built-in functions directly as tools!
@@ -37,14 +37,14 @@ let react_agent = Agent.create({
   }
 })
 
-print "Task: Find the name of this project in package.json."
+show "Task: Find the name of this project in package.json."
 let final_answer = Agent.run_react(react_agent, "Read package.json and find the name of the project.", 3, true)
 
-print "
+show "
 Final result from SesiDo agent:"
-print final_answer
+show final_answer
 
-print "
+show "
 === Part 3: Dynamic Tool Administration and State Persistence ==="
 
 // Create an agent with no initial tools
@@ -68,25 +68,25 @@ fn double_tool(args) {
 
 // Add the tool dynamically
 Agent.add_tool(admin_agent, "double", double_tool)
-print "Dynamically registered the 'double' tool."
+show "Dynamically registered the 'double' tool."
 
 // Chat with the agent using the dynamic tool
-print "Asking agent to double 125..."
+show "Asking agent to double 125..."
 let chat_result = Agent.chat(admin_agent, "Use the double tool to double the number 125.", true)
-print "Final Answer:" chat_result
+show "Final Answer:" chat_result
 
 // Retrieve the last response
 let last = Agent.get_last_response(admin_agent, true)
-print "Last assistant response in history:" last
+show "Last assistant response in history:" last
 
 // Clone the agent
 let cloned_agent = Agent.clone(admin_agent)
-print "Cloned agent state successfully."
+show "Cloned agent state successfully."
 
 // Save original agent state
 Agent.save(admin_agent, "agent_session.json")
-print "Saved agent state to agent_session.json."
+show "Saved agent state to agent_session.json."
 
 // Remove the tool dynamically
 Agent.remove_tool(admin_agent, "double")
-print "Dynamically removed the 'double' tool."
+show "Dynamically removed the 'double' tool."

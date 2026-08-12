@@ -122,7 +122,7 @@ export class VM {
           throw new Error('Tool name must be a string');
         }
 
-        const sensitiveBuiltins = ['exec', 'spawn', 'python', 'js', 'ffmpeg', 'gif', 'video'];
+        const sensitiveBuiltins = ['exec', 'run', 'spawn', 'python', 'js', 'ffmpeg', 'gif', 'video'];
         if (sensitiveBuiltins.includes(nameVal)) {
           throw new Error(`Security Violation: Automated execution of sensitive tool "${nameVal}" is forbidden.`);
         }

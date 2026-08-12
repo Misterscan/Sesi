@@ -14,7 +14,7 @@
   Usage:
     sesi examples/main/34_sesi_api.sesi -l
 */
-allow "std/api" in with API
+allow "std/api" in as API
 
 // In-memory store (no file dependency so example is self-contained)
 let store = []
@@ -102,47 +102,47 @@ let server = 8080 | app.listen
 
 try {
   let health = "http://localhost:8080/health" | web_get
-  print "Health:        " health
+  show "Health:        " health
 } catch (error) {
-  print "Health check failed:" error
+  show "Health check failed:" error
 }
 
 try {
   let created = "http://localhost:8080/users" | web_send({"name": "Alice", "email": "alice@example.com"})
-  print "POST /users:   " created
+  show "POST /users:   " created
 } catch (error) {
-  print "Create user failed:" error
+  show "Create user failed:" error
 }
 
 try {
   let list = "http://localhost:8080/users" | web_get
-  print "GET /users:    " list
+  show "GET /users:    " list
 } catch (error) {
-  print "List users failed:" error
+  show "List users failed:" error
 }
 
 try {
   let specRaw = "http://localhost:8080/openapi.json" | web_get
   let spec = specRaw | from_json
-  print "OpenAPI title: " spec.info.title
-  print "Paths:         " spec.paths | keys | join(", ")
+  show "OpenAPI title: " spec.info.title
+  show "Paths:         " spec.paths | keys | join(", ")
 } catch (error) {
-  print "Fetch OpenAPI spec failed:" error
+  show "Fetch OpenAPI spec failed:" error
 }
 
 try {
   let docsHtml = "http://localhost:8080/docs" | web_get
-  print "GET /docs HTML starts with: " docsHtml | trunc(15)
+  show "GET /docs HTML starts with: " docsHtml | trunc(15)
 } catch (error) {
-  print "Fetch /docs failed:" error
+  show "Fetch /docs failed:" error
 }
 
 // 422 on missing required field
 try {
   let badReq = "http://localhost:8080/users" | web_send({"name": "Bob"})
-  print "Missing email: " badReq
+  show "Missing email: " badReq
 } catch (error) {
-  print "Missing email request failed:" error
+  show "Missing email request failed:" error
 }
 
 let end = "Press enter to close the server and exit..." | input

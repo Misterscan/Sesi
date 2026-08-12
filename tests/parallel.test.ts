@@ -38,7 +38,7 @@ async function main() {
     }
     
     let results = multi_req([task1, task2])
-    print "Parallel results:" + str(results)
+    show "Parallel results:" + str(results)
   `, int1);
   const end = Date.now();
   const elapsed = end - start;

@@ -23,27 +23,27 @@ fn filterNumbers(list: array, limit: number) -> array {
   return filtered
 }
 let highNumbers = numbers | filterNumbers(threshold)
-print color("Numbers above " str(threshold) ":", "magenta")
+show color("Numbers above " str(threshold) ":", "magenta")
 for val in highNumbers {
-  print color("- ", "cyan") str(val)
+  show color("- ", "cyan") str(val)
 }
 
 fn buildSummary(values: array) -> string {
-  print color("Building delayed summary now...", "yellow")
+  show color("Building delayed summary now...", "yellow")
   return "Summary: kept " + len(values) + " values above the threshold."
 }
 
 let delayedSummary = buildSummary | lazy(highNumbers)
-print "Created a lazy summary. It has not run yet."
-print delayedSummary | force
-print "Forcing again uses the cached summary:"
-print delayedSummary | force
+show "Created a lazy summary. It has not run yet."
+show delayedSummary | force
+show "Forcing again uses the cached summary:"
+show delayedSummary | force
 
 try {
   "results.txt" | write_file("Processed " + len(highNumbers) + " items.")
-  print "Log file created."
+  show "Log file created."
 } catch(e) {
-  print "File error: "e
+  show "File error: "e
 }
 
 /* USING AI IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
@@ -56,32 +56,32 @@ return structured_output({sentiment: string, confidence: number})(model("gemini-
 }
 
 // Process all reviews
-print ("Processing " + len(reviews) + " reviews...")
+show ("Processing " + len(reviews) + " reviews...")
 let results = []
 let positiveCount = 0
 let negativeCount = 0
 let neutralCount = 0
 for review in reviews 
-{print "Review:" review
+{show "Review:" review
 let analysis = analyzeReview(review)
 let sentiment = analysis["sentiment"]
 let confidence = analysis["confidence"]
-print "Sentiment:" sentiment "Confidence:" confidence
+show "Sentiment:" sentiment "Confidence:" confidence
 push(results, analysis)
 if sentiment == "positive" {positiveCount = positiveCount + 1} else if sentiment == "negative" {negativeCount = negativeCount + 1} else {neutralCount = neutralCount + 1}}
 
 // Summary
-print "=== Summary ==="
-print "Total reviews:" len(reviews)
-print "Positive:" positiveCount
-print "Negative:" negativeCount
-print "Neutral:" neutralCount
+show "=== Summary ==="
+show "Total reviews:" len(reviews)
+show "Positive:" positiveCount
+show "Negative:" negativeCount
+show "Neutral:" neutralCount
 
 // Calculate average sentiment score
 let totalConfidence = 0
 for result in results {totalConfidence = totalConfidence + result["confidence"]}
 let avgConfidence = totalConfidence / len(results)
-print "Average confidence:" avgConfidence
+show "Average confidence:" avgConfidence
 
 // Overall recommendation
-if positiveCount > negativeCount {print "Overall: RECOMMENDED (more positive reviews)"} else if negativeCount > positiveCount {print "Overall: NOT RECOMMENDED (more negative reviews)"} else {print "Overall: MIXED (balanced reviews)"} */
+if positiveCount > negativeCount {show "Overall: RECOMMENDED (more positive reviews)"} else if negativeCount > positiveCount {show "Overall: NOT RECOMMENDED (more negative reviews)"} else {show "Overall: MIXED (balanced reviews)"} */

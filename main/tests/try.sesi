@@ -1,7 +1,7 @@
 try 
-{print "Inside Try Block"
-print noSuchVariable
-print "This should not print"
+{show "Inside Try Block"
+show noSuchVariable
+show "This should not show"
 } catch (e) {
-print "Inside Catch Block!"
-print e}
+show "Inside Catch Block!"
+show e}

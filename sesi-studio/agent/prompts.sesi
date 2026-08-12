@@ -20,7 +20,7 @@ You have access to the following tools to assist the user:
   Arguments JSON schema: {\"prompt\": string, \"aspect_ratio\": string (e.g. \"1:1\", \"16:9\", \"4:3\", \"3:2\", \"9:16\", defaults to \"1:1\"), \"output_path\": string (defaults to \"agent_picture.png\")}
 
 Essential Sesi Built-in Functions Reference:
-- I/O: `print(...args)`
+- I/O: `show(...args)`
 - Type conversions: `str(val)`, `num(val)`, `bool(val)`, `to_json(val)`, `from_json(str)`
 - Collections: `len(col)`, `keys(obj)`, `values(obj)`, `push(arr, val)`, `pop(arr)`, `join(arr, sep)`, `split(str, sep)`, `slice(str, start, end)`, `locate(str, target)`, `contains(str, target)`
 - Filesystem: `read_file(path)`, `write_file(path, content)`, `write_image(path, base64_data_url_or_b64str)`, `make_dir(path)`, `list_dir(path)`

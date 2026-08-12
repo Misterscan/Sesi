@@ -8,7 +8,7 @@
   Usage:
     sesi css-flatten.sesi [input_file_or_dir] [output_dir]
 */
-allow "safe" in with safe
+allow "safe" in as safe
 
 let input_target = "style.css"
 let output_dir = "minified"
@@ -112,18 +112,18 @@ fn minify_css(css: string) -> string {
 
 // Reusable I/O worker block
 fn process_file(in_path: string, out_path: string) {
-  print "Processing:" in_path
+  show "Processing:" in_path
   try {
     let source_css = safe.read(in_path)
-    print "Original size:" len(source_css) "bytes"
+    show "Original size:" len(source_css) "bytes"
     let minified_css = minify_css(source_css)
     let success = safe.write(out_path, minified_css)
     
     if success {
-      print "  -> Saved:" out_path "(" len(minified_css) "bytes )"
+      show "  -> Saved:" out_path "(" len(minified_css) "bytes )"
     }
   } catch (err) {
-    print "  -> File I/O Error processing" in_path ":" err
+    show "  -> File I/O Error processing" in_path ":" err
   }
 }
 
@@ -132,7 +132,7 @@ fn process_file(in_path: string, out_path: string) {
 // ---------------------------------------------------------
 
 if ends_with(input_target, ".css") {
-  print "Running in Single File Mode..."
+  show "Running in Single File Mode..."
   
   // Cleanly extract the filename in case the user passed a path (e.g. "src/main.css")
   let path_parts = split(input_target, "/")
@@ -142,8 +142,8 @@ if ends_with(input_target, ".css") {
   process_file(input_target, target_out)
   
 } else {
-  print "Running in Batch Directory Mode..."
-  print "Scanning directory:" input_target
+  show "Running in Batch Directory Mode..."
+  show "Scanning directory:" input_target
   
   try {
     let files = safe.getFiles(input_target)
@@ -159,8 +159,8 @@ if ends_with(input_target, ".css") {
       }
     }
     
-    print "Batch complete. Processed" count "files."
+    show "Batch complete. Processed" count "files."
   } catch (err) {
-    print "Error reading directory. Ensure the path exists and permissions are valid." err
+    show "Error reading directory. Ensure the path exists and permissions are valid." err
   }
 }

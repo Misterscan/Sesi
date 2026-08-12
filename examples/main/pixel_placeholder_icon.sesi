@@ -4,8 +4,8 @@
   Generates a full-resolution 512x512 RGBA PNG. The 16x16 design grid is
   expanded to 32x32 real raster pixels per cell by Draw.pixel_grid().
 */
-allow "std/draw" in with Draw
-allow "helpers/safe" in with Safe
+allow "std/draw" in as Draw
+allow "helpers/safe" in as Safe
 
 let palette = {
     ".": "#202957",
@@ -40,7 +40,7 @@ let icon_grid = [
     "........//......"
 ]
 
-print "Rendering a 512x512 placeholder icon from a palette grid..."
+show "Rendering a 512x512 placeholder icon from a palette grid..."
 Draw.clear()
 
 // 16 logical cells x 32 real pixels = 512 pixels on each side.
@@ -53,4 +53,4 @@ if !(outputDir | Safe.isFolder) {
 let outputPath = outputDir + "placeholder_icon_512.png"
 Draw.save_png(outputPath, 512, 512)
 
-print "Saved" outputPath "(512x512, true raster PNG)"
+show "Saved" outputPath "(512x512, true raster PNG)"

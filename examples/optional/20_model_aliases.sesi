@@ -7,26 +7,26 @@ Demonstrates:
      3. Using aliases inside workflow() steps
 */
 
-print "=== Registering model aliases ==="
+show "=== Registering model aliases ==="
 let summary = "summary"
 let detailed = "detailed"
 
 summary | set_alias("gemini-3.5-flash-lite")
 detailed | set_alias("gemini-3.6-flash")
 
-print "=== Fast summary call ==="
+show "=== Fast summary call ==="
 let quick = model(summary) {max_tokens: 100} {"Summarize the benefits of model aliases in two short bullet points."}
-print quick
+show quick
 
-print "=== Deeper reasoning call ==="
+show "=== Deeper reasoning call ==="
 let deepAnswer = model(detailed) {thinkingLevel: "medium", max_tokens: 500} {"Give one practical tradeoff between a fast model and a deep reasoning model."}
-print deepAnswer
+show deepAnswer
 
-print "=== Workflow with aliased model names ==="
+show "=== Workflow with aliased model names ==="
 let steps = [
  {"model": summary, "prompt": "Draft a one-line launch update about aliases: "},
  {"model": summary, "prompt": "Tighten wording and remove fluff: "}
  ]
 
 let flow = workflow(steps, "Custom model naming is now available")
-print flow["final"]
+show flow["final"]

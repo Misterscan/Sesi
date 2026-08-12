@@ -16,7 +16,7 @@ All variables are declared with `let`. There is no `const`, `var`, or any other 
 let name = "Sesi"
 let retries: number = 3
 let title: string = "Welcome"
-let version = 1.8.0
+let version = 1.8.5
 let active = true
 let missing        // declared but uninitialized — value is null
 ```

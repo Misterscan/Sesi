@@ -21,10 +21,10 @@ let draft = model(fast) {max_tokens: 180} {"Write one concise launch note for mo
 let bullet = tool_call(to_bullet)(draft)
 let tagged = tool_call(add_tag)(bullet)
 
-print "Raw draft:
+show "Raw draft:
 "
-print draft "
+show draft "
 "
-print "Processed output:
+show "Processed output:
 "
-print tagged
+show tagged

@@ -6,10 +6,10 @@
 
   FFmpeg must be installed and available in PATH.
 */
-allow "std/draw" in with Draw
-allow "helpers/safe" in with Safe
+allow "std/draw" in as Draw
+allow "helpers/safe" in as Safe
 
-print "--- Regex ---"
+show "--- Regex ---"
 
 let source = "draft-17, Draft-23; release-42"
 let words = "[A-Za-z]+" | regex(source, {"flags": "g", "mode": "match"})
@@ -17,12 +17,12 @@ let hasRelease = "release-[0-9]+" | regex(source, {"flags": "i", "mode": "test"}
 let renamed = "draft" | regex(source, {"flags": "gi", "mode": "replace", "replacement": "build"})
 let fields = "[,;]" | regex(source, {"mode": "split"})
 
-print "Matches:" words
-print "Contains a release:" hasRelease
-print "Replaced:" renamed
-print "Split fields:" fields
+show "Matches:" words
+show "Contains a release:" hasRelease
+show "Replaced:" renamed
+show "Split fields:" fields
 
-print "\n--- Pixel frames ---"
+show "\n--- Pixel frames ---"
 
 let outputDir = "generated_media/"
 if !(outputDir | Safe.isFolder) {
@@ -67,7 +67,7 @@ outputDir + "frame-2.png" | Draw.save_png(128, 128)
 
 let frames = [outputDir + "frame-1.png", outputDir + "frame-2.png"]
 
-print "\n--- GIF and video ---"
+show "\n--- GIF and video ---"
 
 let gifPath = outputDir + "pixel-motion.gif"
 let videoPath = outputDir + "pixel-motion.mp4"
@@ -75,19 +75,19 @@ try {
     frames | gif(gifPath, {"fps": 2, "width": 128, "loop": 0})
     frames | video(videoPath, {"fps": 2, "width": 128, "height": 128, "preset": "ultrafast"})
 
-    print "Saved GIF:" gifPath
-    print "Saved video:" videoPath
+    show "Saved GIF:" gifPath
+    show "Saved video:" videoPath
 } catch (e) {
-    print "Error generating GIF or video:" e
+    show "Error generating GIF or video:" e
 }
 
-print "\n--- Raw FFmpeg ---"
+show "\n--- Raw FFmpeg ---"
 
 let ffmpegInfo = ""
 try {
     ffmpegInfo = ["-version"] | ffmpeg({"throw_on_error": false})
-    print "FFmpeg available:" ffmpegInfo.ok
-    print "FFmpeg exit code:" ffmpegInfo.code
+    show "FFmpeg available:" ffmpegInfo.ok
+    show "FFmpeg exit code:" ffmpegInfo.code
 } catch (e) {
-    print "Error running FFmpeg:" e
+    show "Error running FFmpeg:" e
 }

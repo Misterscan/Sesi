@@ -6,12 +6,12 @@ prompt responseTemplate {greetingTemplate "I hope you're having a great day!"}
 
 // Prompts evaluate to strings
 let greeting = responseTemplate
-print color(greeting, "cyan")
+show color(greeting, "cyan")
 
 // Prompts can use variables
 let userName = "Alice"
 prompt personalGreeting {"Hello, "userName"! Welcome back!"}
-print color(personalGreeting, "magenta")
+show color(personalGreeting, "magenta")
 
 // You can really explore the power of prompt blocks by using it to structure your outputs
 prompt title {"Document"}
@@ -48,7 +48,7 @@ prompt body {"  <h1>Hello Sesi!</h1>
 let htmlPage = body | html({"title": title, "head": css, "lang": "en"})
 try {
     htmlPage | write_file("index.prompt.html")
-    print color("HTML file created successfully!", "green", "bold")
+    show color("HTML file created successfully!", "green", "bold")
 } catch (error) {
-    print color("Error creating HTML file: " + str(error), "red")
+    show color("Error creating HTML file: " + str(error), "red")
 }

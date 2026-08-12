@@ -46,7 +46,7 @@ fn renderLogsList(records) {
 }
 
 async fn handleRequest(req) {
-  print "Request received on path:" req.path
+  show "Request received on path:" req.path
   
   // Log request to database
   let userAgent = "Unknown Browser"
@@ -224,12 +224,12 @@ async fn handleRequest(req) {
 }
 
 let port = 8080
-print "Starting combined server at http://localhost:8080"
+show "Starting combined server at http://localhost:8080"
 let server = port | listen(handleRequest)
 
 /* For automated examples/test run, close the server after 2 seconds. */
 allow "std/time" in with {sleep}
 2000 | sleep
-print "Closing webpage server..."
+show "Closing webpage server..."
 server.close()
-print "Webpage server closed successfully."
+show "Webpage server closed successfully."

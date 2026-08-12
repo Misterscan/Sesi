@@ -5,13 +5,13 @@
   Every visible output pixel is calculated individually; this is not a
   tiny sprite enlarged with SVG geometry or image scaling.
 */
-allow "std/draw" in with Draw
-allow "helpers/safe" in with Safe
+allow "std/draw" in as Draw
+allow "helpers/safe" in as Safe
 
 let canvas_size = 512
 let last_pixel = canvas_size - 1
 
-print "Rendering a 512x512 placeholder icon pixel by pixel..."
+show "Rendering a 512x512 placeholder icon pixel by pixel..."
 Draw.clear()
 
 let y = 0
@@ -100,4 +100,4 @@ if !(outputDir | Safe.isFolder) {
 }
 let outputPath = outputDir + "placeholder_icon_512_detailed.png"
 Draw.save_png(outputPath, canvas_size, canvas_size)
-print "Saved" outputPath "(512x512, true raster PNG)"
+show "Saved" outputPath "(512x512, true raster PNG)"

@@ -56,6 +56,28 @@ async function main() {
   }
   console.log('✓ Make keyword tokenization');
 
+  const showTokens = new Lexer('show "hello"').scanTokens();
+  if (showTokens[0].type !== 'SHOW') {
+    throw new Error('show must tokenize as the output keyword');
+  }
+  if (new Lexer('print "hello"').scanTokens()[0].type !== 'IDENTIFIER') {
+    throw new Error('print must no longer tokenize as a keyword');
+  }
+  console.log('✓ Show keyword replaces print');
+
+  const legacyPrintParser = new Parser(new Lexer('print "hello"').scanTokens());
+  const originalPrintConsoleError = console.error;
+  console.error = () => {};
+  try {
+    legacyPrintParser.parse();
+  } finally {
+    console.error = originalPrintConsoleError;
+  }
+  if (legacyPrintParser.errors.length === 0) {
+    throw new Error('Legacy print statement syntax must be rejected');
+  }
+  console.log('✓ Legacy print statement syntax is rejected');
+
   const reservedWords = ['prompt', 'make', 'const'];
   const originalConsoleError = console.error;
   console.error = () => {};
@@ -106,16 +128,16 @@ async function main() {
 
   await runTest('Variable declaration', 'let x = 10');
   await runTest('Variable assignment', 'let x = 10\nx = 20');
-  await runTest('Print function', 'print "Hello"');
+  await runTest('Show function', 'show "Hello"');
   await runTest('Arithmetic', 'let x = 10 + 20');
   await runTest('String concatenation', 'let x = "Hello" + " " + "World"');
   await runTest('Boolean operations', 'let x = true && false');
   await runTest('Comparison', 'let x = 10 > 5');
-  await runTest('If statement', 'if true { print "yes" }');
-  await runTest('If-else statement', 'if false { print "no" } else { print "yes" }');
+  await runTest('If statement', 'if true { show "yes" }');
+  await runTest('If-else statement', 'if false { show "no" } else { show "yes" }');
   await runTest('While loop', 'let i = 0\nwhile i < 3 { i = i + 1 }');
-  await runTest('For loop', 'for i = 0 to 3 { print i }');
-  await runTest('For-in loop', 'for x in [1, 2, 3] { print x }');
+  await runTest('For loop', 'for i = 0 to 3 { show i }');
+  await runTest('For-in loop', 'for x in [1, 2, 3] { show x }');
   await runTest('Function definition', 'fn add(a, b) { return a + b }');
   await runTest('Function call', 'fn add(a, b) { return a + b }\nlet x = add(5, 3)');
   await runTest('Array literal', 'let arr = [1, 2, 3]');
@@ -170,7 +192,7 @@ async function main() {
   await runTest('Make class construction and bound methods', 'make Person {\nlet kind = "person"\nfn start(self, name) { self.name = name }\nfn greet(self) { return "Hello, " + self.name }\n}\nlet ada = Person("Ada")\nif ada.kind != "person" || ada.name != "Ada" || ada.greet() != "Hello, Ada" { raise_error("AssertionError", "make instance failed") }');
   await runTest('Make instances have independent state','make Counter {\nlet count = 0\nfn increment(self) {\nself.count = self.count + 1\nreturn self.count\n}\n}\nlet first = Counter()\nlet second = Counter()\nfirst.increment()\nif first.count != 1 || second.count != 0 { raise_error("AssertionError", "make instances share state") }');
   await runTest('Make start constructor supports defaults','make User {\nfn start(self, name, role = "member") {\nself.name = name\nself.role = role\n}\n}\nlet user = User("Ada")\nif user.name != "Ada" || user.role != "member" { raise_error("AssertionError", "start failed") }');
-  await runTest('Nested blocks', '{ { print "nested" } }');
+  await runTest('Nested blocks', '{ { show "nested" } }');
   await runTest('Variable shadowing', 'let x = 1\n{ let x = 2 }');
   await runTest('Break statement', 'while true { break }');
   await runTest('Continue statement', 'for i = 0 to 5 { if i == 2 { continue } }');
@@ -185,16 +207,16 @@ async function main() {
   await runTest('Short-circuit AND', 'if false && true { }');
   await runTest('Short-circuit OR', 'if true || false { }');
   await runTest('Member access', 'let obj = { "x": { "y": 1 } }\nlet val = obj["x"]["y"]');
-  await runTest('Default parameters', 'fn greet(name = "World") { print name }');
+  await runTest('Default parameters', 'fn greet(name = "World") { show name }');
   await runTest('Custom tool definitions','fn summarize(x) { return "ok:" + x }\ndefine_tool("summarizer", summarize, "Summarize text")\nlet out = tool_call(summarizer)("hello")\nif out != "ok:hello" { let e = missing_var }');
   await runTest('List custom tools','fn analyze(x) { return x }\ndefine_tool("analyzer", analyze)\nlet tools = list_tools()\nif len(tools) < 1 { let e = missing_var }');
   await runTest('Return with value', 'fn test() { return 42 }');
   await runTest('Return without value', 'fn test() { return }');
-  await runTest('Audio std library keys check', 'allow "std/audio" in with Audio\nlet found = false\nfor k in keys(Audio) {\n  if k == "midi" { found = true }\n}\nif !found { raise_error("AssertionError", "midi missing") }');
-  await runTest('Draw std library keys check', 'allow "std/draw" in with Draw\nlet found = false\nfor k in keys(Draw) {\n  if k == "save_svg" { found = true }\n}\nif !found { raise_error("AssertionError", "save_svg missing") }');
+  await runTest('Audio std library keys check', 'allow "std/audio" in as Audio\nlet found = false\nfor k in keys(Audio) {\n  if k == "midi" { found = true }\n}\nif !found { raise_error("AssertionError", "midi missing") }');
+  await runTest('Draw std library keys check', 'allow "std/draw" in as Draw\nlet found = false\nfor k in keys(Draw) {\n  if k == "save_svg" { found = true }\n}\nif !found { raise_error("AssertionError", "save_svg missing") }');
   const pngFixture = path.join(process.cwd(), 'tests', '.draw_pixel_fixture.png');
   try {
-    const pixelSource = 'allow "std/draw" in with Draw\nDraw.pixel_grid(["AB", "BA"], {"A": "#ff00aa", "B": "#00ff00"}, 2, 1, 0)\nDraw.save_png("tests/.draw_pixel_fixture.png", 5, 4)';
+    const pixelSource = 'allow "std/draw" in as Draw\nDraw.pixel_grid(["AB", "BA"], {"A": "#ff00aa", "B": "#00ff00"}, 2, 1, 0)\nDraw.save_png("tests/.draw_pixel_fixture.png", 5, 4)';
     const pixelProgram = new Parser(new Lexer(pixelSource).scanTokens()).parse();
     await new Interpreter(undefined, { safeMode: false, allowLocalFs: true }).interpret(pixelProgram);
     const png = fs.readFileSync(pngFixture);

@@ -8,7 +8,7 @@
   Usage:
     sesi html-minify.sesi [input_file_or_dir] [output_dir]
 */
-allow "safe" in with safe
+allow "safe" in as safe
 
 let input_target = "index.html"
 let output_dir = "minified"
@@ -86,17 +86,17 @@ fn minify_html(html: string) -> string {
 
 // Reusable I/O worker block
 fn process_file(in_path: string, out_path: string) {
-  print "Processing:" in_path
+  show "Processing:" in_path
   try {
     let source_html = safe.read(in_path)
     let minified_html = minify_html(source_html)
     let success = safe.write(out_path, minified_html)
     
     if success {
-      print "  -> Saved:" out_path "(" len(minified_html) "bytes )"
+      show "  -> Saved:" out_path "(" len(minified_html) "bytes )"
     }
   } catch (err) {
-    print "  -> File I/O Error processing" in_path ":" err
+    show "  -> File I/O Error processing" in_path ":" err
   }
 }
 
@@ -105,7 +105,7 @@ fn process_file(in_path: string, out_path: string) {
 // ---------------------------------------------------------
 
 if ends_with(input_target, ".html") {
-  print "Running in Single File Mode..."
+  show "Running in Single File Mode..."
   
   // Cleanly extract the filename from the path
   let path_parts = split(input_target, "/")
@@ -115,8 +115,8 @@ if ends_with(input_target, ".html") {
   process_file(input_target, target_out)
   
 } else {
-  print "Running in Batch Directory Mode..."
-  print "Scanning directory:" input_target
+  show "Running in Batch Directory Mode..."
+  show "Scanning directory:" input_target
   
   try {
     let files = safe.getFiles(input_target)
@@ -132,8 +132,8 @@ if ends_with(input_target, ".html") {
       }
     }
     
-    print "Batch HTML minification complete. Processed" count "files."
+    show "Batch HTML minification complete. Processed" count "files."
   } catch (err) {
-    print "Error reading directory. Ensure the path exists and permissions are valid." err
+    show "Error reading directory. Ensure the path exists and permissions are valid." err
   }
 }

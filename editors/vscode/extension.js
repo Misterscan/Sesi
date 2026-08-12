@@ -312,8 +312,8 @@ function tokenize(text) {
     const keywords = new Set([
         'let', 'fn', 'if', 'else', 'while', 'for', 'in', 'return',
         'break', 'continue', 'try', 'catch', 'finally', 'true', 'false', 'null',
-        'print', 'prompt', 'model', 'image', 'make', 'async', 'await', 'import', 'from',
-        'export', 'to', 'allow', 'with', 'convert', 'memory', 'structured_output',
+        'show', 'prompt', 'model', 'image', 'make', 'async', 'await', 'import', 'from',
+        'export', 'to', 'allow', 'as', 'with', 'convert', 'memory', 'structured_output',
         'tool_call'
     ]);
 
@@ -419,7 +419,7 @@ function findDeclarationsAndReferences(tokens) {
         }
         else if (tok.type === 'ALLOW') {
             let temp = i + 1;
-            while (temp < tokens.length && tokens[temp].type !== 'WITH') {
+            while (temp < tokens.length && tokens[temp].type !== 'WITH' && tokens[temp].type !== 'AS') {
                 temp++;
             }
             let nextIdx = temp + 1;
@@ -860,13 +860,13 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'print', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
+        'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
   'speech', 'from_speech', 'translate', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
-  'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'trash', 'exp', 'trunc',
+  'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call',
-  'spawn', 'exec', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split',
+  'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split',
   'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log',
-  'parse', 'stringify', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req',
+  'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req',
   'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
   'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input',
   'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
@@ -992,7 +992,7 @@ function activate(context) {
             signature: 'let identifier = value',
             source: 'Sesi Core Primitives',
             description: 'Declares a variable and binds it to a value. In Sesi, `let` is the single universal binding primitive (forbid using `const`).',
-            example: 'let count = 10\ncount = count + 5\nprint count'
+            example: 'let count = 10\ncount = count + 5\nshow count'
         },
         'make': {
             signature: 'make identifier { ... }',
@@ -1010,31 +1010,31 @@ function activate(context) {
             signature: 'if condition { ... } else { ... }',
             source: 'Sesi Control Flow',
             description: 'Executes the first code block if the condition evaluates to `true`. Supports optional nested `else` statements.',
-            example: 'let value = random()\nif value > 0.5 {\n  print "Greater than 0.5"\n} else {\n  print "Less than or equal to 0.5"\n}'
+            example: 'let value = random()\nif value > 0.5 {\n  show "Greater than 0.5"\n} else {\n  show "Less than or equal to 0.5"\n}'
         },
         'else': {
             signature: 'else { ... }',
             source: 'Sesi Control Flow',
             description: 'Specifies a block of code to be executed if the corresponding `if` condition evaluates to `false`.',
-            example: 'if status == "success" {\n  print "Done"\n} else {\n  print "Failed"\n}'
+            example: 'if status == "success" {\n  show "Done"\n} else {\n  show "Failed"\n}'
         },
         'while': {
             signature: 'while condition { ... }',
             source: 'Sesi Loops',
             description: 'Repeatedly executes a block of code as long as the specified condition remains `true`.',
-            example: 'let x = 0\nwhile x < 5 {\n  print x\n  x = x + 1\n}'
+            example: 'let x = 0\nwhile x < 5 {\n  show x\n  x = x + 1\n}'
         },
         'for': {
             signature: 'for element in iterable { ... }',
             source: 'Sesi Loops',
             description: 'Iterates over elements of an array, a range, or an object collection.',
-            example: 'let items = ["apple", "banana", "cherry"]\nfor item in items {\n  print item\n}'
+            example: 'let items = ["apple", "banana", "cherry"]\nfor item in items {\n  show item\n}'
         },
         'in': {
             signature: 'element in collection',
             source: 'Sesi Operators',
             description: 'Used inside `for` loops to specify the sequence being iterated over, or as a membership test operator.',
-            example: 'for i in range(1, 5) {\n  print i\n}'
+            example: 'for i in range(1, 5) {\n  show i\n}'
         },
         'to': {
             signature: 'start to end',
@@ -1052,13 +1052,13 @@ function activate(context) {
             signature: 'try { ... } catch (error) { ... }',
             source: 'Sesi Resilience',
             description: 'Encloses a block of code that may raise a filesystem or execution error, pairing with a `catch` block to handle exceptions.',
-            example: 'try {\n  let content = read_file("missing.txt")\n} catch (e) {\n  print "Caught filesystem error: " e\n}'
+            example: 'try {\n  let content = read_file("missing.txt")\n} catch (e) {\n  show "Caught filesystem error: " e\n}'
         },
         'catch': {
             signature: 'catch (error) { ... }',
             source: 'Sesi Resilience',
             description: 'Handles exceptions thrown within the preceding `try` block, binding the error metadata to the specified identifier.',
-            example: 'try {\n  raise_error("Operation failed")\n} catch (e) {\n  print "Error type: " error_type(e)\n}'
+            example: 'try {\n  raise_error("Operation failed")\n} catch (e) {\n  show "Error type: " error_type(e)\n}'
         },
         'break': {
             signature: 'break',
@@ -1070,7 +1070,7 @@ function activate(context) {
             signature: 'continue',
             source: 'Sesi Loops',
             description: 'Skips the remaining statements in the current loop iteration and moves directly to the next loop evaluation.',
-            example: 'for x in range(0, 5) {\n  if x == 2 { continue }\n  print x\n}'
+            example: 'for x in range(0, 5) {\n  if x == 2 { continue }\n  show x\n}'
         },
         'import': {
             signature: 'import module_name',
@@ -1124,7 +1124,7 @@ function activate(context) {
             signature: 'let dict: object',
             source: 'Sesi Types',
             description: 'An associative collection of key-value pairs. Standard object literals require quoted string keys in Sesi.',
-            example: 'let user = {"name": "Charlie", "role": "admin"}\nprint user["name"]'
+            example: 'let user = {"name": "Charlie", "role": "admin"}\nshow user["name"]'
         },
         'model': {
             signature: 'model("model-name") { ... }',
@@ -1136,7 +1136,7 @@ function activate(context) {
             signature: 'image("prompt")',
             source: 'Sesi AI',
             description: 'Generates a synthetic image using advanced text-to-image models based on the prompt parameter.',
-            example: 'let graphic = image("A dark, technical isometric blueprint of a compiler lexer graph.")'
+            example: 'let graphic = image("A dark, technical isometric blueshow of a compiler lexer graph.")'
         },
         'memory': {
             signature: 'memory',
@@ -1178,7 +1178,7 @@ function activate(context) {
             signature: 'list_tools()',
             source: 'Sesi Tooling Integration',
             description: 'Returns an array of all registered system tool definitions currently available in the runtime environment.',
-            example: 'let tools = list_tools()\nprint tools'
+            example: 'let tools = list_tools()\nshow tools'
         },
         'tool_call': {
             signature: 'tool_call("tool_name", args_object)',
@@ -1196,7 +1196,7 @@ function activate(context) {
             signature: 'read_file(path, mode = "text")',
             source: 'System I/O Standard Library',
             description: 'Synchronously reads a file from disk. Use mode "text" for UTF-8 text (default) or mode "base64" to read binary files (such as images) as Base64.',
-            example: 'let source_code = read_file("main/playground.sesi")\nprint source_code\n\nlet image_b64 = read_file("output/banner.png", "base64")\nprint image_b64'
+            example: 'let source_code = read_file("main/playground.sesi")\nshow source_code\n\nlet image_b64 = read_file("output/banner.png", "base64")\nshow image_b64'
         },
         'write_file': {
             signature: 'write_file(path, content)',
@@ -1214,7 +1214,7 @@ function activate(context) {
             signature: 'write_image(path, img_data)',
             source: 'System I/O Standard Library',
             description: 'Saves raw image canvas data or generated image model outputs directly to a file path as an image file (e.g. PNG).',
-            example: 'let banner = image("Sleek minimal blueprint logo")\nwrite_image("output/banner.png", banner)'
+            example: 'let banner = image("Sleek minimal blueshow logo")\nwrite_image("output/banner.png", banner)'
         },
         'open': {
             signature: 'open(target, options = null)',
@@ -1232,7 +1232,19 @@ function activate(context) {
             signature: 'list_dir(path)',
             source: 'System I/O Standard Library',
             description: 'Retrieves an array containing the names of all files and folders located inside the target directory path.',
-            example: 'let files = list_dir("main")\nfor file in files {\n  print file\n}'
+            example: 'let files = list_dir("main")\nfor file in files {\n  show file\n}'
+        },
+        'get_ext': {
+            signature: 'get_ext(path)',
+            source: 'System I/O Standard Library',
+            description: 'Returns the lowercase file extension without a leading dot. Compound archive extensions such as tar.gz are preserved.',
+            example: 'show get_ext("backup.tar.gz") // tar.gz'
+        },
+        'exists': {
+            signature: 'exists(path)',
+            source: 'System I/O Standard Library',
+            description: 'Returns whether a sandbox-approved filesystem path exists.',
+            example: 'if exists("config.json") { show "Found config" }'
         },
         'make_dir': {
             signature: 'make_dir(path)',
@@ -1252,6 +1264,12 @@ function activate(context) {
             description: 'Recursively copies/backs up a file or folder. If dest_path is null, automatically saves inside the hidden .archive directory in the workspace root.',
             example: 'archive("main/tests", "main/backups/tests")'
         },
+        'zip': {
+            signature: 'zip(source, destination = null, operation = null)',
+            source: 'Archive I/O Standard Library',
+            description: 'Creates, lists, or extracts ZIP and related archive formats. ZIP is native; RAR, 7z, and tar-family formats use installed archive tools.',
+            example: 'zip("assets", "assets.zip")\nlet entries = zip("assets.zip")\nzip("assets.zip", "restored")'
+        },
         'trash': {
             signature: 'trash(path, auto_remove = false)',
             source: 'System I/O Standard Library',
@@ -1268,7 +1286,13 @@ function activate(context) {
             signature: 'exec(command_line)',
             source: 'Process Orchestration Standard Library',
             description: 'Spawns a shell environment command synchronously. Returns the full stdout response of the executed process.',
-            example: 'let git_log = exec("git log -n 1 --oneline")\nprint "Latest commit: " git_log'
+            example: 'let git_log = exec("git log -n 1 --oneline")\nshow "Latest commit: " git_log'
+        },
+        'run': {
+            signature: 'run(command_line)',
+            source: 'Process Orchestration Standard Library',
+            description: 'Exact alias of exec(). Executes a shell command synchronously and returns stdout. Disabled in safe mode.',
+            example: 'let branch = run("git branch --show-current")\nshow branch'
         },
         'sesi': {
             signature: 'sesi(file_path, local = false, check_only = false)',
@@ -1280,13 +1304,13 @@ function activate(context) {
             signature: 'python(code, args)',
             source: 'Process Orchestration Standard Library',
             description: 'Executes arbitrary Python code synchronously via stdin and returns its standard output. The optional second parameter `args` is serialized to JSON and stored in the environment variable `SESI_ARGS`. If `args` is an array, elements are also passed as command line arguments (via sys.argv).',
-            example: 'let result = python("print(\'Hello from Python!\')")\nprint result'
+            example: 'let result = python("show(\'Hello from Python!\')")\nshow result'
         },
         'js': {
             signature: 'js(code, args)',
             source: 'Process Orchestration Standard Library',
             description: 'Executes arbitrary JavaScript code synchronously with the current Node.js runtime and returns its standard output. The optional second parameter `args` is serialized to JSON and stored in the environment variable `SESI_ARGS`. If `args` is an array, elements are also passed as command line arguments.',
-            example: 'let result = js("console.log(\'Hello from JavaScript!\')")\nprint result'
+            example: 'let result = js("console.log(\'Hello from JavaScript!\')")\nshow result'
         },
         'html': {
             signature: 'html(body, options)',
@@ -1310,31 +1334,31 @@ function activate(context) {
             signature: 'api(port, handler)',
             source: 'HTTP Server Standard Library',
             description: 'Starts a non-blocking, multi-threaded native WebSocket server listening on the specified port.',
-            example: 'fn handleMessage(client, msg) {\n print "WS received:" msg\n client.send("Echo: " + msg)\n}\n\nlet server = api(8080, handleMessage)'
+            example: 'fn handleMessage(client, msg) {\n show "WS received:" msg\n client.send("Echo: " + msg)\n}\n\nlet server = api(8080, handleMessage)'
         },
         'to_json': {
             signature: 'to_json(value)',
             source: 'Serialization Standard Library',
             description: 'Converts a native Sesi value, array, or object into a standardized, valid JSON string.',
-            example: 'let payload = {"id": 101, "status": "active"}\nlet json_str = to_json(payload)\nprint json_str'
+            example: 'let payload = {"id": 101, "status": "active"}\nlet json_str = to_json(payload)\nshow json_str'
         },
         'from_json': {
             signature: 'from_json(json_str)',
             source: 'Serialization Standard Library',
             description: 'Parses a structured JSON string and converts it directly into native, indexable Sesi objects or collections.',
-            example: 'let raw = \'{"result": "success", "code": 200}\'\nlet obj = from_json(raw)\nprint obj["result"]'
+            example: 'let raw = \'{"result": "success", "code": 200}\'\nlet obj = from_json(raw)\nshow obj["result"]'
         },
         'encrypt': {
             signature: 'encrypt(content, password) -> string',
             source: 'Cryptography Standard Library',
             description: 'Encrypts UTF-8 string content with AES-256-CBC and returns the same iv:ciphertext format used by the Sesi CLI encryption flow.',
-            example: 'let secret = encrypt("private notes", "passphrase")\nprint secret'
+            example: 'let secret = encrypt("private notes", "passphrase")\nshow secret'
         },
         'decrypt': {
             signature: 'decrypt(content, password) -> string',
             source: 'Cryptography Standard Library',
             description: 'Decrypts an AES-256-CBC iv:ciphertext string produced by encrypt(...) or the compatible Sesi CLI encryption format.',
-            example: 'let secret = encrypt("private notes", "passphrase")\nprint decrypt(secret, "passphrase")'
+            example: 'let secret = encrypt("private notes", "passphrase")\nshow decrypt(secret, "passphrase")'
         },
         'speech': {
             signature: 'speech(text, voice = null, gemini_model = null) -> bool|string',
@@ -1346,37 +1370,37 @@ function activate(context) {
             signature: 'from_speech(audio_path, language = null, gemini_model = null) -> string',
             source: 'Speech Recognition Standard Library',
             description: 'Transcribes an audio file with nodejs-whisper by default, or with an optional Gemini model. Requires a downloaded model (`npx nodejs-whisper download base.en`).',
-            example: 'let transcript = from_speech("meeting.wav", "en")\nprint transcript'
+            example: 'let transcript = from_speech("meeting.wav", "en")\nshow transcript'
         },
         'translate': {
             signature: 'translate(text, to_language, from_language = "en", gemini_model = null) -> string',
             source: 'Language Standard Library',
             description: 'Translates text with the translate package by default, or with an optional Gemini model.',
-            example: 'let spanish = translate("Good morning", "es", "en")\nprint spanish'
+            example: 'let spanish = translate("Good morning", "es", "en")\nshow spanish'
         },
         'encode': {
             signature: 'encode(value, mode = "text")',
             source: 'Encoding Standard Library (std/base64)',
             description: 'Encodes either UTF-8 text or raw byte arrays into a Base64 string. Use mode "text" for strings and mode "bytes" for arrays of numbers (0..255).',
-            example: 'allow "std/base64" in with {encode}\nprint encode("Hello")\nprint encode([0, 255, 16], "bytes")'
+            example: 'allow "std/base64" in with {encode}\nshow encode("Hello")\nshow encode([0, 255, 16], "bytes")'
         },
         'decode': {
             signature: 'decode(base64_text, mode = "text")',
             source: 'Encoding Standard Library (std/base64)',
             description: 'Decodes Base64 input (standard or URL-safe). Returns UTF-8 text in mode "text" or a byte array in mode "bytes".',
-            example: 'allow "std/base64" in with {decode}\nprint decode("SGVsbG8=")\nprint decode("AP8Q", "bytes")'
+            example: 'allow "std/base64" in with {decode}\nshow decode("SGVsbG8=")\nshow decode("AP8Q", "bytes")'
         },
         'time': {
             signature: 'time()',
             source: 'Utility Standard Library',
             description: 'Returns the current high-resolution system timestamp in epoch milliseconds.',
-            example: 'let start = time()\n// Run process...\nlet elapsed = time() - start\nprint "Completed in: " elapsed " ms"'
+            example: 'let start = time()\n// Run process...\nlet elapsed = time() - start\nshow "Completed in: " elapsed " ms"'
         },
         'random': {
             signature: 'random()',
             source: 'Utility Standard Library',
             description: 'Generates a pseudo-random floating-point decimal value between 0.0 (inclusive) and 1.0 (exclusive).',
-            example: 'let rand_val = random()\nif rand_val < 0.2 {\n  print "Critical failure trigger"\n}'
+            example: 'let rand_val = random()\nif rand_val < 0.2 {\n  show "Critical failure trigger"\n}'
         },
         'raise_error': {
             signature: 'raise_error(message)',
@@ -1388,43 +1412,43 @@ function activate(context) {
             signature: 'error_type(caught_error)',
             source: 'Exception Handling Standard Library',
             description: 'Extracts the descriptive string categorizing the exception type classification of a caught error.',
-            example: 'try {\n  let file = read_file("invalid.txt")\n} catch (e) {\n  print "Error category: " error_type(e)\n}'
+            example: 'try {\n  let file = read_file("invalid.txt")\n} catch (e) {\n  show "Error category: " error_type(e)\n}'
         },
-        'print': {
-            signature: 'print value1 value2 ...',
+        'show': {
+            signature: 'show value1 value2 ...',
             source: 'Console I/O Standard Library',
             description: 'Outputs an arbitrary list of arguments sequentially to the Sesi terminal output standard stream.',
-            example: 'let user = "developer"\nprint "[LOG] Session initialized by: " user'
+            example: 'let user = "developer"\nshow "[LOG] Session initialized by: " user'
         },
         'input': {
             signature: 'input(prompt)',
             source: 'Console I/O Standard Library',
             description: 'Prompts the user for console input, halts execution until they press enter, and returns the entered string response.',
-            example: 'let name = input("Enter your name: ")\nprint "Hello," name'
+            example: 'let name = input("Enter your name: ")\nshow "Hello," name'
         },
         'push': {
             signature: 'push(array, value)',
             source: 'Array Standard Library',
             description: 'Adds an element to the end of an array.',
-            example: 'let items = ["apple", "banana"]\npush(items, "cherry")\nprint items'
+            example: 'let items = ["apple", "banana"]\npush(items, "cherry")\nshow items'
         },
         'append': {
             signature: 'append(collection, value)',
             source: 'Collection Standard Library',
             description: 'Appends a value to an array in place, or concatenates a value to the end of a string.',
-            example: 'let items = ["apple"]\nappend(items, "banana")\nprint items\n\nlet title = append("Sesi", " Runtime")\nprint title'
+            example: 'let items = ["apple"]\nappend(items, "banana")\nshow items\n\nlet title = append("Sesi", " Runtime")\nshow title'
         },
         'pop': {
             signature: 'pop(array)',
             source: 'Array Standard Library',
             description: 'Removes and returns the last element of an array.',
-            example: 'let items = ["apple", "banana", "cherry"]\nlet last = pop(items)\nprint last'
+            example: 'let items = ["apple", "banana", "cherry"]\nlet last = pop(items)\nshow last'
         },
         'join': {
             signature: 'join(array, separator)',
             source: 'Array Standard Library',
             description: 'Join array elements into a string with separator.',
-            example: 'let items = ["apple", "banana", "cherry"]\nlet joined = join(items, ", ")\nprint joined'
+            example: 'let items = ["apple", "banana", "cherry"]\nlet joined = join(items, ", ")\nshow joined'
         },
         'split': {
             signature: 'split(string, separator)',
@@ -1442,7 +1466,7 @@ function activate(context) {
             signature: 'tokenize(string, options = null)',
             source: 'String Utility Standard Library',
             description: 'Tokenizes text into model token IDs using OpenAI-compatible tiktoken-style encoding.',
-            example: 'let ids = tokenize("Hello world")\nprint len(ids)\n\nlet ids2 = tokenize("Hello world", {"model": "gpt-5.6-sol"})\nprint ids2\n\nlet words = tokenize("one two", "simple")\nprint words'
+            example: 'let ids = tokenize("Hello world")\nshow len(ids)\n\nlet ids2 = tokenize("Hello world", {"model": "gpt-5.6-sol"})\nshow ids2\n\nlet words = tokenize("one two", "simple")\nshow words'
         },
         'count_tokens': {
             signature: 'count_tokens(string, options = null)',
@@ -1460,13 +1484,13 @@ function activate(context) {
             signature: 'estimate_cost(model, input, output = 0, rates = null)',
             source: 'AI Utility Standard Library',
             description: 'Estimates paid-tier text-token cost in USD from counts or text.',
-            example: 'let cost = estimate_cost("gpt-5.6-terra", prompt, 500)\nprint cost["total_cost_usd"]'
+            example: 'let cost = estimate_cost("gpt-5.6-terra", prompt, 500)\nshow cost["total_cost_usd"]'
         },
         'model_usage': {
             signature: 'model_usage()',
             source: 'AI Utility Standard Library',
             description: 'Returns provider-reported tokens and estimated cost for the latest model call.',
-            example: 'let answer = model("gemini-3.5-flash-lite") {"Hello"}\nprint model_usage()'
+            example: 'let answer = model("gemini-3.5-flash-lite") {"Hello"}\nshow model_usage()'
         },
         'matrix_dot': {
             signature: 'matrix_dot(a, b)',
@@ -1556,31 +1580,31 @@ function activate(context) {
             signature: 'type(value)',
             source: 'Utility Standard Library',
             description: 'Queries and returns a descriptive string indicating the active type classification of the evaluated parameter.',
-            example: 'print type("code") // prints "string"\nprint type(42) // prints "number"'
+            example: 'show type("code") // shows "string"\nshow type(42) // shows "number"'
         },
         'str': {
             signature: 'str(value)',
             source: 'Type Conversion Standard Library',
             description: 'Converts the given parameter value into its explicit text string format representation.',
-            example: 'let age_string = str(28)\nprint "User age is: " + age_string'
+            example: 'let age_string = str(28)\nshow "User age is: " + age_string'
         },
         'num': {
             signature: 'num(value)',
             source: 'Type Conversion Standard Library',
             description: 'Parses or casts the given string or boolean parameter value into its explicit numeric value form.',
-            example: 'let value_num = num("1024")\nprint value_num + 1'
+            example: 'let value_num = num("1024")\nshow value_num + 1'
         },
         'float': {
             signature: 'float(value)',
             source: 'Type Conversion Standard Library',
             description: 'Parses or casts the given string, number, or boolean parameter value into a floating-point number.',
-            example: 'let ratio = float("3.14159")\nprint ratio\nprint float(true)'
+            example: 'let ratio = float("3.14159")\nshow ratio\nshow float(true)'
         },
         'exp': {
             signature: 'exp(value)',
             source: 'Advanced Math Functions',
             description: 'Returns Eulers number $e$ (approx. `2.71828`) raised to the power of $x$.',
-            example: 'exp(0)\nexp(1)\nlet sigmoid = 1.0 / (1.0 + exp(0.0 - 0.5))\nprint sigmoid'
+            example: 'exp(0)\nexp(1)\nlet sigmoid = 1.0 / (1.0 + exp(0.0 - 0.5))\nshow sigmoid'
         },
         'trunc': {
             signature: 'trunc(value, length = 0)',
@@ -1592,7 +1616,7 @@ function activate(context) {
             signature: 'args[number]',
             source: 'System I/O Standard Library',
             description: 'An array of strings containing the command-line arguments passed to the Sesi script.',
-            example: 'print "Number of script args:" len(args)\nif len(args) > 0 {\n  print "First script argument:" args[0]\n}'
+            example: 'show "Number of script args:" len(args)\nif len(args) > 0 {\n  show "First script argument:" args[0]\n}'
         },
         'listen': {
             signature: 'listen(port, handler_function)',
@@ -1844,61 +1868,61 @@ function activate(context) {
             signature: 'debug(message)',
             source: 'Debug Standard Library',
             description: 'Pause execution and launche an interactive debugger REPL in your shell terminal.',
-            example: 'let x = 10\nlet y = 20\ndebug()\nprint x + y'
+            example: 'let x = 10\nlet y = 20\ndebug()\nshow x + y'
         },
         'allow': {
-            signature: 'allow "module" in with LibName\nallow "module" in with { names }',
+            signature: 'allow "module" in as LibName\nallow "module" in with { names }',
             source: 'Sesi Modules / Libs',
             description: 'Imports a module or specific module functions, binding it to a scoped library namespace or importing names directly.',
-            example: 'allow "std/math" in with Math\nprint Math.PI'
+            example: 'allow "std/math" in as Math\nshow Math.PI'
         },
         'with': {
-            signature: 'allow "module" in with LibName\nallow "module" in with { names }',
+            signature: 'allow "module" in as LibName\nallow "module" in with { names }',
             source: 'Sesi Modules / Libs',
             description: 'Used in allow statements to designate the namespace identifier or function list to bind.',
-            example: 'allow "std/math" in with Math'
+            example: 'allow "std/math" in as Math'
         },
         'to_upper': {
             signature: 'to_upper(string)',
             source: 'String Utility Standard Library',
             description: 'Returns the uppercase representation of the input string.',
-            example: 'let text = to_upper("hello")\nprint text'
+            example: 'let text = to_upper("hello")\nshow text'
         },
         'to_lower': {
             signature: 'to_lower(string)',
             source: 'String Utility Standard Library',
             description: 'Returns the lowercase representation of the input string.',
-            example: 'let text = to_lower("WORLD")\nprint text'
+            example: 'let text = to_lower("WORLD")\nshow text'
         },
         'trim': {
             signature: 'trim(string)',
             source: 'String Utility Standard Library',
             description: 'Removes leading and trailing whitespace from the string parameter.',
-            example: 'let cleaned = trim("  hello  ")\nprint cleaned'
+            example: 'let cleaned = trim("  hello  ")\nshow cleaned'
         },
         'slice': {
             signature: 'slice(collection, start, end = null)',
             source: 'Collection Utility Standard Library',
             description: 'Extracts a slice from a string or array starting at the start index up to (but not including) the end index.',
-            example: 'let part = slice("Hello World", 0, 5)\nprint part'
+            example: 'let part = slice("Hello World", 0, 5)\nshow part'
         },
         'swap': {
             signature: 'swap(string, target, replacement)',
             source: 'String Utility Standard Library',
             description: 'Globally searches for the target string/character within the input string and replaces all occurrences with the replacement string.',
-            example: 'let res = swap("hello world", " ", "_")\nprint res'
+            example: 'let res = swap("hello world", " ", "_")\nshow res'
         },
         'contains': {
             signature: 'contains(string, sub)',
             source: 'String Utility Standard Library',
             description: 'Returns `true` if the string contains the given substring, `false` otherwise. Returns `null` if either argument is not a string.',
-            example: 'let found = contains("hello.sesi", ".sesi")\nprint found // true\nprint contains("hello.sesi", ".ts") // false'
+            example: 'let found = contains("hello.sesi", ".sesi")\nshow found // true\nshow contains("hello.sesi", ".ts") // false'
         },
         'locate': {
             signature: 'locate(string, sub)',
             source: 'String Utility Standard Library',
             description: 'Returns the zero-based index of the first occurrence of a substring within a string. Returns `-1` if not found, or `null` if either argument is not a string.',
-            example: 'let idx = locate("hello.sesi", ".")\nprint idx // 5\nprint locate("hello.sesi", "ts") // -1'
+            example: 'let idx = locate("hello.sesi", ".")\nshow idx // 5\nshow locate("hello.sesi", "ts") // -1'
         },
         'map': {
             signature: 'map(array, fn)',
@@ -1934,7 +1958,7 @@ function activate(context) {
             signature: 'lazy(fn, ...args)',
             source: 'Runtime Control Standard Library',
             description: 'Creates a memoized delayed computation. The function is not executed until the lazy value is passed to `force(...)`, and the result is cached after the first force.',
-            example: 'fn expensive() { return 42 }\nlet delayed = lazy(expensive)\nprint force(delayed)'
+            example: 'fn expensive() { return 42 }\nlet delayed = lazy(expensive)\nshow force(delayed)'
         },
         'force': {
             signature: 'force(value)',
@@ -1969,122 +1993,122 @@ function activate(context) {
         'profile_report': {
             signature: 'profile_report(format = "object")',
             source: 'Profiler Standard Library',
-            description: 'Returns recorded profiler measurements sorted by total runtime. Pass "text" for a printable table.',
-            example: 'print profile_report("text")'
+            description: 'Returns recorded profiler measurements sorted by total runtime. Pass "text" for a showable table.',
+            example: 'show profile_report("text")'
         },
         'name': {
             signature: 'name(func)',
             source: 'Function Introspection',
             description: 'Returns the name of a given function.',
-            example: 'print name(my_func)'
+            example: 'show name(my_func)'
         },
         'arity': {
             signature: 'arity(func)',
             source: 'Function Introspection',
             description: 'Returns the number of parameters a function expects.',
-            example: 'print arity(add)'
+            example: 'show arity(add)'
         },
         'is_function': {
             signature: 'is_function(value)',
             source: 'Function Introspection',
             description: 'Checks whether a value is a function.',
-            example: 'print is_function(my_func)'
+            example: 'show is_function(my_func)'
         },
         'is_array': {
             signature: 'is_array(value)',
             source: 'Collection Checks',
             description: 'Checks whether a value is an array.',
-            example: 'print is_array([1, 2])'
+            example: 'show is_array([1, 2])'
         },
         'is_object': {
             signature: 'is_object(value)',
             source: 'Collection Checks',
             description: 'Checks whether a value is an object.',
-            example: 'print is_object({"a": 1})'
+            example: 'show is_object({"a": 1})'
         },
         'is_string': {
             signature: 'is_string(value)',
             source: 'Collection Checks',
             description: 'Checks whether a value is a string.',
-            example: 'print is_string("hello")'
+            example: 'show is_string("hello")'
         },
         'is_number': {
             signature: 'is_number(value)',
             source: 'Collection Checks',
             description: 'Checks whether a value is a number.',
-            example: 'print is_number(42)'
+            example: 'show is_number(42)'
         },
         'is_bool': {
             signature: 'is_bool(value)',
             source: 'Collection Checks',
             description: 'Checks whether a value is a boolean.',
-            example: 'print is_bool(true)'
+            example: 'show is_bool(true)'
         },
         'is_null': {
             signature: 'is_null(value)',
             source: 'Collection Checks',
             description: 'Checks whether a value is null.',
-            example: 'print is_null(null)'
+            example: 'show is_null(null)'
         },
         'length': {
             signature: 'length(string)',
             source: 'String Functions',
             description: 'Alias for len(). Returns the length of the string.',
-            example: 'print length("hello")'
+            example: 'show length("hello")'
         },
         'starts_with': {
             signature: 'starts_with(string, prefix)',
             source: 'String Functions',
             description: 'Checks if a string starts with the given prefix.',
-            example: 'print starts_with("hello", "he")'
+            example: 'show starts_with("hello", "he")'
         },
         'ends_with': {
             signature: 'ends_with(string, suffix)',
             source: 'String Functions',
             description: 'Checks if a string ends with the given suffix.',
-            example: 'print ends_with("hello", "lo")'
+            example: 'show ends_with("hello", "lo")'
         },
         'index_of': {
             signature: 'index_of(collection, value)',
             source: 'String & Array Functions',
             description: 'Returns the first index at which a given value can be found in the collection (string or array), or -1 if it is not present.',
-            example: 'print index_of("hello", "l")'
+            example: 'show index_of("hello", "l")'
         },
         'repeat': {
             signature: 'repeat(string, count)',
             source: 'String Functions',
             description: 'Constructs and returns a new string which contains the specified number of copies of the string concatenated together.',
-            example: 'print repeat("a", 3)'
+            example: 'show repeat("a", 3)'
         },
         'includes': {
             signature: 'includes(collection, value)',
             source: 'String & Array Functions',
             description: 'Checks if a collection (array or string) includes a certain value.',
-            example: 'print includes([1, 2, 3], 2)'
+            example: 'show includes([1, 2, 3], 2)'
         },
         'reverse': {
             signature: 'reverse(array)',
             source: 'Array Functions',
             description: 'Reverses an array in place and returns it.',
-            example: 'print reverse([1, 2, 3])'
+            example: 'show reverse([1, 2, 3])'
         },
         'sort': {
             signature: 'sort(array, compareFn?)',
             source: 'Array Functions',
             description: 'Sorts the elements of an array and returns it. Optionally takes a comparison function.',
-            example: 'print sort(["c", "a", "b"])'
+            example: 'show sort(["c", "a", "b"])'
         },
         'unique': {
             signature: 'unique(array)',
             source: 'Array Functions',
             description: 'Returns a new array with all duplicate elements removed.',
-            example: 'print unique([1, 1, 2, 3, 3])'
+            example: 'show unique([1, 1, 2, 3, 3])'
         },
         'flatten': {
             signature: 'flatten(array)',
             source: 'Array Functions',
             description: 'Returns a new array with all sub-array elements concatenated into it recursively up to one level.',
-            example: 'print flatten([[1, 2], [3, 4]])'
+            example: 'show flatten([[1, 2], [3, 4]])'
         },
         'env': {
             signature: 'env(key = null, defaultValue = null)',
@@ -2124,9 +2148,6 @@ function activate(context) {
                             ],
                             'std/time': [
                                 'now()', 'sleep(ms)', 'format(timestamp, options)'
-                            ],
-                            'std/json': [
-                                'stringify(val)', 'parse(str)'
                             ],
                             'std/base64': [
                                 'encode(value, mode?)', 'decode(base64_text, mode?)'

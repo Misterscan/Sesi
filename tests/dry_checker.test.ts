@@ -4,7 +4,7 @@ import { runDryRunSemanticChecks } from '../src/dry-checker';
 const source = `
 fn demo(used, ignored) {
   let local = used
-  print missing_name
+  show missing_name
 }
 
 demo(1, 2)
@@ -25,7 +25,7 @@ const cleanSource = `
 fn double(value) {
   return value * 2
 }
-print double(4)
+show double(4)
 `;
 
 assert.deepEqual(
@@ -41,7 +41,7 @@ make Person {
   }
 }
 let person = Person()
-print person.greet()
+show person.greet()
 `;
 
 assert.deepEqual(
@@ -50,10 +50,10 @@ assert.deepEqual(
 );
 
 const declarationFormsSource = `
-// allow "missing/single-line-module" in with Missing
+// allow "missing/single-line-module" in as Missing
 /*
 allow "missing/block-module" in with {Thing}
-print missing_from_comment
+show missing_from_comment
 */
 
 allow "petLogic" in with {
@@ -69,7 +69,7 @@ define_tool("url_validator", validate, "Validates a value")
 prompt request {"check this"}
 let valid = tool_call(url_validator)(request)
 if valid {
-  print feed_pet wash_pet
+  show feed_pet wash_pet
 }
 `;
 

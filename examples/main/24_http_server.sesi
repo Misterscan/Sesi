@@ -14,13 +14,13 @@ let handler = "examples/main/24_http_handler.sesi" | live("handleRequest")
 
 // Start HTTP server on port 8080
 let port = 8080
-print "Starting native HTTP server on port" port "..."
-print "Try opening http://localhost:8080/ in your browser and modifying examples/main/24_http_handler.sesi!"
+show "Starting native HTTP server on port" port "..."
+show "Try opening http://localhost:8080/ in your browser and modifying examples/main/24_http_handler.sesi!"
 let server = port | listen(handler)
 
 /* In a real application, you can keep the server running.
 Since this is a self-running example, we will close the server after 2 seconds. */
 2000 | sleep
-print "Closing server..."
+show "Closing server..."
 server.close()
-print "Server closed successfully."
+show "Server closed successfully."
