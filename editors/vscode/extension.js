@@ -1034,7 +1034,7 @@ function activate(context) {
             signature: 'element in collection',
             source: 'Sesi Operators',
             description: 'Used inside `for` loops to specify the sequence being iterated over, or as a membership test operator.',
-            example: 'for i in range(1, 5) {\n  show i\n}'
+            example: 'for i in range(5) {\n  show i\n}'
         },
         'to': {
             signature: 'start to end',
@@ -1070,19 +1070,19 @@ function activate(context) {
             signature: 'continue',
             source: 'Sesi Loops',
             description: 'Skips the remaining statements in the current loop iteration and moves directly to the next loop evaluation.',
-            example: 'for x in range(0, 5) {\n  if x == 2 { continue }\n  show x\n}'
+            example: 'for x in range(5) {\n  if x == 2 { continue }\n  show x\n}'
         },
         'import': {
-            signature: 'import module_name',
+            signature: 'import { item } from "module"',
             source: 'Sesi Modules',
             description: 'Loads a reusable module or configuration file into the current execution space.',
-            example: 'import math'
+            example: 'import { add, multiply } from "math"'
         },
         'from': {
-            signature: 'from module import item',
+            signature: 'import { item } from "module"',
             source: 'Sesi Modules',
-            description: 'Extracts specific functions or definitions from a external module file.',
-            example: 'from sys import exec'
+            description: 'Extracts specific functions or definitions from an external module file.',
+            example: 'import { exec } from "sys"'
         },
         'export': {
             signature: 'export let variable',
@@ -1187,10 +1187,10 @@ function activate(context) {
             example: 'let output = tool_call("read_config", {"file": "config.json"})'
         },
         'multi_req': {
-            signature: 'multi_req(requests_array)',
+            signature: 'multi_req(functions_array)',
             source: 'Sesi Tooling Integration',
-            description: 'Dispatches multiple concurrent model reasoning requests in parallel, returning their results together.',
-            example: 'let results = multi_req([\n  {"model": "gemini-3-flash-preview", "prompt": "Audit index.html"},\n  {"model": "gemini-3.1-flash-lite", "prompt": "Audit server.js"}\n])'
+            description: 'Runs an array of zero-argument functions concurrently and returns their results in the same order.',
+            example: 'fn auditIndex() { return model("gemini-3-flash-preview") {"Audit index.html"} }\nfn auditServer() { return model("gemini-3.1-flash-lite") {"Audit server.js"} }\nlet results = multi_req([auditIndex, auditServer])'
         },
         'read_file': {
             signature: 'read_file(path, mode = "text")',
@@ -1319,21 +1319,21 @@ function activate(context) {
             example: 'let page = html("<main>Hello</main>", {"title": "Demo"})\nwrite_file("index.html", page)'
         },
         'web_get': {
-            signature: 'web_get(url)',
+            signature: 'web_get(url, headers = {})',
             source: 'HTTP Client Standard Library',
-            description: 'Performs a synchronous HTTP GET request to the specified web address, returning the textual response body.',
+            description: 'Performs an HTTP GET request to the specified web address, optionally sending request headers and returning the textual response body.',
             example: 'let api_response = web_get("https://api.github.com/repos/misterscan/sesi")'
         },
         'web_send': {
-            signature: 'web_send(url, payload)',
+            signature: 'web_send(url, payload, headers = {})',
             source: 'HTTP Client Standard Library',
-            description: 'Dispatches an HTTP POST request to the target web endpoint containing the payload data object.',
+            description: 'Dispatches an HTTP POST request to the target web endpoint, optionally sending request headers with the payload.',
             example: 'let status = web_send("https://hooks.slack.com/services/...", {"text": "Workflow completed!"})'
         },
         'api': {
             signature: 'api(port, handler)',
             source: 'HTTP Server Standard Library',
-            description: 'Starts a non-blocking, multi-threaded native WebSocket server listening on the specified port.',
+            description: 'Starts a native WebSocket server listening on the specified port and calls the handler for each connected client message.',
             example: 'fn handleMessage(client, msg) {\n show "WS received:" msg\n client.send("Echo: " + msg)\n}\n\nlet server = api(8080, handleMessage)'
         },
         'to_json': {
@@ -1571,10 +1571,10 @@ function activate(context) {
             example: 'let chars = len("Sesi")\nlet count = len([10, 20, 30])'
         },
         'range': {
-            signature: 'range(start, end)',
+            signature: 'range(n)',
             source: 'Utility Standard Library',
-            description: 'Generates an array of sequential integer elements progressing from start (inclusive) to end (exclusive).',
-            example: 'let indices = range(0, 3) // returns [0, 1, 2]'
+            description: 'Generates the integers from 0 up to, but not including, n.',
+            example: 'let indices = range(3) // returns [0, 1, 2]'
         },
         'type': {
             signature: 'type(value)',
@@ -1621,7 +1621,7 @@ function activate(context) {
         'listen': {
             signature: 'listen(port, handler_function)',
             source: 'Network Server Standard Library',
-            description: 'Starts a non-blocking, multi-threaded native HTTP server on the specified port. Calls the async handler function for each incoming connection.',
+            description: 'Starts a native HTTP server on the specified port and calls the handler function for each incoming connection.',
             example: 'async fn handle(req) {\n  return {"status": 200, "body": "OK"}\n}\nlet server = listen(8080, handle)'
         },
         'live': {
@@ -1631,196 +1631,196 @@ function activate(context) {
             example: 'let handler = live("handler.sesi", "handleRequest")\nlet server = listen(8080, handler)'
         },
         'db_open': {
-            signature: 'db_open(filename)',
+            signature: 'db_open(filename, password?)',
             source: 'Database Standard Library (std/db)',
-            description: 'Opens or creates a persistent, JSON-backed document database file. Returns a database instance with collection-based CRUD capabilities.',
-            example: 'import { db_open } from "std/db"\nlet db = db_open("data.db")\nlet users = db.collection("users")'
+            description: 'After importing `std/db`, opens or creates a persistent document database file. An optional password enables encrypted storage.',
+            example: 'allow "std/db" in with {db_open}\nlet db = db_open("data.db")\nlet users = db.collection("users")'
         },
         'launch': {
-            signature: 'launch(options)',
+            signature: 'launch(options?)',
             source: 'Browser Standard Library (std/browser)',
-            description: 'Launches a browser instance using Playwright. Options supports configuration such as headless mode.',
+            description: 'After importing `std/browser`, launches a Playwright browser instance. Options can configure settings such as headless mode.',
             example: 'allow "std/browser" in with {launch}\nlet browser = launch({"headless": true})\nlet page = browser.newPage()\npage.goto("https://example.com")'
         },
         'sf2': {
             signature: 'sf2(path, options)',
             source: 'Audio Standard Library (std/audio)',
-            description: 'High-level instrument constructor function bound to a specific SoundFont (.sf2) file. Returns a function that generates sample-accurate note objects for Audio.mix().',
-            example: 'let piano = sf2("GeneralUser-GS.sf2", {"instrument": 0, "gain": 1.5})\nlet note = piano("C4", 500)'
+            description: 'After importing `std/audio`, creates an instrument function bound to a SoundFont (.sf2) file.',
+            example: 'allow "std/audio" in as Audio\nlet piano = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 0, "gain": 1.5})\nlet note = piano("C4", 500)'
         },
         'mix': {
             signature: 'mix(path, tracks_array, type, options)',
             source: 'Audio Standard Library (std/audio)',
-            description: 'Saves a Stereo WAV file by mixing multiple tracks together. Features high-speed SoundFont batch rendering, ADSR, low-pass filters, soft clipping, and panning.',
-            example: 'mix("song.wav", [bass_track, piano_track], "sine", {"saturate": 1.5})'
+            description: 'After importing `std/audio`, saves a stereo WAV file by mixing multiple tracks together.',
+            example: 'allow "std/audio" in as Audio\nAudio.mix("song.wav", [bass_track, piano_track], "sine", {"saturate": 1.5})'
         },
         'synth': {
             signature: 'synth(freq_or_note, duration_ms, type, options)',
             source: 'Audio Standard Library (std/audio)',
-            description: 'Returns a base64 encoded WAV string of a generated tone. Types: "sine", "square", "saw", "triangle", "noise", "kick", "snare", "hat", "clap".',
-            example: 'let kick_b64 = synth(60, 500, "kick")'
+            description: 'After importing `std/audio`, returns a base64-encoded WAV string of a generated tone.',
+            example: 'allow "std/audio" in as Audio\nlet kick_b64 = Audio.synth(60, 500, "kick")'
         },
         'chord': {
             signature: 'chord(root_note, type)',
             source: 'Theory Standard Library (std/theory)',
-            description: 'Generates an array of notes for a given chord type (e.g. "M", "m", "M7", "m7", "dim", "sus4").',
-            example: 'let c_maj7 = chord("C4", "M7") // ["C4", "E4", "G4", "B4"]'
+            description: 'After importing `std/theory`, generates an array of notes for a given chord type.',
+            example: 'allow "std/theory" in as Music\nlet c_maj7 = Music.chord("C4", "M7") // ["C4", "E4", "G4", "B4"]'
         },
         'scale': {
             signature: 'scale(root_note, type)',
             source: 'Theory Standard Library (std/theory)',
-            description: 'Generates an array of notes for a given scale or mode (e.g. "major", "minor", "dorian", "mixolydian").',
-            example: 'let a_minor = scale("A3", "minor")'
+            description: 'After importing `std/theory`, generates an array of notes for a given scale or mode.',
+            example: 'allow "std/theory" in as Music\nlet a_minor = Music.scale("A3", "minor")'
         },
         'transpose': {
             signature: 'transpose(note_or_array, semitones)',
             source: 'Theory Standard Library (std/theory)',
-            description: 'Shifts a note or an array of notes up or down by the specified number of semitones.',
-            example: 'let shifted = transpose(["C4", "E4"], 7) // ["G4", "B4"]'
+            description: 'After importing `std/theory`, shifts a note or an array of notes by the specified number of semitones.',
+            example: 'allow "std/theory" in as Music\nlet shifted = Music.transpose(["C4", "E4"], 7) // ["G4", "B4"]'
         },
         'duration': {
             signature: 'duration(minutes, seconds)',
             source: 'Theory Standard Library (std/theory)',
-            description: 'Converts absolute minutes and seconds into Sesi-native milliseconds.',
-            example: 'let ms = duration(1, 30) // 90000 ms'
+            description: 'After importing `std/theory`, converts minutes and seconds into milliseconds.',
+            example: 'allow "std/theory" in as Music\nlet ms = Music.duration(1, 30) // 90000 ms'
         },
         'bar': {
             signature: 'bar(bars, bpm, beatsPerBar?)',
             source: 'Theory Standard Library (std/theory)',
-            description: 'Converts a number of musical bars into milliseconds based on BPM and time signature (default: 4/4).',
-            example: 'let ms = bar(8, 120) // 16000 ms'
+            description: 'After importing `std/theory`, converts musical bars into milliseconds based on BPM and time signature.',
+            example: 'allow "std/theory" in as Music\nlet ms = Music.bar(8, 120) // 16000 ms'
         },
         'sequence': {
-            signature: 'sequence(path, notes_array, type, options)',
+            signature: 'sequence(path, notes_array, type, options?)',
             source: 'Audio Standard Library (std/audio)',
-            description: 'Saves a multi-note sequence (single track) to a single WAV file.',
-            example: 'sequence("melody.wav", [{"note": "C4", "ms": 500}], "saw")'
+            description: 'After importing `std/audio`, saves a multi-note sequence to a WAV file.',
+            example: 'allow "std/audio" in as Audio\nAudio.sequence("melody.wav", [{"note": "C4", "ms": 500}], "saw")'
         },
         'midi': {
             signature: 'midi(path, tracks)',
             source: 'Audio Standard Library (std/audio)',
-            description: 'Saves one or more tracks (arrays of note objects/strings) directly to a MIDI (.mid) file on disk.',
-            example: 'midi("song.mid", melody_track)'
+            description: 'After importing `std/audio`, saves one or more tracks directly to a MIDI file.',
+            example: 'allow "std/audio" in as Audio\nAudio.midi("song.mid", melody_track)'
         },
         'play': {
-            signature: 'play(note, duration_ms, options)',
+            signature: 'play(note, duration_ms, options?)',
             source: 'Audio Standard Library (std/audio)',
-            description: 'Plays a musical note instantly through the system audio device.',
-            example: 'play("E4", 500, {"attack": 50, "release": 200})'
+            description: 'After importing `std/audio`, plays a musical note through the system audio device.',
+            example: 'allow "std/audio" in as Audio\nAudio.play("E4", 500, {"attack": 50, "release": 200})'
         },
         'beep': {
             signature: 'beep(freq, duration_ms)',
             source: 'Audio Standard Library (std/audio)',
-            description: 'Plays a basic sine wave beep at the specified frequency (Hz).',
-            example: 'beep(440, 200)'
+            description: 'After importing `std/audio`, plays a basic sine-wave beep at the specified frequency in Hz.',
+            example: 'allow "std/audio" in as Audio\nAudio.beep(440, 200)'
         },
         'save': {
-            signature: 'save(path, freq_or_note, duration_ms, type, options)',
+            signature: 'save(path, freq_or_note, duration_ms, type, options?)',
             source: 'Audio Standard Library (std/audio)',
-            description: 'Generates a single tone and saves it directly to a WAV file.',
-            example: 'save("kick.wav", 60, 500, "kick")'
+            description: 'After importing `std/audio`, generates a single tone and saves it to a WAV file.',
+            example: 'allow "std/audio" in as Audio\nAudio.save("kick.wav", 60, 500, "kick")'
         },
         'comp': {
-            signature: 'comp(sf2_path, notes_array, options)',
+            signature: 'comp(sf2_path, notes_array, options?)',
             source: 'Audio Standard Library (std/audio)',
-            description: 'Batch-renders a sequence of notes using a SoundFont and returns an in-memory audio sample object for mixing.',
-            example: 'let rendered_track = comp("font.sf2", melody_track)'
+            description: 'After importing `std/audio`, batch-renders a sequence of notes using a SoundFont.',
+            example: 'allow "std/audio" in as Audio\nlet rendered_track = Audio.comp("font.sf2", melody_track)'
         },
         'render': {
-            signature: 'render(sf2_path, tracks_array, output_path, options)',
+            signature: 'render(sf2_path, tracks_array, output_path, options?)',
             source: 'Audio Standard Library (std/audio)',
-            description: 'Batch-renders a complete multi-track arrangement through a SoundFont directly to a WAV file.',
-            example: 'render("font.sf2", [track1, track2], "master.wav")'
+            description: 'After importing `std/audio`, batch-renders a complete multi-track arrangement through a SoundFont to a WAV file.',
+            example: 'allow "std/audio" in as Audio\nAudio.render("font.sf2", [track1, track2], "master.wav")'
         },
         'clear': {
             signature: 'clear()',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Clears the current SVG drawing buffer.',
-            example: 'clear()'
+            example: 'allow "std/draw" in as Draw\nDraw.clear()'
         },
         'circle': {
-            signature: 'circle(x, y, radius, color)',
+            signature: 'circle(x, y, radius, color, options = {})',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Draws a circle on the SVG canvas.',
-            example: 'circle(250, 250, 100, "red")'
+            example: 'allow "std/draw" in as Draw\nDraw.circle(250, 250, 100, "red")'
         },
         'rect': {
-            signature: 'rect(x, y, width, height, color)',
+            signature: 'rect(x, y, width, height, color, options = {})',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Draws a rectangle on the SVG canvas.',
-            example: 'rect(0, 0, 500, 500, "#1a1a1a")'
+            example: 'allow "std/draw" in as Draw\nDraw.rect(0, 0, 500, 500, "#1a1a1a")'
         },
         'pixel': {
             signature: 'pixel(x, y, color)',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Sets one color value in the raster pixel buffer.',
-            example: 'pixel(4, 4, "#ff00aa")'
+            example: 'allow "std/draw" in as Draw\nDraw.pixel(4, 4, "#ff00aa")'
         },
         'pixel_grid': {
             signature: 'pixel_grid(grid, palette, scale = 1, x = 0, y = 0)',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Draws a palette-indexed grid into the raster pixel buffer.',
-            example: 'pixel_grid(["01", "10"], {"0": "black", "1": "white"}, 16)'
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_grid(["01", "10"], {"0": "black", "1": "white"}, 16)'
         },
         'line': {
-            signature: 'line(x1, y1, x2, y2, color)',
+            signature: 'line(x1, y1, x2, y2, color, options = {})',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Draws a line on the SVG canvas.',
-            example: 'line(0, 400, 500, 400, "white")'
+            example: 'allow "std/draw" in as Draw\nDraw.line(0, 400, 500, 400, "white")'
         },
         'text': {
-            signature: 'text(x, y, text_string, font_size, color)',
+            signature: 'text(x, y, text_string, font_size, color, options = {})',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Draws text on the SVG canvas.',
-            example: 'text(20, 480, "Generated by Sesi", 14, "gray")'
+            example: 'allow "std/draw" in as Draw\nDraw.text(20, 480, "Generated by Sesi", 14, "gray")'
         },
         'save_svg': {
             signature: 'save_svg(path, width, height)',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Saves the current drawing buffer to an SVG file on disk.',
-            example: 'save_svg("art.svg", 500, 500)'
+            example: 'allow "std/draw" in as Draw\nDraw.save_svg("art.svg", 500, 500)'
         },
         'save_png': {
             signature: 'save_png(path, width, height, background = "transparent")',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Encodes the raster pixel buffer and saves it as a PNG file.',
-            example: 'save_png("pixels.png", 64, 64)'
+            example: 'allow "std/draw" in as Draw\nDraw.save_png("pixels.png", 64, 64)'
         },
         'ellipse': {
             signature: 'ellipse(cx, cy, rx, ry, color, options = {})',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Draws an ellipse on the SVG canvas.',
-            example: 'ellipse(250, 250, 100, 50, "cyan")'
+            example: 'allow "std/draw" in as Draw\nDraw.ellipse(250, 250, 100, 50, "cyan")'
         },
         'polygon': {
             signature: 'polygon(points, color, options = {})',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Draws a polygon on the SVG canvas.',
-            example: 'polygon("100,10 250,190 10,190", "magenta")'
+            example: 'allow "std/draw" in as Draw\nDraw.polygon("100,10 250,190 10,190", "magenta")'
         },
         'path': {
             signature: 'path(d, color, options = {})',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Draws an SVG path on the SVG canvas.',
-            example: 'path("M 10 10 L 90 90", "white")'
+            example: 'allow "std/draw" in as Draw\nDraw.path("M 10 10 L 90 90", "white")'
         },
         'gradient': {
             signature: 'gradient(type, id, stops, options = {})',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Defines a linear or radial gradient in the SVG defs.',
-            example: 'gradient("linear", "sky", [{"offset": "0%", "color": "blue"}, {"offset": "100%", "color": "black"}])'
+            example: 'allow "std/draw" in as Draw\nDraw.gradient("linear", "sky", [{"offset": "0%", "color": "blue"}, {"offset": "100%", "color": "black"}])'
         },
         'style': {
             signature: 'style(cssText)',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Defines a stylesheet block in the SVG defs for CSS styling or animations.',
-            example: 'style(".spin { animation: spin 2s infinite; }")'
+            example: 'allow "std/draw" in as Draw\nDraw.style(".spin { animation: spin 2s infinite; }")'
         },
         'raw': {
             signature: 'raw(svgCode)',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Injects raw SVG markup directly into the drawing buffer.',
-            example: 'raw("<g>...</g>")'
+            example: 'allow "std/draw" in as Draw\nDraw.raw("<g>...</g>")'
         },
         'async': {
             signature: 'async fn name() { ... }',
@@ -1859,10 +1859,10 @@ function activate(context) {
             example: 'let info = ffmpeg(["-version"], {"throw_on_error": false})'
         },
         'format': {
-            signature: 'format(time, { "timeZone": ... })',
-            source: 'System I/O Standard Library',
-            description: 'Convert Unix timestamps into readable local format.',
-            example: 'format(now(), { "timeZone": "UTC", "dateStyle": "medium", "timeStyle": "short"})'
+            signature: 'format(timestamp, options = {})',
+            source: 'Time Standard Library (std/time)',
+            description: 'After importing `std/time`, converts a Unix timestamp into a readable localized string.',
+            example: 'allow "std/time" in as Time\nlet formatted = Time.format(Time.now(), {"timeZone": "UTC", "dateStyle": "medium", "timeStyle": "short"})'
         },
         'debug': {
             signature: 'debug(message)',
@@ -2051,9 +2051,9 @@ function activate(context) {
             example: 'show is_null(null)'
         },
         'length': {
-            signature: 'length(string)',
+            signature: 'length(collection)',
             source: 'String Functions',
-            description: 'Alias for len(). Returns the length of the string.',
+            description: 'Alias for len(). Returns the number of characters, elements, or object keys.',
             example: 'show length("hello")'
         },
         'starts_with': {
@@ -2089,7 +2089,7 @@ function activate(context) {
         'reverse': {
             signature: 'reverse(array)',
             source: 'Array Functions',
-            description: 'Reverses an array in place and returns it.',
+            description: 'Returns a reversed copy of the array without modifying the original.',
             example: 'show reverse([1, 2, 3])'
         },
         'sort': {
@@ -2107,7 +2107,7 @@ function activate(context) {
         'flatten': {
             signature: 'flatten(array)',
             source: 'Array Functions',
-            description: 'Returns a new array with all sub-array elements concatenated into it recursively up to one level.',
+            description: 'Returns a new array with nested elements concatenated by one level.',
             example: 'show flatten([[1, 2], [3, 4]])'
         },
         'env': {
@@ -2120,7 +2120,7 @@ function activate(context) {
             signature: 'create_app(config = null)',
             source: 'API Framework Standard Library (std/api)',
             description: 'Creates an API application instance. `config` options include `title`, `version`, `description`, and `base_path`.',
-            example: 'let app = create_app({\n  "title": "Users API",\n  "version": "1.0.0",\n  "description": "A user management API"\n})'
+            example: 'allow "std/api" in with API\nlet app = API.create_app({\n  "title": "Users API",\n  "version": "1.0.0",\n  "description": "A user management API"\n})'
         }
     };
 

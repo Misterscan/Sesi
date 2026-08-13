@@ -23,6 +23,9 @@
     "example-ai.js",
     "examples.sesi",
     "scaffold.sesi",
+    "local-ai.sesi",
+    "timestamp.sesi",
+    "theory.sesi",
     "getting-started",
     "sf2"
   ],
@@ -121,7 +124,8 @@
     "find-my-way": "^9.7.0",
     "onnxruntime-node": "^1.27.0",
     "sharp": "^0.35.3",
-    "adm-zip": "0.6.0"
+    "adm-zip": "0.6.0",
+    "undici": "8.10.0"
   },
   "allowScripts": {
     "fsevents@2.3.2": true,
@@ -129,6 +133,7 @@
     "esbuild@0.28.1": true,
     "onnxruntime-node@1.27.0": true,
     "protobufjs@7.6.5": true,
-    "sharp@0.35.3": true
+    "sharp@0.35.3": true,
+    "smart-whisper@0.8.1": true
   }
 }

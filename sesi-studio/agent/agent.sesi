@@ -285,8 +285,8 @@ export fn drawPicture(args) {
 
     if contains(imageData, "/*") {
       imageData = "/*" + split(imageData, "/*")[1]
-    } else if !contains(imageData, "/*") && contains(imageData, "allow \"std/draw\" in with Draw") {
-      imageData = "allow \"std/draw\" in with Draw\n" + split(imageData, "allow \"std/draw\" in with Draw")[1]
+    } else if !contains(imageData, "/*") && contains(imageData, "allow \"std/draw\" in as Draw") {
+      imageData = "allow \"std/draw\" in as Draw\n" + split(imageData, "allow \"std/draw\" in as Draw")[1]
     }
     
     imageData = swap(imageData, "```sesi", "")
