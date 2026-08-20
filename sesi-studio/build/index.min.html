@@ -183,6 +183,18 @@ operators: [
 symbols: /[=><!~?:&|+\-*\/\^%]+/,
 tokenizer: {
 root: [
+// Function declarations: the next identifier after fn is the function name.
+[/\bfn\b/, { token: 'keyword', next: '@functionName' }],
+// calls: preserve keyword and built-in styles, then style other calls as functions
+[/[a-zA-Z_]\w*(?=\s*\()/, {
+cases: {
+'@keywords': 'keyword',
+'@typeKeywords': 'typeKeyword',
+'@constants': 'constant',
+'@builtins': 'builtin',
+'@default': 'function'
+}
+}],
 // identifiers and keywords
 [/[a-zA-Z_]\w*/, {
 cases: {
@@ -217,6 +229,11 @@ string: [
 [/[^\\"]+/, 'string'],
 [/\\./, 'string.escape'],
 [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }]
+],
+functionName: [
+[/[ \t]+/, 'white'],
+[/[a-zA-Z_]\w*/, { token: 'function', next: '@pop' }],
+[/./, { token: '', next: '@pop' }]
 ],
 string_single: [
 [/[^\\']+/, 'string'],
@@ -490,6 +507,7 @@ rules: [
 { token: 'typeKeyword', foreground: 'f59e0b', fontStyle: 'bold' },
 { token: 'constant', foreground: 'ef4444' },
 { token: 'builtin', foreground: '3b82f6', fontStyle: 'bold' },
+{ token: 'function', foreground: 'c084fc', fontStyle: 'bold' },
 { token: 'identifier', foreground: 'f3f4f6' },
 { token: 'string', foreground: '10b981' },
 { token: 'comment', foreground: '6b7280', fontStyle: 'italic' },

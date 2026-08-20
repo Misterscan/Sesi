@@ -151,7 +151,6 @@ chatbot/responses
 generated_media
 .sesira
 img-tools
-build
 decoded_output
 autoencoder_output
 site_generation_logs
