@@ -28,7 +28,7 @@ write_file("speech.wav", audio, "base64")
 
 ```sesi
 let transcript = from_speech("standup.mp3", "en")
-print transcript
+show transcript
 ```
 
 A downloaded model must be installed (`npx nodejs-whisper download base.en`).
@@ -41,7 +41,7 @@ Pass a Gemini model as the third argument to use it instead of Whisper.
 
 ```sesi
 let french = translate("Good morning", "fr", "en")
-print french
+show french
 ```
 
 Language values can use ISO codes or English names.

@@ -19,10 +19,10 @@ Modes:
 try {
   let content = read_file("config.json")
   let image_b64 = read_file("logo.png", "base64")
-  print image_b64
-  print "Config loaded:" content
+  show image_b64
+  show "Config loaded:" content
 } catch (err) {
-  print "Failed to read file:" err
+  show "Failed to read file:" err
 }
 ```
 
@@ -39,9 +39,9 @@ try {
   write_file("output.txt", content)
   let image_b64 = read_file("logo.png", "base64")
   write_file("logo-copy.png", image_b64, "base64")
-  print "Successfully wrote output.txt"
+  show "Successfully wrote output.txt"
 } catch (err) {
-  print "Failed to write file:" err
+  show "Failed to write file:" err
 }
 ```
 
@@ -51,7 +51,7 @@ Append string content to the end of a file. Creates the file if it does not exis
 
 ```sesi
 let success = append_file("log.txt", "new line\n")
-if success {print "File appended successfully"}
+if success {show "File appended successfully"}
 ```
 
 ### open_file(path, options = null) -> bool
@@ -98,9 +98,9 @@ Writes binary image content (e.g., base64-encoded string returned from image-gen
 let logo_data = image("gemini-3.1-flash-image-preview") {"design a simple Sesi language logo"}
 try {
   write_image("logo.png", logo_data)
-  print "Saved logo.png successfully"
+  show "Saved logo.png successfully"
 } catch (err) {
-  print "Failed to save logo:" err
+  show "Failed to save logo:" err
 }
 ```
 
@@ -124,7 +124,7 @@ Lists the contents of a directory and returns them as an array of filenames/fold
 let files = list_dir(".")
 for file in files {
   if contains(file, ".sesi") {
-    print "Found script:" file
+    show "Found script:" file
   }
 }
 ```
@@ -140,9 +140,9 @@ Renames or moves a file or directory to a new path. Returns `true` on success.
 ```sesi
 try {
   rename("old_name.txt", "new_name.txt")
-  print "Renamed file!"
+  show "Renamed file!"
 } catch (err) {
-  print "Rename failed:" err
+  show "Rename failed:" err
 }
 ```
 
@@ -195,7 +195,7 @@ try {
   // Throws Security Violation: Path traversal detected
   read_file("../outside_file.txt")
 } catch (err) {
-  print "Blocked:" err
+  show "Blocked:" err
 }
 ```
 
@@ -206,7 +206,7 @@ You can use the `env()` function to retrieve environment variables (like `HOME` 
 ```sesi
 let homeDir = env("HOME", env("USERPROFILE"))
 if homeDir != null {
-  print "User home directory: " homeDir
+  show "User home directory: " homeDir
 }
 ```
 

@@ -128,6 +128,21 @@ async function main() {
     assert('tool name mapped', parsed.name === 'lookup_weather', `got ${parsed.name}`);
     assert('tool args parsed', parsed.args?.city === 'NYC', `got ${JSON.stringify(parsed.args)}`);
     assert('tool call id mapped', parsed.call_id === 'call_123', `got ${parsed.call_id}`);
+
+    await rt.callModel({
+      model: 'gpt-5.6-sol',
+      prompt: 'use a provider-neutral declaration',
+      tools: [{
+        name: 'lookup_weather',
+        description: 'Get weather by city',
+        parameters: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] },
+      }],
+      cache: false,
+    });
+    assert(
+      'provider-neutral tools are normalized for Responses API',
+      seenTools?.[0]?.type === 'function' && seenTools[0]?.name === 'lookup_weather'
+    );
   }
 
   // 4) GPT web search and system instructions

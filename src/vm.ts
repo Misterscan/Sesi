@@ -230,15 +230,21 @@ export class VM {
           case OpCode.SET_GLOBAL: {
             const name = chunk.constants[this.readByte(frame)] as string;
             if (!this.globals.has(name)) throw new Error(`Undefined variable: ${name}`);
-            const val = this.peek(0);
+            let val = this.peek(0);
+            if (this.memory.has(name)) {
+              const stringVal = stringify(val);
+              aiRuntime.updateMemory(name, stringVal);
+              const result = await aiRuntime.autoTrimMemory(name);
+              val = result.text;
+              this.memory.set(name, result.text);
+              this.stack[this.stack.length - 1] = val;
+              if (result.summarized && result.summaryModel && result.usage && this.interpreter) {
+                this.interpreter.recordModelUsage(result.summaryModel, result.usage, false);
+              }
+            }
             this.globals.set(name, val);
             if (this.interpreter) {
               this.interpreter.globalEnv.define(name, val);
-            }
-            if (this.memory.has(name)) {
-              const stringVal = stringify(val);
-              this.memory.set(name, stringVal);
-              aiRuntime.updateMemory(name, stringVal);
             }
             break;
           }
@@ -309,9 +315,16 @@ export class VM {
           case OpCode.BUILD_OBJECT: {
             const count = this.readByte(frame);
             const obj: Record<string, RuntimeValue> = Object.create(null);
-            for (let i = 0; i < count; i++) {
+            // Pairs are pushed in source order, so popping them inserts the
+            // last field first. Populate the object from right to left to
+            // retain the literal's insertion order for keys(), to_json(), etc.
+            const pairs: Array<[string, RuntimeValue]> = new Array(count);
+            for (let i = count - 1; i >= 0; i--) {
               const val = this.pop();
               const key = this.pop() as string;
+              pairs[i] = [key, val];
+            }
+            for (const [key, val] of pairs) {
               obj[key] = val;
             }
             this.push(obj);
@@ -384,7 +397,7 @@ export class VM {
             const fn: RuntimeFunction = {
               type: 'function',
               name: proto.name,
-              params: proto.params.map(p => ({ name: p.name })),
+              params: proto.params.map(p => ({ name: p.name, type: p.type, defaultValue: p.defaultValue })),
               body: {} as any,
               closure: {} as any,
               isAsync: proto.isAsync,
@@ -489,7 +502,9 @@ export class VM {
               };
             }
 
-            const response = await aiRuntime.callModel({
+            const configuredTools = pick('tools', 'toolSchemas', 'tool_schemas');
+            const maxToolCalls = pick('max_tool_calls', 'maxToolCalls');
+            const modelRequest = {
               model: resolvedModel,
               prompt: promptStr,
               temperature: pick('temperature', 'temp') as number | undefined,
@@ -501,8 +516,17 @@ export class VM {
               cache: pick('cache', 'cached') as boolean | undefined,
               search: pick('search', 'grounding') as boolean | undefined,
               stream: streamVal,
-              tools: Array.isArray(pick('tools', 'toolSchemas', 'tool_schemas')) ? pick('tools', 'toolSchemas', 'tool_schemas') as any[] : undefined,
-            });
+            };
+            const response = this.interpreter && typeof this.interpreter.callModelWithOrchestration === 'function'
+              ? await this.interpreter.callModelWithOrchestration(
+                modelRequest,
+                Array.isArray(configuredTools) || configuredTools === true ? configuredTools : null,
+                typeof maxToolCalls === 'number' ? maxToolCalls : 8,
+              )
+              : await aiRuntime.callModel({
+                ...modelRequest,
+                tools: Array.isArray(configuredTools) ? configuredTools as any[] : undefined,
+              });
             if (this.interpreter && typeof this.interpreter.recordModelUsage === 'function') {
               this.interpreter.recordModelUsage(resolvedModel, response.usage, response.cached === true);
             }
@@ -707,11 +731,15 @@ export class VM {
             const name = chunk.constants[this.readByte(frame)] as string;
             const val = this.pop();
             const stringVal = stringify(val);
-            this.memory.set(name, stringVal);
             aiRuntime.initializeMemory(name, stringVal);
-            this.globals.set(name, stringVal);
+            const result = await aiRuntime.autoTrimMemory(name);
+            this.memory.set(name, result.text);
+            this.globals.set(name, result.text);
+            if (result.summarized && result.summaryModel && result.usage && this.interpreter) {
+              this.interpreter.recordModelUsage(result.summaryModel, result.usage, false);
+            }
             if (this.interpreter) {
-              this.interpreter.globalEnv.define(name, stringVal);
+              this.interpreter.globalEnv.define(name, result.text);
             }
             break;
           }

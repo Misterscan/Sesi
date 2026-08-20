@@ -1,7 +1,6 @@
 /*
   Sesi Studio v2.1.5
-  This native server replaces our now deprecated server.js script with a full-featured IDE backend written entirely in Sesi.
-
+  
   Usage:
     sesi -s
 

@@ -213,7 +213,7 @@ Structured output allows you to extract structured data natively or via Reasonin
 ### Basic Structured Output
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.5\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.6\", \"status\": \"active\"}"
 let analysis = structured_output({projectName: string, version: string, status: string})(rawJson)
 show "Project: " analysis["projectName"]
 show "Version: " analysis["version"]
@@ -492,6 +492,9 @@ allow "std/theory" in as Music
 
 allow "std/draw" in as Draw
 // Draw.rect(), Draw.circle(), "drawing.svg" | Draw.save_svg(100, 100)
+
+allow "std/game" in as Game
+// Game.create(), game.add(), game.rule(), game.build("game.html"), game.run()
 ```
 
 ## Running Examples
@@ -546,6 +549,7 @@ sesi examples/main/33_base64.sesi             # Base64 plus encrypt/decrypt
 sesi examples/main/34_sesi_api.sesi
 sesi examples/main/35_speech_language.sesi
 sesi examples/main/36_regex_media.sesi
+sesi examples/main/37_game_engine.sesi
 sesi examples/optional/37_ai_video_generation.sesi
 ```
 

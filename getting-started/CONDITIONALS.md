@@ -14,7 +14,7 @@ if_stmt := 'if' expression block ('else' block)?
 let score = 87
 
 if score >= 90 {
-  print "excellent"
+  show "excellent"
 }
 ```
 
@@ -28,9 +28,9 @@ The block only runs when the condition is truthy. If the condition is false and 
 let ready = false
 
 if ready {
-  print "starting"
+  show "starting"
 } else {
-  print "not ready yet"
+  show "not ready yet"
 }
 ```
 
@@ -44,13 +44,13 @@ Chain additional conditions with `else if`. Sesi evaluates each branch top to bo
 let score = 72
 
 if score >= 90 {
-  print "excellent"
+  show "excellent"
 } else if score >= 70 {
-  print "passing"
+  show "passing"
 } else if score >= 50 {
-  print "marginal"
+  show "marginal"
 } else {
-  print "needs work"
+  show "needs work"
 }
 ```
 
@@ -78,9 +78,9 @@ This means you can test for the presence of a value directly — no `!= null` re
 let title = args[0]   // may be null if no arg passed
 
 if title {
-  print "Title:" title
+  show "Title:" title
 } else {
-  print "No title provided"
+  show "No title provided"
 }
 ```
 
@@ -101,9 +101,9 @@ if title {
 ```sesi
 let x = 10
 
-if x == 10  { print "ten" }
-if x != 0   { print "non-zero" }
-if x >= 5   { print "at least five" }
+if x == 10  { show "ten" }
+if x != 0   { show "non-zero" }
+if x >= 5   { show "at least five" }
 ```
 
 ---
@@ -117,11 +117,11 @@ let age  = 25
 let paid = true
 
 if age >= 18 && paid {
-  print "access granted"
+  show "access granted"
 }
 
 if age < 13 || !paid {
-  print "access denied"
+  show "access denied"
 }
 ```
 
@@ -132,8 +132,8 @@ if age < 13 || !paid {
 Block braces can be condensed onto a single line:
 
 ```sesi
-if ready { print "go" }
-if !ready { print "wait" }
+if ready { show "go" }
+if !ready { show "wait" }
 ```
 
 ---
@@ -149,9 +149,9 @@ fn classify(score: number) -> string {
   return "needs work"
 }
 
-print classify(95)   // excellent
-print classify(74)   // passing
-print classify(40)   // needs work
+show classify(95)   // excellent
+show classify(74)   // passing
+show classify(40)   // needs work
 ```
 
 ---
@@ -160,27 +160,27 @@ print classify(40)   // needs work
 
 ```sesi
 // Basic if
-if x > 0 { print "positive" }
+if x > 0 { show "positive" }
 
 // if / else
-if active { print "on" } else { print "off" }
+if active { show "on" } else { show "off" }
 
 // else if chain
 if score >= 90 {
-  print "A"
+  show "A"
 } else if score >= 70 {
-  print "B"
+  show "B"
 } else {
-  print "C"
+  show "C"
 }
 
 // Truthiness check
-if value { print "has value" }
+if value { show "has value" }
 
 // Logical operators
-if a > 0 && b > 0 { print "both positive" }
-if a == 0 || b == 0 { print "at least one is zero" }
-if !flag { print "flag is off" }
+if a > 0 && b > 0 { show "both positive" }
+if a == 0 || b == 0 { show "at least one is zero" }
+if !flag { show "flag is off" }
 ```
 
 ---

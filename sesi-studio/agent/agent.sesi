@@ -274,11 +274,17 @@ export fn drawPicture(args) {
 
     let imageData = ""
     if !is_null(env("OPENAI_API_KEY")) {
-      imageData = model("gpt-5.6-terra") {system: sys, thinking: "medium", cache: true} {user_prompt "
+      try {
+        imageData = model("gpt-5.6-terra") {system: sys, thinking: "medium", cache: true} {user_prompt "
       Aspect Ratio: "ratio"
       Save it to: "path}
+      } catch (e) {
+        imageData = model("gemini-3.7-flash") {system: sys, thinking: "high", temp: 0.7, cache: true, max_tokens: 8192} {user_prompt "
+      Aspect Ratio: "ratio"
+      Save it to: "path}
+      }
     } else {
-      imageData = model("gemini-3.5-flash-lite") {system: sys, thinking: "high", temp: 0.7, cache: true, max_tokens: 8192} {user_prompt "
+      imageData = model("gemini-3.7-flash") {system: sys, thinking: "high", temp: 0.7, cache: true, max_tokens: 8192} {user_prompt "
       Aspect Ratio: "ratio"
       Save it to: "path}
     }

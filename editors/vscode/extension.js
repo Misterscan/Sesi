@@ -2152,6 +2152,11 @@ function activate(context) {
                             'std/base64': [
                                 'encode(value, mode?)', 'decode(base64_text, mode?)'
                             ],
+                            'std/game': [
+                                'create(config)',
+                                '.add(entity)', '.rule(rule)', '.build(path)', '.run(options?)',
+                                'preview.url()', 'preview.stop()'
+                            ],
                             'std/db': [
                                 'db_open(filename, password)', '.collection(name)', '.find(query)', '.insert(doc)', '.update(query, update)', '.delete(query)'
                             ],
@@ -2180,7 +2185,11 @@ function activate(context) {
                                 'render(w, h)', 'save_svg(path, w, h)', 'save_png(path, w, h, background?)'
                             ],
                             'std/terminal': [
-                                'clear()', 'color(text, color)', 'cursor(x,y)'
+                                'clear(mode?)', 'color(text, color)', 'style(text, styles)', 'background(text, color)',
+                                'rgb(text, red, green, blue)', 'rgbBackground(text, red, green, blue)',
+                                'write(text)', 'line(text?)', 'eraseLine(mode?)', 'eraseScreen(mode?)',
+                                'cursor(x, y)', 'move(x, y)', 'up(amount?)', 'down(amount?)', 'left(amount?)', 'right(amount?)',
+                                'saveCursor()', 'restoreCursor()', 'hideCursor()', 'showCursor()', 'title(text)', 'bell()', 'size()'
                             ],
                             'std/api': [
                                 'create_app(config?)', '.get(path, schema?, handler)', '.post(path, schema?, handler)', 

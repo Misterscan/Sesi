@@ -204,7 +204,7 @@ sesi
 Inside the REPL, any **Expression Statement** (like mathematical equations, string variables, or expressions) will auto-show its evaluated result to the terminal.
 
 ```sesi
-Sesi Interactive Terminal (v1.8.5)
+Sesi Interactive Terminal (v1.8.6)
 Type ".exit" or press ESC to exit.
 sesi> let x = 10
 sesi> let y = 20

@@ -13,15 +13,17 @@ allow "safe" in as safe
 let input_target = "index.html"
 let output_dir = "minified"
 
-if len(args) > 0 { input_target = args[0] }
-if len(args) > 1 { output_dir = args[1] }
+fn runCLI() { // Wrapped in function to prevent accidental directory creation from exported module
+  if len(args) > 0 { input_target = args[0] }
+  if len(args) > 1 { output_dir = args[1] }
 
-// Ensure output directory exists safely
-try {
-  safe.newDir(output_dir)
-} catch (err) {}
+  // Ensure output directory exists safely
+  try {
+    safe.newDir(output_dir)
+  } catch (err) {}
+}
 
-fn minify_html(html: string) -> string {
+export fn minify_html(html: string) -> string {
   // 1. Normalize carriage returns
   let normalized = swap(html, "\r", "")
   
@@ -104,36 +106,39 @@ fn process_file(in_path: string, out_path: string) {
 // Execution Routing
 // ---------------------------------------------------------
 
-if ends_with(input_target, ".html") {
-  show "Running in Single File Mode..."
-  
-  // Cleanly extract the filename from the path
-  let path_parts = split(input_target, "/")
-  let filename = pop(path_parts)
-  
-  prompt target_out {output_dir "/" filename}
-  process_file(input_target, target_out)
-  
-} else {
-  show "Running in Batch Directory Mode..."
-  show "Scanning directory:" input_target
-  
-  try {
-    let files = safe.getFiles(input_target)
-    let count = 0
+fn run_minify() { // Wrapped in function to prevent accidental execution from exported module
+  runCLI()
+  if ends_with(input_target, ".html") {
+    show "Running in Single File Mode..."
     
-    for file in files {
-      if ends_with(file, ".html") {
-        prompt target_in {input_target "/" file}
-        prompt target_out {output_dir "/" file}
-        
-        process_file(target_in, target_out)
-        count = count + 1
+    // Cleanly extract the filename from the path
+    let path_parts = split(input_target, "/")
+    let filename = pop(path_parts)
+    
+    prompt target_out {output_dir "/" filename}
+    process_file(input_target, target_out)
+    
+  } else {
+    show "Running in Batch Directory Mode..."
+    show "Scanning directory:" input_target
+    
+    try {
+      let files = safe.getFiles(input_target)
+      let count = 0
+      
+      for file in files {
+        if ends_with(file, ".html") {
+          prompt target_in {input_target "/" file}
+          prompt target_out {output_dir "/" file}
+          
+          process_file(target_in, target_out)
+          count = count + 1
+        }
       }
+      
+      show "Batch HTML minification complete. Processed" count "files."
+    } catch (err) {
+      show "Error reading directory. Ensure the path exists and permissions are valid." err
     }
-    
-    show "Batch HTML minification complete. Processed" count "files."
-  } catch (err) {
-    show "Error reading directory. Ensure the path exists and permissions are valid." err
   }
 }

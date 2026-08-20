@@ -466,6 +466,17 @@ handles multi-lines" | split("\n")
 
 **Returns**: `array<string>`
 
+The returned names can be passed directly to `model()` to enable automatic orchestration:
+
+```sesi
+fn summarize(text: string) -> string {return "Summary: " + text}
+define_tool("summarize", summarize, "Summarize supplied text")
+
+let answer = model("gemini-3.6-flash") {tools: list_tools(), max_tool_calls: 4} {"Summarize the user's text."}
+```
+
+Sesi derives JSON parameter schemas from the registered functions, executes model-selected calls, and sends each result back to the model until it produces final text. `tools: true` exposes every registered tool; an array of names exposes only those tools. `max_tool_calls` defaults to `8`. Sensitive system functions cannot be invoked through automatic orchestration.
+
 ---
 
 ### regex(pattern, text, options = null) -> array | bool | string
@@ -612,8 +623,8 @@ Converts all alphabetic characters in a string to uppercase.
 to_upper("hello")      // "HELLO"
 "hello" | to_upper
 
-to_upper("Sesi V1.8.5")  // "SESI V1.8.5"
-"Sesi V1.8.5" | to_upper
+to_upper("Sesi V1.8.6")  // "SESI V1.8.6"
+"Sesi V1.8.6" | to_upper
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -628,8 +639,8 @@ Converts all alphabetic characters in a string to lowercase.
 to_lower("SESI")      // "sesi"
 "SESI" | to_lower
 
-to_lower("Sesi V1.8.5")  // "sesi v1.8.5"
-"Sesi V1.8.5" | to_lower
+to_lower("Sesi V1.8.6")  // "sesi v1.8.6"
+"Sesi V1.8.6" | to_lower
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -2638,9 +2649,38 @@ for item in results {
 
 ---
 
+### memory_config(name, options = {}) -> object
+
+Configure automatic summarization for a `memory` binding. Configuration should follow the memory declaration and applies whenever that binding is updated.
+
+```sesi
+memory conversation {"System: You are a research assistant."}
+let config = memory_config("conversation", {
+  "enabled": true,
+  "max_tokens": 8000,
+  "target_tokens": 4800,
+  "summary_model": "gemini-3.5-flash-lite"
+})
+
+conversation = conversation + "User: Record this project decision."
+```
+
+- `enabled` (`bool`): Enable automatic summarization. Defaults to `true`.
+- `max_tokens` (`number`): Trigger threshold. Defaults to `900000`.
+- `target_tokens` (`number`): Post-compaction target. Defaults to 60% of `max_tokens`.
+- `summary_model` (`string`): Model used for compaction. Defaults to `gemini-3.5-flash-lite`.
+
+The process preserves a recent verbatim tail and rolls older content, including any prior summary, into a new `[Memory Summary]` section. Concurrent compaction requests for the same binding are serialized. If the summarizer fails, the original memory remains unchanged.
+
+Global defaults can be set with `SESI_MEMORY_AUTO_SUMMARIZE`, `SESI_MEMORY_MAX_TOKENS`, `SESI_MEMORY_TARGET_TOKENS`, and `SESI_MEMORY_SUMMARY_MODEL`.
+
+**Returns**: `object` — The resolved configuration using `enabled`, `max_tokens`, `target_tokens`, and `summary_model`.
+
+---
+
 ### memory_trim(name, max_tokens = 900000) -> string
 
-Manage the context window of a `memory` binding. If the total token count (estimated at ~4 characters per token) exceeds `max_tokens`, the older half of the memory entries are automatically summarized into a single paragraph using `gemini-3.5-flash-lite`, preserving all key facts and context while reducing token usage.
+Explicitly compact a `memory` binding. If the estimated token count exceeds `max_tokens`, older content is summarized and the recent tail remains verbatim. The configured summary model is used.
 
 If the memory is already within the budget, the full memory text is returned unchanged.
 
@@ -2660,7 +2700,7 @@ show "Memory now:" trimmed | length "characters"
 - `name` (`string`): The name of the memory binding to manage.
 - `max_tokens` (`number`, optional): Maximum token budget. Defaults to `900000` (suitable for Gemini's 1M context window with headroom).
 
-**Returns**: `string` — The memory text after trimming (or unchanged if within budget). The memory binding is updated in-place.
+**Returns**: `string` — The compacted memory text, or the original text when already within budget or when summarization fails. Assign the result back to the binding when the updated Sesi variable is needed immediately: `conversation = memory_trim("conversation", 500000)`.
 
 ---
 
@@ -3226,7 +3266,7 @@ JSON serialization and parsing are built in as `to_json(value)` and `from_json(t
 ```sesi
 let original = {
   "project": "Sesi",
-  "version": "1.8.5"
+  "version": "1.8.6"
 }
 let encoded = to_json(original)
 show from_json(encoded)["project"]
@@ -3292,7 +3332,7 @@ users.delete(query_object) -> Returns number of deleted documents */
 
 ### std/terminal
 
-Includes raw ANSI terminal control functions for building CLI applications: `clear`, `cursor`, `color`.
+Provides ANSI terminal control primitives for building CLI applications. They write standard ANSI escape sequences, so they work in ANSI-compatible terminals; output panes that do not interpret ANSI may show the raw sequences.
 
 ```sesi
 allow "std/terminal" in as Terminal
@@ -3305,9 +3345,60 @@ Terminal.cursor(10, 5)
 
 // Output colored text
 show "Hello!" | Terminal.color("green")
+
+// Combine text styles and colors
+show "Ready" | Terminal.style(["bold", "underline", "brightCyan"])
+
+// Move relative to the current position and update the title bar
+Terminal.move(2, -1)
+Terminal.title("Sesi dashboard")
 ```
 
-**Available Colors**: `"red"`, `"green"`, `"yellow"`, `"blue"`, `"magenta"`, `"cyan"`, `"white"`, `"bold"`.
+Text formatting functions return a formatted string, so they compose naturally with `show` and pipes:
+
+- `color(text, color)` — foreground colors: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`/`grey`, and `brightBlack` through `brightWhite`. `bold` remains supported for compatibility.
+- `style(text, styles)` — apply one style or an array of styles. Available styles: `reset`, `bold`, `dim`, `italic`, `underline`, `blink`, `inverse`, `hidden`, and `strikethrough`, plus every foreground color.
+- `background(text, color)` and `rgbBackground(text, red, green, blue)` — apply a background color.
+- `rgb(text, red, green, blue)` — apply a 24-bit foreground color. Channels are clamped to `0`–`255`.
+
+Screen and cursor functions write immediately and return `none`:
+
+- `clear(mode?)` — clear `screen` (default), `line`, `down`, or `up`.
+- `eraseLine(mode?)` — erase `all` (default), `right`, or `left` of the current line.
+- `eraseScreen(mode?)` — erase `all` (default), `down`, `up`, or `scrollback`.
+- `cursor(x, y)` — move to one-based column and row coordinates.
+- `move(x, y)`, `up(amount?)`, `down(amount?)`, `left(amount?)`, `right(amount?)` — move relative to the current cursor. Positive `x` moves right and positive `y` moves down.
+- `saveCursor()`, `restoreCursor()`, `hideCursor()`, `showCursor()`.
+- `write(text)`, `line(text?)`, `title(text)`, and `bell()`.
+- `size()` — returns `{ "columns": number, "rows": number }`; both values are `0` when unavailable.
+
+### std/game
+
+Creates data-driven 2D Canvas games for modern browsers. The generated runtime owns the animation loop; Sesi scripts describe the scene and rules rather than supplying frame callbacks.
+
+```sesi
+allow "std/game" in as Game
+
+let game = Game.create({
+  "title": "Orbit",
+  "width": 640,
+  "height": 360,
+  "background": "#101426",
+  "input": {"left": ["ArrowLeft", "a"], "right": ["ArrowRight", "d"]},
+  "scores": {"score": 0}
+})
+
+game.add({"id": "player", "shape": "rect", "x": 20, "y": 20, "width": 20, "height": 20, "color": "#64e8ff", "collider": true, "bounds": "clamp", "control": {"speed": 240}})
+game.add({"id": "orb", "shape": "circle", "x": 120, "y": 50, "radius": 12, "vx": 120, "vy": 80, "bounds": "bounce", "collider": true, "tags": ["hazard"]})
+game.rule({"event": "collision", "source": "player", "targetRef": "hazard", "action": "addScore", "score": "score", "value": -1})
+game.build("orbit.html")
+```
+
+- `Game.create(config)` requires positive `width` and `height`; it accepts `title`, `background`, `input`, and initial `scores`.
+- `game.add(entity)` accepts `rect`, `circle`, `sprite`, and `text` shapes. Rectangles and sprites require `width` and `height`; circles require `radius`. Entities may use `vx`, `vy`, `tags`, `collider`, `bounds` (`clamp`, `wrap`, or `bounce`), and keyboard `control` with `left`, `right`, `up`, `down`, and `speed`.
+- `game.rule(rule)` supports `collision`, `key`, `timer`, and `bounds` events. Actions are `destroy`, `spawn`, `set`, `addScore`, `reverseVelocity`, and `sound`. Collision rules identify the other entity with `targetRef`; timer rules use optional `every` milliseconds.
+- Local sprite/audio assets are embedded as data URLs during `build`; `http`, `https`, and `data` assets remain external.
+- `game.run({"port": 0, "open": true})` serves the game on localhost and returns a handle with `url()` and `stop()`. It is unavailable in safe mode. `game.build(path)` uses normal Sesi filesystem permission checks.
 
 ### std/browser
 

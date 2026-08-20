@@ -34,6 +34,9 @@ import {
   type ModelCallExpression,
   type StructuredOutputExpression,
   type ToolCallExpression,
+  type AIRequest,
+  type AIResponse,
+  type TypeAnnotation,
   SesiRuntimeError,
 } from './types';
 
@@ -51,6 +54,7 @@ import TurndownService from 'turndown';
 import sharp from 'sharp';
 import { estimateTokenCost } from './token-pricing';
 import { SesiProfiler, formatProfileReport } from './profiler';
+import { createGameModule } from './game';
 
 export class Interpreter {
   private globalEnv: Environment;
@@ -321,8 +325,256 @@ export class Interpreter {
     return this.customTools.get(name)?.fn || null;
   }
 
+  public getCustomToolDefinition(name: string): { fn: RuntimeFunction; description?: string } | null {
+    return this.customTools.get(name) || null;
+  }
+
   public listCustomToolNames(): string[] {
     return Array.from(this.customTools.keys());
+  }
+
+  private typeAnnotationToToolSchema(annotation?: TypeAnnotation): Record<string, any> {
+    if (!annotation) return {};
+
+    switch (annotation.type) {
+      case 'PrimitiveType':
+        if (annotation.name === 'bool') return { type: 'boolean' };
+        if (annotation.name === 'any') return {};
+        return { type: annotation.name };
+      case 'ArrayType':
+        return { type: 'array', items: this.typeAnnotationToToolSchema(annotation.elementType) };
+      case 'ObjectType':
+        return { type: 'object', additionalProperties: this.typeAnnotationToToolSchema(annotation.valueType) };
+      case 'UnionType':
+        return { anyOf: annotation.types.map(type => this.typeAnnotationToToolSchema(type)) };
+      case 'OptionalType':
+        return { anyOf: [this.typeAnnotationToToolSchema(annotation.baseType), { type: 'null' }] };
+    }
+  }
+
+  private customToolDeclaration(name: string, definition: { fn: RuntimeFunction; description?: string }): Record<string, any> {
+    const properties: Record<string, any> = Object.create(null);
+    const required: string[] = [];
+
+    for (const parameter of definition.fn.params) {
+      properties[parameter.name] = this.typeAnnotationToToolSchema(parameter.type);
+      if (!parameter.defaultValue && parameter.type?.type !== 'OptionalType') {
+        required.push(parameter.name);
+      }
+    }
+
+    return {
+      name,
+      description: definition.description || `Call the ${name} Sesi function.`,
+      parameters: {
+        type: 'object',
+        properties,
+        ...(required.length > 0 ? { required } : {}),
+        additionalProperties: false,
+      },
+    };
+  }
+
+  private modelToolName(tool: any): string | null {
+    if (!tool || typeof tool !== 'object') return null;
+    if (typeof tool.name === 'string') return tool.name;
+    if (tool.function && typeof tool.function.name === 'string') return tool.function.name;
+    return null;
+  }
+
+  private resolveModelTools(configured: RuntimeValue): {
+    schemas: any[];
+    executors: Map<string, RuntimeFunction>;
+  } {
+    const schemas: any[] = [];
+    const executors = new Map<string, RuntimeFunction>();
+    const selected = configured === true
+      ? this.listCustomToolNames()
+      : Array.isArray(configured)
+        ? configured
+        : [];
+
+    for (const entry of selected) {
+      if (typeof entry === 'string') {
+        const definition = this.getCustomToolDefinition(entry);
+        if (!definition) throw new Error(`Tool not found: ${entry}`);
+        schemas.push(this.customToolDeclaration(entry, definition));
+        executors.set(entry, definition.fn);
+        continue;
+      }
+
+      if (entry && typeof entry === 'object' && (entry as any).type === 'function' && typeof (entry as any).name === 'string') {
+        const fn = entry as RuntimeFunction;
+        const registered = Array.from(this.customTools.entries()).find(([, definition]) => definition.fn === fn);
+        const toolName = registered?.[0] || fn.name;
+        const definition = registered?.[1] || { fn };
+        schemas.push(this.customToolDeclaration(toolName, definition));
+        executors.set(toolName, fn);
+        continue;
+      }
+
+      schemas.push(entry);
+      const toolName = this.modelToolName(entry);
+      if (toolName) {
+        const definition = this.getCustomToolDefinition(toolName);
+        if (definition) executors.set(toolName, definition.fn);
+      }
+
+      const declarations = (entry as any)?.functionDeclarations;
+      if (Array.isArray(declarations)) {
+        for (const declaration of declarations) {
+          const declarationName = this.modelToolName(declaration);
+          if (!declarationName) continue;
+          const definition = this.getCustomToolDefinition(declarationName);
+          if (definition) executors.set(declarationName, definition.fn);
+        }
+      }
+    }
+
+    return { schemas, executors };
+  }
+
+  private assertAutomatedToolIsSafe(requestedName: string, fn: RuntimeFunction): void {
+    const sensitiveBuiltins = ['exec', 'run', 'spawn', 'python', 'js', 'ffmpeg', 'gif', 'video'];
+    const functionName = fn.name || requestedName;
+    if (sensitiveBuiltins.includes(requestedName)) {
+      throw new Error(`Security Violation: Automated execution of sensitive tool "${requestedName}" is forbidden.`);
+    }
+    if (sensitiveBuiltins.includes(functionName)) {
+      throw new Error(`Security Violation: Automated execution of sensitive tool "${functionName}" is forbidden.`);
+    }
+  }
+
+  private async executeAutomatedTool(name: string, fn: RuntimeFunction, rawArgs: RuntimeValue): Promise<RuntimeValue> {
+    this.assertAutomatedToolIsSafe(name, fn);
+
+    let args: RuntimeValue[];
+    if (Array.isArray(rawArgs)) {
+      args = rawArgs;
+    } else if (rawArgs && typeof rawArgs === 'object') {
+      const supplied = rawArgs as Record<string, RuntimeValue>;
+      const knownParameters = new Set(fn.params.map(parameter => parameter.name));
+      const unknown = Object.keys(supplied).filter(key => !knownParameters.has(key));
+      if (unknown.length > 0) {
+        throw new Error(`Tool "${name}" received unknown argument${unknown.length === 1 ? '' : 's'}: ${unknown.join(', ')}`);
+      }
+
+      args = [];
+      for (const parameter of fn.params) {
+        if (Object.prototype.hasOwnProperty.call(supplied, parameter.name)) {
+          args.push(supplied[parameter.name]);
+        } else if (parameter.defaultValue) {
+          args.push(await this.evaluateExpression(parameter.defaultValue));
+        } else if (parameter.type?.type === 'OptionalType') {
+          args.push(null);
+        } else {
+          throw new Error(`Tool "${name}" is missing required argument: ${parameter.name}`);
+        }
+      }
+    } else if (fn.params.length === 0 && (rawArgs === null || rawArgs === undefined)) {
+      args = [];
+    } else if (fn.params.length === 1) {
+      args = [rawArgs];
+    } else {
+      throw new Error(`Tool "${name}" arguments must be an object or array`);
+    }
+
+    const result = await this.callSesiFunction(fn, args);
+    if (result && typeof result === 'object' && (result as any).type === 'promise') {
+      return await (result as any).promise;
+    }
+    return result;
+  }
+
+  private parseModelToolCall(response: AIResponse): { name: string; args: RuntimeValue; callId?: string } {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(response.text);
+    } catch {
+      throw new Error('Model returned an invalid tool call payload');
+    }
+
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.name !== 'string' || parsed.name.trim() === '') {
+      throw new Error('Model returned a tool call without a valid name');
+    }
+
+    return {
+      name: parsed.name,
+      args: parsed.args ?? parsed.arguments ?? Object.create(null),
+      callId: typeof parsed.call_id === 'string' ? parsed.call_id : undefined,
+    };
+  }
+
+  private toolResultText(value: RuntimeValue): string {
+    try {
+      const serialized = JSON.stringify(value);
+      if (serialized !== undefined) return serialized;
+    } catch {
+      // Fall back to Sesi's display representation for non-JSON runtime values.
+    }
+    return stringify(value);
+  }
+
+  public async callModelWithOrchestration(
+    request: AIRequest,
+    configuredTools: RuntimeValue = request.tools as any,
+    maxToolCalls: number = 8,
+  ): Promise<AIResponse> {
+    const { schemas, executors } = this.resolveModelTools(configuredTools);
+    const boundedMaxToolCalls = Number.isFinite(maxToolCalls) && maxToolCalls >= 0
+      ? Math.floor(maxToolCalls)
+      : 8;
+    const originalPrompt = request.prompt;
+    const transcript: string[] = [];
+    let executedToolCalls = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let thinkingTokens = 0;
+    let allCached = true;
+
+    while (true) {
+      const response = await aiRuntime.callModel({
+        ...request,
+        prompt: transcript.length === 0
+          ? originalPrompt
+          : `${originalPrompt}\n\nSesi executed the requested tools. Use the results below to continue the task. Call another available tool only if needed.\n${transcript.join('\n')}`,
+        tools: schemas.length > 0 ? schemas : undefined,
+      });
+
+      inputTokens += response.usage?.inputTokens ?? 0;
+      outputTokens += response.usage?.outputTokens ?? 0;
+      thinkingTokens += response.usage?.thinkingTokens ?? 0;
+      allCached = allCached && response.cached === true;
+
+      if (response.finishReason !== 'TOOL_CALL') {
+        return {
+          ...response,
+          cached: allCached,
+          usage: { inputTokens, outputTokens, thinkingTokens },
+        };
+      }
+
+      const toolCall = this.parseModelToolCall(response);
+      const fn = executors.get(toolCall.name);
+      if (!fn) {
+        return {
+          ...response,
+          cached: allCached,
+          usage: { inputTokens, outputTokens, thinkingTokens },
+        };
+      }
+      if (executedToolCalls >= boundedMaxToolCalls) {
+        throw new Error(`Automatic tool orchestration exceeded the limit of ${boundedMaxToolCalls} tool calls`);
+      }
+
+      const result = await this.executeAutomatedTool(toolCall.name, fn, toolCall.args);
+      executedToolCalls++;
+      transcript.push(JSON.stringify({
+        tool: toolCall.name,
+        ...(toolCall.callId ? { call_id: toolCall.callId } : {}),
+        result: this.toolResultText(result),
+      }));
+    }
   }
 
   public async executeStatement(statement: Statement): Promise<RuntimeValue> {
@@ -539,9 +791,19 @@ export class Interpreter {
   private async executeMemory(stmt: MemoryStatement): Promise<void> {
     const value = stmt.initialValue ? await this.evaluateExpression(stmt.initialValue) : '';
     const stringValue = stringify(value);
-    this.memory.set(stmt.name, stringValue);
     aiRuntime.initializeMemory(stmt.name, stringValue);
-    this.currentEnv.define(stmt.name, stringValue);
+    const compacted = await this.compactMemoryBinding(stmt.name, stringValue, false);
+    this.currentEnv.define(stmt.name, compacted);
+  }
+
+  private async compactMemoryBinding(name: string, content: string, updateRuntime: boolean = true): Promise<string> {
+    if (updateRuntime) aiRuntime.updateMemory(name, content);
+    const result = await aiRuntime.autoTrimMemory(name);
+    this.memory.set(name, result.text);
+    if (result.summarized && result.summaryModel && result.usage) {
+      this.recordModelUsage(result.summaryModel, result.usage, false);
+    }
+    return result.text;
   }
 
   public async evaluateExpression(expr: Expression): Promise<RuntimeValue> {
@@ -685,12 +947,13 @@ export class Interpreter {
 
     if (expr.left.type === 'Identifier') {
       const name = (expr.left).name;
-      this.currentEnv.set(name, value);
       if (this.memory.has(name)) {
         const stringValue = stringify(value);
-        this.memory.set(name, stringValue);
-        aiRuntime.updateMemory(name, stringValue);
+        const compacted = await this.compactMemoryBinding(name, stringValue);
+        this.currentEnv.set(name, compacted);
+        return compacted;
       }
+      this.currentEnv.set(name, value);
       return value;
     }
 
@@ -1008,13 +1271,16 @@ export class Interpreter {
       }
     }
 
-    let tools: any[] | undefined;
+    let tools: RuntimeValue = null;
     {
       const raw = getConfig('tools', 'toolSchemas', 'tool_schemas');
-      if (Array.isArray(raw)) {
-        tools = raw as any[];
+      if (Array.isArray(raw) || raw === true) {
+        tools = raw;
       }
     }
+
+    const maxToolCallsRaw = getConfig('max_tool_calls', 'maxToolCalls');
+    const maxToolCalls = typeof maxToolCallsRaw === 'number' ? maxToolCallsRaw : 8;
 
     const temperatureRaw = getConfig('temperature', 'temp');
     const maxTokensRaw = getConfig('max_tokens', 'maxTokens', 'maxT');
@@ -1023,7 +1289,7 @@ export class Interpreter {
     const systemPromptRaw = getConfig('system', 'system_prompt', 'systemPrompt');
 
     const resolvedModelName = this.resolveModelName(rawModelName);
-    const response = await aiRuntime.callModel({
+    const response = await this.callModelWithOrchestration({
       model: resolvedModelName,
       prompt: promptText,
       temperature: typeof temperatureRaw === 'number' ? temperatureRaw : undefined,
@@ -1036,8 +1302,7 @@ export class Interpreter {
       cache,
       search,
       stream,
-      tools,
-    });
+    }, tools, maxToolCalls);
 
     this.recordModelUsage(resolvedModelName, response.usage, response.cached === true);
     return response.text;
@@ -1059,11 +1324,6 @@ export class Interpreter {
   }
 
 private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> {
-    const sensitiveBuiltins = ['exec', 'run', 'spawn', 'python', 'js', 'ffmpeg', 'gif', 'video'];
-    if (sensitiveBuiltins.includes(expr.functionName)) {
-      throw new Error(`Security Violation: Automated execution of sensitive tool "${expr.functionName}" is forbidden.`);
-    }
-
     let fn: RuntimeValue;
     if (this.currentEnv.exists(expr.functionName)) {
       fn = this.currentEnv.get(expr.functionName);
@@ -1079,9 +1339,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       throw new Error(`Tool not found: ${expr.functionName}`);
     }
 
-    if ((fn as any).isBuiltin && sensitiveBuiltins.includes((fn as any).name)) {
-      throw new Error(`Security Violation: Automated execution of sensitive tool "${(fn as any).name || expr.functionName}" is forbidden.`);
-    }
+    this.assertAutomatedToolIsSafe(expr.functionName, fn as RuntimeFunction);
 
     const args: RuntimeValue[] = [];
     for (const arg of expr.arguments) {
@@ -1586,7 +1844,9 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
 
   public loadStdModule(source: string): Map<string, RuntimeValue> | null {
     const exports = new Map<string, RuntimeValue>();
-    if (source === 'std/math') {
+    if (source === 'std/game') {
+      return createGameModule(this);
+    } else if (source === 'std/math') {
       exports.set('PI', Math.PI);
       exports.set('E', Math.E);
       
@@ -3118,64 +3378,124 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       });
       return exports;
     } else if (source === 'std/terminal') {
-      exports.set('clear', {
+      const textStyles: Record<string, string> = {
+        reset: '0', bold: '1', dim: '2', italic: '3', underline: '4',
+        blink: '5', inverse: '7', hidden: '8', strikethrough: '9',
+        black: '30', red: '31', green: '32', yellow: '33', blue: '34',
+        magenta: '35', cyan: '36', white: '37', gray: '90', grey: '90',
+        brightBlack: '90', brightRed: '91', brightGreen: '92',
+        brightYellow: '93', brightBlue: '94', brightMagenta: '95',
+        brightCyan: '96', brightWhite: '97'
+      };
+      const backgroundColors: Record<string, string> = {
+        black: '40', red: '41', green: '42', yellow: '43', blue: '44',
+        magenta: '45', cyan: '46', white: '47', gray: '100', grey: '100',
+        brightBlack: '100', brightRed: '101', brightGreen: '102',
+        brightYellow: '103', brightBlue: '104', brightMagenta: '105',
+        brightCyan: '106', brightWhite: '107'
+      };
+      const terminalFunction = (name: string, params: any[], builtin: (...args: RuntimeValue[]) => RuntimeValue): any => ({
         type: 'function',
-        name: 'clear',
-        params: [],
+        name,
+        params,
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
-        builtin: (): RuntimeValue => {
-          if ((globalThis as any).sesiTerminalClearHandler) {
-            (globalThis as any).sesiTerminalClearHandler();
-          } else {
-            process.stdout.write('\x1b[2J\x1b[0f');
-          }
+        builtin
+      });
+      const integer = (value: RuntimeValue, fallback = 1, minimum = 1): number => {
+        if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+        return Math.max(minimum, Math.floor(value));
+      };
+      const styleText = (textVal: RuntimeValue, styleVal: RuntimeValue, styles = textStyles): RuntimeValue => {
+        const styleNames = Array.isArray(styleVal) ? styleVal : [styleVal];
+        const codes = styleNames
+          .filter((name): name is string => typeof name === 'string')
+          .map(name => styles[name.toLowerCase()] ?? styles[name] ?? '')
+          .filter(Boolean);
+        return `\x1b[${codes.length > 0 ? codes.join(';') : '0'}m${String(textVal)}\x1b[0m`;
+      };
+
+      exports.set('clear', terminalFunction('clear', [{ name: 'mode', defaultValue: 'screen' as any }], (modeVal: RuntimeValue): RuntimeValue => {
+        const mode = typeof modeVal === 'string' ? modeVal.toLowerCase() : 'screen';
+        if (mode === 'screen' && (globalThis as any).sesiTerminalClearHandler) {
+          (globalThis as any).sesiTerminalClearHandler();
+        } else if (mode === 'line') {
+          process.stdout.write('\x1b[2K\r');
+        } else if (mode === 'down') {
+          process.stdout.write('\x1b[J');
+        } else if (mode === 'up') {
+          process.stdout.write('\x1b[1J');
+        } else {
+          process.stdout.write('\x1b[2J\x1b[0f');
+        }
+        return null;
+      }));
+      exports.set('color', terminalFunction('color', [{ name: 'text' }, { name: 'colorName' }], (textVal, colorNameVal) => styleText(textVal, colorNameVal)));
+      exports.set('style', terminalFunction('style', [{ name: 'text' }, { name: 'styles' }], (textVal, stylesVal) => styleText(textVal, stylesVal)));
+      exports.set('background', terminalFunction('background', [{ name: 'text' }, { name: 'colorName' }], (textVal, colorNameVal) => styleText(textVal, colorNameVal, backgroundColors)));
+      exports.set('rgb', terminalFunction('rgb', [{ name: 'text' }, { name: 'red' }, { name: 'green' }, { name: 'blue' }], (textVal, red, green, blue) => {
+        const channel = (value: RuntimeValue) => integer(value, 0, 0) > 255 ? 255 : integer(value, 0, 0);
+        return `\x1b[38;2;${channel(red)};${channel(green)};${channel(blue)}m${String(textVal)}\x1b[0m`;
+      }));
+      exports.set('rgbBackground', terminalFunction('rgbBackground', [{ name: 'text' }, { name: 'red' }, { name: 'green' }, { name: 'blue' }], (textVal, red, green, blue) => {
+        const channel = (value: RuntimeValue) => integer(value, 0, 0) > 255 ? 255 : integer(value, 0, 0);
+        return `\x1b[48;2;${channel(red)};${channel(green)};${channel(blue)}m${String(textVal)}\x1b[0m`;
+      }));
+      exports.set('write', terminalFunction('write', [{ name: 'text' }], (textVal): RuntimeValue => {
+        process.stdout.write(String(textVal));
+        return null;
+      }));
+      exports.set('line', terminalFunction('line', [{ name: 'text', defaultValue: '' as any }], (textVal): RuntimeValue => {
+        process.stdout.write(`${String(textVal)}\n`);
+        return null;
+      }));
+      exports.set('eraseLine', terminalFunction('eraseLine', [{ name: 'mode', defaultValue: 'all' as any }], (modeVal): RuntimeValue => {
+        const modes: Record<string, string> = { right: '0', left: '1', all: '2' };
+        const mode = typeof modeVal === 'string' ? modeVal.toLowerCase() : 'all';
+        process.stdout.write(`\x1b[${modes[mode] ?? '2'}K`);
+        return null;
+      }));
+      exports.set('eraseScreen', terminalFunction('eraseScreen', [{ name: 'mode', defaultValue: 'all' as any }], (modeVal): RuntimeValue => {
+        const modes: Record<string, string> = { down: '0', up: '1', all: '2', scrollback: '3' };
+        const mode = typeof modeVal === 'string' ? modeVal.toLowerCase() : 'all';
+        process.stdout.write(`\x1b[${modes[mode] ?? '2'}J`);
+        return null;
+      }));
+      exports.set('cursor', terminalFunction('cursor', [{ name: 'x' }, { name: 'y' }], (xVal: RuntimeValue, yVal: RuntimeValue): RuntimeValue => {
+        const x = integer(xVal);
+        const y = integer(yVal);
+        if ((globalThis as any).sesiTerminalCursorHandler) {
+          (globalThis as any).sesiTerminalCursorHandler(x, y);
+        } else {
+          process.stdout.write(`\x1b[${y};${x}H`);
+        }
+        return null;
+      }));
+      exports.set('move', terminalFunction('move', [{ name: 'x' }, { name: 'y' }], (xVal, yVal): RuntimeValue => {
+        const x = typeof xVal === 'number' && Number.isFinite(xVal) ? Math.trunc(xVal) : 0;
+        const y = typeof yVal === 'number' && Number.isFinite(yVal) ? Math.trunc(yVal) : 0;
+        const sequences: string[] = [];
+        if (y < 0) sequences.push(`\x1b[${Math.abs(y)}A`);
+        if (y > 0) sequences.push(`\x1b[${y}B`);
+        if (x > 0) sequences.push(`\x1b[${x}C`);
+        if (x < 0) sequences.push(`\x1b[${Math.abs(x)}D`);
+        if (sequences.length > 0) process.stdout.write(sequences.join(''));
+        return null;
+      }));
+      for (const [name, code] of [['up', 'A'], ['down', 'B'], ['right', 'C'], ['left', 'D']] as const) {
+        exports.set(name, terminalFunction(name, [{ name: 'amount', defaultValue: 1 as any }], (amount): RuntimeValue => {
+          process.stdout.write(`\x1b[${integer(amount)}${code}`);
           return null;
-        }
-      });
-      exports.set('color', {
-        type: 'function',
-        name: 'color',
-        params: [{ name: 'text' }, { name: 'colorName' }],
-        body: {} as any,
-        closure: {} as any,
-        isBuiltin: true,
-        builtin: (textVal: RuntimeValue, colorNameVal: RuntimeValue): RuntimeValue => {
-          const text = String(textVal);
-          const colorName = typeof colorNameVal === 'string' ? colorNameVal : '';
-          let ansiCode = '\x1b[0m';
-          switch(colorName.toLowerCase()) {
-            case 'red': ansiCode = '\x1b[31m'; break;
-            case 'green': ansiCode = '\x1b[32m'; break;
-            case 'yellow': ansiCode = '\x1b[33m'; break;
-            case 'blue': ansiCode = '\x1b[34m'; break;
-            case 'magenta': ansiCode = '\x1b[35m'; break;
-            case 'cyan': ansiCode = '\x1b[36m'; break;
-            case 'white': ansiCode = '\x1b[37m'; break;
-            case 'bold': ansiCode = '\x1b[1m'; break;
-          }
-          return `${ansiCode}${text}\x1b[0m`;
-        }
-      });
-      exports.set('cursor', {
-        type: 'function',
-        name: 'cursor',
-        params: [{ name: 'x' }, { name: 'y' }],
-        body: {} as any,
-        closure: {} as any,
-        isBuiltin: true,
-        builtin: (xVal: RuntimeValue, yVal: RuntimeValue): RuntimeValue => {
-          const x = typeof xVal === 'number' ? Math.floor(xVal) : 1;
-          const y = typeof yVal === 'number' ? Math.floor(yVal) : 1;
-          if ((globalThis as any).sesiTerminalCursorHandler) {
-            (globalThis as any).sesiTerminalCursorHandler(x, y);
-          } else {
-            process.stdout.write(`\x1b[${y};${x}H`);
-          }
-          return null;
-        }
-      });
+        }));
+      }
+      exports.set('saveCursor', terminalFunction('saveCursor', [], (): RuntimeValue => { process.stdout.write('\x1b[s'); return null; }));
+      exports.set('restoreCursor', terminalFunction('restoreCursor', [], (): RuntimeValue => { process.stdout.write('\x1b[u'); return null; }));
+      exports.set('hideCursor', terminalFunction('hideCursor', [], (): RuntimeValue => { process.stdout.write('\x1b[?25l'); return null; }));
+      exports.set('showCursor', terminalFunction('showCursor', [], (): RuntimeValue => { process.stdout.write('\x1b[?25h'); return null; }));
+      exports.set('title', terminalFunction('title', [{ name: 'text' }], (textVal): RuntimeValue => { process.stdout.write(`\x1b]0;${String(textVal)}\x07`); return null; }));
+      exports.set('bell', terminalFunction('bell', [], (): RuntimeValue => { process.stdout.write('\x07'); return null; }));
+      exports.set('size', terminalFunction('size', [], (): RuntimeValue => ({ columns: process.stdout.columns ?? 0, rows: process.stdout.rows ?? 0 } as any)));
       return exports;
     } else if (source === 'std/browser') {
       if (this.safeMode) {

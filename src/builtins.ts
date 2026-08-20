@@ -2841,6 +2841,54 @@ ${bodyText}
     },
   });
 
+  builtins.set('memory_config', {
+    type: 'function',
+    name: 'memory_config',
+    params: [{ name: 'name' }, { name: 'options', defaultValue: {} as any }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (nameVal: RuntimeValue, optionsVal: RuntimeValue = {} as any): RuntimeValue => {
+      if (typeof nameVal !== 'string' || nameVal.trim() === '') {
+        throw new Error('memory_config expects a non-empty memory name as the first argument');
+      }
+      if (!optionsVal || typeof optionsVal !== 'object' || Array.isArray(optionsVal)) {
+        throw new Error('memory_config expects an options object as the second argument');
+      }
+
+      const options = optionsVal as Record<string, RuntimeValue>;
+      const maxTokens = options.max_tokens ?? options.maxTokens;
+      const targetTokens = options.target_tokens ?? options.targetTokens;
+      const summaryModel = options.summary_model ?? options.summaryModel;
+      const enabled = options.enabled;
+      if (maxTokens !== undefined && (typeof maxTokens !== 'number' || !Number.isFinite(maxTokens) || maxTokens <= 0)) {
+        throw new Error('memory_config max_tokens must be a positive number');
+      }
+      if (targetTokens !== undefined && (typeof targetTokens !== 'number' || !Number.isFinite(targetTokens) || targetTokens <= 0)) {
+        throw new Error('memory_config target_tokens must be a positive number');
+      }
+      if (summaryModel !== undefined && (typeof summaryModel !== 'string' || summaryModel.trim() === '')) {
+        throw new Error('memory_config summary_model must be a non-empty string');
+      }
+      if (enabled !== undefined && typeof enabled !== 'boolean') {
+        throw new Error('memory_config enabled must be a boolean');
+      }
+
+      const config = aiRuntime.configureMemorySummary(nameVal, {
+        ...(typeof maxTokens === 'number' ? { maxTokens } : {}),
+        ...(typeof targetTokens === 'number' ? { targetTokens } : {}),
+        ...(typeof summaryModel === 'string' ? { summaryModel } : {}),
+        ...(typeof enabled === 'boolean' ? { enabled } : {}),
+      });
+      return {
+        enabled: config.enabled,
+        max_tokens: config.maxTokens,
+        target_tokens: config.targetTokens,
+        summary_model: config.summaryModel,
+      } as any;
+    },
+  });
+
   builtins.set('set_alias', {
     type: 'function',
     name: 'set_alias',

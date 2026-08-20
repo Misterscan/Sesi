@@ -1052,7 +1052,7 @@ export class Parser {
           args.push(this.assignment());
           // Optional comma
           this.match('COMMA');
-        } while (!this.check('SEMICOLON') && !this.check('NEWLINE') && !this.check('RIGHT_BRACE') && !this.isAtEnd());
+        } while (!this.check('SEMICOLON') && !this.check('COMMENT') && !this.check('NEWLINE') && !this.check('RIGHT_BRACE') && !this.isAtEnd());
       }
 
       return {

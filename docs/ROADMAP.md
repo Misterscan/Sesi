@@ -109,7 +109,7 @@
 - [x] Multi-step workflows
 - [x] Tool composition and piping
 - [x] Custom tool definitions
-- [ ] Function calling with automatic orchestration
+- [x] Function calling with automatic orchestration
 - [x] Web search grounding
 
 ### Memory System
@@ -117,7 +117,7 @@
 - [ ] Long-term memory with embeddings
 - [x] Memory search by similarity
 - [x] Context window management
-- [ ] Automatic summarization
+- [x] Automatic summarization
 - [x] Persistent storage (file-based)
 
 ### Error Handling

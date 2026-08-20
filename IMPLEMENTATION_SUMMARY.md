@@ -54,7 +54,7 @@ let y  // null initially
 ```sesi
 fn add(a: number, b: number) -> number {return a + b}
 
-fn greet(name: string = "World") {print "Hello, " + name}
+fn greet(name: string = "World") {show "Hello, " + name}
 ```
 
 **Control Flow**
@@ -97,7 +97,7 @@ prompt greeting {"Hello, "name"!"}
 **Structured Output**
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.5\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.6\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -134,24 +134,33 @@ Expressions ending in `}` (such as prompt blocks) no longer strictly require an 
 
 The runtime natively polls the model if it hits a `MAX_TOKENS` finish status during large generation tasks.
 
-**Tool Calling**
+**Tool Calling and Automatic Orchestration**
 
 ```sesi
 let result = tool_call(functionName)(model(gemini-3.5-flash-lite) {"Your prompt here"})
+
+fn calculateTax(amount: number, rate: number) -> number {return amount * rate}
+define_tool("calculateTax", calculateTax, "Calculate tax")
+let answer = model("gemini-3.6-flash") {tools: list_tools(), max_tool_calls: 4} {"What is 8% tax on $125?"}
 ```
+
+Registered tools are converted to provider schemas automatically. Model-selected calls are dispatched with named arguments, their results are returned to the model, and the cycle continues until final text is produced or the configured call limit is reached.
 
 **Memory**
 
 ```sesi
 memory conversation {"Initial context"}
+memory_config("conversation", {"max_tokens": 8000, "target_tokens": 4800})
 conversation = conversation + "User: How are you?"
-print "Current Conversation Memory:" conversation
+show "Current Conversation Memory:" conversation
 
 // Demonstrate using the memory in a model call
-print "Calling model with memory context..."
+show "Calling model with memory context..."
 let response = model("gemini-3-flash-preview") {conversation}
-print "Reasoning Response:" response
+show "Reasoning Response:" response
 ```
+
+Memory bindings automatically summarize older content after an update crosses the configured token threshold. Recent context remains verbatim, earlier summaries are folded forward incrementally, concurrent compactions are serialized, and provider failures leave memory unchanged.
 
 ## 🌍 Built-in Global Variables
 
@@ -161,7 +170,7 @@ print "Reasoning Response:" response
 
 ### I/O
 
-- `print(...args)` - Output to stdout
+- `show(...args)` - Output to stdout
 - `read_file(path)` - Read file contents
 - `write_file(path, content)` - Write file contents
 - `write_image(path, content)` - Write base64 image data to file
@@ -241,6 +250,7 @@ Sesi supports importing standard utility library modules natively at runtime:
   - `collection.find(query?)`
   - `collection.update(query, update_obj)`
   - `collection.delete(query)`
+- **`std/game`**: Data-driven 2D Canvas games with declarative entities, input, velocity, bounds, AABB collisions, score rules, standalone HTML export, and a localhost preview handle.
 
 ## 📊 Implementation Statistics
 
@@ -411,6 +421,7 @@ npm test
 | main/34_sesi_api.sesi | Sesi API and Swagger UI server setup |
 | main/35_speech_language.sesi | Speech and language helpers |
 | main/36_regex_media.sesi | Regex and media processing |
+| main/37_game_engine.sesi | Data-driven 2D Canvas game export |
 | optional/37_ai_video_generation.sesi | AI video generation workflow |
 
 ## 🔮 Future Directions

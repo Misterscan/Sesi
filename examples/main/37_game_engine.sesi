@@ -1,0 +1,18 @@
+/* Example 37: Data-driven Canvas arcade game */
+allow "std/game" in as Game
+
+let game = Game.create({
+  "title": "Sesi Dodge",
+  "width": 640,
+  "height": 360,
+  "background": "#101426",
+  "input": {"left": ["ArrowLeft", "a"], "right": ["ArrowRight", "d"], "up": ["ArrowUp", "w"], "down": ["ArrowDown", "s"]},
+  "scores": {"score": 0}
+})
+
+game.add({"id": "player", "shape": "rect", "x": 300, "y": 300, "width": 24, "height": 24, "color": "#64e8ff", "bounds": "clamp", "collider": true, "control": {"speed": 250}})
+game.add({"id": "orb", "shape": "circle", "x": 60, "y": 60, "radius": 12, "color": "#ff5f8f", "vx": 130, "vy": 110, "bounds": "bounce", "collider": true, "tags": ["hazard"]})
+game.rule({"event": "collision", "source": "player", "targetRef": "hazard", "action": "addScore", "score": "score", "value": -1})
+
+game.build("sesi-dodge.html")
+show "Built sesi-dodge.html — open it in a browser to play."

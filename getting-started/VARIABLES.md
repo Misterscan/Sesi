@@ -16,7 +16,7 @@ All variables are declared with `let`. There is no `const`, `var`, or any other 
 let name = "Sesi"
 let retries: number = 3
 let title: string = "Welcome"
-let version = 1.8.5
+let version = 1.8.6
 let active = true
 let missing        // declared but uninitialized — value is null
 ```
@@ -33,7 +33,7 @@ After declaration, a variable can be reassigned using `=` without repeating `let
 let count = 0
 count = count + 1
 count = count + 1
-print count        // 2
+show count        // 2
 ```
 
 Object fields and array elements can also be mutated directly:
@@ -41,11 +41,11 @@ Object fields and array elements can also be mutated directly:
 ```sesi
 let scores = [10, 20, 30]
 scores[0] = 99
-print scores       // [99, 20, 30]
+show scores       // [99, 20, 30]
 
 let user = {"name": "Ada", "role": "admin"}
 user["role"] = "developer"
-print user["name"] // Ada
+show user["name"] // Ada
 ```
 
 ---
@@ -74,7 +74,7 @@ let config = {"theme": "dark", "limit": 20} // object
 
 ```sesi
 fn double(x: num) -> num { return x * 2 }
-fn greet(name: str) { print "Hello," name }
+fn greet(name: str) { show "Hello," name }
 ```
 
 ### Variable Type Annotations
@@ -93,7 +93,7 @@ let tags: array<string> = ["sesi", "lang"]
 `any` accepts any value and bypasses type checking. Use it in function signatures when the argument type is genuinely variable:
 
 ```sesi
-fn display(value: any) { print value }
+fn display(value: any) { show value }
 ```
 
 ### Optional Types (`T?`)
@@ -102,8 +102,8 @@ Append `?` to mark a parameter as optional (value may be `null`):
 
 ```sesi
 fn greet(name: str, title: str?) {
-  if title { print title name }
-  else { print name }
+  if title { show title name }
+  else { show name }
 }
 ```
 
@@ -112,7 +112,7 @@ fn greet(name: str, title: str?) {
 A variable or parameter can hold one of several types:
 
 ```sesi
-fn show(value: number | string) { print value }
+fn show(value: number | string) { show value }
 ```
 
 ---
@@ -149,11 +149,11 @@ let x = 10
 
 fn example() {
   let x = 99   // shadows the outer x
-  print x      // 99
+  show x      // 99
 }
 
 example()
-print x        // 10
+show x        // 10
 ```
 
 **Closures** are supported. Functions capture the enclosing scope at definition time:
@@ -163,9 +163,9 @@ let base = 100
 
 fn addBase(n) { return n + base }
 
-print addBase(5)   // 105
+show addBase(5)   // 105
 base = 200
-print addBase(5)   // 205 — closes over the live binding
+show addBase(5)   // 205 — closes over the live binding
 ```
 
 ---
@@ -182,7 +182,7 @@ Sesi exposes one built-in global variable available in every script:
 // Run as: sesi myscript.sesi Alice 30
 let name = args[0]   // "Alice"
 let age  = args[1]   // "30"
-print "Hello," name
+show "Hello," name
 ```
 
 ---
@@ -193,8 +193,8 @@ Declaring a `let` without a value sets it to `null`. Operations on `null` propag
 
 ```sesi
 let pending
-print pending          // null
-print pending + 1      // null
+show pending          // null
+show pending + 1      // null
 ```
 
 ---

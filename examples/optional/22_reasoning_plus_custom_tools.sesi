@@ -1,6 +1,6 @@
 /*
     Example 22: Reasoning + Custom Tools
-    Demonstrates composing model() output with define_tool and tool_call.
+    Demonstrates automatic model function calling with registered Sesi tools.
 */
 
 let fast = "fast"
@@ -17,14 +17,7 @@ fn addTag(text: string) -> string {
 define_tool("to_bullet", toBullet, "Convert text to bullet format")
 define_tool("add_tag", addTag, "Append release tag")
 
-let draft = model(fast) {max_tokens: 180} {"Write one concise launch note for model aliases and custom tools."}
-let bullet = tool_call(to_bullet)(draft)
-let tagged = tool_call(add_tag)(bullet)
+let result = model(fast) {tools: list_tools(), max_tool_calls: 4, max_tokens: 180, cache: false} {"Write one concise launch note for model aliases and custom tools. Use to_bullet first, then add_tag. Return only the final processed note."}
 
-show "Raw draft:
-"
-show draft "
-"
-show "Processed output:
-"
-show tagged
+show "Automatically orchestrated output:
+" result

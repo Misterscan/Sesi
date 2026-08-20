@@ -124,7 +124,7 @@ tamagotchi.sesi
 pet*
 main/tests/test_dependency_graph.sesi
 main/tests/test_tamagotchi.sesi
-local-scaffold.sesi
+scaffold-local.sesi
 eye-con.png
 sesi-studio/.sesi_studio_password.txt
 portfolio_maker.sesi
@@ -154,6 +154,11 @@ img-tools
 build
 decoded_output
 autoencoder_output
+site_generation_logs
+sesi-web
+explained
+generated-assets
+drafts
 
 
 # Sesira generated training and release artifacts
@@ -186,3 +191,4 @@ valid*
 sweep*
 train*
 reconstruct*
+

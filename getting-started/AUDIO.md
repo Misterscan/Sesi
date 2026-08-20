@@ -7,17 +7,17 @@ Sesi includes two optional standard-library modules for working with sound: `std
 ## Importing the Modules
 
 ```
-allow "std/audio" in with <alias>
-allow "std/theory" in with <alias>
+allow "std/audio" in as <alias>
+allow "std/theory" in as <alias>
 ```
 
 `allow` loads a module and binds it to any identifier you choose — the name after `with` is just a local namespace alias. These are all equally valid:
 
 ```sesi
-allow "std/audio" in with Audio      // conventional
-allow "std/audio" in with sound      // also fine
-allow "std/audio" in with snd        // also fine
-allow "std/audio" in with a          // also fine
+allow "std/audio" in as Audio      // conventional
+allow "std/audio" in as sound      // also fine
+allow "std/audio" in as snd        // also fine
+allow "std/audio" in as a          // also fine
 ```
 
 The examples below use `Audio` and `Music` as readable conventions, but you are free to pick any name that fits your script.
@@ -35,7 +35,7 @@ Audio.beep(frequency, duration)
 Play a simple sine-wave tone. `frequency` is in Hz; `duration` is in milliseconds.
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 Audio.beep(440, 200)   // 440 Hz (concert A) for 200 ms
 Audio.beep(880, 100)   // one octave up, shorter
@@ -52,7 +52,7 @@ Audio.play(note, duration, options?)
 Play a musical note by name (e.g. `"C4"`, `"A#3"`, `"Bb5"`). `options` accepts ADSR, volume, and panning.
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 Audio.play("C4", 500)
 Audio.play("E4", 500)
@@ -72,10 +72,10 @@ Returns a base64-encoded WAV string instead of playing audio. Useful for passing
 Supported `type` values: `"sine"`, `"square"`, `"saw"`, `"triangle"`, `"noise"`, `"kick"`, `"snare"`, `"hat"`, `"clap"`.
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 let wav_b64 = Audio.synth(440, 1000, "square")
-print "WAV data length:" len(wav_b64)
+show "WAV data length:" len(wav_b64)
 ```
 
 ---
@@ -89,7 +89,7 @@ Audio.save(path, frequency_or_note, duration, type, options?)
 Synthesize a tone and write it directly to a WAV file.
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 // Save a 2-second sine-wave A4 note with fade-in and fade-out
 Audio.save("tone.wav", "A4", 2000, "sine", {"attack": 50, "release": 500})
@@ -113,11 +113,11 @@ Read a WAV file from disk and return an `audio_sample` object containing the dec
 | `sampleRate` | `number`        | Sample rate in Hz (e.g. `44100`)             |
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 let s = Audio.load("loop.wav")
-print "Sample rate:" s.sampleRate
-print "Total samples:" len(s.samples)
+show "Sample rate:" s.sampleRate
+show "Total samples:" len(s.samples)
 ```
 
 ---
@@ -145,7 +145,7 @@ Save a multi-note sequence to a single WAV file. `notes_array` can be:
 | `cutoff` | `number` | Low-pass filter cutoff frequency in Hz    |
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 let song = [
   {"note": "C4", "ms": 500, "vol": 0.8},
@@ -154,7 +154,7 @@ let song = [
 ]
 
 Audio.sequence("song.wav", song, "triangle")
-print "Saved song.wav"
+show "Saved song.wav"
 ```
 
 ---
@@ -168,7 +168,7 @@ Audio.mix(path, tracks_array, type, options?)
 Mix several tracks into a single stereo WAV. `tracks_array` is an array of note arrays — each inner array is one track. The mixer supports ADSR envelopes, LPF filtering (`cutoff`), stereo `pan`, and soft-clipping saturation (`saturate`).
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 let melody = [
   {"note": "C4", "ms": 500},
@@ -181,7 +181,7 @@ let bass = [
 ]
 
 Audio.mix("mix.wav", [melody, bass], "sine", {"saturate": 1.2})
-print "Saved mix.wav"
+show "Saved mix.wav"
 ```
 
 ---
@@ -203,7 +203,7 @@ Load a SoundFont (`.sf2`) file and return an **instrument function** bound to a 
 | `gain`       | `number` | Output gain multiplier (default `1.0`)  |
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 let piano      = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 0,  "gain": 1.5})
 let string_pad = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 49})
@@ -212,7 +212,7 @@ let lead = [piano("C4", 500), piano("E4", 500), piano("G4", 500)]
 let pad  = [string_pad("C3", 1500)]
 
 Audio.mix("full_mix.wav", [lead, pad], "sine")
-print "Saved full_mix.wav"
+show "Saved full_mix.wav"
 ```
 
 ---
@@ -236,7 +236,7 @@ Generate a single drum hit using native physical modeling — no SoundFont requi
 | `Audio.clap`  | `100` ms           | `1.0`            | Bright clap        |
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 let k = Audio.kick(300, 1.0)
 let s = Audio.snare(200, 0.8)
@@ -269,7 +269,7 @@ Audio.midi(path, tracks) -> bool
 Saves one or more tracks (arrays of note objects/strings) directly as a standard MIDI (.mid) file on disk.
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 let track = [
   {"note": "C4", "ms": 500},
@@ -278,7 +278,7 @@ let track = [
 ]
 
 Audio.midi("song.mid", track)
-print "MIDI file saved to song.mid"
+show "MIDI file saved to song.mid"
 ```
 
 ---
@@ -290,7 +290,7 @@ print "MIDI file saved to song.mid"
 `std/theory` removes the manual math from algorithmic composition. It includes helper functions for converting time divisions and chords/scales into Sesi-native note array inputs.
 
 ```sesi
-allow "std/theory" in with Music
+allow "std/theory" in as Music
 ```
 
 ---
@@ -304,7 +304,7 @@ Music.duration(minutes, seconds) -> number
 Convert minutes and seconds to absolute milliseconds.
 
 ```sesi
-allow "std/theory" in with Music
+allow "std/theory" in as Music
 
 let ms = Music.duration(1, 30) // 90000 ms
 ```
@@ -320,7 +320,7 @@ Music.bar(bars, bpm, beatsPerBar?) -> number
 Convert a number of musical bars into milliseconds based on BPM and time signature (default: 4/4).
 
 ```sesi
-allow "std/theory" in with Music
+allow "std/theory" in as Music
 
 let ms = Music.bar(8, 120) // 8 bars at 120bpm -> 16000 ms
 ```
@@ -338,12 +338,12 @@ Return the notes of a chord rooted at `root`.
 **Supported types:** `"M"`, `"m"`, `"dim"`, `"aug"`, `"7"`, `"M7"`, `"m7"`, `"sus2"`, `"sus4"`
 
 ```sesi
-allow "std/theory" in with Music
+allow "std/theory" in as Music
 
 let c_maj7  = Music.chord("C4", "M7")  // ["C4", "E4", "G4", "B4"]
 let a_minor = Music.chord("A3", "m")   // ["A3", "C4", "E4"]
 
-print c_maj7
+show c_maj7
 ```
 
 ---
@@ -359,10 +359,10 @@ Return all notes of a scale starting at `root`.
 **Supported types:** `"major"`, `"minor"`, `"dorian"`, `"phrygian"`, `"lydian"`, `"mixolydian"`, `"locrian"`
 
 ```sesi
-allow "std/theory" in with Music
+allow "std/theory" in as Music
 
 let a_minor = Music.scale("A3", "minor")
-print a_minor
+show a_minor
 ```
 
 ---
@@ -376,13 +376,13 @@ Music.transpose(notes, semitones) -> array<string>
 Shift a note or an array of notes up (positive) or down (negative) by the given number of semitones.
 
 ```sesi
-allow "std/theory" in with Music
+allow "std/theory" in as Music
 
 let c_maj7   = Music.chord("C4", "M7")          // ["C4", "E4", "G4", "B4"]
 let f_maj7   = Music.transpose(c_maj7, 5)        // ["F4", "A4", "C5", "E5"]
 let b_maj7   = Music.transpose(c_maj7, -1)       // ["B3", "D#4", "F#4", "A#4"]
 
-print f_maj7
+show f_maj7
 ```
 
 ---
@@ -390,8 +390,8 @@ print f_maj7
 ## Combining std/audio and std/theory
 
 ```sesi
-allow "std/audio"  in with Audio
-allow "std/theory" in with Music
+allow "std/audio"  in as Audio
+allow "std/theory" in as Music
 
 // Build a progression from music theory
 let c_chord = Music.chord("C4", "M")    // ["C4", "E4", "G4"]
@@ -413,7 +413,7 @@ let g_track = chord_notes(g_chord, 600)
 
 Audio.sequence("c_chord.wav", c_track, "sine")
 Audio.sequence("g_chord.wav", g_track, "triangle")
-print "Chord files saved."
+show "Chord files saved."
 ```
 
 ---
@@ -423,13 +423,13 @@ print "Chord files saved."
 Wrap audio I/O in `try/catch` to guard against missing files or unsupported formats:
 
 ```sesi
-allow "std/audio" in with Audio
+allow "std/audio" in as Audio
 
 try {
   Audio.save("output.wav", "C4", 1000, "sine")
-  print "Saved successfully"
+  show "Saved successfully"
 } catch (err) {
-  print "Audio error:" err
+  show "Audio error:" err
 }
 ```
 
@@ -438,8 +438,8 @@ try {
 ## Quick Reference
 
 ```sesi
-allow "std/audio"  in with Audio
-allow "std/theory" in with Music
+allow "std/audio"  in as Audio
+allow "std/theory" in as Music
 
 // Beep
 Audio.beep(440, 200)
@@ -455,7 +455,7 @@ Audio.save("tone.wav", "C4", 1000, "sine", {"attack": 30, "release": 200})
 
 // Load a WAV file into an audio_sample object
 let sample = Audio.load("loop.wav")
-print sample.sampleRate
+show sample.sampleRate
 
 // Drum hits (returns base64 WAV)
 let k = Audio.kick(300, 1.0)

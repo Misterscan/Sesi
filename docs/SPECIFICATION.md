@@ -361,7 +361,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.5\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.6\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -381,6 +381,14 @@ let taxAmount = tool_call(calculateTax)(100, 0.08)
 ```
 
 The tool invocation is synchronous and executes the registered function within the current interpreter context. This mechanism can be used by AI agents to perform side-effects, but it functions independently as a core language primitive.
+
+Registered functions can also be orchestrated automatically by a model call:
+
+```sesi
+let answer = model("gemini-3.6-flash") {tools: list_tools(), max_tool_calls: 4} {"What is 8% tax on $125?"}
+```
+
+`tools` accepts registered tool names, registered function values, provider schemas, or `true` for every registered tool. For registered tools, Sesi derives parameter schemas from type annotations, maps model-supplied named arguments to function parameters, executes the function, and resumes the model with the result. This repeats until the model returns text. `max_tool_calls` defaults to `8`; exceeding it raises a runtime error. Automated calls to sensitive system functions remain forbidden.
 
 
 
@@ -419,6 +427,15 @@ let userInput = "New message added."
 let response = model("gemini-3-flash-preview") {conversation "New question: "userInput}
 conversation = conversation + "Assistant:" + response
 ```
+
+Memory bindings automatically compact after an update when their estimated token count exceeds the configured budget. Older content is summarized while a recent tail remains verbatim:
+
+```sesi
+memory conversation {"System: Preserve project decisions."}
+memory_config("conversation", {"max_tokens": 8000, "target_tokens": 4800, "summary_model": "gemini-3.5-flash-lite"})
+```
+
+`max_tokens` defaults to `900000`, `target_tokens` defaults to 60% of that limit, and automatic summarization is enabled by default. A failed summary leaves the original memory unchanged. `memory_trim()` remains available for explicit compaction.
 
 ### 4.6 Type Annotations
 
@@ -586,6 +603,7 @@ random() -> number                // Random float (0.0 to 1.0)
 trunc(value, number?) -> any      // Truncate number (integer part) or string (char limit)
 convert() -> bool                 // Convert between formats
 memory_search(string, string, number?) -> array // Semantic similarity search over memory entries
+memory_config(string, object?) -> object        // Configure automatic memory summarization
 memory_trim(string, number?) -> string          // Context window management with auto-summarization
 ```
 
@@ -642,6 +660,7 @@ allow "std/theory" in as Music   // Music Theory
 allow "std/terminal" in as Term  // Terminal options
 allow "std/base64" in as Base64 // Base64 encode/decode
 allow "std/api" in as API       // FastAPI-style HTTP API framework
+allow "std/game" in as Game     // Data-driven 2D Canvas game export and preview
 ```
 
 ### Module Resolution Order (v1.x)

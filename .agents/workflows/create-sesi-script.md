@@ -10,14 +10,13 @@ description: Intent-based development workflow for generating concise, syntax-ac
 4. **Language and Perspective:** Maintain a grounded, practical perspective. Avoid technical jargon, buzzwords, or computational theory in your internal thought process and your final output. Focus on the user's request at hand. Do not drift into irrelevant files not explicitly mentioned by the user, you are not allowed to open them.
 5. **Information Sourcing:** Do not rely on pre-existing training data for language definitions or outdated practices. Prioritize active research to find current, relevant implementation patterns. If a method or approach is flagged as outdated, discard it immediately.
 6. **Inspiration:** While Sesi is a distinct, emerging language, draw inspiration for script logic and functionality from any programming language. Ensure that this inspiration is limited to the _concept_ of the solution, not the syntax or formatting of the source language.
-7. **Cautious Integration:** Do NOT use model(), image(), or workflow(). The user is the only one with permission to use these functions. Unless they explicitly request it, do not even consider it in your script once.
-8. **Core Philosophy:** Sesi scripts must be concise, legible, and intent-based. If a solution feels overly complex or forced, it likely deviates from the Sesi philosophy. Keep the implementation direct.
-9. **Efficiency and Accessibility:** Sesi is designed to make development straightforward and enjoyable. Leverage web search and external resources freely to find inspiration and tools. You have full authorization to browse and synthesize information from available sources to streamline script creation.
+7. **Core Philosophy:** Sesi scripts must be concise, legible, and intent-based. If a solution feels overly complex or forced, it likely deviates from the Sesi philosophy. Keep the implementation direct.
+8. **Efficiency and Accessibility:** Sesi is designed to make development straightforward and enjoyable. Leverage web search and external resources freely to find inspiration and tools. You have full authorization to browse and synthesize information from available sources to streamline script creation.
 
 ## Mandatory Syntax Rules & Quirks
 
 - **Block Termination:** Closing braces `}` for blocks (if, while, try, model) don't strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
-- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print "User:" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts. The parser will throw errors.
+- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `show` statements, literal strings and variables are placed sequentially naturally (e.g., `show "User:" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts. The parser will throw errors.
 - **No Raw Newlines in Prompt Blocks:** Raw newlines (e.g. formatting layout carriage returns) are strictly forbidden outside of string literals inside prompt blocks `{}` (e.g., between `{` and the first string, or between elements). These will be parsed as statement separators and trigger syntax errors. Write prompt blocks inline on a single line (e.g., `{"prompt text " variable}`), or place newlines inside the double quotes of a multiline string. To include actual newlines in the **output**, place them literally inside the string quotes:
 
 ```sesi
@@ -30,7 +29,6 @@ The newline is a real line break _inside the string literal_ — not `\n`, not a
 
 - **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{"key": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
 - **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{"name": "Alice"}`).
-- **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
 - **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
 
@@ -56,6 +54,6 @@ When AI agents write or edit `.sesi` scripts, they must use this debugging loop:
   **Why:** Sesi syntax is sensitive to whitespace, newlines, and brace positioning. Terminal-based string replacement will invariably break code.
 
 8. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run sesi:eval "sesi code"` or `node bin/sesi.js -e "..."`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.
-9. **Always Check Specifications first:** Verify specifications in the `getting-started/` folder, `docs/WRITING_SCRIPTS.md`, and `GUIDE.md` before assuming language quirks.
+9. **Always Check Specifications first:** Verify specifications in the `context-pack/` folder before assuming language quirks.
 
 _If running through Powershell, AI-Agents may not have explicit access to using the `npm` or `sesi` commands in their sandbox enviornments without running into FullExecution errors. In this case, use `node bin/sesi.js <file> <option>` in replacement of `npm run sesi`._

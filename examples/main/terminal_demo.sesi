@@ -1,7 +1,6 @@
 /*
-  A visually rich terminal UI demo using Sesi and Term module.
-  Demonstrates: styling, cursor movement, and timed events.
-  
+  A compact showcase of std/terminal for ANSI-compatible terminals.
+
   Usage:
     sesi examples/main/terminal_demo.sesi
 */
@@ -9,32 +8,42 @@
 allow "std/terminal" in as Term
 allow "std/time" in as Time
 
-// Clear the screen to start fresh
 Term.clear()
+Term.title("Sesi terminal showcase")
+Term.hideCursor()
 
-// Move cursor to top left
+// Styled text can be piped into show just like color().
 1 | Term.cursor(1)
-show "⚡ Sesi Terminal UI Engine" | Term.color("cyan")
+show " S E S I   T E R M I N A L " | Term.background("blue") | Term.style(["bold", "brightWhite"])
 
 1 | Term.cursor(3)
-show "Loading system modules..." | Term.color("yellow")
+show "ANSI controls, colors, and cursor tools" | Term.style(["dim", "cyan"])
 
-1000 | Time.sleep
-
-1 | Term.cursor(4)
-show "[OK] File system ready" | Term.color("green")
-
-500 | Time.sleep
-
+// Use eraseLine() before replacing a temporary status message.
 1 | Term.cursor(5)
-show "[OK] Network initialized" | Term.color("green")
+Term.write("Starting terminal services...")
+250 | Time.sleep
+1 | Term.cursor(5)
+Term.eraseLine()
+1 | Term.cursor(5)
+show "✓ Terminal services ready" | Term.style(["bold", "brightGreen"])
 
 1 | Term.cursor(7)
-show "Ready for commands." | Term.color("white")
+show "  HEALTHY  " | Term.background("green") | Term.style("bold")
+show "  true color  " | Term.rgb(108, 92, 231)
+show "  styled output  " | Term.style(["underline", "brightCyan"])
 
-// Optional: you can combine with input
+let dimensions = Term.size()
+let sizeSummary = "Terminal size: " + dimensions.columns + " columns × " + dimensions.rows + " rows"
 1 | Term.cursor(9)
-let cmd = "admin@sesi> " | input | Term.color("magenta")
+show sizeSummary | Term.color("gray")
 
-1 | Term.cursor(11)
-show "You executed:" cmd | Term.color("bold")
+// Save a position, draw a separate status line, then return below it.
+Term.saveCursor()
+1 | Term.cursor(12)
+show "Tip: use Term.move(x, y) for relative cursor movement." | Term.color("yellow")
+Term.restoreCursor()
+Term.move(0, 3)
+show "Ready to build." | Term.style(["bold", "brightMagenta"])
+
+Term.showCursor()

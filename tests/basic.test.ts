@@ -123,6 +123,19 @@ async function main() {
     console.log('✓ Parse function statement');
   }
 
+  const trailingShowCommentParser = new Parser(new Lexer('show "Hello" // greeting\nshow "Goodbye"').scanTokens());
+  const trailingShowCommentProgram = trailingShowCommentParser.parse();
+  if (
+    trailingShowCommentParser.errors.length > 0 ||
+    trailingShowCommentProgram.statements.length !== 2 ||
+    trailingShowCommentProgram.statements[0].type !== 'ExpressionStatement' ||
+    trailingShowCommentProgram.statements[0].expression.type !== 'CallExpression' ||
+    trailingShowCommentProgram.statements[0].expression.arguments.length !== 1
+  ) {
+    throw new Error('A trailing comment after an unparenthesized show statement must not be parsed as another argument');
+  }
+  console.log('✓ Parse show statement with trailing comment');
+
   // Interpreter tests
   console.log('\n=== Interpreter Tests ===');
 

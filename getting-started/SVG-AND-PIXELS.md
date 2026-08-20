@@ -7,15 +7,15 @@
 ## Importing the Module
 
 ```
-allow "std/draw" in with <alias>
+allow "std/draw" in as <alias>
 ```
 
 The name after `with` is your choice — any identifier works:
 
 ```sesi
-allow "std/draw" in with Draw     // conventional
-allow "std/draw" in with canvas   // also fine
-allow "std/draw" in with d        // also fine
+allow "std/draw" in as Draw     // conventional
+allow "std/draw" in as canvas   // also fine
+allow "std/draw" in as d        // also fine
 ```
 
 The examples below use `Draw` as a readable convention.
@@ -43,7 +43,7 @@ Draw.rect(x, y, width, height, fill)
 | `fill`    | `string` | CSS color (name, hex, rgb, etc) |
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 Draw.rect(10, 10, 80, 50, "steelblue")
 Draw.rect(20, 70, 60, 20, "#ff6347")
@@ -65,7 +65,7 @@ Draw.circle(x, y, radius, fill)
 | `fill`    | `string` | CSS color                          |
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 Draw.circle(50, 50, 40, "crimson")
 Draw.circle(150, 50, 20, "gold")
@@ -88,7 +88,7 @@ Draw.line(x1, y1, x2, y2, stroke)
 | `stroke`  | `string` | CSS color for the line   |
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 Draw.line(0, 0, 200, 200, "white")
 Draw.line(200, 0, 0, 200, "white")   // X pattern
@@ -111,7 +111,7 @@ Draw.text(x, y, content, size, fill)
 | `fill`    | `string` | CSS color                           |
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 Draw.text(10, 30, "Hello, Sesi", 24, "white")
 Draw.text(10, 60, "SVG is easy", 16, "#aaa")
@@ -128,7 +128,7 @@ Draw.clear()
 Wipes everything in the drawing buffer. Use this to reset between separate drawings in the same script:
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 Draw.circle(50, 50, 40, "red")
 Draw.clear()                       // start fresh
@@ -148,13 +148,13 @@ Draw.render(width, height) -> string
 Flushes the buffer and returns the complete SVG document as a string. The buffer is **not** cleared afterward.
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 Draw.rect(0, 0, 200, 100, "navy")
 Draw.text(10, 60, "Sesi", 40, "white")
 
 let svg = Draw.render(200, 100)
-print svg
+show svg
 ```
 
 You can pass the returned string to `write_file` or embed it in HTML:
@@ -176,14 +176,14 @@ Draw.save_svg(path, width, height)
 Renders the buffer and writes the SVG directly to `path`. Equivalent to calling `render` then `write_file`.
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 Draw.rect(0, 0, 400, 300, "#1a1a2e")
 Draw.circle(200, 150, 100, "#e94560")
 Draw.text(130, 160, "Sesi Draw", 28, "white")
 
 Draw.save_svg("poster.svg", 400, 300)
-print "Saved poster.svg"
+show "Saved poster.svg"
 ```
 
 ---
@@ -193,7 +193,7 @@ print "Saved poster.svg"
 `Draw.pixel` writes to a raster buffer that is separate from the SVG shape buffer. `Draw.save_png` encodes those pixels as an RGBA PNG file.
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 Draw.pixel(0, 0, "#ff4d6d")
 Draw.pixel(1, 0, "#ffd166")
@@ -239,7 +239,7 @@ Coordinates are floored to integers. A later call at the same coordinate replace
 Shapes are layered in the order they are added, so earlier calls appear behind later ones:
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 // Background
 Draw.rect(0, 0, 300, 200, "#0f0f23")
@@ -276,7 +276,7 @@ Sesi's drawing module has built-in support for:
 ### Example: Animated Vector Art with Gradients
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 // 1. Define a radial gradient for a neon glow
 Draw.gradient("radial", "glow_grad", [
@@ -312,15 +312,15 @@ Draw.save_svg("neon.svg", 400, 400)
 Wrap file-saving calls in `try/catch` to handle path or permission errors:
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 Draw.rect(0, 0, 100, 100, "teal")
 
 try {
   Draw.save_svg("output/drawing.svg", 100, 100)
-  print "Saved successfully"
+  show "Saved successfully"
 } catch (err) {
-  print "Draw error:" err
+  show "Draw error:" err
 }
 ```
 
@@ -329,7 +329,7 @@ try {
 ## Quick Reference
 
 ```sesi
-allow "std/draw" in with Draw
+allow "std/draw" in as Draw
 
 // Setup & Formatting
 Draw.gradient(type, id, stops, options = {})

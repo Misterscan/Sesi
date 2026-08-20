@@ -18,8 +18,8 @@ make Person {
 }
 
 let ada = Person("Ada", 36)
-print ada.name
-print ada.greet()
+show ada.name
+show ada.greet()
 ```
 
 ## Constructors
@@ -61,8 +61,8 @@ let first = Counter()
 let second = Counter()
 first.increment()
 
-print first.count   // 1
-print second.count  // 0
+show first.count   // 1
+show second.count  // 0
 ```
 
 ## Methods
@@ -79,7 +79,7 @@ make Greeter {
 }
 
 let greeter = Greeter()
-print greeter.greet("Sesi")
+show greeter.greet("Sesi")
 ```
 
 `make` currently provides construction, instance fields, and instance

@@ -2,6 +2,8 @@
 // A Chunk is a compiled unit of code: a flat array of opcodes + operands,
 // a constant pool, and a line-number table for error reporting.
 
+import {type Parameter} from './types';
+
 export const enum OpCode {
   // Stack / constants
   CONSTANT,      // operand: constant pool index
@@ -98,7 +100,7 @@ export interface FunctionProto {
   kind: 'FunctionProto';
   name: string;
   arity: number;          // required params (params without defaults)
-  params: Array<{ name: string; hasDefault: boolean }>;
+  params: Array<Parameter & { hasDefault: boolean }>;
   chunk: Chunk;
   isAsync: boolean;
   upvalues: Array<{ index: number; isLocal: boolean }>;

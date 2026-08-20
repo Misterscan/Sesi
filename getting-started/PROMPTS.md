@@ -15,12 +15,12 @@ Place string literals and variable names sequentially inside the braces. Sesi jo
 
 ```sesi
 let name    = "Ada"
-let version = "1.8.5"
+let version = "1.8.6"
 
 prompt header {"Welcome to Sesi "version". Hello, "name}
 ```
 
-`header` now holds the composed string `"Welcome to Sesi 1.8.5. Hello, Ada"`.
+`header` now holds the composed string `"Welcome to Sesi 1.8.6. Hello, Ada"`.
 
 > **Rule:** Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error — they are treated as statement separators. Newlines that live inside a string literal are fine.
 
@@ -28,15 +28,15 @@ prompt header {"Welcome to Sesi "version". Hello, "name}
 
 ## Printing a Prompt
 
-A prompt block is a value. Pass it to `print` like any other variable:
+A prompt block is a value. Pass it to `show` like any other variable:
 
 ```sesi
 let lang = "Sesi"
-let ver  = "1.8.5"
+let ver  = "1.8.6"
 
 prompt title {"Welcome to "lang ver}
 
-print title   // Welcome to Sesi 1.8.5
+show title   // Welcome to Sesi 1.8.6
 ```
 
 ---
@@ -67,7 +67,7 @@ prompt report {"Student: "name"
 Score: "score"
 Grade: A"}
 
-print report
+show report
 // Student: Ada
 // Score: 98
 // Grade: A
@@ -86,7 +86,7 @@ let last  = "Lovelace"
 prompt fullName {first last}
 prompt badge {"[Developer] "fullName}
 
-print badge   // [Developer] Ada Lovelace
+show badge   // [Developer] Ada Lovelace
 ```
 
 ---
@@ -106,7 +106,7 @@ let line1 = "User: " + name + " | Role: " + role
 prompt line2 {"User: "name" | Role: "role}
 ```
 
-> **Preferred:** Avoid `+` inside `print` statements and prompt blocks. Sequential placement is idiomatic Sesi.
+> **Preferred:** Avoid `+` inside `show` statements and prompt blocks. Sequential placement is idiomatic Sesi.
 
 ---
 
@@ -117,7 +117,7 @@ prompt line2 {"User: "name" | Role: "role}
 prompt title {"Hello, "name" — version "version}
 
 // Print directly
-print title
+show title
 
 // Use as a string value
 write_file("out.txt", title)

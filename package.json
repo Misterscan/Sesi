@@ -1,6 +1,6 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.8.5",
+  "version": "1.8.6",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
   "bin": {
@@ -30,7 +30,7 @@
     "sf2"
   ],
   "scripts": {
-    "install": "node bin/sesi.js install",
+    "postinstall": "node bin/sesi.js install",
     "lint": "sesi bin/lint.sesi",
     "build": "tsc",
     "commit:message": "sesi -l helpers/commit-message.sesi --staged",
@@ -90,14 +90,14 @@
     "@dotenvx/dotenvx": "2.21.0",
     "@dotenvx/dotenvx-armor": "0.56.1",
     "@dotenvx/dotenvx-ops": "0.56.1",
-    "@google/genai": "2.16.0",
+    "@google/genai": "2.17.1",
     "@huggingface/transformers": "4.2.0",
     "adm-zip": "0.6.0",
     "blessed": "^0.1.81",
     "html-to-text": "10.0.0",
     "image-size": "^2.0.2",
     "js-tiktoken": "^1.0.21",
-    "js-yaml": "5.2.3",
+    "js-yaml": "5.3.0",
     "marked": "18.0.9",
     "nodejs-whisper": "^0.3.1",
     "openai": "7.4.0",
@@ -111,7 +111,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "26.2.0",
     "@types/turndown": "^5.0.6",
-    "globals": "^17.9.0",
+    "globals": "17.11.0",
     "rcedit": "^5.0.2",
     "tsx": "4.23.12",
     "typescript": "7.0.2"
@@ -125,11 +125,12 @@
     "onnxruntime-node": "^1.27.0",
     "sharp": "^0.35.3",
     "adm-zip": "0.6.0",
-    "undici": "8.10.0"
+    "undici": "8.10.0",
+    "deepmerge-ts": "8.0.1"
   },
   "allowScripts": {
     "fsevents@2.3.2": true,
-    "@google/genai@2.16.0": true,
+    "@google/genai@2.17.1": true,
     "esbuild@0.28.1": true,
     "onnxruntime-node@1.27.0": true,
     "protobufjs@7.6.5": true,

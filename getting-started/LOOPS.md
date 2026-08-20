@@ -16,7 +16,7 @@ The block repeats as long as the condition remains truthy:
 let i = 0
 
 while i < 5 {
-  print i
+  show i
   i = i + 1
 }
 // 0 1 2 3 4
@@ -27,7 +27,7 @@ Condensed one-liner form is valid:
 ```sesi
 let x = 10
 while x > 0 { x = x - 1 }
-print x   // 0
+show x   // 0
 ```
 
 > **Note:** Always make sure the condition eventually becomes falsy, or the loop will run forever.
@@ -46,7 +46,7 @@ Use `for ... in` to visit each element of an array in order:
 let names = ["Ada", "Grace", "Linus"]
 
 for name in names {
-  print "Hello," name
+  show "Hello," name
 }
 ```
 
@@ -60,7 +60,7 @@ Combine `for ... in` with `keys()` to walk an object's entries:
 let config = {"theme": "dark", "limit": 20, "debug": false}
 
 for key in keys(config) {
-  print key ":" config[key]
+  show key ":" config[key]
 }
 ```
 
@@ -76,7 +76,7 @@ Use the range form for a known number of iterations. The counter starts at the l
 
 ```sesi
 for i = 0 to 5 {
-  print i
+  show i
 }
 // 0 1 2 3 4
 ```
@@ -87,7 +87,7 @@ Use `range()` when you need an array of indices instead of an inline range:
 let indices = range(5)   // [0, 1, 2, 3, 4]
 
 for i in indices {
-  print "Step" i
+  show "Step" i
 }
 ```
 
@@ -104,7 +104,7 @@ for item in items {
   if item == "build" {
     break
   }
-  print item
+  show item
 }
 // lint
 // test
@@ -121,7 +121,7 @@ for i = 0 to 6 {
   if i % 2 == 0 {
     continue
   }
-  print i
+  show i
 }
 // 1 3 5
 ```
@@ -140,7 +140,7 @@ for score in scores {
   total = total + score
 }
 
-print "Total:" total   // 100
+show "Total:" total   // 100
 ```
 
 Building an array inside a loop:
@@ -155,7 +155,7 @@ for file in files {
   }
 }
 
-print "Sesi files found:" len(results)
+show "Sesi files found:" len(results)
 ```
 
 ---
@@ -168,7 +168,7 @@ Loops can be nested freely. Each `break` or `continue` affects only the innermos
 for i = 0 to 3 {
   for j = 0 to 3 {
     if j == 2 { break }   // only breaks the inner loop
-    print i j
+    show i j
   }
 }
 ```
@@ -184,27 +184,27 @@ while i < 10 { i = i + 1 }
 
 // for ... in — iterate array
 let names = ["Ada", "Grace"]
-for name in names { print name }
+for name in names { show name }
 
 // for ... in — iterate object keys
-for key in keys(config) { print key config[key] }
+for key in keys(config) { show key config[key] }
 
 // for range — numeric
-for i = 0 to 5 { print i }
+for i = 0 to 5 { show i }
 
 // range() as array
-for i in range(5) { print i }
+for i in range(5) { show i }
 
 // break
 for item in items {
   if item == "stop" { break }
-  print item
+  show item
 }
 
 // continue
 for i = 0 to 10 {
   if i % 2 == 0 { continue }
-  print i
+  show i
 }
 
 // accumulate

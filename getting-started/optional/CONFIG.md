@@ -14,7 +14,7 @@ config_block := '{' key ':' value (',' key ':' value)* '}'
 
 ```sesi
 let response = model("gemini-3.5-flash") {"Say hello"}
-print response
+show response
 ```
 
 ---
@@ -151,19 +151,19 @@ Stream tokens as they arrive instead of waiting for the full response.
 ```sesi
 let response = model("gemini-3.1-flash-lite") {stream: true} {"Write a short poem."}
 
-// tokens print to terminal in real-time
-print "Final:" response
+// tokens show to terminal in real-time
+show "Final:" response
 ```
 
 ### To a callback function
 
 ```sesi
 fn handleChunk(chunk) {
-  print "Chunk:" chunk
+  show "Chunk:" chunk
 }
 
 let response = model("gemini-3.1-flash-lite") {stream: handleChunk} {"Explain closures."}
-print "Final:" response
+show "Final:" response
 ```
 
 The return value is always the fully accumulated response string, regardless of whether streaming is on.
@@ -176,7 +176,7 @@ The return value is always the fully accumulated response string, regardless of 
 
 ```sesi
 let response = model("gemini-3.1-flash-lite") {search} {"What is the weather in Tokyo right now?"}
-print response
+show response
 ```
 
 Combine with other keys normally:
@@ -248,7 +248,7 @@ let r = model("gemini-3.5-flash") {images: "scan.png"} {"Transcribe all text."}
 let r = model("gemini-3.1-flash-lite") {stream: true} {"Write a poem."}
 
 // Streaming with callback
-fn onChunk(chunk) { print chunk }
+fn onChunk(chunk) { show chunk }
 let r = model("gemini-3.1-flash-lite") {stream: onChunk} {"Tell a story."}
 
 // No cache

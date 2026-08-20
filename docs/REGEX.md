@@ -18,9 +18,9 @@ let username = "user_123"
 let isValid = regex("^[a-zA-Z0-9]{3,16}$", username, {"mode": "test"})
 
 if isValid {
-  print "Username is valid"
+  show "Username is valid"
 } else {
-  print "Username is invalid"
+  show "Username is invalid"
 }
 ```
 
@@ -37,7 +37,7 @@ let matches = regex("ID: (\\d+-[A-Z]+)", logLine)
 
 if matches {
   // The first match is at index 0
-  print "Extracted ID:" matches[0]["groups"][0]
+  show "Extracted ID:" matches[0]["groups"][0]
 }
 ```
 
@@ -52,7 +52,7 @@ Use this to clean up strings, remove unwanted characters, or mask sensitive info
 let messy = "This    is   a   messy   string"
 let clean = regex("\\s+", messy, {"mode": "replace", "flags": "g", "replacement": " "})
 
-print "Cleaned string:" clean
+show "Cleaned string:" clean
 ```
 
 ### 4. Parsing (`mode: "split"`)
@@ -66,7 +66,7 @@ This is more powerful than the standard `split()` function because it allows you
 let data = "apple;banana,orange|grape"
 let items = regex("[;,|]", data, {"mode": "split"})
 
-print "Items found:" items
+show "Items found:" items
 ```
 
 ### Quick Reference
@@ -143,9 +143,9 @@ let phone = "555-0199-1234"
 let isValid = regex("^\\d{3}-\\d{3}-\\d{4}$", phone, {"mode": "test"})
 
 if isValid {
-  print "Phone number is valid"
+  show "Phone number is valid"
 } else {
-  print "Phone number is invalid"
+  show "Phone number is invalid"
 }
 ```
 
@@ -166,9 +166,9 @@ if matches {
   let month = matches[0]["groups"][1]
   let day   = matches[0]["groups"][2]
 
-  print "Year:" year
-  print "Month:" month
-  print "Day:" day
+  show "Year:" year
+  show "Month:" month
+  show "Day:" day
 }
 ```
 
@@ -184,7 +184,7 @@ let email = "user@example.com"
 // Replace everything before the @ with ****
 let masked = regex("^[^@]+", email, {"mode": "replace", "replacement": "****"})
 
-print "Masked email:" masked // ****@example.com
+show "Masked email:" masked // ****@example.com
 ```
 
 ---

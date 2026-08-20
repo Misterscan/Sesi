@@ -67,7 +67,7 @@ let all = users.find()
 let admins = users.find({"role": "admin"})
 
 for user in admins {
-  print user["name"]
+  show user["name"]
 }
 ```
 
@@ -79,7 +79,7 @@ Update all documents matching a query. Returns the number of documents updated:
 
 ```sesi
 let count = users.update({"name": "Ada"}, {"role": "lead"})
-print "Updated:" count
+show "Updated:" count
 ```
 
 ---
@@ -90,7 +90,7 @@ Delete all documents matching a query. Returns the number of documents deleted:
 
 ```sesi
 let count = users.delete({"active": false})
-print "Deleted:" count
+show "Deleted:" count
 ```
 
 ---
@@ -109,9 +109,9 @@ try {
   posts.insert({"title": "Hello Sesi", "views": 0})
 
   let results = posts.find({"title": "Hello Sesi"})
-  print results[0]["title"]
+  show results[0]["title"]
 } catch (err) {
-  print "Database error:" err
+  show "Database error:" err
 }
 ```
 

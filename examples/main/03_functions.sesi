@@ -27,7 +27,7 @@ calculate("multiply", 5, 3) // or "multiply" | calculate(5, 3)
 
 // Define your functions and call it using a custom tool
 fn getSesi() -> string {
-    return "1.8.5"
+    return "1.8.6"
 }
 
 define_tool("get-sesi", getSesi, "Get the current Sesi version")
@@ -104,7 +104,7 @@ show "First match > 4 (find):" match
 
 // String functions
 
-let original = "  Hello, Sesi V1.8.5!  "
+let original = "  Hello, Sesi V1.8.6!  "
 show "Original string:" original
 
 // 1. to_upper(string)
@@ -141,8 +141,8 @@ let replaced = swap(cleaned, " ", "_") // or simply cleaned | swap(" ", "_")
 show "Replaced spaces with underscores:" replaced
 
 // 6. contains(string, sub)
-let hasVersion = contains(cleaned, "V1.8.5") // or simply cleaned | contains("V1.8.5")
-show "Contains 'V1.8.5':" hasVersion
+let hasVersion = contains(cleaned, "V1.8.6") // or simply cleaned | contains("V1.8.6")
+show "Contains 'V1.8.6':" hasVersion
 
 // 7. locate(string, sub)
 let idx = locate(cleaned, "Sesi") // or simply cleaned | locate("Sesi")

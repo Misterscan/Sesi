@@ -399,6 +399,7 @@ Sesi/
 - **Standard Library Modules**: Native support for imported standard libraries, including:
   - `std/math` (providing `PI`, `E`, `sqrt`, `pow`, `sin`, `cos`, etc.)
   - `std/time` (providing `sleep` and `now`)
+  - `std/game` (data-driven 2D Canvas games, standalone HTML export, and local preview)
   - JSON serialization/deserialization through the built-in `to_json` and `from_json` functions
 
 ### Reasoning-Native Features ✅

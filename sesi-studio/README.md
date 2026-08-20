@@ -2,7 +2,8 @@
 
 Sesi Studio is a premium, high-density development environment built specifically for the Sesi Programming Language and ClearHTML (CHTML). It provides a full-featured IDE experience directly in the browser, designed to work seamlessly with the native Sesi toolchain.
 
-![Sesi Studio Screenshot](./img/sesi-studio-preview.png)
+![Sesi Studio Screenshot](./img/screenshot.png)
+![Sesi Studio Alt Screenshot](./img/alt-screenshot.png)
 
 ## Key Features
 

@@ -366,7 +366,7 @@ const BUILTINS = new Set([
   'read_file', 'write_file', 'append_file', 'write_image', 'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call', 'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env',
   'range', 'push', 'append', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs',
-  'pow', 'log', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'web_get',
+  'pow', 'log', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'memory_config', 'error_type', 'raise_error', 'multi_req', 'web_get',
   'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter',
   'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
   'lazy', 'force', 'timeout', 'profile', 'profile_start', 'profile_end', 'profile_report',

@@ -40,6 +40,38 @@ async function main() {
     'Gemini receives the trimmed system instruction through generateContent config'
   );
 
+  await runtime.callModel({
+    model: 'gemini-3.5-flash',
+    prompt: 'Use a tool if needed.',
+    tools: [{
+      name: 'lookupWeather',
+      description: 'Look up the weather.',
+      parameters: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] },
+    }],
+    cache: false,
+  });
+  assert(
+    requests[1]?.config?.tools?.[0]?.functionDeclarations?.[0]?.name === 'lookupWeather',
+    'Gemini receives provider-neutral function declarations in its native tool wrapper'
+  );
+
+  runtime._client.models.generateContent = async () => ({
+    candidates: [{
+      finishReason: 'STOP',
+      content: { parts: [{ functionCall: { name: 'lookupWeather', args: { city: 'NYC' } } }] },
+    }],
+    usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 1 },
+  });
+  const toolResponse = await runtime.callModel({
+    model: 'gemini-3.5-flash',
+    prompt: 'What is the weather?',
+    tools: [{ name: 'lookupWeather', parameters: { type: 'object', properties: {} } }],
+    cache: false,
+  });
+  const toolCall = JSON.parse(toolResponse.text);
+  assert(toolResponse.finishReason === 'TOOL_CALL', 'Gemini functionCall parts use the shared tool-call finish reason');
+  assert(toolCall.name === 'lookupWeather' && toolCall.args?.city === 'NYC', 'Gemini functionCall parts are normalized');
+
   let streamedRequest: any = null;
   runtime._client.models.generateContentStream = async function* (request: any) {
     streamedRequest = request;

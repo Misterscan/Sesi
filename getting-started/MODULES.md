@@ -30,8 +30,8 @@ import {
   PI
 } from "math"
 
-print add(10, 20)   // 30
-print PI            // 3.14159
+show add(10, 20)   // 30
+show PI            // 3.14159
 ```
 
 ---
@@ -49,7 +49,7 @@ allow "math" in with {
   add, multiply
 }
 
-print add(3, 4)   // 7
+show add(3, 4)   // 7
 ```
 
 ### Namespace object
@@ -57,10 +57,10 @@ print add(3, 4)   // 7
 Import the entire module under a single identifier:
 
 ```sesi
-allow "math" in with Math
+allow "math" in as Math
 
-print Math.add(3, 4)      // 7
-print Math.multiply(2, 5) // 10
+show Math.add(3, 4)      // 7
+show Math.multiply(2, 5) // 10
 ```
 
 ---
@@ -74,14 +74,17 @@ Sesi ships with built-in standard library modules:
 | `std/math` | `Math`    | Math operations     |
 | `std/time` | `Time`    | Time/date functions |
 | `std/db`   | —         | Database access     |
+| [`std/game`](GAME.md) | `Game` | Data-driven 2D Canvas games, HTML export, and local preview |
 ... and more!
 
 ```sesi
-allow "std/math" in with Math
-allow "std/time" in with Time
+allow "std/math" in as Math
+allow "std/time" in as Time
+allow "std/game" in as Game
 
-print Math.PI
-print Time.now()
+show Math.PI
+show Time.now()
+let game = Game.create({"width": 640, "height": 360})
 ```
 
 ---
@@ -136,7 +139,7 @@ To track dependencies, Sesi uses a simple `sesi.json` file in the root of your p
 
 ### Directory Modules & Entry Points
 
-When you import a third-party package folder (e.g. `allow "repo" in with Repo`), Sesi automatically resolves the module's entry point. It checks the directory for:
+When you import a third-party package folder (e.g. `allow "repo" in as Repo`), Sesi automatically resolves the module's entry point. It checks the directory for:
 
 1. `sesi_modules/<package-name>/index.sesi`
 2. `sesi_modules/<package-name>/main.sesi`
@@ -184,8 +187,8 @@ $env:SESI_PATH = "C:\MyLibs\shared;C:\Projects\common"
 
 ```sesi
 // Export
-export fn greet(name) { print "Hello," name }
-export let VERSION = "1.8.5"
+export fn greet(name) { show "Hello," name }
+export let VERSION = "1.8.6"
 
 // import (named)
 import { greet, VERSION } from "mymodule"
@@ -198,8 +201,9 @@ allow "mymodule" in with Mod
 Mod.greet("Ada")
 
 // Standard library
-allow "std/math" in with Math
-allow "std/time" in with Time
+allow "std/math" in as Math
+allow "std/time" in as Time
+allow "std/game" in as Game
 ```
 
 ---

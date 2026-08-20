@@ -13,7 +13,7 @@ parameters := (identifier ':' type ('=' expr)?)? (',' identifier ':' type ('=' e
 
 ```sesi
 fn greet(name: string) {
-  print "Hello," name
+  show "Hello," name
 }
 
 greet("Ada")   // Hello, Ada
@@ -34,7 +34,7 @@ fn add(a: number, b: number) {
   return a + b
 }
 
-print add(10, 5)   // 15
+show add(10, 5)   // 15
 ```
 
 ### Default Parameters
@@ -43,7 +43,7 @@ Parameters can have default values. They are used when the caller omits that arg
 
 ```sesi
 fn greet(name: string = "World") {
-  print "Hello," name
+  show "Hello," name
 }
 
 greet()        // Hello, World
@@ -82,7 +82,7 @@ fn square(x: number) {
 }
 
 let result = square(9)
-print result   // 81
+show result   // 81
 ```
 
 A function without an explicit `return` produces `null`.
@@ -112,7 +112,7 @@ Call a function by name with arguments in parentheses:
 fn sum(a, b) { return a + b }
 
 let total = sum(3, 7)
-print total   // 10
+show total   // 10
 ```
 
 ---
@@ -126,9 +126,9 @@ let base = 100
 
 fn addBase(n) { return n + base }
 
-print addBase(5)   // 105
+show addBase(5)   // 105
 base = 200
-print addBase(5)   // 205
+show addBase(5)   // 205
 ```
 
 ---
@@ -165,7 +165,7 @@ fn mul(a, b) { return a * b }
 
 // 10 → add(5) → 15 → mul(2) → 30
 let result = 10 | add(5) | mul(2)
-print result   // 30
+show result   // 30
 ```
 
 ---
@@ -181,7 +181,7 @@ async fn fetchGreeting(name: string) {
 
 let p        = fetchGreeting("Sesi")   // Promise
 let greeting = await p                 // "Hello, Sesi"
-print greeting
+show greeting
 ```
 
 > **Note:** Model calls inside a script are blocking by default. `async`/`await` is used when you explicitly want deferred execution.
@@ -195,11 +195,11 @@ Mark a function with `export` to make it importable from other `.sesi` files:
 ```sesi
 // logger.sesi
 export fn info(message: string) {
-  print "[INFO]" message
+  show "[INFO]" message
 }
 
 export fn warn(message: string) {
-  print "[WARN]" message
+  show "[WARN]" message
 }
 ```
 
@@ -225,7 +225,7 @@ log.warn("Using default configuration")
 
 ```sesi
 // Basic function
-fn greet(name: string) { print "Hello," name }
+fn greet(name: string) { show "Hello," name }
 greet("Ada")
 
 // With return value and type annotation
@@ -233,7 +233,7 @@ fn add(a: number, b: number) -> number { return a + b }
 let sum = add(3, 7)
 
 // Default parameter
-fn greet(name: string = "World") { print "Hello," name }
+fn greet(name: string = "World") { show "Hello," name }
 greet()
 
 // Untyped

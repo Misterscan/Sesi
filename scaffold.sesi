@@ -109,12 +109,16 @@ prompt packageJson {"{
     \"decrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -dec\"
   },
   \"dependencies\": {
-    \"@misterscan/sesi\": \"1.8.5\"
+    \"@misterscan/sesi\": \"1.8.6\"
   },
     \"allowScripts\": {
     \"fsevents@2.3.2\": true,
-    \"protobufjs@7.6.4\": true,
-    \"@google/genai@2.10.0\": true
+    \"@google/genai@2.16.0\": true,
+    \"esbuild@0.28.1\": true,
+    \"onnxruntime-node@1.27.0\": true,
+    \"protobufjs@7.6.5\": true,
+    \"sharp@0.35.3\": true,
+    \"smart-whisper@0.8.1\": true
   }
 }"}
 
@@ -159,7 +163,7 @@ prompt mainSesi {'/*
 
 // 1. Variables and Types
 let language = "Sesi"
-let version = "1.8.5"
+let version = "1.8.6"
 let features = ["Reasoning", "Embedded DB", "SVG Drawing", "Audio Synthesis", "Browser Integration"]
 
 show "Welcome to" language "version" version "!"
@@ -480,27 +484,33 @@ if Safe.writeFile(workflowsDir + "/fix-sesi-script.md", fixSesiScript) {
 prompt envExample {"# Copy this file into your own .env file and then run `dotenvx encrypt` in your terminal to encrypt it. Your API key should be automatically resolved at runtime.
 # Note: dotenvx is automatically installed by the scaffold script.
 
+# API Key Config
 GEMINI_API_KEY=your-api-key-here
+OPENAI_API_KEY=your-api-key-here
+
+# Sesi Config
+SESI_SAFE_MODE=true // Set to false to disable safe mode
+SESI_LOCAL_FS=false // Set to true to access files outside of the project folder
 SESI_PASSWORD=your-password-here"}
 
-if Safe.writeFile(target + "/env.example", envExample) {
-  show "✓ Generated env.example"
+if Safe.writeFile(target + "/.env.example", envExample) {
+  show "✓ Generated .env.example"
 } else {
-  show "⚠️ Failed to generate env.example"
+  show "⚠️ Failed to generate .env.example"
 }
 
 // Copy sesi-db-chatbot and all its .json files from sesi-db directory into the target folder.
 
-let dbChatbotContent = Safe.readFile("chatbot/sesi_db_chatbot.sesi")
+let dbChatbotContent = Safe.readFile("chatbot/sesira.sesi")
 if len(dbChatbotContent) > 0 {
-  let dbChatbotDest = target + "/chatbot/sesi_db_chatbot.sesi"
+  let dbChatbotDest = target + "/chatbot/sesira.sesi"
   if Safe.writeFile(dbChatbotDest, dbChatbotContent) {
-    show "✓ Copied sesi-db-chatbot to chatbot/sesi_db_chatbot.sesi"
+    show "✓ Copied sesi-db-chatbot to chatbot/sesira.sesi"
   } else {
-    show "⚠️ Failed to write sesi-db-chatbot"
+    show "⚠️ Failed to write chatbot/sesira.sesi"
   }
 } else {
-  show "⚠️ Could not read source sesi-db-chatbot"
+  show "⚠️ Could not read source chatbot/sesira.sesi"
 }
 
 let dbFiles = ["trained_brain.json"]

@@ -5,10 +5,16 @@
 
     - Must be run in the root directory of the repository.
     - Prompts for the version to replace (FROM) and the new version (TO).
-    - Searches and replaces in three locations:
-        1. All .js files in the /bin directory (compiled outputs).
+    - Searches and replaces in a few locations:
+        1. bin/sesi.js (Sesi binary).
         2. All .md files in the /docs directory (documentation).
         3. All .md and .sesi files in the root directory (READMEs).
+        4. All .md files in the /examples/main directory (example documentation).
+        5. All .md files in the /getting-started directory (getting started guides).
+        6. package.json and editors/vscode/package.json (version metadata).
+        7. chatbot/index.html (version metadata).
+        8. SesiInstaller.wxs (version metadata).
+        9. src/pm.ts (version metadata).
 
 Usage:
     npm run version:bump
@@ -138,6 +144,57 @@ fn skipTag(file) {show color("Skipping file:", "yellow")file}
 try {
     let file = "bin/sesi.js"
     let contents = sesiBin
+    let newContents = ""
+    if contains(contents, fromVar) {
+        newContents = swap(contents, fromVar, toVar)
+        Safe.write(file, newContents)
+        swapTag(file)
+    } else {
+        skipTag(file)
+        show "Reason:" file "already up to date."
+        show ""
+    }
+} catch(e) {
+    show "An error occured:" color(str(e), "red")
+}
+
+try {
+    let file = "chatbot/index.html"
+    let contents = Safe.read(file)
+    let newContents = ""
+    if contains(contents, fromVar) {
+        newContents = swap(contents, fromVar, toVar)
+        Safe.write(file, newContents)
+        swapTag(file)
+    } else {
+        skipTag(file)
+        show "Reason:" file "already up to date."
+        show ""
+    }
+} catch (e) {
+    show "An error occured:" color(str(e), "red")
+}
+
+try {
+    let file = "SesiInstaller.wxs"
+    let contents = Safe.read(file)
+    let newContents = ""
+    if contains(contents, fromVar) {
+        newContents = swap(contents, fromVar, toVar)
+        Safe.write(file, newContents)
+        swapTag(file)
+    } else {
+        skipTag(file)
+        show "Reason:" file "already up to date."
+        show ""
+    }
+} catch(e) {
+    show "An error occured:" color(str(e), "red")
+}
+
+try {
+    let file = "src/pm.ts"
+    let contents = Safe.read(file)
     let newContents = ""
     if contains(contents, fromVar) {
         newContents = swap(contents, fromVar, toVar)

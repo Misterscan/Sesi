@@ -79,7 +79,7 @@ Sesi is **NOT** the following coding languages, therefore **NEVER UTILIZE THE SA
 ## Mandatory Syntax Rules & Quirks
 
 - **Block Termination:** Closing braces `}` for blocks (if, while, try, model) don't strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
-- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `print` statements, literal strings and variables are placed sequentially naturally (e.g., `print "User:" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts. The parser will throw errors.
+- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `show` statements, literal strings and variables are placed sequentially naturally (e.g., `show "User:" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts. The parser will throw errors.
 - **No Raw Newlines in Prompt Blocks:** Raw newlines (e.g. formatting layout carriage returns) are strictly forbidden outside of string literals inside prompt blocks `{}` (e.g., between `{` and the first string, or between elements). These will be parsed as statement separators and trigger syntax errors. Write prompt blocks inline on a single line (e.g., `{"prompt text " variable}`), or place newlines inside the double quotes of a multiline string. To include actual newlines in the **output**, place them literally inside the string quotes:
 
 ```sesi
@@ -96,13 +96,11 @@ The newline is a real line break _inside the string literal_ — not `\n`, not a
 - **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
 
-For all quirks and specific syntaxing, visit GUIDE.md/, docs/WRITING_SCRIPTS.md, /docs/BUILTINS.md, /docs/CLI, and getting-started/.
+For all quirks and specific syntaxing, visit context-pack/.
 
 ## IGNORE THESE FILES/DIRECTORIES
 
 - `agent_native_programming.md`
-- `docs/REASONING.md`
-- `docs/IMAGE_GENERATION.md`
 - `*.txt`
 - `*.log`
 - `.sesi_cache.json`

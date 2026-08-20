@@ -14,7 +14,7 @@ Fetch a URL and return the response body as a string:
 
 ```sesi
 let response = web_get("https://jsonplaceholder.typicode.com/posts/1")
-print response
+show response
 ```
 
 Parse a JSON response with `from_json`:
@@ -22,7 +22,7 @@ Parse a JSON response with `from_json`:
 ```sesi
 let response = web_get("https://jsonplaceholder.typicode.com/posts/1")
 let post     = from_json(response)
-print post["title"]
+show post["title"]
 ```
 
 Pass custom headers as the second argument:
@@ -44,7 +44,7 @@ Send a POST request with a string body and return the response:
 ```sesi
 let payload  = to_json({"title": "Hello", "body": "From Sesi", "userId": 1})
 let response = web_send("https://jsonplaceholder.typicode.com/posts", payload)
-print response
+show response
 ```
 
 Set `Content-Type` when the API requires it:
@@ -67,9 +67,9 @@ Network calls throw on failure. Wrap them in `try/catch`:
 try {
   let response = web_get("https://api.example.com/data")
   let parsed   = from_json(response)
-  print parsed["status"]
+  show parsed["status"]
 } catch (err) {
-  print "Request failed:" err
+  show "Request failed:" err
 }
 ```
 
@@ -85,7 +85,7 @@ Start an HTTP server on a port. The `handler` function receives a request object
 
 ```sesi
 fn handleRequest(req) {
-  print req.method req.path
+  show req.method req.path
   return {"status": 200, "body": "Hello from Sesi!"}
 }
 
@@ -162,7 +162,7 @@ Start a WebSocket server. The `handler` receives a `client` controller and the i
 
 ```sesi
 fn handleMessage(client, msg) {
-  print "Received:" msg
+  show "Received:" msg
   client.send("Echo: " + msg)
 }
 
@@ -187,7 +187,7 @@ ws.close()
 For building web APIs with automated Swagger documentation and OpenAPI specifications, Sesi provides the `std/api` module. It offers high-level FastAPI-style routing, request schema specification, global middlewares, and auto-generated graphical interactive docs.
 
 ```sesi
-allow "std/api" in with API
+allow "std/api" in as API
 
 // Handler function for a route
 fn listUsers(req) {
@@ -248,7 +248,7 @@ page.goto("https://example.com")
 
 // Get the page title
 let title = page.title()
-print "Title is:" title
+show "Title is:" title
 
 // Click a button/link
 page.click("a")
@@ -312,7 +312,7 @@ let ws = api(8989, onMsg)
 ws.close()
 
 // High-level API Framework
-allow "std/api" in with API
+allow "std/api" in as API
 let app = API.create_app({"title": "My API"})
 app.get("/hello", {"summary": "Say Hello"}, fn(req) { return {"status": 200, "body": {"message": "hello"}} })
 let server = app.listen(8080)
@@ -323,7 +323,7 @@ allow "std/browser" in with {launch}
 let browser = launch({"headless": true})
 let page = browser.newPage()
 page.goto("https://example.com")
-print page.title()
+show page.title()
 browser.close()
 ```
 

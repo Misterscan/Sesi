@@ -29,7 +29,7 @@ show "Area of circle with radius 5 (using Math lib namespace):" str(Math.PI * Ma
 
 show "=== 3. Built-in JSON Conversion ==="
 // "std/json" has been deprecated in favor of built-in to_json and from_json functions.
-let original = {"project": "Sesi Language", "version": "1.8.5", "features": ["modules", "http", "parallel"]}
+let original = {"project": "Sesi Language", "version": "1.8.6", "features": ["modules", "http", "parallel"]}
 let json_str = to_json(original)
 show "Serialized JSON string:"
 show json_str

@@ -20,7 +20,7 @@ Sesi is a **clean, minimal, side-effect-oriented** scripting language. It is:
 ```sesi
 let name    = "Sesi"
 let retries: number = 3
-let version = 1.8.5
+let version = 1.8.6
 let active  = true
 let missing         // null (uninitialized)
 ```
@@ -293,10 +293,10 @@ Sesi's unique string-composition primitive. Replaces template literals.
 
 ```sesi
 let name = "Ada"
-let ver  = "1.8.5"
+let ver  = "1.8.6"
 
 prompt header {"Welcome to Sesi" ver ". Hello," name}
-// header = "Welcome to Sesi 1.8.5. Hello, Ada"
+// header = "Welcome to Sesi 1.8.6. Hello, Ada"
 
 show header
 write_file("out.txt", header)
@@ -341,7 +341,7 @@ show "Hello, " + name + " version " + str(version)
 
 ```sesi
 export fn add(a, b) { return a + b }
-export let VERSION = "1.8.5"
+export let VERSION = "1.8.6"
 ```
 
 ### Importing — `import` (named)
@@ -379,6 +379,7 @@ show Math.add(3, 4)
 | `std/theory` | `Music`      | Music theory helpers     |
 | `std/math`   | `Math`       | Math operations          |
 | `std/time`   | `Time`       | Time/date functions      |
+| `std/game`   | `Game`       | Data-driven 2D Canvas games, HTML export, and local preview |
 
 JSON conversion is built in directly through `from_json` and `to_json`; the former `std/json` module has been removed.
 
@@ -513,6 +514,8 @@ let result = model("gemini-3.6-flash") {thinkingLevel: "medium", max_tokens: 500
 | `stream`        | `bool \| fn`      | Stream to stdout or callback               |
 | `cache`         | `bool`            | `false` = bypass Sesi Logic Caching        |
 | `search`        | _(bare key)_      | Enable live web search grounding           |
+| `tools`         | `array \| bool`   | Registered names/schemas, or `true` for all |
+| `max_tool_calls`| `number`          | Automatic-call limit; defaults to `8`      |
 
 ```sesi
 // Vision
@@ -524,6 +527,20 @@ let r = model("gemini-3.5-flash-lite") {stream: true} {"Write a poem."}
 // No cache + search
 let news = model("gemini-3.5-flash-lite") {search, cache: false} {"Latest AI news."}
 ```
+
+### Automatic Function Calling
+
+Register ordinary Sesi functions, then expose selected names to a model. Sesi derives the provider schema from the function parameters, executes requested calls, and resumes the model with each result until it returns a final answer.
+
+```sesi
+fn calculateTax(amount: number, rate: number) -> number {return amount * rate}
+define_tool("calculateTax", calculateTax, "Calculate tax for an amount and rate")
+
+let answer = model("gemini-3.6-flash") {tools: list_tools(), max_tool_calls: 4} {"What is 8% tax on $125?"}
+show answer
+```
+
+Use `tools: ["calculateTax"]` to expose only selected registered tools, or `tools: true` to expose all of them. Sensitive system functions such as `exec`, `spawn`, `python`, and `ffmpeg` remain blocked from automated model execution.
 
 ### Image Generation
 
@@ -968,6 +985,7 @@ prompt msg {"Value is:" x "and name is" name}
 // Modules
 allow "std/draw" in as Draw
 allow "std/db" in with {db_open}
+allow "std/game" in as Game
 import { fn1, fn2 } from "mymodule"
 
 // Error handling
