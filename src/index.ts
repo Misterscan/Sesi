@@ -9,11 +9,19 @@ export { Compiler } from './compiler';
 export { VM } from './vm';
 export { disassemble } from './chunk';
 export { runInstall } from './pm';
+export {
+  createNativeObject,
+  isNativeObject,
+  getRuntimeProperty,
+  setRuntimeProperty,
+  runtimeKeys,
+  bindNativeMethod,
+} from './native-object';
 import { Lexer } from './lexer';
 import { Parser } from './parser';
 import { runDryRunSemanticChecks } from './dry-checker';
 import { runTypeChecks } from './type-checker';
-import { Interpreter } from './interpreter';
+import { Interpreter, type BundledBytecodeModule } from './interpreter';
 import { Compiler } from './compiler';
 import { VM } from './vm';
 import { disassemble } from './chunk';
@@ -21,6 +29,8 @@ import { SesiRuntimeError } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import * as os from 'os';
+import { collectLiteralSesiModules, launchGameFileHost, sourceGraphUsesGame } from './game';
 
 async function encrypt(content: string, password: string): Promise<string> {
   const algorithm = 'aes-256-cbc';
@@ -62,6 +72,47 @@ export interface SesiOptions {
   timeoutMs?: number;      // abort execution after this many milliseconds
   deadlineAt?: number;     // internal absolute deadline shared by nested runtimes
   profile?: boolean;       // collect and print runtime profile measurements
+  gameHost?: boolean;      // internal: script is already executing in the Electron renderer host
+  throwErrors?: boolean;   // internal: propagate failures to an embedding host instead of exiting
+}
+
+function compileGameBytecodeBundle(entry: string): object {
+  const root = path.dirname(path.resolve(entry));
+  const modules = collectLiteralSesiModules(entry).map(file => {
+    const source = fs.readFileSync(file, 'utf8');
+    const lexer = new Lexer(source);
+    const parser = new Parser(lexer.scanTokens());
+    const program = parser.parse();
+    if (parser.errors.length > 0) throw new SesiRuntimeError('GameBuildError', `Could not parse ${file} for the desktop bytecode bundle.`);
+    const compiler = new Compiler();
+    const chunk = compiler.compileProgram(program);
+    if (compiler.errors.length > 0) throw new SesiRuntimeError('GameBuildError', `Could not compile ${file}: ${compiler.errors.join('; ')}`);
+    const exportedNames = program.statements
+      .filter((statement: any) => statement.type === 'ExportStatement')
+      .map((statement: any) => statement.statement.name)
+      .filter((name: unknown): name is string => typeof name === 'string');
+    return { id: (path.relative(root, file) || path.basename(file)).replace(/\\/g, '/'), chunk, exports: exportedNames };
+  });
+  return { format: 'sesi-bytecode-bundle-v1', entry: path.basename(entry), modules };
+}
+
+export async function runSesiBytecodeBundle(
+  bundle: { format: string; entry: string; modules: BundledBytecodeModule[] },
+  scriptDir: string,
+  options?: SesiOptions,
+): Promise<void> {
+  if (!bundle || bundle.format !== 'sesi-bytecode-bundle-v1' || !Array.isArray(bundle.modules)) {
+    throw new SesiRuntimeError('GameBuildError', 'Invalid Sesi bytecode bundle.');
+  }
+  const modules = new Map(bundle.modules.map(module => [module.id.replace(/\\/g, '/'), module]));
+  const entry = modules.get(bundle.entry.replace(/\\/g, '/'));
+  if (!entry) throw new SesiRuntimeError('GameBuildError', `Bytecode entry "${bundle.entry}" is missing.`);
+  const vm = new VM(scriptDir, {
+    ...options,
+    bytecodeModules: modules,
+    bytecodeModuleId: entry.id,
+  });
+  await vm.run(entry.chunk);
 }
 
 function printTokensTable(tokens: any[]): void {
@@ -91,6 +142,8 @@ function printAstTree(node: any, indent: string = ''): string {
     result += ` (name: "${node.name.lexeme}")`;
   } else if (node.type === 'Identifier') {
     result += ` (name: "${node.lexeme || node.name}")`;
+  } else if (node.type === 'EnvLookupExpression') {
+    result += ` (variableName: "${node.variableName}")`;
   } else if (node.type === 'Literal') {
     result += ` (value: ${JSON.stringify(node.value)})`;
   } else if (node.type === 'BinaryExpression') {
@@ -226,6 +279,7 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
     const interpreter = new Interpreter(scriptDir, options);
     await interpreter.interpret(program);
   } catch (error: any) {
+    if (options?.throwErrors) throw error;
     if (error instanceof SesiRuntimeError) {
       const lineInfo = error.column !== undefined
         ? ` at line ${error.line}, column ${error.column}`
@@ -252,6 +306,28 @@ export async function runSesiFile(filePath: string, options?: SesiOptions): Prom
     const filepath = path.resolve(filePath);
     const scriptDir = path.dirname(filepath);
     let source = fs.readFileSync(filepath, 'utf-8');
+
+    const diagnosticOnly = options?.dry || options?.raw || options?.ast || options?.tokens || options?.bytecodeDump;
+    if (!options?.gameHost && !diagnosticOnly && sourceGraphUsesGame(filepath)) {
+      if (options?.safeMode !== false) {
+        throw new SesiRuntimeError('SecurityError', 'std/game requires local mode. Run the script with sesi -l.');
+      }
+      const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-game-bytecode-'));
+      const bytecodeBundle = path.join(temporary, 'game.bytecode.json');
+      try {
+        fs.writeFileSync(bytecodeBundle, JSON.stringify(compileGameBytecodeBundle(filepath)));
+        await launchGameFileHost({
+          entry: filepath,
+          allowedRoots: options?.allowedPaths ?? [process.cwd(), scriptDir],
+          args: options?.args,
+          debug: process.env.SESI_DEBUG === '1',
+          bytecodeBundle,
+        });
+      } finally {
+        fs.rmSync(temporary, { recursive: true, force: true });
+      }
+      return;
+    }
 
     // If the file matches the exact signature of our AES-256-CBC encryption (32-char hex IV : hex payload)
     if (/^[a-fA-F0-9]{32}:[a-fA-F0-9]+$/.test(source.trim()) && !options?.decrypt) {
@@ -280,6 +356,7 @@ export async function runSesiFile(filePath: string, options?: SesiOptions): Prom
 
     await runSesi(source, scriptDir, options);
   } catch (error: any) {
+    if (options?.throwErrors) throw error;
     console.error(`Error reading file ${filePath}:`, error.message);
     process.exit(1);
   }

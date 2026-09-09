@@ -93,6 +93,27 @@ For devs working on Sesi, you can verify your backend edits with the built-in te
 npm test
 ```
 
+### Create a 3D desktop game
+
+Install the optional Babylon/Electron runtime in your project, then run the example in local mode:
+
+```bash
+npm install @misterscan/sesi-game
+sesi -l examples/main/37_game_3d_arcade.sesi
+```
+
+```sesi
+allow "std/game" in as Game
+let game = Game.create({title: "Quick 3D"})
+let scene = game.create_scene("main")
+let camera = scene.orbit_camera("camera", {radius: 10})
+let light = scene.hemispheric_light("light")
+let cube = scene.box("cube")
+game.run()
+```
+
+See [getting-started/GAME.md](getting-started/GAME.md) for input, physics, assets, lifecycle callbacks, and desktop builds.
+
 ## Your First Program
 
 Create a file called `hello.sesi` and run it:
@@ -112,9 +133,12 @@ filename | sesi'
 let x = 10
 let name = "Alice"
 let score = 95.5
+let user = $USER      // Environment variable shorthand
+let port = $PORT || 8080
 show x
 show name
 show score
+show user
 ```
 
 ### Functions
@@ -129,6 +153,16 @@ fn add(a: number, b: number) {show a + b}
 ```sesi
 let age = 25
 if age >= 18 {show "Adult"} else {show "Minor"}
+```
+
+### Optional Chaining
+
+```sesi
+let user = {name: "Alice", profile: {email: "alice@sesi.org"}}
+let emptyUser = null
+
+show user?.profile?.email     // "alice@sesi.org"
+show emptyUser?.profile?.email // null
 ```
 
 ### Loops
@@ -155,8 +189,8 @@ let numbers = [1, 2, 3, 4, 5]
 show numbers[0]        // 1
 show len(numbers)      // 5
 let age = numbers[4] * 5   // 5 * 5 = 25
-let person = {"name": "Alice", "age": age}
-show person["name"] "is" person["age"] "years old."    // "Alice is 25 years old."
+let person = {name: "Alice", age: age}
+show person.name "is" person.age "years old."    // "Alice is 25 years old."
 ```
 
 Prompts are **composable message templates** that evaluate to strings. You can also utilize these to write clean and concise sesi scripts by nesting variables and even other prompts within prompts.
@@ -213,11 +247,11 @@ Structured output allows you to extract structured data natively or via Reasonin
 ### Basic Structured Output
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.6\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.9.0\", \"status\": \"active\"}"
 let analysis = structured_output({projectName: string, version: string, status: string})(rawJson)
-show "Project: " analysis["projectName"]
-show "Version: " analysis["version"]
-show "Status: " analysis["status"]
+show "Project: " analysis.projectName
+show "Version: " analysis.version
+show "Status: " analysis.status
 ```
 
 ## Reasoning Features
@@ -254,8 +288,8 @@ show response
 
 ```sesi
 let analysis = structured_output({sentiment: string, score: number})(model("gemini-3.5-flash-lite") {"Analyze sentiment of: This product is great!"})
-show "Sentiment: " analysis["sentiment"]
-show "Score: " analysis["score"]
+show "Sentiment: " analysis.sentiment
+show "Score: " analysis.score
 ```
 
 ### Image Generation
@@ -296,15 +330,15 @@ Use `open()` to hand a URL or existing local file to the operating system:
 
 ```sesi
 "https://code-with-sesi.netlify.app" | open
-"reports/dashboard.html" | open({"mode": "browser", "browser": "Firefox"})
+"reports/dashboard.html" | open({mode: "browser", browser: "Firefox"})
 ```
 
 Use `open_file()` when the target must be a local file:
 
 ```sesi
 "README.md" | open_file
-"README.md" | open_file({"editor": "Visual Studio Code"})
-"favicon.png" | open_file({"viewer": "Preview"})
+"README.md" | open_file({editor: "Visual Studio Code"})
+"favicon.png" | open_file({viewer: "Preview"})
 ```
 
 Both functions accept an optional settings object:
@@ -336,7 +370,6 @@ show value        // Print to stdout
 prompt | input     // Prompt user for terminal input
 text | speech(voice?, gemini_model?) // Speak text
 audio_path | from_speech(language?, gemini_model?) // Transcribe an audio file
-text | translate(to, from?, gemini_model?) // Translate text
 string | read_file(string?) -> string    // Read file contents (text or base64)
 path | write_file(content) // Write text to a file
 string | append_file(string) -> bool // Append string content to file
@@ -459,6 +492,7 @@ error | raise_error              // Throw an error
 ```sesi
 x | exp             // Exponential function
 val | trunc(n?)     // Truncate number or text (char limit)
+value | floor       // Round down; globally available
 ```
 
 ### System & Control
@@ -474,9 +508,9 @@ debug(message?)                            // Pause execution and launch interac
 Standard library features are available with selective `allow ... in with {...}` imports or namespace `allow ... in as Name` imports:
 
 ```sesi
-allow "std/math" in with {PI, sqrt}
-let jsonText = to_json({"ready": true})
-let jsonValue = from_json(jsonText)
+allow "std/math" in as Math
+show Math.atan2(1, 0)
+show Math.min(8, 3, 5)
 allow "std/time" in as Time
 // Time.sleep(), Time.now()
 
@@ -493,8 +527,6 @@ allow "std/theory" in as Music
 allow "std/draw" in as Draw
 // Draw.rect(), Draw.circle(), "drawing.svg" | Draw.save_svg(100, 100)
 
-allow "std/game" in as Game
-// Game.create(), game.add(), game.rule(), game.build("game.html"), game.run()
 ```
 
 ## Running Examples
@@ -549,7 +581,6 @@ sesi examples/main/33_base64.sesi             # Base64 plus encrypt/decrypt
 sesi examples/main/34_sesi_api.sesi
 sesi examples/main/35_speech_language.sesi
 sesi examples/main/36_regex_media.sesi
-sesi examples/main/37_game_engine.sesi
 sesi examples/optional/37_ai_video_generation.sesi
 ```
 
@@ -637,7 +668,7 @@ if response == "" {
 
 - **Model calls are blocking**: Each model() call waits for the API response
 - **Token usage**: Larger prompts use more tokens and cost more
-- **Use appropriate models**: gemini-3.5-flash-lite for most tasks, gemini-3.1-pro-preview for complex reasoning, and gemini-3.6-flash for balanced use.
+- **Use appropriate models**: gemini-3.5-flash-lite for most tasks, gemini-3.1-pro-preview for complex reasoning, and gemini-3.8-flash for balanced use.
 - **Batch operations**: Ask Reasoning to process multiple items in one call instead of looping
 
 ## Next Steps

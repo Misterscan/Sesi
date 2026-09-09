@@ -1,0 +1,360 @@
+/**
+  Sesi MPC Example
+
+  A complete two-minute MPC performance built from two SoundFont one-shots.
+  Instead of importing finished musical loops, this script spreads each
+  one-shot across 16 Levels and composes every bass and mallet note on the
+  MPC grid. The result demonstrates sampling, chromatic pad programs, swing,
+  velocity, mute groups, track effects, arrangement, WAV, and MIDI export.
+
+  Run from the repository root:
+  sesi -l examples/main/mpc.sesi
+*/
+
+allow "std/audio" in as Audio
+allow "std/mpc" in as MPC
+
+let soundfont = "sf2/GeneralUser-GS.sf2"
+let dir = "songs/"; if !exists(dir) { make_dir(dir) }
+let filename = dir + "track-by-sesi"
+
+// Render two source notes with the SoundFont workflow from AUDIO.md.
+let bass_instrument = Audio.sf2(soundfont, {instrument: 38, channel: 0, gain: 1.0})
+let mallet_instrument = Audio.sf2(soundfont, {instrument: 12, channel: 1, gain: 0.9})
+
+Audio.mix("glass_bass_source.wav", [[bass_instrument("C3", 700)]], "sine")
+Audio.mix("glass_mallet_source.wav", [[mallet_instrument("C5", 450)]], "sine")
+let bass_sample = any
+let mallet_sample = any
+
+try {
+  bass_sample = Audio.load("glass_bass_source.wav")
+  mallet_sample = Audio.load("glass_mallet_source.wav")
+} catch (e) {
+  show e
+} finally {
+  if exists("glass_bass_source.wav") && exists("glass_mallet_source.wav") {
+    trash("glass_mallet_source.wav", true)
+    trash("glass_bass_source.wav", true)
+  }
+}
+
+// Make two playable chromatic instruments from the rendered SoundFont notes.
+let bass_levels = MPC.sixteen_levels({pad: 1, sound: bass_sample, level: 0.82}, "tune", {base_tune: -12})
+let mallet_levels = MPC.sixteen_levels({pad: 1, sound: mallet_sample, level: 0.62}, "tune", {base_tune: -12})
+
+let bass_program = MPC.drum_kit("Chromatic Synth Bass")
+let mallet_program = MPC.drum_kit("Chromatic Mallets")
+for pad in bass_levels { bass_program.set_pad(pad.pad, pad) }
+for pad in mallet_levels { mallet_program.set_pad(pad.pad, pad) }
+
+let drum_program = MPC.drum_kit("Glass Transit Drums")
+drum_program.set_pad(1, {sound: "kick", tune: -2, level: 1.0})
+drum_program.set_pad(2, {sound: "rimshot", level: 0.52, pan: -0.22})
+drum_program.set_pad(3, {sound: "snare", level: 0.88})
+drum_program.set_pad(4, {sound: "clap", level: 0.48, pan: 0.18})
+drum_program.set_pad(5, {sound: "hat", level: 0.46, mute_group: 1})
+drum_program.set_pad(7, {sound: "open_hat", level: 0.6, mute_group: 1})
+drum_program.set_pad(12, {sound: "perc", level: 0.44, pan: 0.3})
+
+let song = MPC.sequence("Glass Transit", 64, 115, "4/4")
+song.set_swing(56)
+song.set_vintage("mpc3000")
+
+let drums = song.add_track("Drum Program", "drum", drum_program)
+let percussion = song.add_track("Percussion", "drum", drum_program)
+let bass = song.add_track("16 Levels Bass", "drum", bass_program)
+let mallets = song.add_track("16 Levels Mallets", "drum", mallet_program)
+
+drums.add_effect("compressor", {threshold: -16, ratio: 4, attack: 8, release: 100, makeup: 2})
+bass.add_effect("filter", {type: "lowpass", cutoff: 3400, resonance: 0.2, drive: 1.1})
+mallets.add_effect("delay", {sync: "1/8", feedback: 0.3, damp: 0.6, mix: 0.2, ping_pong: true})
+
+/**
+  Grid helper function for adding patterns to tracks.
+
+  Paramaters:
+  - `track` : the track to add the pattern to
+  - `pad` : the pad number to trigger
+  - `pattern` : the grid pattern string
+  - `bar` : the bar number to start the pattern
+  - `velocity` : the velocity of the notes
+
+  Returns:
+  - `None` : this function does not return a value
+
+  Examples:
+  ```sesi
+  grid(drums, 1, verse_kick_a, 0, 100)
+  grid(drums, 3, verse_snare_a, 0, 100)
+  grid(drums, 5, steady_hats, 0, 100)
+  ```
+
+  Notes:
+  - The `pattern` parameter should be a string representing the grid pattern.
+  - The `bar` parameter determines the starting bar for the pattern.
+  - The `velocity` parameter controls the intensity of the notes.
+*/
+fn grid(track, pad, pattern, bar, velocity) {
+  track.pattern(pad, pattern, {start_step: bar * 16, resolution: "1/16", velocity: velocity})
+}
+
+// Two rows of eight pads make each 16-step bar readable like hardware.
+let verse_kick_a = "
+[X][ ][ ][ ][ ][ ][x][ ]
+[ ][ ][x][ ][ ][ ][x][ ]
+"
+let verse_kick_b = "
+[X][ ][ ][ ][x][ ][ ][ ]
+[ ][x][ ][ ][ ][ ][x][ ]
+"
+let verse_snare_a = "
+[ ][ ][ ][ ][X][ ][ ][ ]
+[ ][ ][ ][ ][x][ ][ ][ ]
+"
+let verse_snare_b = "
+[ ][ ][ ][ ][x][ ][ ][ ]
+[ ][ ][ ][ ][X][ ][ ][ ]
+"
+let steady_hats = "
+[x][ ][x][ ][x][ ][x][ ]
+[x][ ][x][ ][x][ ][x][ ]
+"
+let busy_hats = "
+[x][ ][x][ ][x][ ][x][x]
+[x][ ][x][ ][x][ ][x][x]
+"
+let rim_answer = "
+[ ][ ][ ][ ][ ][ ][x][ ]
+[ ][ ][ ][ ][ ][ ][x][ ]
+"
+let drop_kick = "
+[X][ ][ ][x][ ][ ][x][ ]
+[ ][ ][x][ ][x][ ][x][ ]
+"
+let backbeat = "
+[ ][ ][ ][ ][X][ ][ ][ ]
+[ ][ ][ ][ ][X][ ][ ][ ]
+"
+let open_hats = "
+[ ][ ][ ][ ][ ][ ][x][ ]
+[ ][ ][ ][ ][ ][ ][x][ ]
+"
+let percussion_hits = "
+[ ][ ][ ][x][ ][ ][ ][ ]
+[ ][ ][ ][x][ ][ ][x][ ]
+"
+let half_time_kick = "
+[X][ ][ ][ ][ ][ ][ ][ ]
+[x][ ][ ][ ][ ][ ][ ][ ]
+"
+let half_time_snare = "
+[ ][ ][ ][ ][ ][ ][ ][ ]
+[X][ ][ ][ ][ ][ ][ ][ ]
+"
+let final_kick_fill = "
+[X][ ][ ][ ][x][ ][ ][x]
+[ ][ ][x][ ][x][ ][x][ ]
+"
+let final_snare_fill = "
+[ ][ ][ ][ ][x][ ][ ][ ]
+[ ][ ][ ][ ][-][3][X][ ]
+"
+
+/**
+  Bass phrase helper function for adding bass notes to the track.
+
+  Parameters:
+  - `bar` : the bar number to start the phrase
+  - `variation` : the variation of the bass phrase to use
+
+  Returns:
+  - `None` : this function does not return a value
+
+  Example:
+  ```sesi
+  bass_phrase(0, 0)
+  bass_phrase(1, 1)
+  ```
+
+  Notes:
+  - The `bar` parameter should be a non-negative integer representing the starting bar.
+  - The `variation` parameter should be an integer indicating which variation of the bass phrase to use.
+*/
+fn bass_phrase(bar, variation) {
+  let start = bar * 16
+  if variation == 0 {
+    bass.step(start, 1, 112)
+    bass.step(start + 6, 8, 91)
+    bass.step(start + 10, 6, 103)
+    bass.step(start + 14, 11, 84)
+  } else {
+    bass.step(start, 1, 116)
+    bass.step(start + 4, 4, 83)
+    bass.step(start + 7, 8, 99)
+    bass.step(start + 12, 13, 108)
+    bass.step(start + 15, 11, 72)
+  }
+}
+
+/**
+  Mallet phrase helper function for adding mallet notes to the track.
+
+  Parameters:
+  - `bar` : the bar number to start the phrase
+  - `answer` : the variation of the mallet phrase to use
+
+  Returns:
+  - `None` : this function does not return a value
+
+  Example:
+  ```sesi
+  mallet_phrase(0, 0)
+  mallet_phrase(1, 1)
+  ```
+
+  Notes:
+  - The `bar` parameter should be a non-negative integer representing the starting bar.
+  - The `answer` parameter should be an integer indicating which variation of the mallet phrase to use.
+*/
+fn mallet_phrase(bar, answer) {
+  let start = bar * 16
+  if answer == 0 {
+    mallets.step(start, 13, 104)
+    mallets.step(start + 3, 16, 82)
+    mallets.step(start + 7, 11, 96)
+    mallets.step(start + 11, 8, 78)
+  } else {
+    mallets.step(start + 2, 8, 88)
+    mallets.step(start + 5, 11, 101)
+    mallets.step(start + 9, 15, 92)
+    mallets.step(start + 14, 13, 76)
+  }
+}
+
+/**
+  Verse drums helper function for adding drum patterns to the verse section.
+
+  Parameters:
+  - `bar` : the bar number to start the pattern
+  - `variation` : the variation of the verse drum pattern to use
+
+  Returns:
+  - `None` : this function does not return a value
+
+  Example:
+  ```sesi
+  verse_drums(0, 0)
+  verse_drums(1, 1)
+  ```
+
+  Notes:
+  - The `bar` parameter should be a non-negative integer representing the starting bar.
+  - The `variation` parameter should be an integer indicating which variation of the verse drum pattern to use.
+*/
+fn verse_drums(bar, variation) {
+  if variation == 0 {
+    grid(drums, 1, verse_kick_a, bar, 113)
+    grid(drums, 3, verse_snare_a, bar, 106)
+    grid(drums, 5, steady_hats, bar, 70)
+  } else {
+    grid(drums, 1, verse_kick_b, bar, 117)
+    grid(drums, 3, verse_snare_b, bar, 108)
+    grid(drums, 5, busy_hats, bar, 74)
+    grid(percussion, 2, rim_answer, bar, 62)
+  }
+}
+
+/**
+  Drop drums helper function for adding drum patterns to the drop section.
+
+  Parameters:
+  - `bar` : the bar number to start the pattern
+  - `variation` : the variation of the drop drum pattern to use
+
+  Returns:
+  - `None` : this function does not return a value
+
+  Example:
+  ```sesi
+  drop_drums(0, 0)
+  drop_drums(1, 1)
+  ```
+
+  Notes:
+  - The `bar` parameter should be a non-negative integer representing the starting bar.
+  - The `variation` parameter should be an integer indicating which variation of the drop drum pattern to use.
+*/
+fn drop_drums(bar, variation) {
+  grid(drums, 1, drop_kick, bar, 121)
+  grid(drums, 3, backbeat, bar, 112)
+  grid(drums, 4, backbeat, bar, 84)
+  grid(drums, 5, busy_hats, bar, 77)
+  grid(drums, 7, open_hats, bar, 82)
+  if variation == 1 { grid(percussion, 12, percussion_hits, bar, 68) }
+}
+
+// Bars 1-8: mallets emerge before the rhythm section arrives.
+let bar = 0
+while bar < 8 {
+  mallet_phrase(bar, bar % 2)
+  if bar >= 4 {
+    grid(drums, 5, steady_hats, bar, 55)
+    grid(percussion, 2, verse_snare_a, bar, 50)
+  }
+  bar = bar + 1
+}
+
+// Bars 9-24: first verse, adding a variation every fourth bar.
+bar = 8
+while bar < 24 {
+  verse_drums(bar, bar % 4 == 3)
+  bass_phrase(bar, bar % 2)
+  if bar % 2 == 0 { mallet_phrase(bar, 0) }
+  bar = bar + 1
+}
+
+// Bars 25-40: full drop with denser drums and call-and-response mallets.
+bar = 24
+while bar < 40 {
+  drop_drums(bar, bar % 2)
+  bass_phrase(bar, bar % 2)
+  mallet_phrase(bar, bar % 2)
+  bar = bar + 1
+}
+
+// Bars 41-48: half-time bridge leaves room around the sampled instruments.
+bar = 40
+while bar < 48 {
+  grid(drums, 1, half_time_kick, bar, 108)
+  grid(drums, 3, half_time_snare, bar, 104)
+  grid(drums, 5, steady_hats, bar, 58)
+  bass_phrase(bar, 0)
+  if bar % 2 == 0 { mallet_phrase(bar, 1) }
+  bar = bar + 1
+}
+
+// Bars 49-64: final drop, then a one-bar drum and bass turnaround.
+bar = 48
+while bar < 64 {
+  drop_drums(bar, 1)
+  bass_phrase(bar, bar % 2)
+  mallet_phrase(bar, bar % 2)
+  bar = bar + 1
+}
+grid(drums, 1, final_kick_fill, 63, 124)
+grid(drums, 3, final_snare_fill, 63, 118)
+
+song.add_effect("eq", {low: 1.5, mid: -0.7, high: 1.1})
+song.add_effect("compressor", {threshold: -13, ratio: 3, attack: 12, release: 145, makeup: 2})
+song.add_effect("reverb", {decay: 1.8, damp: 0.62, mix: 0.07})
+
+try {
+  song.render_wav(filename + ".wav")
+  song.render_midi(filename + ".mid")
+  prompt msg {"Created "filename".wav and "filename".mid"}
+  show msg
+} catch (err) {
+  show "Audio render failed:" err
+  show "Run from the repository root with: sesi -l examples/main/mpc.sesi"
+}

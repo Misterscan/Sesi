@@ -16,9 +16,9 @@ let items = "items" | db.collection
 items.delete({})
 
 show "Inserting documents..."
-let item1 = {"name": "Widget A", "stock": 100, "category": "hardware"} | items.insert
-let item2 = {"name": "Widget B", "stock": 150, "category": "hardware"} | items.insert
-let item3 = {"name": "Gadget C", "stock": 50, "category": "electronics"} | items.insert
+let item1 = {name: "Widget A", stock: 100, category: "hardware"} | items.insert
+let item2 = {name: "Widget B", stock: 150, category: "hardware"} | items.insert
+let item3 = {name: "Gadget C", stock: 50, category: "electronics"} | items.insert
 
 show "Inserted item 1 with ID:" item1._id
 
@@ -27,15 +27,15 @@ let allItems = items.find()
 show "Total items:" len(allItems)
 
 show "Finding hardware items..."
-let hardware = {"category": "hardware"} | items.find()
+let hardware = {category: "hardware"} | items.find()
 show "Found hardware items:" len(hardware)
 
 show "Updating stock for Widget A..."
-let updated = {"name": "Widget A"} | items.update({"stock": 120})
+let updated = {name: "Widget A"} | items.update({stock: 120})
 show "Updated count:" updated
 
 show "Deleting Gadget C..."
-let deleted = {"name": "Gadget C"} | items.delete
+let deleted = {name: "Gadget C"} | items.delete
 show "Deleted count:" deleted
 
 show "Final list of items:"

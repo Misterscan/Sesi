@@ -36,6 +36,7 @@ import {
   type VideoCallExpression,
   type ConvertExpression,
 } from './types';
+import { normalizeDocumentation } from './documentation';
 
 import {
   OpCode,
@@ -70,7 +71,7 @@ interface LoopInfo {
 // Known Sesi built-in names — compiled to CALL_BUILTIN for a speed win
 const BUILTINS = new Set([
   'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
-  'speech', 'from_speech', 'translate', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
+  'speech', 'from_speech', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
   'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call',
   'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split',
@@ -163,6 +164,7 @@ export class Compiler {
       name: stmt.name,
       arity: stmt.parameters.filter(p => !p.defaultValue).length,
       params: stmt.parameters.map(p => ({ ...p, hasDefault: !!p.defaultValue })),
+      documentation: normalizeDocumentation(stmt.leadingComments),
       chunk: inner.chunk,
       isAsync: !!stmt.isAsync,
       upvalues: inner.upvalues,
@@ -568,6 +570,7 @@ export class Compiler {
     switch (expr.type) {
       case 'Literal':                return this.compileLiteral(expr as Literal);
       case 'Identifier':             return this.compileIdentifier(expr as Identifier);
+      case 'EnvLookupExpression':    return this.compileEnvLookup(expr as any);
       case 'BinaryOp':               return this.compileBinaryOp(expr as BinaryOp);
       case 'UnaryOp':                return this.compileUnaryOp(expr as UnaryOp);
       case 'LogicalOp':              return this.compileLogicalOp(expr as LogicalOp);
@@ -615,6 +618,16 @@ export class Compiler {
     if (expr.value === false) { this.emitOp(OpCode.FALSE, line); return; }
     const idx = addConstant(this.chunk, expr.value as string | number);
     emitBytes(this.chunk, OpCode.CONSTANT, idx, line);
+  }
+
+  private compileEnvLookup(expr: any): void {
+    const line = expr.line;
+    const varNameIdx = addConstant(this.chunk, expr.variableName);
+    emitBytes(this.chunk, OpCode.CONSTANT, varNameIdx, line);
+    const nameIdx = addConstant(this.chunk, 'env');
+    emitByte(this.chunk, OpCode.CALL_BUILTIN, line);
+    emitByte(this.chunk, nameIdx, line);
+    emitByte(this.chunk, 1, line);
   }
 
   private compileIdentifier(expr: Identifier): void {
@@ -743,14 +756,36 @@ export class Compiler {
 
   private compileMember(expr: MemberExpression): void {
     this.compileExpression(expr.object);
-    const idx = addConstant(this.chunk, expr.property);
-    emitBytes(this.chunk, OpCode.GET_PROPERTY, idx, expr.line);
+    if (expr.optional) {
+      const skipJump = emitJump(this.chunk, OpCode.JUMP_IF_FALSE, expr.line);
+      const idx = addConstant(this.chunk, expr.property);
+      emitBytes(this.chunk, OpCode.GET_PROPERTY, idx, expr.line);
+      const endJump = emitJump(this.chunk, OpCode.JUMP, expr.line);
+      patchJump(this.chunk, skipJump);
+      this.emitOp(OpCode.POP, expr.line);
+      this.emitOp(OpCode.NIL, expr.line);
+      patchJump(this.chunk, endJump);
+    } else {
+      const idx = addConstant(this.chunk, expr.property);
+      emitBytes(this.chunk, OpCode.GET_PROPERTY, idx, expr.line);
+    }
   }
 
   private compileIndex(expr: IndexExpression): void {
     this.compileExpression(expr.object);
-    this.compileExpression(expr.index);
-    this.emitOp(OpCode.GET_INDEX, expr.line);
+    if (expr.optional) {
+      const skipJump = emitJump(this.chunk, OpCode.JUMP_IF_FALSE, expr.line);
+      this.compileExpression(expr.index);
+      this.emitOp(OpCode.GET_INDEX, expr.line);
+      const endJump = emitJump(this.chunk, OpCode.JUMP, expr.line);
+      patchJump(this.chunk, skipJump);
+      this.emitOp(OpCode.POP, expr.line);
+      this.emitOp(OpCode.NIL, expr.line);
+      patchJump(this.chunk, endJump);
+    } else {
+      this.compileExpression(expr.index);
+      this.emitOp(OpCode.GET_INDEX, expr.line);
+    }
   }
 
   private compileArray(expr: ArrayLiteral): void {
@@ -785,20 +820,34 @@ export class Compiler {
     emitBytes(this.chunk, OpCode.GET_GLOBAL, promptNameIdx, expr.line);
   }
 
-  private compileModelCall(expr: ModelCallExpression): void {
+  private compileModelCall(expr: ModelCallExpression, responseSchema?: Record<string, any>): void {
     // Push model name, then prompt, then arg count → CALL_MODEL
     const line = expr.line;
     this.compileExpression(expr.modelName);
     this.compileExpression(expr.prompt);
     // Config is passed as an object literal if present
-    if (expr.config) {
-      const props = Object.entries(expr.config);
+    if (expr.config || responseSchema) {
+      const props = Object.entries(expr.config ?? {});
       for (const [k, v] of props) {
         const kidx = addConstant(this.chunk, k);
         emitBytes(this.chunk, OpCode.CONSTANT, kidx, line);
         this.compileExpression(v);
       }
-      emitBytes(this.chunk, OpCode.BUILD_OBJECT, props.length, line);
+      if (responseSchema) {
+        const schemaKeyIdx = addConstant(this.chunk, '__structured_schema');
+        emitBytes(this.chunk, OpCode.CONSTANT, schemaKeyIdx, line);
+        const schemaIdx = addConstant(this.chunk, {
+          type: 'object',
+          properties: Object.fromEntries(Object.entries(responseSchema).map(([key, annotation]) => [
+            key,
+            { type: ({ string: 'string', number: 'number', bool: 'boolean' } as Record<string, string>)[(annotation as any).name] ?? 'string' },
+          ])),
+          required: Object.keys(responseSchema),
+          additionalProperties: false,
+        });
+        emitBytes(this.chunk, OpCode.CONSTANT, schemaIdx, line);
+      }
+      emitBytes(this.chunk, OpCode.BUILD_OBJECT, props.length + (responseSchema ? 1 : 0), line);
     } else {
       this.emitOp(OpCode.NIL, line);
     }
@@ -821,7 +870,11 @@ export class Compiler {
     }
     emitBytes(this.chunk, OpCode.BUILD_OBJECT, schemaPairs.length, line);
     // Push the model call result
-    this.compileExpression(expr.modelCall);
+    if (expr.modelCall.type === 'ModelCallExpression') {
+      this.compileModelCall(expr.modelCall, expr.schema);
+    } else {
+      this.compileExpression(expr.modelCall);
+    }
     const nameIdx = addConstant(this.chunk, '__structured_output__');
     emitByte(this.chunk, OpCode.CALL_BUILTIN, line);
     emitByte(this.chunk, nameIdx, line);

@@ -1,9 +1,27 @@
-allow "std/terminal" in with {color}
+/**
+  Examples for Sesi programming language.
+  The examples are organized in a way that makes it easy to explore and understand different aspects of the language.
 
-let accessibility = input("Enable accessibility features (text-to-speech) (y/n, default: n): ") | trim | to_lower
+  Some examples are intentionally excluded from this file because they are intended to be used directly by the user.
+*/
+allow "lib/ansi" in as TERM
+allow "std/time" in with {sleep}
+
+TERM.warning_bg("Enable accessibility features (text-to-speech)? (y/n, default: n)")
+// Prompt the user to enable accessibility features (text-to-speech).
+let accessibility = input(" ") | trim | to_lower
 if is_null(accessibility) || accessibility == "" {accessibility = "n"}
+// Accessibility is enabled if the user chose "y".
 let enableAccessibility = accessibility == "y"
+TERM.reset()
 
+/**
+  Example categories and their corresponding file paths.
+
+  Fields:
+  - `main`: An array of main example titles.
+  - `optional`: An array of optional example titles.
+*/
 let examples = {
   "main": [
     "Hello, Sesi!",
@@ -30,11 +48,11 @@ let examples = {
     "Tool Piping",
     "Error Recovery + Timeout",
     "Synthesizer",
-        "Browser Automation",
-        "Base64 + Encryption",
-        "SesiAPI Server",
-        "Speech & Language",
-        "Regex & Local Media"
+    "Browser Automation",
+    "Base64 + Encryption",
+    "SesiAPI Server",
+    "Speech & Language",
+    "Regex & Local Media"
   ],
   "optional": [
     "Model Call",
@@ -48,9 +66,19 @@ let examples = {
   ]
 }
 
+// Main examples.
 let main = examples["main"]
+// Optional examples.
 let optional = examples["optional"]
 
+/**
+  All examples and their corresponding commands.
+
+  Fields:
+  - `title`: The title of the example.
+  - `cmd`: The command to run the example.
+  - `optional`: (Optional) A boolean indicating if the example is optional.
+*/
 let all_examples = [
     {"title": main[0], "cmd": "sesi examples/main/01_hello.sesi"},
     {"title": main[1], "cmd": "sesi examples/main/02_variables.sesi"},
@@ -91,40 +119,67 @@ let all_examples = [
     {"title": optional[7], "cmd": "sesi examples/optional/37_ai_video_generation.sesi", "optional": true}
 ]
 
+// Message indicating that the script is launching example files.
 let launchTag = "Launching example files."
+// Message prompting the user to press enter to continue, skip, or exit.
 let enterTag = "Press enter to continue, type 'skip' to move on or type 'exit' to quit."
+// Message indicating that the script is ending early.
 let exitTag = "Ending script early."
+// Message indicating that the current example is being skipped.
 let skipTag = "Skipping."
+// Message indicating that image generation may take a while.
 let imageTag = "Image generation example may take a while. Bear with us!"
+// Message indicating that AI video generation may take a while and can be expensive.
 let videoTag = "AI video generation may take a while and can be expensive."
+// Message indicating all examples have been completed.
 let doneTag = "All done!"
+// Error message prefix for handling exceptions.
 let errorTag = "We're sorry but an error occurred: "
 
 try {
-    show color("Launching example .sesi files...", "magenta")
+    TERM.header("Sesi Example Launcher")
+    sleep(500)
+    TERM.badge("MODE", "Interactive examples", "brightMagenta")
+    sleep(500)
+    TERM.key_value("Available examples", all_examples | len | str)
+    sleep(500)
+    TERM.table(["Type", "Count"],
+    [["Main", main | len | str],
+    ["Optional", optional | len | str]],
+    [15, 10])
+    sleep(500)
+    TERM.box("Optional examples may require API keys or take longer to run.")
+    sleep(1000)
+    TERM.newline()
+    TERM.info_bg(launchTag)
+    TERM.newline()
     if enableAccessibility {
         speech(launchTag)
         speech(enterTag)
     }
     for i = 0 to len(all_examples) {
+        // Current example object.
         let ex = all_examples[i]
-        let step = str(i + 1) + "/" + str(len(all_examples))
+        let step = str(i + 1) + "/" + (all_examples | len | str)
+        // Current example's title and step number.
         let title_tag = "[" + step + "] [" + ex["title"] + "]"
 
         if i > 0 {
-            let prompt_text = title_tag + " Press enter to continue (or type 'skip' to bypass, 'exit' to quit)... "
+            // Prompt the user to continue, skip, or exit before running the current example.
+            let prompt_text = title_tag + " Press enter to continue (or type 'skip' to bypass, 'exit' to quit)...\n"
             if ex["optional"] == true {
-                prompt_text = title_tag + " (OPTIONAL) Press enter to continue (or type 'skip' to bypass, 'exit' to quit)... "
+                prompt_text = title_tag + " (OPTIONAL) Press enter to continue (or type 'skip' to bypass, 'exit' to quit)...\n"
             }
             let ans = input(prompt_text)
             if ans == "exit" {
-                show color("Ending examples early.", "yellow")
+                TERM.warning_bg(exitTag)
                 if enableAccessibility {
                     speech(exitTag)
                 }
                 break
             } else if ans == "skip" {
-                show color("Skipped " + ex["title"], "yellow")
+                TERM.warning_bg("Skipped " + ex["title"])
+                TERM.newline()
                 if enableAccessibility {
                     speech(skipTag)
                 }
@@ -135,14 +190,24 @@ try {
         }
 
         if ex["cmd"] == "sesi examples/optional/15_image_generation.sesi" {
-            show imageTag
+            TERM.info_bg(imageTag)
+            TERM.newline()
             if enableAccessibility {
                 speech(imageTag)
             }
         }
 
         if ex["cmd"] == "sesi examples/optional/37_ai_video_generation.sesi" {
-            show videoTag
+            TERM.warning_bg(videoTag)
+            let continueInput = TERM.ask("Continue? (y/n)")
+            if (continueInput | to_lower | trim) != "y" {
+                TERM.warning_bg("Skipped " + ex["title"])
+                TERM.newline()
+                if enableAccessibility {
+                    speech(skipTag)
+                }
+                continue
+            }
             if enableAccessibility {
                 speech(videoTag)
             }
@@ -152,13 +217,13 @@ try {
         let local = contains(ex["cmd"], " -l")
         show sesi(parts[1], local)
     }
-    show color("All done! No errors means Sesi is ready!", "green", "bold")
+    TERM.success_bg("All done! No errors means Sesi is ready!")
     if enableAccessibility {
         speech(doneTag)
     }
 } catch (error) {
-    show color("An error occurred: " + str(error), "red")
+    TERM.error_bg(errorTag + error.message)
     if enableAccessibility {
-        speech(errorTag + str(error))
+        speech(errorTag + error.message)
     }
 }

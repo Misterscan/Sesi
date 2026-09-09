@@ -48,9 +48,9 @@
 ### Limitations
 
 - Interpreter is Single-threaded (use `spawn()` for concurrency)
-- No async/await
-- Blocking Reasoning calls
-- Limited error messages
+- No async/await (addressed in v2.0)
+- Blocking Reasoning calls (addressed in v2.0)
+- Limited error messages (addressed in v2.0)
 - No pattern matching
 - No generics or custom types
 

@@ -14,15 +14,27 @@ show "Files found in directory:" files | length
 
 let reports = []
 
+/**
+  Analyze a file and generate a report.
+
+  Parameters:
+  - fullPath: The full path to the file to be analyzed.
+
+  Returns:
+  An object containing the fileName, summary, and complexity of the file.
+*/
 fn analyzeFile(fullPath: string) -> object {
     try  {
         let source = fullPath | read
-        return structured_output({fileName: string, summary: string, complexity: string})(model("gemini-3.1-flash-lite") {temperature: 0.2, cache: false} {"
+        return structured_output({
+            fileName: string,
+            summary: string,
+            complexity: string
+        })(model("gemini-3.1-flash-lite") {temperature: 0.2, cache: false} {"
         Analyze this file and summarize its purpose.
-        Return JSON with fileName, summary, and complexity (low/medium/high).
         File path: " fullPath " Contents: " source})
     } catch (e) {
-        return {"fileName": fullPath, "summary": "Failed to read or analyze file", "complexity": "unknown"}
+        return {fileName: fullPath, summary: "Failed to read or analyze file", complexity: "unknown"}
     }
 }
 
@@ -35,25 +47,27 @@ fn analyzeFile(fullPath: string) -> object {
             show "Analyzing:" fullPath
             let report = fullPath | analyzeFile
             reports | push(report)
-            show "Summary:" report["summary"]
-            show "Complexity:" report["complexity"]
+            show "Summary:" report.summary
+            show "Complexity:" report.complexity
             }
         }
     }
 
 show "Generating folder overview..."
-let folderSummary = structured_output({folderOverview: string, keyThemes: array<string>})(model("gemini-3.1-flash-lite") {temperature: 0.2, cache: false} {"
+let folderSummary = structured_output({
+    folderOverview: string,
+    keyThemes: array<string>
+})(model("gemini-3.1-flash-lite") {temperature: 0.2, cache: false} {"
 You are summarizing the contents of a documentation folder based on file analyses.
-Return JSON with folderOverview and keyThemes.
 Analysis:
 "reports})
 
 show "=== Final Folder Summary ==="
-show "Overview:" folderSummary["folderOverview"]
-show "Key Themes:" folderSummary["keyThemes"] | join(", ")
+show "Overview:" folderSummary.folderOverview
+show "Key Themes:" folderSummary.keyThemes | join(", ")
 
-let overview = folderSummary["folderOverview"]
-let themesStr = folderSummary["keyThemes"] | join(", ")
+let overview = folderSummary.folderOverview
+let themesStr = folderSummary.keyThemes | join(", ")
 
 prompt mdBase {"# Folder Analysis Report
 
@@ -69,9 +83,9 @@ prompt mdBase {"# Folder Analysis Report
 let finalMarkdown = mdBase
 
 for report in reports {
-    let fname = report["fileName"]
-    let fsummary = report["summary"]
-    let comp = report["complexity"]
+    let fname = report.fileName
+    let fsummary = report.summary
+    let comp = report.complexity
 
     prompt fileEntry {"### " fname "
  **Complexity**: " comp "

@@ -300,8 +300,8 @@ config_entry := (STRING | identifier) ':' expression
 Example:
 
 ```sesi
-let result = model("gemini-3.6-flash") {images: "scan.png", thinkingLevel: "low"} {"Transcribe all visible text."}
-let output = model("gemini-3.6-flash") {thinkingLevel: "medium"} {prompt}
+let result = model("gemini-3.8-flash") {images: "scan.png", thinkingLevel: "low"} {"Transcribe all visible text."}
+let output = model("gemini-3.8-flash") {thinkingLevel: "medium"} {prompt}
 ```
 
 #### Convert Expression
@@ -361,7 +361,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.6\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.9.0\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -385,7 +385,7 @@ The tool invocation is synchronous and executes the registered function within t
 Registered functions can also be orchestrated automatically by a model call:
 
 ```sesi
-let answer = model("gemini-3.6-flash") {tools: list_tools(), max_tool_calls: 4} {"What is 8% tax on $125?"}
+let answer = model("gemini-3.8-flash") {tools: list_tools(), max_tool_calls: 4} {"What is 8% tax on $125?"}
 ```
 
 `tools` accepts registered tool names, registered function values, provider schemas, or `true` for every registered tool. For registered tools, Sesi derives parameter schemas from type annotations, maps model-supplied named arguments to function parameters, executes the function, and resumes the model with the result. This repeats until the model returns text. `max_tool_calls` defaults to `8`; exceeding it raises a runtime error. Automated calls to sensitive system functions remain forbidden.
@@ -499,10 +499,10 @@ let label = "draft"
 
 ```sesi
 open("https://code-with-sesi.netlify.app")
-open("reports/dashboard.html", {"mode": "browser", "browser": "Firefox"})
+open("reports/dashboard.html", {mode: "browser", browser: "Firefox"})
 
-open_file("README.md", {"editor": "Visual Studio Code"})
-open_file("favicon.png", {"viewer": "Preview"})
+open_file("README.md", {editor: "Visual Studio Code"})
+open_file("favicon.png", {viewer: "Preview"})
 ```
 
 Both functions are disabled in safe mode and require `sesi -l` or `sesi --local`.
@@ -660,8 +660,10 @@ allow "std/theory" in as Music   // Music Theory
 allow "std/terminal" in as Term  // Terminal options
 allow "std/base64" in as Base64 // Base64 encode/decode
 allow "std/api" in as API       // FastAPI-style HTTP API framework
-allow "std/game" in as Game     // Data-driven 2D Canvas game export and preview
+allow "std/game" in as Game     // Babylon-powered 3D desktop games (optional package)
 ```
+
+`std/game` is an imperative native-object module. Scenes use left-handed coordinates with Y up, `+X` right, and `+Z` forward. Development-time relative asset paths and build outputs resolve from the current working directory; packaged assets resolve from the staged application root. Member reads and writes on handles are dispatched through guarded native hooks in both execution engines. Handles preserve identity, enumerate only allowlisted properties, reject protected prototype names, and raise typed errors for disposed, read-only, or cross-scene access. Development execution and desktop builds require `-l`; the optional runtime is installed with `npm install @misterscan/sesi-game`. See [`getting-started/GAME.md`](../getting-started/GAME.md).
 
 ### Module Resolution Order (v1.x)
 
@@ -738,7 +740,7 @@ Model calls can take optional configuration parameters (written on a single line
 
 ```sesi
 // Model call with native thinking effort level
-let response = model("gemini-3.6-flash") {thinkingLevel: "low"} {"Say hello"}
+let response = model("gemini-3.8-flash") {thinkingLevel: "low"} {"Say hello"}
 show response  // Returns string
 
 let logo = image("gemini-3.1-flash-image") {ratio: "1:1", size: "512"} {"A vector logo"}
@@ -756,28 +758,26 @@ show "Image written to logo.png"
 - **`temperature`**: _ Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
 - **`top_k` / `top_p`**: _ Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
 
-### Speech, Transcription, and Translation
+### Speech and Transcription
 
-Sesi provides built-ins for spoken output, transcription, and translation.
+Sesi provides built-ins for spoken output and transcription.
 
 ```sesi
 speech("Analysis complete")
 let transcript = from_speech("interview.wav", "en")
-let spanish = translate(transcript, "es", "en")
-show spanish
+show transcript
 ```
 
 - `speech(text, voice = null, gemini_model = null)` speaks through the operating system's local voice tool, or uses the optional Gemini model.
 - `from_speech(audio_path, language = null, gemini_model = null)` transcribes with `nodejs-whisper`, or the optional Gemini model.
-- `translate(text, to_language, from_language = "en", gemini_model = null)` translates through the `translate` package, or the optional Gemini model.
 
 ### Reasoning with Structured Output
 
 ```sesi
 let result = structured_output({title: string, category: string, confidence: number})
 (model("gemini-3.5-flash-lite") {"Extract metadata from this text: "text})
-show result["title"]       // Access fields
-show result["confidence"]  // Type-safe access
+show result.title       // Access fields
+show result.confidence  // Type-safe access
 ```
 
 ### Reasoning with Tool Calling
@@ -822,7 +822,7 @@ show x + y  // Output: 30
 
 ```sesi
 let text = "Reasoning is transforming industries!"
-fn analyzeText(text: string) -> string {return model("gemini-3.6-flash") {thinkingLevel: "low"} {"Analyze this text and return key insights: "text}}
+fn analyzeText(text: string) -> string {return model("gemini-3.8-flash") {thinkingLevel: "low"} {"Analyze this text and return key insights: "text}}
 show analyzeText()
 ```
 

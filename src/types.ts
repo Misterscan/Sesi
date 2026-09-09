@@ -64,6 +64,8 @@ export type TokenType =
   | 'COLON'
   | 'ARROW'
   | 'QUESTION'
+  | 'QUESTION_DOT'
+  | 'DOLLAR_IDENTIFIER'
   // Delimiters
   | 'LEFT_PAREN'
   | 'RIGHT_PAREN'
@@ -232,6 +234,7 @@ export interface MemoryStatement {
 export type Expression =
   | Literal
   | Identifier
+  | EnvLookupExpression
   | BinaryOp
   | UnaryOp
   | LogicalOp
@@ -254,13 +257,19 @@ export type Expression =
 export interface Literal {
   type: 'Literal';
   value: string | number | boolean | null;
-  rawType: 'number' | 'string' | 'bool' | 'null';
+  rawType: 'number' | 'string' | 'bool' | 'null' | 'any';
   line: number;
 }
 
 export interface Identifier {
   type: 'Identifier';
   name: string;
+  line: number;
+}
+
+export interface EnvLookupExpression {
+  type: 'EnvLookupExpression';
+  variableName: string;
   line: number;
 }
 
@@ -299,6 +308,7 @@ export interface CallExpression {
   callee: Expression;
   arguments: Expression[];
   line: number;
+  optional?: boolean;
 }
 
 export interface MemberExpression {
@@ -306,6 +316,7 @@ export interface MemberExpression {
   object: Expression;
   property: string;
   line: number;
+  optional?: boolean;
 }
 
 export interface IndexExpression {
@@ -313,6 +324,7 @@ export interface IndexExpression {
   object: Expression;
   index: Expression;
   line: number;
+  optional?: boolean;
 }
 
 export interface ArrayLiteral {
@@ -437,6 +449,7 @@ export type RuntimeValue =
   | null
   | RuntimeArray
   | RuntimeObject
+  | RuntimeNativeObject
   | RuntimeFunction
   | RuntimeModule
   | RuntimePromise
@@ -448,15 +461,30 @@ export interface RuntimeObject {
   [key: string]: RuntimeValue;
 }
 
+export interface RuntimeNativeObject {
+  type: 'native_object';
+  nativeType: string;
+  nativeId: string;
+  getProperty: (property: string) => RuntimeValue;
+  setProperty: (property: string, value: RuntimeValue) => void;
+  listProperties: () => string[];
+  describe: () => string;
+  isDisposed: () => boolean;
+}
+
 export interface RuntimeFunction {
   type: 'function';
   name: string;
   params: Parameter[];
   body: BlockStatement;
   closure: Environment;
+  /** Normalized comments immediately preceding a user-defined function. */
+  documentation?: string;
   isBuiltin?: boolean;
   isAsync?: boolean;
   builtin?: (...args: RuntimeValue[]) => RuntimeValue | Promise<RuntimeValue>;
+  /** VM that created this closure. Used by event-driven native modules. */
+  ownerVm?: unknown;
 }
 
 export interface RuntimeModule {
@@ -542,6 +570,7 @@ export interface AIRequest {
   audio?: { data: string; mimeType: string }; // base64-encoded inline audio for multimodal requests
   systemPrompt?: string;
   thinkingLevel?: { thinking?: string; level?: string } | string;
+  responseSchema?: Record<string, any>;
   cache?: boolean;
   search?: boolean;
   stream?: boolean | ((chunk: string) => void | Promise<void>);

@@ -12,10 +12,10 @@ allow "helpers/safe" in as Safe
 show "--- Regex ---"
 
 let source = "draft-17, Draft-23; release-42"
-let words = "[A-Za-z]+" | regex(source, {"flags": "g", "mode": "match"})
-let hasRelease = "release-[0-9]+" | regex(source, {"flags": "i", "mode": "test"})
-let renamed = "draft" | regex(source, {"flags": "gi", "mode": "replace", "replacement": "build"})
-let fields = "[,;]" | regex(source, {"mode": "split"})
+let words = "[A-Za-z]+" | regex(source, {flags: "g", mode: "match"})
+let hasRelease = "release-[0-9]+" | regex(source, {flags: "i", mode: "test"})
+let renamed = "draft" | regex(source, {flags: "gi", mode: "replace", replacement: "build"})
+let fields = "[,;]" | regex(source, {mode: "split"})
 
 show "Matches:" words
 show "Contains a release:" hasRelease
@@ -31,8 +31,8 @@ if !(outputDir | Safe.isFolder) {
 
 let palette = {
     ".": "#111827",
-    "C": "#22d3ee",
-    "P": "#f472b6"
+    C: "#22d3ee",
+    P: "#f472b6"
 }
 
 let frame1 = [
@@ -72,8 +72,8 @@ show "\n--- GIF and video ---"
 let gifPath = outputDir + "pixel-motion.gif"
 let videoPath = outputDir + "pixel-motion.mp4"
 try {
-    frames | gif(gifPath, {"fps": 2, "width": 128, "loop": 0})
-    frames | video(videoPath, {"fps": 2, "width": 128, "height": 128, "preset": "ultrafast"})
+    frames | gif(gifPath, {fps: 2, width: 128, loop: 0})
+    frames | video(videoPath, {fps: 2, width: 128, height: 128, preset: "ultrafast"})
 
     show "Saved GIF:" gifPath
     show "Saved video:" videoPath
@@ -85,7 +85,7 @@ show "\n--- Raw FFmpeg ---"
 
 let ffmpegInfo = ""
 try {
-    ffmpegInfo = ["-version"] | ffmpeg({"throw_on_error": false})
+    ffmpegInfo = ["-version"] | ffmpeg({throw_on_error: false})
     show "FFmpeg available:" ffmpegInfo.ok
     show "FFmpeg exit code:" ffmpegInfo.code
 } catch (e) {

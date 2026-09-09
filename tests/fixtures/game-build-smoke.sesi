@@ -1,0 +1,15 @@
+allow "std/game" in as Game
+allow "lib/env" in as Env
+
+let smoke_folder = Env.DEV_FOLDER + "game-built-smoke"
+
+let game = Game.create({"title": "Sesi Built Smoke", "width": 480, "height": 320})
+let scene = game.create_scene("main")
+let camera = scene.orbit_camera("camera", {"radius": 8})
+let light = scene.hemispheric_light("light")
+let cube = scene.box("cube")
+if includes(args, "--build") {
+  game.build(smoke_folder, {"overwrite": true})
+} else {
+  game.run({"auto_close_ms": 350})
+}

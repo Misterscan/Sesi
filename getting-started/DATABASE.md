@@ -47,8 +47,8 @@ All CRUD operations are performed on the collection object.
 Add a document to the collection. If the document does not have an `_id` field, one is generated automatically:
 
 ```sesi
-users.insert({"name": "Ada", "role": "admin", "active": true})
-users.insert({"name": "Grace", "role": "developer", "active": true})
+users.insert({name: "Ada", role: "admin", active: true})
+users.insert({name: "Grace", role: "developer", active: true})
 ```
 
 `insert` returns the inserted document including its `_id`.
@@ -64,10 +64,10 @@ Retrieve documents that match a query object. All fields in the query must match
 let all = users.find()
 
 // Find by a field value
-let admins = users.find({"role": "admin"})
+let admins = users.find({role: "admin"})
 
 for user in admins {
-  show user["name"]
+  show user.name
 }
 ```
 
@@ -78,7 +78,7 @@ for user in admins {
 Update all documents matching a query. Returns the number of documents updated:
 
 ```sesi
-let count = users.update({"name": "Ada"}, {"role": "lead"})
+let count = users.update({name: "Ada"}, {role: "lead"})
 show "Updated:" count
 ```
 
@@ -89,7 +89,7 @@ show "Updated:" count
 Delete all documents matching a query. Returns the number of documents deleted:
 
 ```sesi
-let count = users.delete({"active": false})
+let count = users.delete({active: false})
 show "Deleted:" count
 ```
 
@@ -103,13 +103,13 @@ All database operations can throw on failure. Wrap them in `try/catch` for resil
 allow "std/db" in with {db_open}
 
 try {
-  let db    = db_open("data.db", "passphrase")
+  let db = db_open("data.db", "passphrase")
   let posts = db.collection("posts")
 
-  posts.insert({"title": "Hello Sesi", "views": 0})
+  posts.insert({title: "Hello Sesi", views: 0})
 
-  let results = posts.find({"title": "Hello Sesi"})
-  show results[0]["title"]
+  let results = posts.find({title: "Hello Sesi"})
+  show results[0].title
 } catch (err) {
   show "Database error:" err
 }
@@ -132,19 +132,19 @@ let db = db_open("store.db", "passphrase")
 let items = db.collection("items")
 
 // Insert
-items.insert({"name": "Widget", "qty": 10})
+items.insert({name: "Widget", qty: 10})
 
 // Find all
 let all = items.find()
 
 // Find by query
-let matches = items.find({"name": "Widget"})
+let matches = items.find({name: "Widget"})
 
 // Update
-items.update({"name": "Widget"}, {"qty": 20})
+items.update({name: "Widget"}, {qty: 20})
 
 // Delete
-items.delete({"qty": 0})
+items.delete({qty: 0})
 ```
 
 ---

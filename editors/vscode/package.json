@@ -2,7 +2,7 @@
   "name": "sesi-syntax",
   "displayName": "Sesi Developer Kit",
   "description": "Native syntax highlighting and rich hover tooltips for the Sesi Programming Language.",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "publisher": "Misterscan",
   "repository": {
     "type": "git",
@@ -16,6 +16,178 @@
     "Programming Languages"
   ],
   "contributes": {
+    "semanticTokenTypes": [
+      {
+        "id": "embeddedJsComment",
+        "description": "Comment in embedded JavaScript"
+      },
+      {
+        "id": "embeddedJsString",
+        "description": "String in embedded JavaScript"
+      },
+      {
+        "id": "embeddedJsKeyword",
+        "description": "Keyword in embedded JavaScript"
+      },
+      {
+        "id": "embeddedJsStorage",
+        "description": "Declaration keyword in embedded JavaScript"
+      },
+      {
+        "id": "embeddedJsNumber",
+        "description": "Number in embedded JavaScript"
+      },
+      {
+        "id": "embeddedJsRegexp",
+        "description": "Regular expression in embedded JavaScript"
+      },
+      {
+        "id": "embeddedJsOperator",
+        "description": "Operator in embedded JavaScript"
+      },
+      {
+        "id": "embeddedJsType",
+        "description": "Type in embedded JavaScript"
+      },
+      {
+        "id": "embeddedJsFunction",
+        "description": "Function in embedded JavaScript"
+      },
+      {
+        "id": "embeddedJsVariable",
+        "description": "Variable in embedded JavaScript"
+      },
+      {
+        "id": "embeddedJsClass",
+        "description": "Class in embedded JavaScript"
+      },
+      {
+        "id": "embeddedPythonComment",
+        "description": "Comment in embedded Python"
+      },
+      {
+        "id": "embeddedPythonString",
+        "description": "String in embedded Python"
+      },
+      {
+        "id": "embeddedPythonKeyword",
+        "description": "Keyword in embedded Python"
+      },
+      {
+        "id": "embeddedPythonStorage",
+        "description": "Declaration keyword in embedded Python"
+      },
+      {
+        "id": "embeddedPythonNumber",
+        "description": "Number in embedded Python"
+      },
+      {
+        "id": "embeddedPythonRegexp",
+        "description": "Regular expression in embedded Python"
+      },
+      {
+        "id": "embeddedPythonOperator",
+        "description": "Operator in embedded Python"
+      },
+      {
+        "id": "embeddedPythonType",
+        "description": "Type in embedded Python"
+      },
+      {
+        "id": "embeddedPythonFunction",
+        "description": "Function in embedded Python"
+      },
+      {
+        "id": "embeddedPythonVariable",
+        "description": "Variable in embedded Python"
+      },
+      {
+        "id": "embeddedPythonClass",
+        "description": "Class in embedded Python"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "sesi",
+        "scopes": {
+          "embeddedJsComment": [
+            "comment.line.double-slash.js",
+            "comment.block.js"
+          ],
+          "embeddedJsString": [
+            "string.quoted.double.js",
+            "string.quoted.single.js",
+            "string.template.js"
+          ],
+          "embeddedJsKeyword": [
+            "keyword.control.js"
+          ],
+          "embeddedJsStorage": [
+            "storage.type.js"
+          ],
+          "embeddedJsNumber": [
+            "constant.numeric.js"
+          ],
+          "embeddedJsRegexp": [
+            "string.regexp.js"
+          ],
+          "embeddedJsOperator": [
+            "keyword.operator.js"
+          ],
+          "embeddedJsType": [
+            "support.class.builtin.js"
+          ],
+          "embeddedJsFunction": [
+            "entity.name.function.js"
+          ],
+          "embeddedJsVariable": [
+            "variable.other.readwrite.js"
+          ],
+          "embeddedJsClass": [
+            "entity.name.type.class.js"
+          ],
+          "embeddedPythonComment": [
+            "comment.line.number-sign.python"
+          ],
+          "embeddedPythonString": [
+            "string.quoted.double.python",
+            "string.quoted.single.python"
+          ],
+          "embeddedPythonKeyword": [
+            "keyword.control.python"
+          ],
+          "embeddedPythonStorage": [
+            "storage.type.function.python"
+          ],
+          "embeddedPythonNumber": [
+            "constant.numeric.python"
+          ],
+          "embeddedPythonRegexp": [
+            "string.regexp.python"
+          ],
+          "embeddedPythonOperator": [
+            "keyword.operator.python"
+          ],
+          "embeddedPythonType": [
+            "support.type.python"
+          ],
+          "embeddedPythonFunction": [
+            "entity.name.function.python"
+          ],
+          "embeddedPythonVariable": [
+            "variable.other.readwrite.python"
+          ],
+          "embeddedPythonClass": [
+            "entity.name.type.class.python"
+          ]
+        }
+      }
+    ],
+    "configurationDefaults": {
+      "[sesi]": {
+        "editor.semanticHighlighting.enabled": true
+      }
+    },
     "languages": [
       {
         "id": "sesi",
@@ -28,7 +200,11 @@
       {
         "language": "sesi",
         "scopeName": "source.sesi",
-        "path": "./syntaxes/sesi.tmLanguage.json"
+        "path": "./syntaxes/sesi.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.javascript.sesi": "javascript",
+          "meta.embedded.block.python.sesi": "python"
+        }
       }
     ]
   }

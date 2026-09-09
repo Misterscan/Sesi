@@ -10,6 +10,7 @@ import * as crypto from 'crypto';
 import { aiRuntime } from './ai-runtime';
 import * as http from 'http';
 import { estimateTokenCost } from './token-pricing';
+import { isNativeObject, runtimeKeys } from './native-object';
 
 // Browser Hot Reloading State
 let isLiveReloadEnabled = false;
@@ -22,6 +23,64 @@ type TokenEncoder = {
 
 const tokenEncoderCache = new Map<string, TokenEncoder>();
 const DEFAULT_TOKEN_MODEL = 'gpt-5.6-sol';
+const naturalFilenameCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+
+function decodeImageBase64(value: string): { data: string; mimeType: string } | null {
+  const dataUri = value.match(/^data:(image\/(?:png|jpeg|gif|webp|bmp));base64,([A-Za-z0-9+/=\s]+)$/i);
+  const data = dataUri ? dataUri[2].replace(/\s/g, '') : value.replace(/\s/g, '');
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data) || data.length < 16 || data.length % 4 !== 0) return null;
+
+  let bytes: Buffer;
+  try {
+    bytes = Buffer.from(data, 'base64');
+  } catch {
+    return null;
+  }
+  const mimeType = dataUri?.[1].toLowerCase()
+    ?? (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) ? 'image/png'
+      : bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])) ? 'image/jpeg'
+      : bytes.subarray(0, 6).toString('ascii').startsWith('GIF8') ? 'image/gif'
+      : bytes.subarray(0, 2).toString('ascii') === 'BM' ? 'image/bmp'
+      : bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP' ? 'image/webp'
+      : null);
+  return mimeType ? { data, mimeType } : null;
+}
+
+function loadImageForTokenCount(filePath: string): { data: string; mimeType: string } | null {
+  const absolutePath = path.resolve(filePath);
+  const mimeTypes: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.bmp': 'image/bmp',
+  };
+  const mimeType = mimeTypes[path.extname(absolutePath).toLowerCase()];
+  if (!mimeType || !fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) return null;
+  return { data: fs.readFileSync(absolutePath).toString('base64'), mimeType };
+}
+
+function imageOutputTokens(model: string, size: string): number | null | undefined {
+  const normalizedModel = model.trim().toLowerCase().replace(/^models\//, '');
+  const normalizedSize = size.trim().toLowerCase();
+  const isImageSize = normalizedSize === '512' || normalizedSize === '0.5k' || /^[124]k$/.test(normalizedSize);
+  if (!isImageSize) return undefined;
+
+  if (normalizedModel === 'gemini-3.1-flash-image') {
+    return ({ '512': 747, '0.5k': 747, '1k': 1120, '2k': 1680, '4k': 2520 })[normalizedSize] ?? null;
+  }
+  if (normalizedModel === 'gemini-3.1-flash-image-lite' || normalizedModel === 'gemini-3.1-flash-lite-image') {
+    return normalizedSize === '1k' ? 1120 : null;
+  }
+  if (normalizedModel === 'gemini-3-pro-image') {
+    return ({ '1k': 1120, '2k': 1120, '4k': 2000 })[normalizedSize] ?? null;
+  }
+  if (normalizedModel === 'gemini-2.5-flash-image') {
+    return normalizedSize === '1k' ? 1290 : null;
+  }
+  return undefined;
+}
 
 function getOpenAIEncodingAlias(modelName: string): string | null {
   const model = String(modelName || '').trim().toLowerCase();
@@ -144,7 +203,8 @@ const imageFileExtensions = new Set([
 ]);
 
 const textFileExtensions = new Set([
-  '.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.csv', '.tsv', '.html', '.htm', '.css', '.scss', '.sass', '.less', '.js', '.ts', '.jsx', '.tsx', '.py', '.sesi', '.sql', '.log'
+  '.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.csv', '.tsv', '.html', '.htm', '.css',
+  '.scss', '.sass', '.less', '.js', '.ts', '.jsx', '.tsx', '.py', '.sesi', '.sql', '.log'
 ]);
 
 const browserFriendlyExtensions = new Set([
@@ -491,12 +551,13 @@ function prepareMediaInput(
   const manifestPath = path.join(tempDir, 'frames.ffconcat');
   const duration = 1 / fps;
   const lines = ['ffconcat version 1.0'];
+  // Still images default to a 25 fps demuxer time base. Pin it to the requested
+  // rate so FFmpeg does not insert/drop frames when the output is resampled.
   for (const framePath of framePaths) {
     lines.push(`file '${ffconcatPath(framePath)}'`);
+    lines.push(`option framerate ${fps}`);
     lines.push(`duration ${duration}`);
   }
-  // The concat demuxer applies the final duration only when the last frame is repeated.
-  lines.push(`file '${ffconcatPath(framePaths[framePaths.length - 1])}'`);
   fs.writeFileSync(manifestPath, `${lines.join('\n')}\n`, 'utf-8');
 
   return {
@@ -750,6 +811,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (value: RuntimeValue): RuntimeValue => {
       if (typeof value === 'string') return value.length;
       if (Array.isArray(value)) return value.length;
+      if (isNativeObject(value)) return value.listProperties().length;
       if (typeof value === 'object' && value !== null) {
         return Object.keys(value).length;
       }
@@ -771,6 +833,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       if (typeof value === 'string') return 'string';
       if (Array.isArray(value)) return 'array';
       if (typeof value === 'object') {
+        if (isNativeObject(value)) return value.nativeType;
         if ((value as any).type === 'promise') return 'promise';
         if ((value as any).type === 'lazy') return 'lazy';
         return 'object';
@@ -1075,37 +1138,6 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
-  builtins.set('translate', {
-    type: 'function',
-    name: 'translate',
-    params: [{ name: 'text' }, { name: 'to_language' }, { name: 'from_language' }, { name: 'gemini_model' }],
-    body: {} as any,
-    closure: {} as any,
-    isBuiltin: true,
-    builtin: async (text: RuntimeValue, toLanguage: RuntimeValue, fromLanguage: RuntimeValue = 'en', geminiModel: RuntimeValue = null): Promise<RuntimeValue> => {
-      if (typeof text !== 'string' || text.trim() === '') throw new Error('translate() expects non-empty text');
-      if (typeof toLanguage !== 'string' || toLanguage.trim() === '') throw new Error('translate() target language must be a non-empty language code');
-      if (typeof fromLanguage !== 'string' || fromLanguage.trim() === '') throw new Error('translate() source language must be a non-empty language code');
-      if (geminiModel !== null && (typeof geminiModel !== 'string' || geminiModel.trim() === '')) throw new Error('translate() gemini model must be a non-empty string or null');
-      try {
-        if (typeof geminiModel === 'string') {
-          const response = await aiRuntime.callModel({
-            model: geminiModel,
-            prompt: `Translate the following text from ${fromLanguage} to ${toLanguage}. Return only the translation and preserve its meaning, tone, and formatting.\n\n${text}`,
-          });
-          return response.text;
-        }
-        // Keep this import literal so esbuild can bundle the ESM-only translate
-        // package into standalone executables. VM-generated import() calls do
-        // not receive a dynamic import callback under pkg.
-        const { default: translateText } = await import('translate');
-        return await translateText(text, { from: fromLanguage, to: toLanguage });
-      } catch (error: any) {
-        throw new Error(`translate() failed: ${error.message}`);
-      }
-    },
-  });
-
   builtins.set('exp', {
     type: 'function',
     name: 'exp',
@@ -1116,6 +1148,19 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     builtin: (x: RuntimeValue): RuntimeValue => {
       if (typeof x !== 'number') return null;
       return Math.exp(x);
+    },
+  });
+
+  builtins.set('floor', {
+    type: 'function',
+    name: 'floor',
+    params: [{ name: 'value' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => {
+      if (typeof value !== 'number') return null;
+      return Math.floor(value);
     },
   });
 
@@ -1444,8 +1489,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     closure: {} as any,
     isBuiltin: true,
     builtin: (obj: RuntimeValue): RuntimeValue => {
-      if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return null;
-      return Object.keys(obj);
+      return runtimeKeys(obj);
     },
   });
 
@@ -1457,8 +1501,10 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     closure: {} as any,
     isBuiltin: true,
     builtin: (obj: RuntimeValue): RuntimeValue => {
-      if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return null;
-      return Object.values(obj);
+      const objectKeys = runtimeKeys(obj);
+      if (objectKeys === null) return null;
+      if (isNativeObject(obj)) return objectKeys.map(key => obj.getProperty(key));
+      return Object.values(obj as Record<string, RuntimeValue>);
     },
   });
 
@@ -1708,6 +1754,8 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       const toTokenCount = async (value: RuntimeValue): Promise<number | null> => {
         if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return Math.floor(value);
         if (typeof value === 'string') {
+          const image = loadImageForTokenCount(value) ?? decodeImageBase64(value);
+          if (image) return await aiRuntime.countImageTokens(modelVal, image.data, image.mimeType);
           if (/^(?:models\/)?gemini-/i.test(modelVal)) {
             return await aiRuntime.countTokens(modelVal, value);
           }
@@ -1717,11 +1765,22 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
             return null;
           }
         }
+        if (Array.isArray(value)) {
+          const counts = await Promise.all(value.map(toTokenCount));
+          return counts.every((count): count is number => count !== null)
+            ? counts.reduce((total, count) => total + count, 0)
+            : null;
+        }
         return null;
       };
 
       const inputTokens = await toTokenCount(inputVal);
-      const outputTokens = await toTokenCount(outputVal);
+      const configuredImageOutputTokens = typeof outputVal === 'string'
+        ? imageOutputTokens(modelVal, outputVal)
+        : undefined;
+      const outputTokens = configuredImageOutputTokens === undefined
+        ? await toTokenCount(outputVal)
+        : configuredImageOutputTokens;
       if (inputTokens === null || outputTokens === null) return null;
 
       let customRates: { inputPerMillion: number; outputPerMillion: number } | undefined;
@@ -2049,7 +2108,9 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isDirectory()) {
           return null;
         }
-        return fs.readdirSync(absolutePath).filter(f => !f.startsWith('.'));
+        return fs.readdirSync(absolutePath)
+          .filter(f => !f.startsWith('.'))
+          .sort((left, right) => naturalFilenameCollator.compare(left, right));
       } catch (e: any) {
         throw new Error(`Failed to list directory: ${dirPath}. Reason: ${e.message}`);
       }
@@ -2585,7 +2646,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
       }
 
       if (isTruthy(checkOnly)) {
-        return '✓ Syntax and Compilation valid';
+        return '✓ Syntax, compilation, and semantic checks valid';
       }
 
       const allowLocalFs = isTruthy(local) || interpreter?.allowLocalFs === true;
@@ -3156,7 +3217,7 @@ ${bodyText}
 
         const modelName = typeof stepObj.model === 'string' && stepObj.model.trim() !== ''
           ? stepObj.model
-          : 'gemini-3.5-flash-lite';
+          : 'gemini-3.7-flash';
         const model = interpreter && typeof (interpreter as any).resolveModelName === 'function'
           ? (interpreter as any).resolveModelName(modelName)
           : modelName;
@@ -3164,6 +3225,7 @@ ${bodyText}
         const response = await aiRuntime.callModel({
           model,
           prompt,
+          systemPrompt: typeof stepObj.systemPrompt === 'string' ? stepObj.systemPrompt : undefined,
           temperature: typeof stepObj.temperature === 'number' ? stepObj.temperature : undefined,
           maxTokens: typeof stepObj.max_tokens === 'number' ? stepObj.max_tokens : undefined,
           topK: typeof stepObj.top_k === 'number' ? stepObj.top_k : undefined,
@@ -3173,7 +3235,7 @@ ${bodyText}
               ? (stepObj.thinkingLevel as any)
               : undefined,
           cache: typeof stepObj.cache === 'boolean' ? stepObj.cache : undefined,
-          search: typeof stepObj.search === 'boolean' ? stepObj.search : undefined,
+          search: typeof stepObj.search === 'boolean' ? stepObj.search : undefined
         });
         if (interpreter && typeof (interpreter as any).recordModelUsage === 'function') {
           (interpreter as any).recordModelUsage(model, response.usage, response.cached === true);
@@ -3896,7 +3958,7 @@ ${bodyText}
   });
   builtins.set('is_object', {
     type: 'function', name: 'is_object', params: [{ name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
-    builtin: (value: RuntimeValue): RuntimeValue => typeof value === 'object' && value !== null && !Array.isArray(value) && (value as any).type !== 'function' && (value as any).type !== 'promise'
+    builtin: (value: RuntimeValue): RuntimeValue => typeof value === 'object' && value !== null && !Array.isArray(value) && (value as any).type !== 'function' && (value as any).type !== 'promise' && (value as any).type !== 'lazy'
   });
   builtins.set('is_string', {
     type: 'function', name: 'is_string', params: [{ name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
@@ -4072,6 +4134,7 @@ export function stripPrototypes(val: any): any {
 export function isEqual(a: RuntimeValue, b: RuntimeValue): boolean {
   if (a === null && b === null) return true;
   if (typeof a !== typeof b) return false;
+  if (isNativeObject(a) && isNativeObject(b)) return a.nativeId === b.nativeId;
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
@@ -4094,6 +4157,7 @@ export function stringify(value: RuntimeValue): string {
     return `[${items}]`;
   }
   if (typeof value === 'object') {
+    if (isNativeObject(value)) return value.describe();
     if ((value as any).type === 'promise') return 'Promise { <pending> }';
     if ((value as any).type === 'lazy') {
       const lazyValue = value as RuntimeLazy;

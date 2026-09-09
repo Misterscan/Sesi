@@ -246,12 +246,12 @@ async function main() {
   await runExpectError(
     'Verify Sesi object literal has no prototype constructor method',
     'let obj = {}; obj.constructor()',
-    'Not a function'
+    'Access to protected property "constructor" is not allowed.'
   );
   await runExpectError(
     'Verify parsed JSON object has no prototype constructor method',
     'let parsed = from_json("{\\\"a\\\": 1}"); parsed.constructor()',
-    'Not a function'
+    'Access to protected property "constructor" is not allowed.'
   );
 
   // Summary

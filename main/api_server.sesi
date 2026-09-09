@@ -4,12 +4,23 @@
   Usage:
     node bin/sesi.js main/api_server.sesi -l
 */
-
+allow "lib/env" in with {DEV_PORT, LOCAL_HOST}
 allow "std/db" in with {db_open}
 
 let db = db_open("tasks.db")
 let tasks = db.collection("tasks")
 
+/**
+  Handles incoming API requests and routes them to the appropriate handlers.
+  Supports GET, POST, PUT, DELETE operations on the `/api/tasks` endpoint.
+
+  Parameters:
+  - req: The incoming HTTP request object.
+
+  Returns:
+  - A response object with status, headers, and body.
+  - The body is expected to be a JSON-serializable object.
+*/
 async fn handleRequest(req) {
   show "API Request:" req.method req.path
   
@@ -160,6 +171,6 @@ async fn handleRequest(req) {
   }
 }
 
-let port = 8080
-show "Sesi RESTful API running at http://localhost:8080"
+let port = DEV_PORT
+show "Sesi RESTful API running at" LOCAL_HOST
 let server = listen(port, handleRequest)

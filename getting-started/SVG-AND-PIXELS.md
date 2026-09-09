@@ -10,7 +10,7 @@
 allow "std/draw" in as <alias>
 ```
 
-The name after `with` is your choice — any identifier works:
+The name after `as` is your choice — any identifier works:
 
 ```sesi
 allow "std/draw" in as Draw     // conventional
@@ -24,7 +24,7 @@ The examples below use `Draw` as a readable convention.
 
 ## Drawing Shapes
 
-Every draw call appends a shape to an internal buffer. Nothing is rendered or saved until you call `render` or `save_svg`.
+Every draw call appends a shape to an internal buffer. Nothing is rendered or saved until you call `render` or `save_svg`. This only applies to SVG output; pixel-based drawings are handled differently. Do not call `save_png` for SVG shapes — only use it when using `Draw.pixel()`, `Draw.pixel_grid()`, or `Draw.pixel_<shape>()` functions.
 
 ---
 
@@ -190,7 +190,21 @@ show "Saved poster.svg"
 
 ## Raster Pixel Drawing
 
-`Draw.pixel` writes to a raster buffer that is separate from the SVG shape buffer. `Draw.save_png` encodes those pixels as an RGBA PNG file.
+`Draw.pixel` and `Draw.pixel_<shape>` functions write directly to a raster pixel buffer that is separate from the SVG shape buffer. Calling `Draw.save_png` encodes those raster pixels into a true-color RGBA PNG file.
+
+---
+
+### Single Pixel — `Draw.pixel`
+
+```
+Draw.pixel(x, y, color)
+```
+
+| Parameter | Type     | Description |
+| --------- | -------- | ----------- |
+| `x`       | `number` | Integer X coordinate |
+| `y`       | `number` | Integer Y coordinate |
+| `color`   | `string` | Color (name, `#hex`, `rgb`, `rgba`) |
 
 ```sesi
 allow "std/draw" in as Draw
@@ -203,7 +217,23 @@ Draw.pixel(1, 1, "#118ab2")
 Draw.save_png("pixels.png", 2, 2)
 ```
 
-For pixel art, a palette-indexed grid is much more compact. String rows use each character as a palette key, and `scale` expands every grid cell into real output pixels:
+---
+
+### Pixel Grid — `Draw.pixel_grid`
+
+For pixel art, a palette-indexed grid is compact. String rows use characters as palette keys, expanding each grid cell by `scale`:
+
+```
+Draw.pixel_grid(grid, palette, scale, x, y)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `grid`    | `array` | Array of row strings or character arrays |
+| `palette` | `object` | Mapping of characters to color strings |
+| `scale`   | `number` | Pixel scale multiplier per grid cell |
+| `x`       | `number` | Top-left X offset on canvas |
+| `y`       | `number` | Top-left Y offset on canvas |
 
 ```sesi
 let palette = {
@@ -222,15 +252,299 @@ Draw.pixel_grid(grid, palette, 128)
 Draw.save_png("grid.png", 512, 512)
 ```
 
-The signatures are:
+---
+
+### Pixel Rectangle — `Draw.pixel_rect`
+
+Rasterizes a filled or outline rectangle into the pixel buffer.
 
 ```
-Draw.pixel(x, y, color)
-Draw.pixel_grid(grid, palette, scale = 1, x = 0, y = 0)
+Draw.pixel_rect(x, y, w, h, color, filled)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `x` | `number` | Top-left X coordinate |
+| `y` | `number` | Top-left Y coordinate |
+| `w` | `number` | Width in pixels |
+| `h` | `number` | Height in pixels |
+| `color` | `string` | Fill/stroke color |
+| `filled` | `boolean` | `true` for solid fill, `false` for outline |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_rect(10, 10, 80, 50, "#e94560", true)
+Draw.pixel_rect(20, 20, 60, 30, "#ffffff", false)
+Draw.save_png("pixel_rect.png", 100, 100)
+```
+
+---
+
+### Pixel Circle — `Draw.pixel_circle`
+
+Rasterizes a filled or outline circle into the pixel buffer using Euclidean distance.
+
+```
+Draw.pixel_circle(cx, cy, r, color, filled)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `cx` | `number` | Center X coordinate |
+| `cy` | `number` | Center Y coordinate |
+| `r` | `number` | Radius in pixels |
+| `color` | `string` | Fill/stroke color |
+| `filled` | `boolean` | `true` for solid fill, `false` for outline |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_circle(50, 50, 30, "#00f0ff", true)
+Draw.save_png("pixel_circle.png", 100, 100)
+```
+
+---
+
+### Pixel Line — `Draw.pixel_line`
+
+Rasterizes a line between two points into the pixel buffer using Bresenham's algorithm.
+
+```
+Draw.pixel_line(x1, y1, x2, y2, color)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `x1` | `number` | Start X coordinate |
+| `y1` | `number` | Start Y coordinate |
+| `x2` | `number` | End X coordinate |
+| `y2` | `number` | End Y coordinate |
+| `color` | `string` | Line color |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_line(0, 0, 99, 99, "#ff0077")
+Draw.save_png("pixel_line.png", 100, 100)
+```
+
+---
+
+### Pixel Ellipse — `Draw.pixel_ellipse`
+
+Rasterizes an ellipse into the pixel buffer.
+
+```
+Draw.pixel_ellipse(cx, cy, rx, ry, color, filled)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `cx` | `number` | Center X coordinate |
+| `cy` | `number` | Center Y coordinate |
+| `rx` | `number` | Horizontal radius |
+| `ry` | `number` | Vertical radius |
+| `color` | `string` | Fill/stroke color |
+| `filled` | `boolean` | `true` for solid fill, `false` for outline |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_ellipse(50, 50, 40, 20, "#ffb703", true)
+Draw.save_png("pixel_ellipse.png", 100, 100)
+```
+
+---
+
+### Pixel Polygon — `Draw.pixel_polygon`
+
+Rasterizes an arbitrary closed polygon using scanline fill.
+
+```
+Draw.pixel_polygon(points, color, filled)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `points` | `array` or `string` | Point coordinate pairs (e.g., `[[0,0],[40,0],[20,40]]` or `"0,0 40,0 20,40"`) |
+| `color` | `string` | Fill/stroke color |
+| `filled` | `boolean` | `true` for solid fill, `false` for outline |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_polygon([[10,10], [90,10], [50,90]], "#06d6a0", true)
+Draw.save_png("pixel_polygon.png", 100, 100)
+```
+
+---
+
+### Pixel Triangle — `Draw.pixel_triangle`
+
+Rasterizes a triangle into the pixel buffer.
+
+```
+Draw.pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled = true)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `x1`, `y1` | `number` | Point 1 coordinates |
+| `x2`, `y2` | `number` | Point 2 coordinates |
+| `x3`, `y3` | `number` | Point 3 coordinates |
+| `color` | `string` | Fill/stroke color |
+| `filled` | `boolean` | `true` for solid fill, `false` for outline |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_triangle(10, 80, 50, 10, 90, 80, "#ff4d6d", true)
+Draw.save_png("pixel_triangle.png", 100, 100)
+```
+
+---
+
+### Pixel Star — `Draw.pixel_star`
+
+Rasterizes a multi-pointed star shape into the pixel buffer.
+
+```
+Draw.pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled = true)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `cx`, `cy` | `number` | Center coordinates |
+| `spikes` | `number` | Number of star points (e.g. `5`) |
+| `outerRadius` | `number` | Outer point radius |
+| `innerRadius` | `number` | Inner point radius |
+| `color` | `string` | Fill/stroke color |
+| `filled` | `boolean` | `true` for solid fill, `false` for outline |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_star(50, 50, 5, 40, 18, "#ffd166", true)
+Draw.save_png("pixel_star.png", 100, 100)
+```
+
+---
+
+### Pixel Ring — `Draw.pixel_ring`
+
+Rasterizes a ring / annulus band into the pixel buffer.
+
+```
+Draw.pixel_ring(cx, cy, radius, thickness, color)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `cx`, `cy` | `number` | Center coordinates |
+| `radius` | `number` | Outer radius |
+| `thickness` | `number` | Band thickness in pixels |
+| `color` | `string` | Ring color |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_ring(50, 50, 40, 8, "#118ab2")
+Draw.save_png("pixel_ring.png", 100, 100)
+```
+
+---
+
+### Pixel Arc — `Draw.pixel_arc`
+
+Rasterizes a circular arc segment in degrees into the pixel buffer.
+
+```
+Draw.pixel_arc(cx, cy, radius, startAngle, endAngle, color)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `cx`, `cy` | `number` | Center coordinates |
+| `radius` | `number` | Arc radius |
+| `startAngle` | `number` | Start angle in degrees |
+| `endAngle` | `number` | End angle in degrees |
+| `color` | `string` | Arc line color |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_arc(50, 50, 35, 0, 180, "#7209b7")
+Draw.save_png("pixel_arc.png", 100, 100)
+```
+
+---
+
+### Pixel Bezier Curve — `Draw.pixel_bezier`
+
+Rasterizes a quadratic Bezier curve into the pixel buffer.
+
+```
+Draw.pixel_bezier(x1, y1, cx, cy, x2, y2, color)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `x1`, `y1` | `number` | Start point coordinates |
+| `cx`, `cy` | `number` | Control point coordinates |
+| `x2`, `y2` | `number` | End point coordinates |
+| `color` | `string` | Curve line color |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_bezier(10, 90, 50, 10, 90, 90, "#4cc9f0")
+Draw.save_png("pixel_bezier.png", 100, 100)
+```
+
+---
+
+### Pixel Text — `Draw.pixel_text`
+
+Rasterizes text using a built-in bitmap pixel font into the pixel buffer.
+
+```
+Draw.pixel_text(x, y, text, color, scale = 1)
+```
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `x` | `number` | Left X position |
+| `y` | `number` | Top Y position |
+| `text` | `string` | Text string to render |
+| `color` | `string` | Text color |
+| `scale` | `number` | Pixel scale multiplier per glyph cell |
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_text(10, 10, "PIXEL ART", "#f72585", 2)
+Draw.save_png("pixel_text.png", 200, 50)
+```
+
+---
+
+### Saving PNG Output — `Draw.save_png`
+
+```
 Draw.save_png(path, width, height, background = "transparent")
 ```
 
-Coordinates are floored to integers. A later call at the same coordinate replaces the earlier pixel. Supported colors include common names, hex colors with optional alpha, and `rgb(...)`/`rgba(...)`. `Draw.clear()` resets both the raster and SVG buffers.
+Encodes all raster pixels in the buffer to a PNG image file. Coordinates are floored to integers. A later call at the same coordinate replaces the earlier pixel color. `Draw.clear()` resets both the SVG and raster pixel buffers.
+
+---
+
+### Key Differences When Working With Full Resolutions:
+1. **Canvas Allocation**: `Draw.save_png(path, width, height, "transparent")` instructs the raster engine to write a complete width×height viewport. Any primitives placed outside that bounding box are clipped, and undefined pixels receive the specified background color (or transparency).
+2. **Scale Multipliers**:
+   - `Draw.pixel_text(x, y, text, color, scale)`: Using `scale = 2` or `scale = 3` scales bitmap font glyphs up so they remain legible on large canvases.
+   - `Draw.pixel_grid(grid, palette, scale)`: When using palette grids on an HD canvas, set `scale` (e.g., `32`, `64`, or `128`) so that character cells map to sizable multi-pixel blocks rather than single 1px dots.
+3. **Primitive Sizing**: Coordinates for `pixel_polygon`, `pixel_triangle`, `pixel_star`, `pixel_circle`, and `pixel_rect` must scale with the destination dimensions. Radius values of `40` to `100` and heights of `300` to `600` fill out a 720p or 1080p frame proportionally for reference.
 
 ---
 
@@ -280,8 +594,8 @@ allow "std/draw" in as Draw
 
 // 1. Define a radial gradient for a neon glow
 Draw.gradient("radial", "glow_grad", [
-  {"offset": "0%", "color": "#ff00ff"},
-  {"offset": "100%", "color": "transparent"}
+  {offset: "0%", color: "#ff00ff"},
+  {offset: "100%", color: "transparent"}
 ])
 
 // 2. Define standard CSS animations for pulsating and spinning
@@ -299,7 +613,7 @@ Draw.style("
 
 // 3. Draw using options to bind classes and gradients
 Draw.rect(0, 0, 400, 400, "#0a0018")
-Draw.circle(200, 200, 100, "url(#glow_grad)", {"class": "pulse"})
+Draw.circle(200, 200, 100, "url(#glow_grad)", {class: "pulse"})
 Draw.ellipse(200, 200, 50, 25, "#00ffff")
 
 Draw.save_svg("neon.svg", 400, 400)
@@ -353,7 +667,18 @@ Draw.save_svg("output.svg", width, height)
 // Raster pixels
 Draw.pixel(x, y, color)
 Draw.pixel_grid(grid, palette, scale = 1, x = 0, y = 0)
-Draw.save_png("output.png", width, height, background = "transparent")
+Draw.pixel_rect(x, y, w, h, color, filled = true)
+Draw.pixel_circle(cx, cy, r, color, filled = true)
+Draw.pixel_line(x1, y1, x2, y2, color)
+Draw.pixel_ellipse(cx, cy, rx, ry, color, filled = true)
+Draw.pixel_polygon(points, color, filled = true)
+Draw.pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled = true)
+Draw.pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled = true)
+Draw.pixel_ring(cx, cy, radius, thickness, color)
+Draw.pixel_arc(cx, cy, radius, startAngle, endAngle, color)
+Draw.pixel_bezier(x1, y1, cx, cy, x2, y2, color)
+Draw.pixel_text(x, y, text, color, scale = 1)
+Draw.save_png("output.png", width, height, "transparent")
 ```
 
 ---

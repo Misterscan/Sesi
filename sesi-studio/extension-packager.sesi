@@ -5,7 +5,15 @@
 allow "shell-automation" in with {run_command}
 allow "helpers/safe" in as Safe
 
-// --- Helper: Clean Comment Asterisks ---
+/**
+  Clean the comment asterisks from a raw JSON string.
+
+  Parameters:
+  - `raw`: The raw JSON string potentially containing leading asterisks in each line.
+
+  Returns:
+  A cleaned JSON string with leading asterisks removed from each line.
+*/
 fn clean_manifest_json(raw) {
   let lines = split(raw, "\n")
   let clean_str = ""
@@ -24,7 +32,15 @@ fn clean_manifest_json(raw) {
   return clean_str
 }
 
-// --- Helper: Validate Extension Manifest ---
+/**
+  Validate the extension manifest metadata.
+
+  Parameters:
+  - `meta`: The manifest metadata object to validate.
+
+  Returns:
+  `true` if all required fields are present, `false` otherwise.
+*/
 fn validate_metadata(meta) {
   if meta["license"] == null {
     meta["license"] = "MIT"
@@ -39,6 +55,15 @@ fn validate_metadata(meta) {
   return true
 }
 
+/**
+  Execute a Node.js command with the given arguments.
+
+  Parameters:
+  - `args`: The arguments to pass to the Node.js command.
+
+  Returns:
+  The output of the executed command.
+*/
 fn exec_node(args) {
   try {
     return run_command("node " + args)
@@ -47,6 +72,15 @@ fn exec_node(args) {
   }
 }
 
+/**
+  Get the parent directory of a given path.
+
+  Parameters:
+  - `path_str`: The file path string.
+
+  Returns:
+  The parent directory path as a string.
+*/
 fn get_parent_dir(path_str) {
   let parts = split(path_str, "/")
   if len(parts) == 1 {
@@ -62,6 +96,15 @@ fn get_parent_dir(path_str) {
   return join(parent_parts, "/")
 }
 
+/**
+  Get the filename from a given path.
+
+  Parameters:
+  - `path_str`: The file path string.
+
+  Returns:
+  The filename as a string.
+*/
 fn get_filename(path_str) {
   let parts = split(path_str, "/")
   let last = parts[len(parts) - 1]
@@ -69,6 +112,16 @@ fn get_filename(path_str) {
   return subparts[len(subparts) - 1]
 }
 
+/**
+  Find the content of an SVG icon file given its path and the path of the extension file.
+
+  Parameters:
+  - `icon_path`: The relative or absolute path to the SVG icon.
+  - `file_path`: The path to the extension file referencing the icon.
+
+  Returns:
+  An object containing the SVG content and the resolved path if found, or `null` if not found.
+*/
 fn find_svg_content(icon_path, file_path) {
   let parent = get_parent_dir(file_path)
   let filename = get_filename(icon_path)
@@ -93,6 +146,16 @@ fn find_svg_content(icon_path, file_path) {
   return null
 }
 
+/**
+  Process the SVG icon specified in the extension manifest metadata.
+
+  Parameters:
+  - `meta`: The manifest metadata object containing the icon information.
+  - `file_path`: The path to the extension file referencing the icon.
+
+  Returns:
+  The processed icon data URI if successful, or `null` if processing failed or the icon is not an SVG.
+*/
 fn process_icon_svg(meta, file_path) {
   let icon = meta["icon"]
   if icon == null || type(icon) != "string" {
@@ -146,6 +209,15 @@ fn process_icon_svg(meta, file_path) {
 
 // --- Main CLI Commands ---
 
+/**
+  Pack an extension into a `.sesiext` file.
+
+  Parameters:
+  - `args_list`: A list of command-line arguments. The first argument should be the path to the extension JS file. The second argument (optional) is the output directory.
+
+  Returns:
+  `true` if the extension was packed successfully, `false` otherwise.
+*/
 fn pack_extension(args_list) {
   if len(args_list) < 1 {
     show "Error: pack command requires a JS file path."
@@ -242,6 +314,15 @@ fn pack_extension(args_list) {
   }
 }
 
+/**
+  Unpack a `.sesiext` extension file.
+
+  Parameters:
+  - `args_list`: A list of command-line arguments. The first argument should be the path to the `.sesiext` file. The second argument (optional) is the output directory.
+
+  Returns:
+  `true` if the extension was unpacked successfully, `false` otherwise.
+*/
 fn unpack_extension(args_list) {
   if len(args_list) < 1 {
     show "Error: unpack command requires a .sesiext file path."
@@ -305,6 +386,15 @@ fn unpack_extension(args_list) {
   }
 }
 
+/**
+  Validate a JS extension manifest.
+
+  Parameters:
+  - `args_list`: A list of command-line arguments. The first argument should be the path to the JS extension file.
+
+  Returns:
+  `true` if the extension manifest is valid, `false` otherwise.
+*/
 fn validate_extension(args_list) {
   if len(args_list) < 1 {
     show "Error: validate command requires a JS file path."
@@ -371,6 +461,12 @@ define_tool("unpack",    unpack_extension,   "Unpacks a .sesiext bundle into a J
 define_tool("validate",  validate_extension, "Validates a JS extension manifest")
 
 // --- CLI Runner ---
+
+/**
+  Run the CLI for the Sesi Extension Packager.
+  
+  This function parses the command-line arguments and invokes the appropriate tool (pack, unpack, validate) based on the user's input.
+*/
 fn run_cli() {
   if len(args) < 1 {
     show "Sesi Extension Packager CLI"

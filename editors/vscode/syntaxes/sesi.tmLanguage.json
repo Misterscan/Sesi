@@ -7,6 +7,15 @@
       "include": "#comments"
     },
     {
+      "include": "#embeddedJavaScript"
+    },
+    {
+      "include": "#embeddedPython"
+    },
+    {
+      "include": "#variables"
+    },
+    {
       "include": "#strings"
     },
     {
@@ -38,6 +47,130 @@
     }
   ],
   "repository": {
+    "embeddedJavaScript": {
+      "patterns": [
+        {
+          "name": "meta.embedded.block.javascript.sesi",
+          "contentName": "source.js.embedded.sesi",
+          "begin": "\\b(js)(\\s*\\(\\s*)(\")",
+          "beginCaptures": {
+            "1": {
+              "name": "support.function.builtin.general.sesi"
+            },
+            "2": {
+              "name": "meta.brace.round.sesi"
+            },
+            "3": {
+              "name": "punctuation.definition.string.begin.sesi"
+            }
+          },
+          "end": "(?<!\\\\)(\")(?=\\s*(?:,|\\)))",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.sesi"
+            }
+          },
+          "patterns": [
+            {
+              "include": "source.js"
+            }
+          ]
+        },
+        {
+          "name": "meta.embedded.block.javascript.sesi",
+          "contentName": "source.js.embedded.sesi",
+          "begin": "\\b(js)(\\s*\\(\\s*)(')",
+          "beginCaptures": {
+            "1": {
+              "name": "support.function.builtin.general.sesi"
+            },
+            "2": {
+              "name": "meta.brace.round.sesi"
+            },
+            "3": {
+              "name": "punctuation.definition.string.begin.sesi"
+            }
+          },
+          "end": "(?<!\\\\)(')(?=\\s*(?:,|\\)))",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.sesi"
+            }
+          },
+          "patterns": [
+            {
+              "include": "source.js"
+            }
+          ]
+        }
+      ]
+    },
+    "embeddedPython": {
+      "patterns": [
+        {
+          "name": "meta.embedded.block.python.sesi",
+          "contentName": "source.python.embedded.sesi",
+          "begin": "\\b(python)(\\s*\\(\\s*)(\")",
+          "beginCaptures": {
+            "1": {
+              "name": "support.function.builtin.general.sesi"
+            },
+            "2": {
+              "name": "meta.brace.round.sesi"
+            },
+            "3": {
+              "name": "punctuation.definition.string.begin.sesi"
+            }
+          },
+          "end": "(?<!\\\\)(\")(?=\\s*(?:,|\\)))",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.sesi"
+            }
+          },
+          "patterns": [
+            {
+              "include": "source.python"
+            }
+          ]
+        },
+        {
+          "name": "meta.embedded.block.python.sesi",
+          "contentName": "source.python.embedded.sesi",
+          "begin": "\\b(python)(\\s*\\(\\s*)(')",
+          "beginCaptures": {
+            "1": {
+              "name": "support.function.builtin.general.sesi"
+            },
+            "2": {
+              "name": "meta.brace.round.sesi"
+            },
+            "3": {
+              "name": "punctuation.definition.string.begin.sesi"
+            }
+          },
+          "end": "(?<!\\\\)(')(?=\\s*(?:,|\\)))",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.sesi"
+            }
+          },
+          "patterns": [
+            {
+              "include": "source.python"
+            }
+          ]
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.other.environment.sesi",
+          "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*"
+        }
+      ]
+    },
     "comments": {
       "patterns": [
         {
@@ -54,10 +187,13 @@
     "strings": {
       "patterns": [
         {
-          "name": "string.quoted.double.sesi",
+          "name": "variable.parameter.string.quoted.double.sesi",
           "begin": "\"",
           "end": "\"",
           "patterns": [
+            {
+              "include": "#sequenceGridCells"
+            },
             {
               "name": "constant.character.escape.sesi",
               "match": "\\\\."
@@ -65,15 +201,64 @@
           ]
         },
         {
-          "name": "string.quoted.single.sesi",
+          "name": "variable.parameter.string.quoted.single.sesi",
           "begin": "'",
           "end": "'",
           "patterns": [
+            {
+              "include": "#sequenceGridCells"
+            },
             {
               "name": "constant.character.escape.sesi",
               "match": "\\\\."
             }
           ]
+        }
+      ]
+    },
+    "sequenceGridCells": {
+      "patterns": [
+        {
+          "match": "(\\[)(x)(\\])",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.sequence-grid.begin.sesi"
+            },
+            "2": {
+              "name": "constant.numeric.sequence-grid.hit.sesi"
+            },
+            "3": {
+              "name": "punctuation.definition.sequence-grid.end.sesi"
+            }
+          }
+        },
+        {
+          "match": "(\\[)(X)(\\])",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.sequence-grid.begin.sesi"
+            },
+            "2": {
+              "name": "constant.language.sequence-grid.accent.sesi"
+            },
+            "3": {
+              "name": "punctuation.definition.sequence-grid.end.sesi"
+            }
+          }
+        },
+        {
+          "match": "(\\[)([ .-])(\\])",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.sequence-grid.begin.sesi"
+            },
+            "2": {
+              "name": "comment.block.sequence-grid.rest.sesi"
+            },
+            "3": {
+              "name": "punctuation.definition.sequence-grid.end.sesi"
+            }
+          }
         }
       ]
     },
@@ -115,7 +300,7 @@
         },
         {
           "name": "constant.other.property.sesi",
-          "match": "\\b(temperature|temp|max_tokens|maxTokens|maxT|top_p|top_k|thinkingLevel|thinking|cache|search|ratio|aspectRatio|size|output_type|file_type|max_retries|stream|stop|seed|summary|tags|base_path|response|title|version|description|browser|editor|viewer|image_viewer|mode)\\b"
+          "match": "\\b(system|system_prompt|systemPrompt|temperature|temp|max_tokens|maxTokens|maxT|top_p|topP|topK|top_k|thinkingLevel|thinking|effort|reasoning|cache|cached|search|grounding|images|imgs|img_refs|imgRefs|imgRatio|imageRatio|ratio|aspectRatio|size|imgSize|image_size|resolution|duration_seconds|negative_prompt|negativePrompt|generate_audio|generateAudio|poll_interval|pollInterval|task|tool|tool_config|tool_schema|toolSchemas|max_tool_calls|maxToolCalls|output_type|file_type|max_retries|stream|stop|seed|summary|tags|base_path|response|title|version|description|browser|editor|viewer|image_viewer|mode)\\b"
         },
         {
           "name": "keyword.declaration.sesi",
@@ -147,7 +332,7 @@
         },
         {
           "name": "constant.other.math.sesi",
-          "match": "\\b(PI|E|INFINITY|NaN)\\b"
+          "match": "\\b(E|LN10|LN2|LOG10E|LOG2E|PI|SQRT1_2|SQRT2|INFINITY|NaN)\\b"
         }
       ]
     },
@@ -159,7 +344,7 @@
         },
         {
           "name": "support.function.builtin.general.sesi",
-          "match": "\\b(show|memory|memory_search|memory_trim|prompt|structured_output|tool_call|define_tool|web_send|web_get|list_tools|error_type|raise_error|multi_req|args|len|range|type|str|num|float|bool|keys|values|push|append|pop|join|split|regex|tokenize|count_tokens|estimate_tokens|estimate_cost|model_usage|gif|video|ffmpeg|matrix_dot|matrix_transpose|matrix_add|matrix_sub|matrix_mul_elements|matrix_scale|matrix_sigmoid|matrix_dsigmoid|matrix_sum_rows|matrix_mse|to_upper|to_lower|trim|slice|swap|contains|locate|map|filter|reduce|find|retry|lazy|force|timeout|profile|profile_start|profile_end|profile_report|encrypt|decrypt|read_file|write_file|append_file|write_image|open|open_file|convert|encode|decode|list_dir|make_dir|rename|archive|zip|exists|get_ext|trash|spawn|exec|run|sesi|python|js|html|time|env|random|exp|trunc|sin|cos|tan|sqrt|floor|ceil|abs|pow|log|now|sleep|format|to_json|from_json|speech|from_speech|translate|listen|api|create_app|get|post|put|delete|patch|head|use|live|db_open|launch|newPage|goto|content|screenshot|pdf|click|fill|type|press|inner_text|attribute|evaluate|wait_for_selector|wait_for_timeout|input|play|beep|synth|save|load|kick|snare|hat|sequence|midi|render|comp|mix|sf2|chord|scale|transpose|duration|bar|clear|cursor|color|background|rgb|rgbBackground|write|eraseLine|eraseScreen|move|up|down|left|right|saveCursor|restoreCursor|hideCursor|showCursor|title|bell|size|create|add|rule|build|url|circle|rect|line|pixel|pixel_grid|text|save_svg|save_png|ellipse|polygon|path|gradient|style|raw|name|arity|is_function|is_array|is_object|is_string|is_number|is_bool|is_null|length|starts_with|ends_with|index_of|repeat|includes|reverse|sort|unique|flatten)\\b"
+          "match": "\\b(show|memory|memory_search|memory_trim|prompt|structured_output|tool_call|define_tool|web_send|web_get|list_tools|error_type|raise_error|multi_req|args|len|range|type|str|num|float|bool|keys|values|push|append|pop|join|split|regex|tokenize|count_tokens|estimate_tokens|estimate_cost|model_usage|gif|video|ffmpeg|matrix_dot|matrix_transpose|matrix_add|matrix_sub|matrix_mul_elements|matrix_scale|matrix_sigmoid|matrix_dsigmoid|matrix_sum_rows|matrix_mse|to_upper|to_lower|trim|slice|swap|contains|locate|map|filter|reduce|find|retry|lazy|force|timeout|profile|profile_start|profile_end|profile_report|encrypt|decrypt|read_file|write_file|append_file|write_image|open|open_file|convert|encode|decode|list_dir|make_dir|rename|archive|zip|exists|get_ext|trash|spawn|exec|run|sesi|python|js|html|time|env|random|abs|acos|acosh|asin|asinh|atan|atanh|atan2|cbrt|ceil|clz32|cos|cosh|exp|expm1|floor|fround|hypot|imul|log|log1p|log2|log10|max|min|pow|round|sign|sin|sinh|sqrt|tan|tanh|trunc|now|sleep|format|to_json|from_json|speech|from_speech|translate|listen|api|create_app|get|post|put|delete|patch|head|use|live|db_open|launch|newPage|goto|content|screenshot|pdf|click|fill|type|press|inner_text|attribute|evaluate|wait_for_selector|wait_for_timeout|input|play|beep|synth|save|load|kick|snare|hat|sequence|midi|render|comp|mix|sf2|chord|scale|transpose|duration|bar|clear|cursor|color|background|rgb|rgbBackground|write|eraseLine|eraseScreen|move|up|down|left|right|saveCursor|restoreCursor|hideCursor|showCursor|title|bell|size|circle|rect|line|pixel|pixel_grid|pixel_rect|pixel_circle|pixel_line|pixel_ellipse|pixel_polygon|pixel_triangle|pixel_star|pixel_ring|pixel_arc|pixel_bezier|pixel_text|text|save_svg|save_png|ellipse|polygon|path|gradient|style|raw|name|arity|is_function|is_array|is_object|is_string|is_number|is_bool|is_null|length|starts_with|ends_with|index_of|repeat|includes|reverse|sort|unique|flatten|vec2|vec3|quat|create_scene|activate_scene|enable_physics|add_body|raycast)\\b"
         }
       ]
     },
@@ -173,6 +358,10 @@
     },
     "operators": {
       "patterns": [
+        {
+          "name": "keyword.operator.ternary.sesi",
+          "match": "(\\?\\.|\\?|:)"
+        },
         {
           "name": "keyword.operator.arrow.sesi",
           "match": "->"

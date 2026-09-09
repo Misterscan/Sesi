@@ -1,0 +1,1028 @@
+/**
+    Miscellaneous utility functions.
+
+    This module provides various utility functions for string manipulation, file handling, UUID generation, and more.
+*/
+
+allow "string" in with {
+    randomize,
+    substring, match, 
+    toKebab, toPascal
+}
+allow "network" in with {ping}
+
+/**
+  Return the supplied string content with its lines separated by newline
+  characters.
+
+  Parameters:
+  - `contents`: The string content whose lines should be returned.
+
+  Returns:
+  - A string containing the original lines, each followed by a newline
+    character.
+
+  Example:
+  ```sesi
+  let content = "first line\nsecond line"
+  let lines = getLines(content)
+  show lines
+  ```
+
+  Notes:
+  - The returned string includes a trailing newline after the final line.
+*/
+export fn getLines(contents: string) -> string {
+    let lines = split(contents, "\n")
+    let result = ""
+    for line in lines {
+        result = result + line + "\n"
+    }
+    return result
+}
+
+/**
+  Find the one-based line number of a specific line in string content.
+
+  Parameters:
+  - `contents`: The string content to search.
+  - `line`: The exact line to locate.
+
+  Returns:
+  - The one-based line number of the first matching line.
+  - `-1` if the specified line is not found.
+
+  Example:
+  ```sesi
+  let content = "alpha\nbeta\ngamma"
+  let lineNumber = getLineNumber(content, "beta")
+  show lineNumber
+  ```
+
+  Notes:
+  - Matching is exact and case-sensitive.
+  - The first matching occurrence is returned.
+*/
+export fn getLineNumber(contents: string, line: string) -> number {
+    let lines = split(contents, "\n")
+    for i in range(len(lines)) {
+        if lines[i] == line {
+            return i + 1
+        }
+    }
+    return -1 // Line not found
+}
+
+/**
+  Find the one-based line number of a specific line in a file.
+
+  Parameters:
+  - `filePath`: The path to the file to read and search.
+  - `line`: The exact line to locate.
+
+  Returns:
+  - The one-based line number of the first matching line.
+  - `-1` if the line is not found.
+
+  Example:
+  ```sesi
+  let lineNumber = getLineNumberFromFile("README.md", "## Installation")
+  show lineNumber
+  ```
+
+  Notes:
+  - The file is read as UTF-8 text.
+  - File-reading errors are propagated to the caller.
+*/
+export fn getLineNumberFromFile(filePath: string, line: string) -> number {
+    let contents = read_file(filePath)
+    return getLineNumber(contents, line)
+}
+
+/**
+  Read a file and return its lines separated by newline characters.
+
+  Parameters:
+  - `filePath`: The path to the file to read.
+
+  Returns:
+  - A string containing the file's lines, each followed by a newline
+    character.
+
+  Example:
+  ```sesi
+  let contents = getLinesFromFile("notes.txt")
+  show contents
+  ```
+
+  Notes:
+  - The returned string includes a trailing newline after the final line.
+  - File-reading errors are propagated to the caller.
+*/
+export fn getLinesFromFile(filePath: string) -> string {
+    let contents = read_file(filePath)
+    return getLines(contents)
+}
+
+/**
+  Count the number of lines in string content.
+
+  Parameters:
+  - `contents`: The string content whose lines should be counted.
+
+  Returns:
+  - The number of lines obtained by splitting the content on newline
+    characters.
+
+  Example:
+  ```sesi
+  let count = getLineCount("one\ntwo\nthree")
+  show count
+  ```
+
+  Notes:
+  - The function relies on `getLines` to split the content into lines.
+  - Lines are separated using the newline character `"\n"`.
+*/
+export fn getLineCount(contents: string) -> number {
+    let lines = getLines(contents)
+    return len(lines)
+}
+
+/**
+  Count the number of lines in a file.
+
+  Parameters:
+  - `filePath`: The path to the file to read.
+
+  Returns:
+  - The number of lines in the file.
+
+  Example:
+  ```sesi
+  let count = getLineCountFromFile("README.md")
+  show "Line count:" count
+  ```
+
+  Notes:
+  - The file is read as UTF-8 text.
+  - File-reading errors are propagated to the caller.
+*/
+export fn getLineCountFromFile(filePath: string) -> number {
+    let contents = read_file(filePath)
+    return getLineCount(contents)
+}
+
+/**
+  Check whether a string is a valid version-four UUID.
+
+  Parameters:
+  - `uuid`: The string to validate.
+
+  Returns:
+  - `true` if the value matches the UUID v4 format.
+  - `false` otherwise.
+
+  Example:
+  ```sesi
+  let valid = isValidUUID("550e8400-e29b-41d4-a716-446655440000")
+  show valid
+  ```
+
+  Notes:
+  - Validation is case-insensitive for hexadecimal digits.
+  - The version digit must be `4`.
+  - The variant must begin with `8`, `9`, `a`, or `b`.
+*/
+export fn isValidUUID(uuid: string) -> bool {
+    return regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[4][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$", uuid, {"mode": "match", "flags": "g"}) != []
+}
+
+/**
+  Generate a random version-four UUID.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - A string containing a randomly generated UUID v4.
+
+  Example:
+  ```sesi
+  let uuid = generateUUID()
+  show uuid
+  ```
+
+  Notes:
+  - The generated value uses the standard UUID layout with hyphens.
+  - The version and variant bits are set to UUID v4-compatible values.
+*/
+export fn generateUUID() -> string {
+    let hexDigits = "0123456789abcdef"
+    let variantDigits = "89ab"
+    let uuid = ""
+    
+    for i in range(36) {
+        if i == 8 || i == 13 || i == 18 || i == 23 {
+            uuid = uuid + "-"
+        } else if i == 14 {
+            uuid = uuid + "4" // UUID v4 version bit
+        } else if i == 19 {
+            // Variant must be 8, 9, a, or b
+            let rand = randomize(0, 3)
+            uuid = uuid + substring(variantDigits, rand, rand)
+        } else {
+            let rand = randomize(0, 15)
+            uuid = uuid + substring(hexDigits, rand, rand)
+        }
+    }
+    return uuid
+}
+
+/**
+  Generate a version-four UUID using the explicit UUID v4 helper name.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - A string containing a randomly generated UUID v4.
+
+  Example:
+  ```sesi
+  let uuid = generateUUIDv4()
+  show uuid
+  ```
+
+  Notes:
+  - This function delegates UUID generation to `generateUUID`.
+*/
+export fn generateUUIDv4() -> string {
+    return generateUUID()
+}
+
+/**
+  Generate a JSON representation of package metadata.
+
+  Parameters:
+  - `name`: The package name.
+  - `version`: The package version.
+  - `description`: A description of the package.
+  - `main`: The package's main entry-point file.
+  - `author`: The package author or owner.
+  - `license`: The package license identifier.
+
+  Returns:
+  - A JSON string containing the supplied package metadata.
+
+  Example:
+  ```sesi
+  let packageText = generatePkgJSON(
+    "example-project",
+    "1.0.0",
+    "An example project.",
+    "index.js",
+    "Ada Lovelace",
+    "MIT"
+  )
+  write_file("package.json", packageText)
+  ```
+
+  Notes:
+  - The returned value is valid, formatted JSON generated with `to_json`.
+  - The output object contains `name`, `version`, `description`, `main`,
+    `author`, and `license` fields.
+*/
+export fn generatePkgJSON(name: string, version: string, description: string, main: string, author: string, license: string) -> object {
+    let pkg = {
+        "name": name,
+        "version": version,
+        "description": description,
+        "main": main,
+        "author": author,
+        "license": license
+    }
+    return pkg | to_json
+}
+
+/**
+  Generate Markdown content for a README file.
+
+  Parameters:
+  - `title`: The project title.
+  - `description`: A short project description.
+  - `body`: The main body content.
+  - `installation`: Installation instructions.
+  - `usage`: Usage instructions.
+
+  Returns:
+  - A string containing README Markdown content.
+
+  Example:
+  ```sesi
+  let readme = generateReadMe(
+    "Example Project",
+    "A sample Sesi project.",
+    "Project details go here.",
+    "npm install",
+    "npm run start"
+  )
+  write_file("README.md", readme)
+  ```
+
+  Notes:
+  - The result includes title, description, Installation, and Usage sections.
+  - The installation and usage values are placed inside Bash code fences.
+*/
+export fn generateReadMe(title: string, description: string, body: string, installation: string, usage: string) -> string {
+    prompt contents {"# "title"
+"description"
+----
+
+## Installation
+
+```bash
+" installation "
+```
+
+" body "
+----
+
+## Usage
+
+```bash
+" usage "
+```
+----
+"}
+
+    return contents
+}
+
+/**
+  Generate content for a `.gitignore` file.
+
+  Parameters:
+  - `contents`: The ignore rules to include.
+
+  Returns:
+  - A string containing a generated `.gitignore` file.
+
+  Example:
+  ```sesi
+  let ignored = generateGitIgnore("node_modules/\n.env\n")
+  write_file(".gitignore", ignored)
+  ```
+
+  Notes:
+  - A generated-file heading is added before the supplied rules.
+*/
+export fn generateGitIgnore(contents: string) -> string {
+    prompt gitignore {"# Generated .gitignore file
+
+" contents "
+"}
+
+    return gitignore
+}
+
+/**
+  Generate a license document header and placeholder text.
+
+  Parameters:
+  - `name`: The copyright holder's name.
+  - `year`: The copyright year.
+  - `license`: The license identifier, such as `"MIT"` or `"Apache-2.0"`.
+
+  Returns:
+  - A string containing a license heading, copyright notice, and
+    license-specific introductory text.
+
+  Example:
+  ```sesi
+  let licenseText = generateLicense("Ada Lovelace", "2026", "MIT")
+  write_file("LICENSE", licenseText)
+  ```
+
+  Notes:
+  - Recognized licenses include MIT, Apache-2.0, GPL-3.0, BSD-3-Clause,
+    MPL-2.0, AGPL-3.0, LGPL-3.0, EPL-2.0, Unlicense, CC0-1.0, and
+    Proprietary.
+  - Unknown license identifiers produce an empty license body.
+  - The generated text is a template and may need to be replaced with the
+    complete official license text.
+*/
+export fn generateLicense(name: string, year: string, license: string) -> string {
+    let licensePlaceholder = ""
+    if license == "MIT" {
+        licensePlaceholder = "Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+        "
+    }
+    if license == "Apache-2.0" {
+        licensePlaceholder = "Licensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+        "
+    }
+    if license == "GPL-3.0" {
+        licensePlaceholder = "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+        "
+    }
+    if license == "BSD-3-Clause" {
+        licensePlaceholder = "Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+        "
+    }
+    if license == "MPL-2.0" {
+        licensePlaceholder = "This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+        "
+    }
+    if license == "AGPL-3.0" {
+        licensePlaceholder = "This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+        "
+    }
+    if license == "LGPL-3.0" {
+        licensePlaceholder = "This program is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+        "
+    }
+    if license == "EPL-2.0" {
+        licensePlaceholder = "This program and the accompanying materials are made available under the terms of the Eclipse Public License 2.0 which is available at https://www.eclipse.org/legal/epl-2.0/.
+        "
+    } else if license == "Unlicense" {
+        licensePlaceholder = "This is free and unencumbered software released into the public domain.
+        "
+    } else if license == "CC0-1.0" {
+        licensePlaceholder = "The person who associated a work with this deed has dedicated the work to the public domain by waiving all of his or her rights to the work worldwide under copyright law, including all related and neighboring rights, to the extent allowed by law.
+        "
+    } else if license == "Proprietary" {
+        licensePlaceholder = "All rights reserved. This software is proprietary and confidential. Unauthorized copying of this file, via any medium is strictly prohibited.
+        "
+    } else if license == "" {
+        licensePlaceholder = "No license specified. All rights reserved.
+        "
+    }
+
+    prompt licenseText {"# "license" License
+    
+Copyright (c) " year " " name "
+
+"licensePlaceholder"
+(if applicable, include the full text of the license here)
+"}
+
+    return licenseText
+}
+
+/**
+  Generate README content with an appended license section.
+
+  Parameters:
+  - `title`: The project title.
+  - `description`: A short project description.
+  - `body`: The main body content.
+  - `installation`: Installation instructions.
+  - `usage`: Usage instructions.
+  - `license`: The license identifier.
+  - `name`: The copyright holder's name.
+  - `year`: The copyright year.
+
+  Returns:
+  - A string containing complete README Markdown content with license text.
+
+  Example:
+  ```sesi
+  let readme = generateReadMeWithLicense(
+    "Example Project",
+    "A sample project.",
+    "Project details.",
+    "npm install",
+    "npm start",
+    "MIT",
+    "Ada Lovelace",
+    "2026"
+  )
+  write_file("README.md", readme)
+  ```
+
+  Notes:
+  - The license text is generated by `generateLicense`.
+  - The license section is appended to the usage content.
+*/
+export fn generateReadMeWithLicense(title: string, description: string, body: string, installation: string, usage: string, license: string, name: string, year: string) -> string {
+    let licenseText = generateLicense(name, year, license)
+    let readme = generateReadMe(title, description, body, installation, usage + "\n" + licenseText + "----")
+    return readme
+}
+
+/**
+  Generate content for a `requirements.txt` file.
+
+  Parameters:
+  - `contents`: Package requirements to include.
+
+  Returns:
+  - A string containing a generated requirements file.
+
+  Example:
+  ```sesi
+  let requirements = generateRequirements("requests\nnumpy\n")
+  write_file("requirements.txt", requirements)
+  ```
+
+  Notes:
+  - A generated-file heading is added before the supplied requirements.
+*/
+export fn generateRequirements(contents: string) -> string {
+    prompt requirements {"# Generated requirements.txt file
+" contents}
+
+    return requirements
+}
+
+/**
+  Generate an example `.env` file from environment-variable names.
+
+  Parameters:
+  - `envKeys`: An array of environment-variable names.
+
+  Returns:
+  - A string containing one placeholder assignment per environment-variable
+    name.
+
+  Example:
+  ```sesi
+  let example = generateEnvExample(["API_URL", "API_KEY", "DATABASE_PASSWORD"])
+  write_file(".env.example", example)
+  ```
+
+  Notes:
+  - All placeholders receive a `your_` prefix.
+  - Names containing `"KEY"` receive a `_here` placeholder.
+  - Other names receive a `_key_here` placeholder.
+  - Each assignment is terminated with a newline.
+*/
+export fn generateEnvExample(envKeys: array) -> string {
+    let envExample = ""
+    for key in envKeys {
+        if !contains(key, "KEY") {
+            envExample = envExample + key + "=your_" + to_lower(key) + "_key_here\n"
+        } else if contains(key, "KEY") {
+            envExample = envExample + key + "=your_" + to_lower(key) + "_here\n"
+        } else {
+            envExample = envExample
+        }
+    }
+    return envExample
+}
+
+/**
+  Create a project template object containing generated metadata and files.
+
+  Parameters:
+  - `title`: The project title.
+  - `description`: A description of the project.
+  - `name`: The project owner or copyright holder.
+  - `directory`: The parent directory in which the project directory will be
+    created.
+  - `licenseType`: The project license identifier.
+
+  Returns:
+  - A `Project` instance containing generated project metadata, file content,
+    and methods for previewing and scaffolding the project.
+
+  Example:
+  ```sesi
+  let project = Project(
+    "Example Project",
+    "A sample project.",
+    "Ada Lovelace",
+    "projects",
+    "MIT"
+  )
+  project.preview()
+  ```
+
+  Fields:
+  - `title`: The project title.
+  - `description`: The project description.
+  - `name`: The project owner or copyright holder.
+  - `directory`: The kebab-case parent directory.
+  - `projectName`: The PascalCase generated project name.
+  - `licenseType`: The selected license, defaulting to `"MIT"`.
+  - `README`: Generated README content.
+  - `LICENSE`: Generated license content.
+  - `gitignore`: Generated `.gitignore` content.
+  - `requirements`: Generated `requirements.txt` content.
+  - `envExample`: Generated `.env.example` content.
+  - `pkgJSON`: Generated `package.json` JSON text.
+
+  Notes:
+  - The constructor generates file contents but does not create files on disk.
+  - Call `scaffold()` before calling `createFiles()`.
+*/
+export make Project {
+    let title = ""
+    let description = ""
+    let name = ""
+    let directory = "" 
+    let projectName = ""
+    let licenseType = ""    
+    let README = ""
+    let LICENSE = ""
+    let gitignore = ""
+    let requirements = ""
+    let envExample = ""
+    let pkgJSON = ""
+
+    /**
+     * Initialize a project instance with metadata and generated file contents.
+     *
+     * Parameters:
+     * - `self`: The `Project` instance being initialized.
+     * - `title`: The project title.
+     * - `description`: The project description.
+     * - `name`: The project owner or copyright holder.
+     * - `directory`: The parent directory for the project.
+     * - `licenseType`: The project license identifier.
+     *
+     * Returns:
+     * - None.
+     *
+     * Example:
+     * ```sesi
+     * let project = Project("Example", "Description", "Ada", "projects", "MIT")
+     * project.preview()
+     * ```
+     *
+     * Notes:
+     * - The directory is converted to kebab-case.
+     * - The project name is converted to PascalCase.
+     * - An empty or null license defaults to `"MIT"`.
+     * - Generated files include README, LICENSE, `.gitignore`, requirements,
+     *   `.env.example`, and `package.json`.
+     */
+    fn start(self, title: string, description: string, name: string, directory: string, licenseType: string) {
+        self.title = title
+        self.description = description
+        self.name = name
+        self.directory = directory | toKebab
+        self.projectName = title | toPascal
+        self.licenseType = licenseType
+        if self.licenseType == "" || self.licenseType | is_null {
+            self.licenseType = "MIT"
+        }
+
+        self.README = generateReadMe(self.title, self.description, "Project Body", "Installation Instructions", "Usage Instructions")
+        self.LICENSE = generateLicense(self.name, "2026", self.licenseType)
+        self.gitignore = generateGitIgnore("node_modules/\n.env\n.DS_Store\n")
+        self.requirements = generateRequirements("requests\nflask\nnumpy\n")
+        self.envExample = generateEnvExample(["DB_HOST", "DB_USER", "DB_PASSWORD", "API_KEY", "SECRET_KEY"])        
+        self.pkgJSON = generatePkgJSON(self.projectName, "1.0.0", self.description, "index.js", self.name, self.licenseType)
+    }
+
+    /**
+     * Display the basic metadata of a project instance.
+     *
+     * Parameters:
+     * - `self`: The `Project` instance to display.
+     *
+     * Returns:
+     * - None.
+     *
+     * Example:
+     * ```sesi
+     * let project = Project("Example", "Description", "Ada", "projects", "MIT")
+     * project.preview()
+     * ```
+     *
+     * Notes:
+     * - Information is written to standard output.
+     * - Generated file contents are not displayed by this method.
+     */
+    fn preview(self) {
+        show "Project Title: " self.title
+        show "Project Description: " self.description
+        show "Project Name: " self.projectName
+        show "Project Directory: " self.directory
+        show "License Type: " self.licenseType
+    }
+
+    /**
+     * Display the generated content of one project file.
+     *
+     * Parameters:
+     * - `self`: The `Project` instance containing generated files.
+     * - `file`: The project filename to preview, such as `"README.md"` or
+     *   `"package.json"`.
+     *
+     * Returns:
+     * - None.
+     *
+     * Example:
+     * ```sesi
+     * let project = Project("Example", "Description", "Ada", "projects", "MIT")
+     * project.previewFile("README.md")
+     * ```
+     *
+     * Notes:
+     * - Supported files are `README.md`, `LICENSE`, `.gitignore`,
+     *   `requirements.txt`, `.env.example`, and `package.json`.
+     * - Unknown filenames produce a not-found message.
+     */
+    fn previewFile(self, file: string) {
+        if file == "README.md" {
+            show self.README
+        } else if file == "LICENSE" {
+            show self.LICENSE
+        } else if file == ".gitignore" {
+            show self.gitignore
+        } else if file == "requirements.txt" {
+            show self.requirements
+        } else if file == ".env.example" {
+            show self.envExample
+        } else if file == "package.json" {
+            show self.pkgJSON
+        } else {
+            show "File not found in project scaffolding."
+        }
+    }
+
+    /**
+     * Create the project directory on disk.
+     *
+     * Parameters:
+     * - `self`: The `Project` instance whose directory should be created.
+     *
+     * Returns:
+     * - None.
+     *
+     * Example:
+     * ```sesi
+     * let project = Project("Example", "Description", "Ada", "projects", "MIT")
+     * project.scaffold()
+     * ```
+     *
+     * Notes:
+     * - The path is constructed from `directory` and `projectName`.
+     * - Directory creation errors are caught and reported.
+     * - This method does not create the project files.
+     */
+    fn scaffold(self) {
+        let projectPath = self.directory + "/" + self.projectName
+        try {
+            make_dir(projectPath)
+            show "Project directory created at:" projectPath
+        } catch (e) {
+            show "Error creating project directory:" e
+            return
+        }
+    }
+
+    /**
+     * Write all generated project files into the project directory.
+     *
+     * Parameters:
+     * - `self`: The `Project` instance containing the generated file contents.
+     *
+     * Returns:
+     * - None.
+     *
+     * Example:
+     * ```sesi
+     * let project = Project("Example", "Description", "Ada", "projects", "MIT")
+     * project.scaffold()
+     * project.createFiles()
+     * ```
+     *
+     * Notes:
+     * - The project directory should be created with `scaffold()` first.
+     * - Existing files with the same names are overwritten.
+     * - File-writing errors are caught and reported.
+     */
+    fn createFiles(self) {
+        let projectPath = self.directory + "/" + self.projectName
+        try {
+            write_file(projectPath + "/README.md", self.README)
+            write_file(projectPath + "/LICENSE", self.LICENSE)
+            write_file(projectPath + "/.gitignore", self.gitignore)
+            write_file(projectPath + "/requirements.txt", self.requirements)
+            write_file(projectPath + "/.env.example", self.envExample)
+            write_file(projectPath + "/package.json", self.pkgJSON)
+            show "Project files created successfully."
+        } catch (e) {
+            show "Error creating project files:" e
+        }
+    }
+}
+
+/**
+  Validate whether a string has a valid email-address format.
+
+  Parameters:
+  - `email`: The email address to validate.
+
+  Returns:
+  - `true` if the email matches the supported format.
+  - `false` otherwise.
+
+  Example:
+  ```sesi
+  let valid = isValidEmail("user@example.com")
+  show valid
+  ```
+
+  Notes:
+  - Validation uses a regular expression.
+  - The function checks syntax only; it does not verify that the address
+    exists.
+*/
+export fn isValidEmail(email: string) -> bool {
+    return regex("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$", email, {"mode": "match", "flags": "g"}) != []
+}
+
+/**
+  Validate whether a string has a valid HTTP, HTTPS, or FTP URL format.
+
+  Parameters:
+  - `url`: The URL to validate.
+
+  Returns:
+  - `true` if the URL matches the supported URL format and is reachable.
+  - `false` otherwise.
+
+  Example:
+  ```sesi
+  let valid = isValidURL("https://example.com/docs")
+  show valid
+  ```
+
+  Notes:
+  - Supported schemes are `http`, `https`, and `ftp`.
+  - The function also performs a network request to verify that the URL is reachable.
+*/
+export fn isValidURL(url: string) -> bool {
+    if regex("^(https?|ftp)://[^\\s/$.?#].[^\\s]*$", url, {"mode": "match", "flags": "g"}) != [] && web_get(url) != null {
+        return true
+    }
+    return false
+}
+
+/**
+  Validate whether a string has a valid international phone-number format.
+
+  Parameters:
+  - `phone`: The phone number to validate.
+
+  Returns:
+  - `true` if the phone number matches the supported format.
+  - `false` otherwise.
+
+  Example:
+  ```sesi
+  let valid = isValidPhoneNumber("+14155552671")
+  show valid
+  ```
+
+  Notes:
+  - The format follows a simplified E.164-style pattern.
+  - It permits an optional leading plus sign and one to fifteen digits.
+*/
+export fn isValidPhoneNumber(phone: string) -> bool {
+    return regex("^\\+?[1-9]\\d{1,14}$", phone, {"mode": "match", "flags": "g"}) != []
+}
+
+/**
+  Validate whether a string is a valid IPv4 address.
+
+  Parameters:
+  - `ip`: The IPv4 address to validate.
+
+  Returns:
+  - `true` if the address matches four numeric octets and is reachable.
+  - `false` otherwise.
+
+  Example:
+  ```sesi
+  let valid = isValidIPv4("192.168.1.1")
+  show valid
+  ```
+
+  Notes:
+  - Each octet is constrained to the range 0 through 255 by the regular
+    expression.
+  - The function also performs a network request to verify that the IP is reachable.
+*/
+export fn isValidIPv4(ip: string) -> bool {
+    if regex("^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$", ip, {"mode": "match", "flags": "g"}) != [] && ping(ip) {
+        return true
+    }
+    return false
+}
+
+/**
+  Validate whether a string is a complete eight-group IPv6 address.
+
+  Parameters:
+  - `ip`: The IPv6 address to validate.
+
+  Returns:
+  - `true` if the address contains eight hexadecimal groups and is reachable.
+  - `false` otherwise.
+
+  Example:
+  ```sesi
+  let valid = isValidIPv6("2001:0db8:0000:0000:0000:ff00:0042:8329")
+  show valid
+  ```
+
+  Notes:
+  - This validator accepts the full eight-group form.
+  - Compressed IPv6 notation using `::` is not accepted.
+  - The function also performs a network request to verify that the IP is reachable.
+*/
+export fn isValidIPv6(ip: string) -> bool {
+    if regex("^(?:[a-fA-F0-9]{1,4}:){7}[a-fA-F0-9]{1,4}$", ip, {"mode": "match", "flags": "g"}) != [] && ping(ip) {
+        return true
+    }
+    return false
+}
+
+/**
+  Validate whether a string is a three- or six-digit hexadecimal color code.
+
+  Parameters:
+  - `color`: The color value to validate, with or without a leading `#`.
+
+  Returns:
+  - `true` if the color matches three or six hexadecimal digits.
+  - `false` otherwise.
+
+  Example:
+  ```sesi
+  let valid = isValidHexColor("#1a2b3c")
+  show valid
+  ```
+
+  Notes:
+  - Hexadecimal letters are case-insensitive.
+  - Alpha-channel formats are not accepted.
+*/
+export fn isValidHexColor(color: string) -> bool {
+    return regex("^#?([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$", color, {"mode": "match", "flags": "g"}) != []
+}
+
+/**
+  Validate whether a string follows the `YYYY-MM-DD`/`YYYY/MM/DD` date format or the `DD/MM/YYYY`/`DD-MM-YYYY` date format.
+
+  Parameters:
+  - `date`: The date string to validate.
+
+  Returns:
+  - `true` if the value matches either the `YYYY-MM-DD`/`YYYY/MM/DD` format or the `DD/MM/YYYY`/`DD-MM-YYYY` format.
+  - `false` otherwise.
+
+  Example:
+  ```sesi
+  let valid = isValidDate("2026-08-30")
+  show valid
+  ```
+
+  Notes:
+  - The regular expression checks formatting but does not verify calendar
+    validity, such as month length or leap years.
+*/
+export fn isValidDate(date: string) -> bool {
+    let checked = false
+    if regex("^\\d{4}-\\d{2}-\\d{2}$", date, {"mode": "match", "flags": "g"}) != [] {
+        checked = true
+    } else if regex("^\\d{4}/\\d{2}/\\d{2}$", date, {"mode": "match", "flags": "g"}) != [] {
+        checked = true
+    } else if regex("^\\d{2}-\\d{2}-\\d{4}$", date, {"mode": "match", "flags": "g"}) != [] {
+        checked = true
+    } else if regex("^\\d{2}/\\d{2}/\\d{4}$", date, {"mode": "match", "flags": "g"}) != [] {
+        checked = true
+    }
+    return checked
+}
+
+/**
+  Validate whether a string follows a 24-hour `HH:MM` time format.
+
+  Parameters:
+  - `time`: The time string to validate.
+
+  Returns:
+  - `true` if the value represents an hour from `00` through `23` and minutes
+    from `00` through `59`.
+  - `false` otherwise.
+
+  Example:
+  ```sesi
+  let valid = isValidTime("14:30")
+  show valid
+  ```
+
+  Notes:
+  - A one-digit hour is accepted.
+  - Seconds and timezone offsets are not accepted.
+*/
+export fn isValidTime(time: string) -> bool {
+    return regex("^([01]?[0-9]|2[0-3]):[0-5][0-9]$", time, {"mode": "match", "flags": "g"}) != []
+}

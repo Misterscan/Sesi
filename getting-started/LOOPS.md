@@ -57,7 +57,7 @@ The loop variable (`name` above) is scoped to the block body.
 Combine `for ... in` with `keys()` to walk an object's entries:
 
 ```sesi
-let config = {"theme": "dark", "limit": 20, "debug": false}
+let config = {theme: "dark", limit: 20, debug: false}
 
 for key in keys(config) {
   show key ":" config[key]

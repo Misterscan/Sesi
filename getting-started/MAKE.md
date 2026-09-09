@@ -84,3 +84,28 @@ show greeter.greet("Sesi")
 
 `make` currently provides construction, instance fields, and instance
 methods. Inheritance and static members are not part of this feature.
+
+Comments can also document `make` and `let` declarations. Prioritize `let` bindings that contain arrays or objects: explain the collection's purpose, the shape and ordering of array items, and significant object keys and defaults.
+
+```sesi
+
+/** Collects jobs waiting to be processed. */
+make JobQueue {
+  /**
+    Runtime settings shared by API requests.
+
+    Fields:
+    - `hosts`: Ordered fallback API hosts.
+    - `retries`: Maximum attempts per request.
+  */
+  let settings = {
+    hosts: ["https://primary.example", "https://backup.example"],
+    retries: 3
+  }
+  
+  /** Pending job objects in insertion order. */
+  let jobs = []
+}
+```
+
+Keep each comment directly adjacent to its declaration so tools can associate them.

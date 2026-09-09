@@ -14,9 +14,18 @@ let logs = "visitor_logs" | db.collection
 // Initialize with some seed data if empty
 let existingLogs = logs.find()
 if len(existingLogs) == 0 {
-  ({"agent": "System Seeder", "timestamp": now() - 10000, "method": "SYSTEM"}) | logs.insert
+  ({agent: "System Seeder", timestamp: now() - 10000, method: "SYSTEM"}) | logs.insert
 }
 
+/**
+  Render the list of visitor logs as HTML.
+
+  Parameters:
+  - records: An array of log records, each containing "agent", "timestamp", and "method" fields.
+
+  Returns:
+  A string containing the HTML representation of the logs list.
+*/
 fn renderLogsList(records) {
   let html = ""
   let i = 0
@@ -45,6 +54,15 @@ fn renderLogsList(records) {
   return html
 }
 
+/**
+  Handle incoming HTTP requests and return appropriate responses.
+
+  Supports the following routes:
+  - "/": Returns the main webpage with visitor logs.
+  - "/logs": Returns a JSON representation of all visitor logs.
+
+  Returns a 404 response for unknown routes.
+*/
 async fn handleRequest(req) {
   show "Request received on path:" req.path
   
@@ -55,9 +73,9 @@ async fn handleRequest(req) {
   }
   
   logs.insert({
-    "agent": userAgent,
-    "timestamp": now(),
-    "method": req.method
+    agent: userAgent,
+    timestamp: now(),
+    method: req.method
   })
 
   if req.path == "/" {
@@ -193,33 +211,33 @@ async fn handleRequest(req) {
       <a href='/api/logs' class='btn-api'>&rarr; View Raw Database Records (JSON API)</a>
     </div>
   </div>" | html({
-    "title": "Sesi Analytics Dashboard",
-    "head": "<link rel='preconnect' href='https://fonts.googleapis.com'>
+    title: "Sesi Analytics Dashboard",
+    head: "<link rel='preconnect' href='https://fonts.googleapis.com'>
   <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
   <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap' rel='stylesheet'>
   " + css
   })
 
     return {
-      "status": 200,
-      "headers": {
+      status: 200,
+      headers: {
         "Content-Type": "text/html"
       },
-      "body": html
+      body: html
     }
   }
 
   if req.path == "/api/logs" {
     let allLogs = logs.find()
     return {
-      "status": 200,
-      "body": allLogs
+      status: 200,
+      body: allLogs
     }
   }
 
   return {
-    "status": 404,
-    "body": "Not Found"
+    status: 404,
+    body: "Not Found"
   }
 }
 

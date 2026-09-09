@@ -397,10 +397,12 @@ Sesi/
 - **Error Handling**: Structured `try/catch` for both runtime and Reasoning-level errors.
 - **Local Module Imports/Exports**: Import custom local `.sesi` modules cleanly using relative import/export syntax!
 - **Standard Library Modules**: Native support for imported standard libraries, including:
-  - `std/math` (providing `PI`, `E`, `sqrt`, `pow`, `sin`, `cos`, etc.)
+  - `std/math` (the complete stable JavaScript `Math` surface supported by Node.js 20+); `floor(value)` is also globally available
   - `std/time` (providing `sleep` and `now`)
-  - `std/game` (data-driven 2D Canvas games, standalone HTML export, and local preview)
+  - `std/game` (optional left-handed Babylon.js/Electron 3D desktop engine; `+X` right, `+Z` forward; install `@misterscan/sesi-game`)
   - JSON serialization/deserialization through the built-in `to_json` and `from_json` functions
+
+Build live 3D scenes with mutable Sesi-native handles, fixed-step callbacks, input, Havok physics, GUI, audio, and source-free desktop packaging. See [getting-started/GAME.md](getting-started/GAME.md).
 
 ### Reasoning-Native Features ✅
 

@@ -17,6 +17,8 @@ import {
 import { getBuiltins, isTruthy, isEqual, stringify, compareValues } from './builtins';
 import { aiRuntime } from './ai-runtime';
 import { formatProfileReport } from './profiler';
+import { getRuntimeProperty, setRuntimeProperty } from './native-object';
+import type { BundledBytecodeModule } from './interpreter';
 
 // ---------------------------------------------------------------------------
 // Upvalue representation
@@ -24,10 +26,27 @@ import { formatProfileReport } from './profiler';
 class VMUpvalue {
   public value: RuntimeValue;
   public location: number; // stack index, or -1 if closed
+  public stack?: RuntimeValue[];
   
-  constructor(location: number, val: RuntimeValue) {
+  constructor(location: number, val: RuntimeValue, stack?: RuntimeValue[]) {
     this.location = location;
     this.value = val;
+    this.stack = stack;
+  }
+
+  public get(): RuntimeValue {
+    if (this.location !== -1 && this.stack) {
+      return this.stack[this.location];
+    }
+    return this.value;
+  }
+
+  public set(val: RuntimeValue): void {
+    if (this.location !== -1 && this.stack) {
+      this.stack[this.location] = val;
+    } else {
+      this.value = val;
+    }
   }
 }
 
@@ -71,7 +90,7 @@ export class VM {
 
   constructor(
     private scriptDir?: string,
-    private options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; args?: string[]; profile?: boolean; timeoutMs?: number; deadlineAt?: number; modelUsageState?: any },
+    private options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; args?: string[]; profile?: boolean; timeoutMs?: number; deadlineAt?: number; modelUsageState?: any; bytecodeModules?: Map<string, BundledBytecodeModule>; bytecodeModuleId?: string },
   ) {
     this.timeoutMs = options?.timeoutMs;
     this.deadlineAt = options?.deadlineAt ?? (this.timeoutMs ? Date.now() + this.timeoutMs : undefined);
@@ -159,6 +178,14 @@ export class VM {
     }
   }
 
+  public hasGlobal(name: string): boolean {
+    return this.globals.has(name);
+  }
+
+  public getGlobal(name: string): RuntimeValue {
+    return this.globals.get(name) ?? null;
+  }
+
   async callCompiledFunction(fn: RuntimeFunction, args: RuntimeValue[]): Promise<RuntimeValue> {
     const proto = (fn as any)._proto as FunctionProto;
     const upvalues = (fn as any)._upvalues as VMUpvalue[] ?? [];
@@ -179,6 +206,7 @@ export class VM {
       if (uv.location >= lastSlot) {
         uv.value = this.stack[uv.location];
         uv.location = -1;
+        uv.stack = undefined;
         this.openUpvalues.splice(i, 1);
       }
     }
@@ -265,7 +293,11 @@ export class VM {
           case OpCode.ADD: {
             const b = this.pop();
             const a = this.pop();
-            if (typeof a === 'string' || typeof b === 'string') {
+            if (Array.isArray(a) && Array.isArray(b)) {
+              this.push([...a, ...b]);
+            } else if (Array.isArray(a)) {
+              this.push([...a, b]);
+            } else if (typeof a === 'string' || typeof b === 'string') {
               this.push(stringify(a) + stringify(b));
             } else {
               this.push((a as number) + (b as number));
@@ -336,7 +368,7 @@ export class VM {
             if (Array.isArray(obj) && typeof idx === 'number') {
               this.push(obj[idx] ?? null);
             } else if (typeof obj === 'object' && obj !== null && typeof idx === 'string') {
-              this.push((obj as any)[idx] ?? null);
+              this.push(getRuntimeProperty(obj, idx));
             } else {
               this.push(null);
             }
@@ -349,7 +381,7 @@ export class VM {
             if (Array.isArray(obj) && typeof idx === 'number') {
               (obj as RuntimeValue[])[idx] = val;
             } else if (typeof obj === 'object' && obj !== null) {
-              (obj as any)[idx as string] = val;
+              setRuntimeProperty(obj, String(idx), val);
             }
             this.pop(); // remove obj
             this.push(val);
@@ -359,7 +391,7 @@ export class VM {
             const prop = chunk.constants[this.readByte(frame)] as string;
             const obj = this.pop();
             if (typeof obj === 'object' && obj !== null) {
-              this.push((obj as any)[prop] ?? null);
+              this.push(getRuntimeProperty(obj, prop));
             } else {
               this.push(null);
             }
@@ -370,7 +402,7 @@ export class VM {
             const val = this.pop();
             const obj = this.peek(0);
             if (typeof obj === 'object' && obj !== null) {
-              (obj as any)[prop] = val;
+              setRuntimeProperty(obj, prop, val);
             }
             this.pop();
             this.push(val);
@@ -384,9 +416,9 @@ export class VM {
             for (const up of proto.upvalues) {
               if (up.isLocal) {
                 const stackIndex = frame.base + up.index;
-                let uv = this.openUpvalues.find(u => u.location === stackIndex);
+                let uv = this.openUpvalues.find(u => u.location === stackIndex && u.stack === this.stack);
                 if (!uv) {
-                  uv = new VMUpvalue(stackIndex, this.stack[stackIndex]);
+                  uv = new VMUpvalue(stackIndex, this.stack[stackIndex], this.stack);
                   this.openUpvalues.push(uv);
                 }
                 capturedUpvalues.push(uv);
@@ -400,12 +432,14 @@ export class VM {
               params: proto.params.map(p => ({ name: p.name, type: p.type, defaultValue: p.defaultValue })),
               body: {} as any,
               closure: {} as any,
+              documentation: proto.documentation,
               isAsync: proto.isAsync,
               isBuiltin: false,
               builtin: undefined,
             };
             (fn as any)._proto = proto;
             (fn as any)._upvalues = capturedUpvalues;
+            Object.defineProperty(fn, 'ownerVm', { value: this, enumerable: false, configurable: false });
             this.push(fn);
             break;
           }
@@ -504,6 +538,13 @@ export class VM {
 
             const configuredTools = pick('tools', 'toolSchemas', 'tool_schemas');
             const maxToolCalls = pick('max_tool_calls', 'maxToolCalls');
+            const rawImages = pick('images');
+            const rawSystemPrompt = pick('system', 'system_prompt', 'systemPrompt');
+            const imagePaths = Array.isArray(rawImages)
+              ? rawImages.map(image => stringify(image))
+              : typeof rawImages === 'string' && rawImages.trim() !== ''
+                ? [rawImages]
+                : undefined;
             const modelRequest = {
               model: resolvedModel,
               prompt: promptStr,
@@ -511,11 +552,13 @@ export class VM {
               maxTokens: pick('max_tokens', 'maxTokens', 'maxT') as number | undefined,
               topK: pick('top_k', 'topK') as number | undefined,
               topP: pick('top_p', 'topP') as number | undefined,
-              systemPrompt: pick('system', 'system_prompt', 'systemPrompt') as string | undefined,
+              systemPrompt: typeof rawSystemPrompt === 'string' ? rawSystemPrompt : undefined,
+              responseSchema: pick('__structured_schema') as Record<string, any> | undefined,
               thinkingLevel: pick('thinkingLevel', 'thinking', 'effort', 'reasoning') as any,
               cache: pick('cache', 'cached') as boolean | undefined,
               search: pick('search', 'grounding') as boolean | undefined,
               stream: streamVal,
+              images: imagePaths,
             };
             const response = this.interpreter && typeof this.interpreter.callModelWithOrchestration === 'function'
               ? await this.interpreter.callModelWithOrchestration(
@@ -530,7 +573,24 @@ export class VM {
             if (this.interpreter && typeof this.interpreter.recordModelUsage === 'function') {
               this.interpreter.recordModelUsage(resolvedModel, response.usage, response.cached === true);
             }
-            this.push(response.text);
+            if (pick('response') === 'full') {
+              const usage = response.usage;
+              const thinkingTokens = usage?.thinkingTokens ?? 0;
+              const billableOutputTokens = (usage?.outputTokens ?? 0) + thinkingTokens;
+              this.push({
+                text: response.text,
+                model: resolvedModel,
+                finish_reason: response.finishReason ?? null,
+                cached: response.cached === true,
+                input_tokens: usage?.inputTokens ?? 0,
+                output_tokens: usage?.outputTokens ?? 0,
+                thinking_tokens: thinkingTokens,
+                billable_output_tokens: billableOutputTokens,
+                total_tokens: (usage?.inputTokens ?? 0) + billableOutputTokens,
+              });
+            } else {
+              this.push(response.text);
+            }
             break;
           }
 
@@ -748,7 +808,7 @@ export class VM {
           case OpCode.GET_UPVALUE: {
             const slot = this.readByte(frame);
             const uv = frame.upvalues[slot];
-            this.push(uv.location !== -1 ? this.stack[uv.location] : uv.value);
+            this.push(uv ? uv.get() : null);
             break;
           }
 
@@ -756,10 +816,8 @@ export class VM {
             const slot = this.readByte(frame);
             const val = this.peek(0);
             const uv = frame.upvalues[slot];
-            if (uv.location !== -1) {
-              this.stack[uv.location] = val;
-            } else {
-              uv.value = val;
+            if (uv) {
+              uv.set(val);
             }
             break;
           }
@@ -998,6 +1056,24 @@ export class VM {
     }
 
     return null;
+  }
+
+  public async invokeNativeCallback(
+    fn: RuntimeFunction,
+    args: RuntimeValue[],
+    synchronous: boolean = false,
+  ): Promise<RuntimeValue> {
+    if (synchronous && fn.isAsync) {
+      throw new SesiRuntimeError(
+        'AsyncCallbackError',
+        `Callback "${fn.name || '<anonymous>'}" must be synchronous for this event.`,
+      );
+    }
+    const owner = fn.ownerVm;
+    if (owner instanceof VM && owner !== this) {
+      return owner.invokeNativeCallback(fn, args, synchronous);
+    }
+    return this.callFunctionInIsolatedVm(fn, args);
   }
 
   private async runWithRemainingTimeout(action: () => RuntimeValue | Promise<RuntimeValue>): Promise<RuntimeValue> {

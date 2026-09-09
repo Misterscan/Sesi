@@ -25,6 +25,31 @@ function ppm(red: number, green: number, blue: number): string {
   return `P3\n16 16\n255\n${pixels}\n`;
 }
 
+function frameHashes(filePath: string): string[] {
+  const result = spawnSync('ffmpeg', [
+    '-v', 'error',
+    '-i', filePath,
+    '-map', '0:v:0',
+    '-f', 'framemd5',
+    '-',
+  ], { encoding: 'utf-8' });
+  if (result.error || result.status !== 0) {
+    throw new Error(`FFmpeg frame inspection failed: ${result.error?.message ?? result.stderr}`);
+  }
+  return result.stdout
+    .split(/\r?\n/)
+    .filter(line => line !== '' && !line.startsWith('#'))
+    .map(line => line.split(',').at(-1)?.trim() ?? '');
+}
+
+function assertAlternatingFrames(hashes: string[], expectedCount: number, name: string): void {
+  assert(hashes.length === expectedCount, `${name} should encode each supplied image exactly once (got ${hashes.length})`);
+  assert(hashes[0] !== hashes[1], `${name} should preserve visually distinct input frames`);
+  for (let index = 0; index < hashes.length; index += 1) {
+    assert(hashes[index] === hashes[index % 2], `${name} should preserve input frame order at frame ${index + 1}`);
+  }
+}
+
 async function main(): Promise<void> {
   console.log('=== Regex / GIF / Video / FFmpeg Builtin Tests ===\n');
 
@@ -60,14 +85,17 @@ async function main(): Promise<void> {
   }
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-media-test-'));
-  const firstFrame = path.join(tempDir, 'frame-1.ppm');
-  const secondFrame = path.join(tempDir, 'frame-2.ppm');
+  const framesDir = path.join(tempDir, 'frames');
   const gifPath = path.join(tempDir, 'preview.gif');
   const videoPath = path.join(tempDir, 'preview.mp4');
 
   try {
-    fs.writeFileSync(firstFrame, ppm(255, 0, 0), 'utf-8');
-    fs.writeFileSync(secondFrame, ppm(0, 0, 255), 'utf-8');
+    fs.mkdirSync(framesDir);
+    const frameCount = 30;
+    for (let index = 0; index < frameCount; index += 1) {
+      const framePath = path.join(framesDir, `validation_step_${(index + 1) * 500}.ppm`);
+      fs.writeFileSync(framePath, index % 2 === 0 ? ppm(255, 0, 0) : ppm(0, 0, 255), 'utf-8');
+    }
 
     const interpreter = new Interpreter(tempDir, {
       safeMode: false,
@@ -76,14 +104,12 @@ async function main(): Promise<void> {
     });
     await run(`
       let ffmpeg_info = ffmpeg(["-version"])
-      let gif_output = gif([
-        ${JSON.stringify(firstFrame)},
-        ${JSON.stringify(secondFrame)}
-      ], ${JSON.stringify(gifPath)}, {"fps": 4, "width": 16})
-      let video_output = video([
-        ${JSON.stringify(firstFrame)},
-        ${JSON.stringify(secondFrame)}
-      ], ${JSON.stringify(videoPath)}, {"fps": 4, "width": 16, "height": 16, "preset": "ultrafast"})
+      let frames = []
+      for frame in list_dir(${JSON.stringify(framesDir)}) {
+        push(frames, ${JSON.stringify(`${framesDir}${path.sep}`)} + frame)
+      }
+      let gif_output = gif(frames, ${JSON.stringify(gifPath)}, {"fps": 30, "width": 16})
+      let video_output = video(frames, ${JSON.stringify(videoPath)}, {"fps": 30, "width": 16, "height": 16, "preset": "ultrafast"})
     `, interpreter);
 
     const env = (interpreter as any).currentEnv;
@@ -93,6 +119,8 @@ async function main(): Promise<void> {
     assert(fs.existsSync(gifPath) && fs.statSync(gifPath).size > 0, 'gif() should write an animated GIF');
     assert(fs.readFileSync(gifPath).subarray(0, 3).toString('ascii') === 'GIF', 'gif() output should have a GIF header');
     assert(fs.existsSync(videoPath) && fs.statSync(videoPath).size > 0, 'video() should write a video file');
+    assertAlternatingFrames(frameHashes(videoPath), frameCount, 'video()');
+    assertAlternatingFrames(frameHashes(gifPath), frameCount, 'gif()');
     console.log('✓ media builtins execute and write valid outputs');
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });

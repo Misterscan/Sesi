@@ -6,18 +6,35 @@
 let fast = "fast"
 fast | set_alias("gemini-3.1-flash-lite")
 
-fn toBullet(text: string) -> string  {
-    return "- " + text
-}
+/**
+  Convert text to bullet format.
 
-fn addTag(text: string) -> string {
-    return text + " [ready]"
-}
+  Parameters:
+  - text: The text to be converted.
+
+  Returns:
+  A string representing the text in bullet format.
+*/
+fn toBullet(text: string) -> string  { return "- " + text }
+
+/**
+  Append a release tag to the text.
+
+  Parameters:
+  - text: The text to be tagged.
+
+  Returns:
+  A string with the release tag appended.
+*/
+fn addTag(text: string) -> string { return text + " [ready]" }
 
 define_tool("to_bullet", toBullet, "Convert text to bullet format")
-define_tool("add_tag", addTag, "Append release tag")
+define_tool("add_tag", addTag, "Append release tag to the text")
 
-let result = model(fast) {tools: list_tools(), max_tool_calls: 4, max_tokens: 180, cache: false} {"Write one concise launch note for model aliases and custom tools. Use to_bullet first, then add_tag. Return only the final processed note."}
+let result = model(fast) {tools: list_tools(), max_tool_calls: 4, max_tokens: 180, cache: false} {"
+Write one concise launch note for model aliases and custom tools.
+Use to_bullet first, then add_tag.
+Return only the final processed note."}
 
 show "Automatically orchestrated output:
 " result

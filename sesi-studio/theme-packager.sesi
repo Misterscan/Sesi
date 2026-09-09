@@ -5,7 +5,15 @@
 allow "shell-automation" in with {run_command}
 allow "helpers/safe" in as Safe
 
-// --- Helper: Clean Comment Asterisks ---
+/**
+  Clean the JSON content from a manifest comment block by removing leading asterisks and extra whitespace.
+
+  Parameters:
+  - `raw`: The raw string content of the manifest comment block.
+
+  Returns:
+  A cleaned JSON string suitable for parsing.
+*/
 fn clean_manifest_json(raw) {
   let lines = split(raw, "\n")
   let clean_str = ""
@@ -25,7 +33,15 @@ fn clean_manifest_json(raw) {
   return clean_str
 }
 
-// --- Helper: Validate Theme Manifest ---
+/**
+  Validate the metadata of a theme manifest.
+
+  Parameters:
+  - `meta`: The metadata object extracted from the theme manifest.
+
+  Returns:
+  `true` if the metadata contains all required fields, `false` otherwise.
+*/
 fn validate_metadata(meta) {
   if meta["license"] == null {
     meta["license"] = "MIT"
@@ -40,6 +56,15 @@ fn validate_metadata(meta) {
   return true
 }
 
+/**
+  Execute a Node.js command.
+
+  Parameters:
+  - `args`: The command-line arguments to pass to Node.js.
+
+  Returns:
+  The output of the command execution.
+*/
 fn exec_node(args) {
   try {
     return run_command("node " + args)
@@ -48,6 +73,15 @@ fn exec_node(args) {
   }
 }
 
+/**
+  Get the parent directory of a given file path.
+
+  Parameters:
+  - `path_str`: The file path string.
+
+  Returns:
+  The parent directory path, or "." if there is no parent.
+*/
 fn get_parent_dir(path_str) {
   let parts = split(path_str, "/")
   if len(parts) == 1 {
@@ -63,6 +97,15 @@ fn get_parent_dir(path_str) {
   return join(parent_parts, "/")
 }
 
+/**
+  Get the filename from a given file path.
+
+  Parameters:
+  - `path_str`: The file path string.
+
+  Returns:
+  The filename extracted from the path.
+*/
 fn get_filename(path_str) {
   let parts = split(path_str, "/")
   let last = parts[len(parts) - 1]
@@ -70,6 +113,16 @@ fn get_filename(path_str) {
   return subparts[len(subparts) - 1]
 }
 
+/**
+  Find the content of an SVG icon file.
+
+  Parameters:
+  - `icon_path`: The path to the icon file as specified in the manifest.
+  - `file_path`: The path to the theme manifest file.
+
+  Returns:
+  An object containing the SVG content and the resolved path, or `null` if not found.
+*/
 fn find_svg_content(icon_path, file_path) {
   let parent = get_parent_dir(file_path)
   let filename = get_filename(icon_path)
@@ -94,6 +147,16 @@ fn find_svg_content(icon_path, file_path) {
   return null
 }
 
+/**
+  Process the SVG icon specified in the theme manifest.
+
+  Parameters:
+  - `meta`: The metadata object extracted from the theme manifest.
+  - `file_path`: The path to the theme manifest file.
+
+  Returns:
+  The data URI of the processed SVG icon, or `null` if not applicable.
+*/
 fn process_icon_svg(meta, file_path) {
   let icon = meta["icon"]
   if icon == null || type(icon) != "string" {
@@ -147,6 +210,15 @@ fn process_icon_svg(meta, file_path) {
 
 // --- Main CLI Commands ---
 
+/**
+  Pack a theme into a .sesitheme bundle.
+
+  Parameters:
+  - `args_list`: A list of command-line arguments. The first argument should be the path to the CSS file. The second argument (optional) is the output directory.
+
+  Returns:
+  `true` if the theme was packed successfully, `false` otherwise.
+*/
 fn pack_theme(args_list) {
   if len(args_list) < 1 {
     show "Error: pack command requires a CSS file path."
@@ -245,6 +317,15 @@ fn pack_theme(args_list) {
   }
 }
 
+/**
+  Unpack a .sesitheme bundle into a CSS file.
+
+  Parameters:
+  - `args_list`: A list of command-line arguments. The first argument should be the path to the .sesitheme file. The second argument (optional) is the output directory.
+
+  Returns:
+  `true` if the theme was unpacked successfully, `false` otherwise.
+*/
 fn unpack_theme(args_list) {
   if len(args_list) < 1 {
     show "Error: unpack command requires a .sesitheme file path."
@@ -308,6 +389,15 @@ fn unpack_theme(args_list) {
   }
 }
 
+/**
+  Validate a theme CSS file and its manifest.
+
+  Parameters:
+  - `args_list`: A list of command-line arguments. The first argument should be the path to the CSS file.
+
+  Returns:
+  `true` if the theme manifest is valid, `false` otherwise.
+*/
 fn validate_theme(args_list) {
   if len(args_list) < 1 {
     show "Error: validate command requires a CSS file path."
@@ -378,6 +468,12 @@ define_tool("unpack",    unpack_theme,   "Unpacks a .sesitheme bundle into a CSS
 define_tool("validate",  validate_theme, "Validates a CSS theme manifest")
 
 // --- CLI Runner ---
+
+/**
+  Run the CLI for the Sesi Theme Packager.
+
+  This function parses the command-line arguments and invokes the appropriate tool (pack, unpack, validate) based on the user's input.
+*/
 fn run_cli() {
   if len(args) < 1 {
     show "Sesi Theme Packager CLI"

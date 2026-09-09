@@ -12,6 +12,7 @@
 */
 
 allow "std/time" in as Time
+allow "lib/ansi" in as TERM
 allow "helpers/safe" in as Safe
 allow "shell-automation" in with {run_command_log}
 
@@ -20,7 +21,11 @@ let target = "my-sesi-app"
 if len(args) > 0 {
   target = args[0]
 } else {
-  target = input("Target Directory (default: my-sesi-app): ")
+  TERM.info("Target Directory (default: my-sesi-app): ")
+  target = input("")
+  if target == "" {
+    target = "my-sesi-app"
+  }
 }
 let cleanTarget = target
 cleanTarget = swap(cleanTarget, "/", "")
@@ -44,7 +49,7 @@ cleanTarget = swap(cleanTarget, "G:\\", "")
 cleanTarget = swap(cleanTarget, " ", "-")
 cleanTarget = to_lower(cleanTarget)
 
-show "⚡ Scaffolding new Sesi project in:" target
+TERM.info("Scaffolding new Sesi project in: " + target) 
 
 let agentsDir = target + "/.agents"
 let rulesDir = agentsDir + "/rules"
@@ -76,15 +81,18 @@ try {
   Safe.newDir(gettingStartedDir)
   Safe.newDir(gettingStartedOptionalDir)
   Safe.newDir(helpersDir)
-  show "✓ Directories created"
+  TERM.success("Directories created")
 } catch (err) {
-  show "⚠️ Failed to create directories:" err
+  TERM.error("Failed to create directories:" + err)
 }
 
 // Generate package.json
-let desc = input("Description: ")
-let author = input("Author: ")
-let license = input("License (default: MIT): ")
+TERM.info("Description: ")
+let desc =  input("")
+TERM.info("Author: ")
+let author = input("")
+TERM.info("License (default: MIT): ")
+let license = input("")
 if len(license) == 0 {
   license = "MIT"
 }
@@ -109,11 +117,11 @@ prompt packageJson {"{
     \"decrypt\": \"node node_modules/@misterscan/sesi/bin/sesi.js -dec\"
   },
   \"dependencies\": {
-    \"@misterscan/sesi\": \"1.8.6\"
+    \"@misterscan/sesi\": \"1.9.0\"
   },
     \"allowScripts\": {
     \"fsevents@2.3.2\": true,
-    \"@google/genai@2.16.0\": true,
+    \"@google/genai@2.17.1\": true,
     \"esbuild@0.28.1\": true,
     \"onnxruntime-node@1.27.0\": true,
     \"protobufjs@7.6.5\": true,
@@ -123,18 +131,18 @@ prompt packageJson {"{
 }"}
 
 if Safe.writeFile(target + "/package.json", packageJson) {
-  show "✓ Generated package.json"
+  TERM.success("Generated package.json")
 } else {
-  show "⚠️ Failed to generate package.json"
+  TERM.error("Failed to generate package.json")
 }
 
 // Add theory.sesi to the target folder
 let theoryContent = Safe.readFile("theory.sesi")
 if len(theoryContent) > 0 {
   if Safe.writeFile(target + "/theory.sesi", theoryContent) {
-    show "✓ Copied theory.sesi"
+    TERM.success("Copied theory.sesi")
   } else {
-    show "⚠️ Failed to copy theory.sesi"
+    TERM.error("Failed to copy theory.sesi")
   }
 }
 
@@ -147,9 +155,9 @@ dist/
 "}
 
 if Safe.writeFile(target + "/.gitignore", gitIgnore) {
-  show "✓ Generated .gitignore"
+  TERM.success("Generated .gitignore")
 } else {
-  show "⚠️ Failed to generate .gitignore"
+  TERM.error("Failed to generate .gitignore")
 }
 
 // Generate main.sesi (Starter Sesi script)
@@ -163,7 +171,7 @@ prompt mainSesi {'/*
 
 // 1. Variables and Types
 let language = "Sesi"
-let version = "1.8.6"
+let version = "1.9.0"
 let features = ["Reasoning", "Embedded DB", "SVG Drawing", "Audio Synthesis", "Browser Integration"]
 
 show "Welcome to" language "version" version "!"
@@ -213,7 +221,7 @@ Status: Ready for experimentation!"}
 show welcomeMessage
 
 // 7. Scrape a website
-allow "std/browser" with {launch}
+allow "std/browser" in with {launch}
 
 let browser = launch({"headless": true})
 let page = browser.newPage()
@@ -228,9 +236,9 @@ browser.close()
 sesi("theory.sesi")'}
 
 if Safe.writeFile(target + "/main.sesi", mainSesi) {
-  show "✓ Generated main.sesi"
+  TERM.success("Generated main.sesi")
 } else {
-  show "⚠️ Failed to generate main.sesi"
+  TERM.error("Failed to generate main.sesi")
 }
 
 // Generate README.md
@@ -280,18 +288,18 @@ npm run decrypt <filename>
 "}
 
 if Safe.writeFile(target + "/README.md", readMe) {
-  show "✓ Generated README.md"
+  TERM.success("Generated README.md")
 } else {
-  show "⚠️ Failed to generate README.md"
+  TERM.error("Failed to generate README.md")
 }
 
 // Copy GUIDE.md to target/GUIDE.md
 let guideContent = Safe.readFile("GUIDE.md")
 if len(guideContent) > 0 {
   if Safe.writeFile(target + "/GUIDE.md", guideContent) {
-    show "✓ Copied GUIDE.md"
+    TERM.success("Copied GUIDE.md")
   } else {
-    show "⚠️ Failed to copy GUIDE.md"
+    TERM.error("Failed to copy GUIDE.md")
   }
 }
 
@@ -364,7 +372,7 @@ The newline is a real line break _inside the string literal_ — not `\n`, not a
 - **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{"key": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
 - **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{"name": "Alice"}`).
 - **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
-- **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
+- **Systems Primitive:** Forbid `const` (use `let`) and `main()` wrappers. `return` is valid inside `fn` blocks and at the top level; a top-level `return` stops the current script or module. Focus on side-effects and direct top-level execution.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
 
 For all quirks and specific syntaxing, visit GUIDE.md/, dist/, node_modules/@misterscan/sesi/docs/BUILTINS.md, node_modules/@misterscan/sesi/docs/WRITING_SCRIPTS.md, and node_modules/@misterscan/sesi/getting-started/ to verify against the actual engine specifications. Do not rely on training data or outdated documentation for syntax rules, always verify against the source.
@@ -376,9 +384,9 @@ For all quirks and specific syntaxing, visit GUIDE.md/, dist/, node_modules/@mis
 - `.sesi_cache.json`'}
 
 if Safe.writeFile(rulesDir + "/sesi-must-read.md", sesiMustReadRules) {
-  show "✓ Generated .agents/rules/sesi-must-read.md"
+  TERM.success("Generated .agents/rules/sesi-must-read.md")
 } else {
-  show "⚠️ Failed to generate .agents/rules/sesi-must-read.md"
+  TERM.error("Failed to generate .agents/rules/sesi-must-read.md")
 }
 
 // Generate .agents/workflows/create-sesi-script.md
@@ -413,10 +421,219 @@ Grade: A"}
 The newline is a real line break _inside the string literal_ — not `\n`, not any escape sequence.
 
 - **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{"key": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
-- **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{"name": "Alice"}`).
+- **Object Literals:** Conversely, standard object literals `{}` do not require quoted keys. You can write them naturally like `{name: "Alice", age: 30}`. Using quoted keys is optional but allowed if needed for compatibility or clarity.
 - **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
-- **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
+- **Systems Primitive:** Forbid `const` (use `let`) and `main()` wrappers. `return` is valid inside `fn` blocks and at the top level; a top-level `return` stops the current script or module. Focus on side-effects and direct top-level execution.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
+- **Multi-line Comments:** Use the `/** ... */` block comment style for multi-line comments. Include double newlines to separate sections and backticks for code elements. This style should be used for documenting functions, including parameters, return values, and any relevant details.
+
+    ```sesi
+    /**
+      Multi-line comment
+
+      Use double newlines to separate sections.
+
+      List:
+        - `item 1`
+        - `item 2`
+        - `item 3`
+    */
+    ```
+    This also applies to function comments. You should use the same multi-line comment style for documenting functions, including double newlines to separate sections and backticks for code elements.
+    Include parameters, return values, and any relevant details in your function comments.
+    Example:
+    ```
+    /**
+      Adds two numbers.
+
+      Parameters:
+      - `a`: The first number.
+      - `b`: The second number.
+
+      Returns:
+      - The sum of `a` and `b`.
+
+      Example:
+      ```sesi
+      let result = add(3, 5)
+      show \"The result is:\" result
+      ```
+
+      Notes:
+      - This function simply adds two numbers and returns the result.
+    */
+    fn add(a: number, b: number) -> number {
+      return a + b
+    }
+    ```
+
+    For comments within nested functions:
+    ```
+    /**
+      Example function with a nested function and comments.
+      Parameters:
+      - `x`: The input parameter for the example function.
+
+      Returns:
+      - `true` if the response has been answered, `false` otherwise.
+    */
+    fn exampleFunction(x: any) -> any {
+      ...
+      /** This is an example of a single-line comment within a nested function.
+      * -> **LEAVE BLANK** 
+      * Parameters:
+      *   - `y`: The input parameter for the nested function.
+      * -> **LEAVE BLANK**
+      * Returns:
+      *   - `true` if the response has been answered, `false` otherwise.
+      */
+      fn nestedFunction(y: any) {
+        ...
+      }
+    }
+
+    For comments within nested make objects:
+    /**
+      Example make template with a nested function and comments.
+      Fields:
+      - `x`: The input parameter for the example function.
+      - ...
+
+      Returns:
+      - ...
+    */
+    make Example {
+      let x = 0
+      ...
+      /** This is an example of a single-line comment within a nested function.
+      * -> **LEAVE BLANK** 
+      * Parameters:
+      *   - `self`: ...
+      *   - `y`: The input parameter for the nested function.
+      * -> **LEAVE BLANK**
+      * Returns:
+      *   - ...
+      */
+      fn nestedFunction(self, y: any) {
+        ...
+      }
+    }
+    ```
+
+    The same can be applied to other types of comments and documentation within your code and is optional, but recommended for onboarding and maintaining code clarity.
+    Example:
+    ```
+    // Retrieved response from the model.
+    let answer = ""
+
+    /**
+      Indicates whether the response has been answered.
+
+      Notes:
+      - `true` if the response has been answered, `false` otherwise.
+    */
+    let answered = false
+
+    /**
+      Parts of the response.
+
+      Array:
+      - `part1`: The first part of the response.
+      - `part2`: The second part of the response.
+      - `part3`: The third part of the response.
+    */
+    let parts = [\"part1\", \"part2\", \"part3\"]
+
+    /**
+      Template for structured data.
+
+      Object:
+      - `field1`: The first field of the template.
+        - `value1`: The value for the first field.
+      - `field2`: The second field of the template.
+        - `value2`: The value for the second field.
+      - `field3`: The third field of the template.
+        - `value3`: The value for the third field.
+    */
+    let template = {\"field1\": \"value1\", \"field2\": \"value2\", \"field3\": \"value3\"}
+    ```
+
+    - Prefer code piping when it offers better legibility and readability.
+    Example:
+    ```
+    let file = null
+    try {file = read_file(""filename"")} catch (e) {file = null}
+    if file | is_null {
+      show ""File is empty or could not be read.""
+    }
+    ```
+
+    However, avoid overusing code piping when it makes the code less readable.
+    Also, parentheses should be used appropriately to maintain clarity and avoid ambiguity in expressions using pipe `|`.
+    ```
+    if (file | len) > 0 {
+      show ""File has content.""
+    }
+
+    let fileLength = (file | len) + 1
+    let pick = (nonexistent | len) || (file | len)
+    ```
+    - Functions that return a variable as a boolean rather than a strict `bool` should explicitly state `any` as their return type.
+    - Do not mention that you got this from a database.
+    - Do not mention that you are an AI model.
+    - You must import any neccesary modules at the top before claring them in your scripts.
+    - Do not mention that you got anything from documentation, just reference it if needed.
+
+    Absolutely NO `+` usage in show statements.
+
+    Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error, they are treated as statement separators. 
+    Newlines that live inside a string literal are fine. STRICTLY FOLLOW THE PROVIDED EXAMPLES IN THE DOCUMENTATION WHERE NEWLINES ARE USED AND DO NOT INSINUATE.
+    Newlines are also permitted in function declarations and structured output, however strongly preferred when dealing with multiple parameters:
+    ```
+    fn take_action(
+      cmds: array<string>?,
+      _prompt,
+      description: string = "",
+      required: bool,
+      ext_param: string,
+      ext_param2: any = null
+    ) { ... }
+
+    let output = structured_output(
+      type: ""string"",
+      name: ""string"",
+      config: ""object"",
+      status: ""bool"",
+      ext_field: ""any"",
+      ext_field2: ""array""
+    )(raw_data)
+
+
+    prompt example {""Multi line strings are fine
+    but they MUST begin on the same line as the opening ''{'' 
+    and end on the same line as the closing ''}'' ""}
+
+    let test = model(""gemini-3.1-flash-lite"") {thinkingLevel: ""low"", maxT: 2048, cache: false, search} <-- NOTICE ITS NOT SEPARATED BY NEWLINES IN THE CONFIGURATION {example} 
+    ```
+
+    Objects do not require to be quoted in strings:
+    ```
+    let desc = ""Example text for configuration.""
+    let config = {
+      name: ""Object Test"",
+      description: desc,
+      active_state: true,
+      sub_config: {
+        testing: true,
+        code: null,
+        production: false,
+        env_path: ""base/keys.txt""
+      }
+    }
+    show config.name
+    show config.active_state
+    show config.sub_config.env_path
+    ```
 
 ## Agent Debug Protocol (MANDATORY)
 
@@ -442,9 +659,9 @@ When AI agents write or edit `.sesi` scripts, they must use this debugging loop:
 8. **Emphasize Native Verification Commands:** Prior to saving or running full Sesi scripts, proactively use inline evaluation (`npm run eval ""sesi code""` or `node node_modules/@misterscan/sesi/bin/sesi.js -e ""...""`) to check and verify syntax and runtime behaviors instantly. It keeps execution cycles fast and deterministic.'}
 
 if Safe.writeFile(workflowsDir + "/create-sesi-script.md", createSesiScript) {
-  show "✓ Generated .agents/workflows/create-sesi-script.md"
+  TERM.success("Generated .agents/workflows/create-sesi-script.md")
 } else {
-  show "⚠️ Failed to generate .agents/workflows/create-sesi-script.md"
+  TERM.error("Failed to generate .agents/workflows/create-sesi-script.md")
 }
 
 // Generate .agents/workflows/fix-sesi-script.md
@@ -475,9 +692,9 @@ description: Debugging and validation of error prone sesi scripts.
 _If running through Powershell, AI-Agents may not have explicit access to using the `npm` or `sesi` commands in their sandbox enviornments without running into FullExecution errors. In this case, use `node node_modules/@misterscan/sesi/bin/sesi.js <file> <option>` in replacement of `npm run sesi`._'}
 
 if Safe.writeFile(workflowsDir + "/fix-sesi-script.md", fixSesiScript) {
-  show "✓ Generated .agents/workflows/fix-sesi-script.md"
+  TERM.success("Generated .agents/workflows/fix-sesi-script.md")
 } else {
-  show "⚠️ Failed to generate .agents/workflows/fix-sesi-script.md"
+  TERM.error("Failed to generate .agents/workflows/fix-sesi-script.md")
 }
 
 // Generate env.example
@@ -494,9 +711,9 @@ SESI_LOCAL_FS=false // Set to true to access files outside of the project folder
 SESI_PASSWORD=your-password-here"}
 
 if Safe.writeFile(target + "/.env.example", envExample) {
-  show "✓ Generated .env.example"
+  TERM.success("Generated .env.example")
 } else {
-  show "⚠️ Failed to generate .env.example"
+  TERM.error("Failed to generate .env.example")
 }
 
 // Copy sesi-db-chatbot and all its .json files from sesi-db directory into the target folder.
@@ -505,12 +722,12 @@ let dbChatbotContent = Safe.readFile("chatbot/sesira.sesi")
 if len(dbChatbotContent) > 0 {
   let dbChatbotDest = target + "/chatbot/sesira.sesi"
   if Safe.writeFile(dbChatbotDest, dbChatbotContent) {
-    show "✓ Copied sesi-db-chatbot to chatbot/sesira.sesi"
+    TERM.success("Copied sesi-db-chatbot to chatbot/sesira.sesi")
   } else {
-    show "⚠️ Failed to write chatbot/sesira.sesi"
+    TERM.error("Failed to write chatbot/sesira.sesi")
   }
 } else {
-  show "⚠️ Could not read source chatbot/sesira.sesi"
+  TERM.error("Could not read source chatbot/sesira.sesi")
 }
 
 let dbFiles = ["trained_brain.json"]
@@ -519,12 +736,12 @@ for file in dbFiles {
   if len(fileContent) > 0 {
     let fileDest = target + "/sesi-db/" + file
     if Safe.writeFile(fileDest, fileContent) {
-      show "✓ Copied" file "to sesi-db/" file
+      TERM.success("Copied " + file + " to sesi-db/" + file)
     } else {
-      show "⚠️ Failed to write" file
+      TERM.error("Failed to write " + file)
     }
   } else {
-    show "⚠️ Could not read source" file
+    TERM.error("Could not read source " + file)
   }
 }
 
@@ -533,28 +750,29 @@ let lintContent = Safe.readFile("bin/lint.sesi")
 if len(lintContent) > 0 {
   let lintDest = target + "/bin/lint.sesi"
   if Safe.writeFile(lintDest, lintContent) {
-    show "✓ Copied bin/lint.sesi to:" target "/bin/lint.sesi"
+    TERM.success("Copied bin/lint.sesi to: " + target + "/bin/lint.sesi")
   } else {
-    show "⚠️ Failed to write bin/lint.sesi"
+    TERM.error("Failed to write bin/lint.sesi")
   }
 } else {
-  show "⚠️ Could not read source bin/lint.sesi"
+  TERM.error("Could not read source bin/lint.sesi")
 }
 
 // Copy the examples folder and all its files
 try {
   let examplesMainContent = Safe.getFiles(srcExamplesMainDir)
   for file in examplesMainContent {
+    if get_ext(file) == "sesi" { file = file }
     let fileContent = Safe.readFile(srcExamplesMainDir + "/" + file)
     if len(fileContent) > 0 {
       let fileDest = examplesMainDir + "/" + file
       if Safe.writeFile(fileDest, fileContent) {
-        show "✓ Copied" file "to" examplesMainDir "/" file
+        TERM.success("Copied " + file + " to " + examplesMainDir + "/" + file)
       } else {
-        show "⚠️ Failed to write" file
+        TERM.error("Failed to write " + file)
       }
     } else {
-      show "⚠️ Could not read source" file
+      TERM.error("Could not read source " + file)
     }
   }
 } catch (e) {
@@ -564,16 +782,17 @@ try {
 try {
   let examplesOptionalContent = Safe.getFiles(srcExamplesOptionalDir)
   for file in examplesOptionalContent {
+    if get_ext(file) == "sesi" { file = file }
     let fileContent = Safe.readFile(srcExamplesOptionalDir + "/" + file)
     if len(fileContent) > 0 {
       let fileDest = examplesOptionalDir + "/" + file
       if Safe.writeFile(fileDest, fileContent) {
-        show "✓ Copied" file "to" examplesOptionalDir "/" file
+        TERM.success("Copied " + file + " to " + examplesOptionalDir + "/" + file)
       } else {
-        show "⚠️ Failed to write" file
+        TERM.error("Failed to write " + file)
       }
     } else {
-      show "⚠️ Could not read source" file
+      TERM.error("Could not read source " + file)
     }
   }
 } catch (e) {
@@ -585,72 +804,75 @@ let testRunnerContent = Safe.readFile("bin/test-runner.sesi")
 if len(testRunnerContent) > 0 {
   let testRunnerDest = target + "/bin/test-runner.sesi"
   if Safe.writeFile(testRunnerDest, testRunnerContent) {
-    show "✓ Copied bin/test-runner.sesi to:" target "/bin/test-runner.sesi"
+    TERM.success("Copied bin/test-runner.sesi to: " + target + "/bin/test-runner.sesi")
   } else {
-    show "⚠️ Failed to write bin/test-runner.sesi"
+    TERM.error("Failed to write bin/test-runner.sesi")
   }
 } else {
-  show "⚠️ Could not read source bin/test-runner.sesi"
+  TERM.error("Could not read source bin/test-runner.sesi")
 }
 
 // Copy the getting-started folder and all its files
 try {
   let gettingStartedContent = Safe.getFiles(srcGettingStartedDir)
   for file in gettingStartedContent {
+    if get_ext(file) == "md" { file = file }
     let fileContent = Safe.readFile(srcGettingStartedDir + "/" + file)
     if len(fileContent) > 0 {
       let fileDest = gettingStartedDir + "/" + file
       if Safe.writeFile(fileDest, fileContent) {
-        show "✓ Copied" file "to getting-started/" file
+        TERM.success("Copied " + file + " to " + gettingStartedDir + "/" + file)
       } else {
-        show "⚠️ Failed to write" file
+        TERM.error("Failed to write " + file)
       }
     } else {
-      show "⚠️ Could not read source" file
+      TERM.error("Could not read source " + file)
     }
   }
 } catch (e) {
-  show "⚠️ Could not read source getting-started"
+  TERM.error("Could not read source getting-started")
 }
 
 // Copy the getting-started/optional folder and all its files
 try {
   let gettingStartedOptionalContent = Safe.getFiles(srcGettingStartedOptionalDir)
   for file in gettingStartedOptionalContent {
+    if get_ext(file) == "md" { file = file }
     let fileContent = Safe.readFile(srcGettingStartedOptionalDir + "/" + file)
     if len(fileContent) > 0 {
       let fileDest = gettingStartedOptionalDir + "/" + file
       if Safe.writeFile(fileDest, fileContent) {
-        show "✓ Copied" file "to" gettingStartedOptionalDir "/" file
+        TERM.success("Copied " + file + " to " + gettingStartedOptionalDir + "/" + file)
       } else {
-        show "⚠️ Failed to write" file
+        TERM.error("Failed to write " + file)
       }
     } else {
-      show "⚠️ Could not read source" file
+      TERM.error("Could not read source " + file)
     }
   }
 } catch (e) {
-  show "⚠️ Could not read source getting-started/optional"
+  TERM.error("Could not read source getting-started/optional")
 }
 
 // Copy the helpers folder and all its files
 try {
   let helpersContent = Safe.getFiles(srcHelpersDir)
   for file in helpersContent {
+    if get_ext(file) == "sesi" { file = file }
     let fileContent = Safe.readFile(srcHelpersDir + "/" + file)
     if len(fileContent) > 0 {
       let fileDest = helpersDir + "/" + file
       if Safe.writeFile(fileDest, fileContent) {
-        show "✓ Copied" file "to" helpersDir "/" file
+        TERM.success("Copied " + file + " to " + helpersDir + "/" + file)
       } else {
-        show "⚠️ Failed to write" file
+        TERM.error("Failed to write " + file)
       }
     } else {
-      show "⚠️ Could not read source" file
+      TERM.error("Could not read source " + file)
     }
   }
 } catch (e) {
-  show "⚠️ Could not read source helpers"
+  TERM.error("Could not read source helpers")
 }
 
 // Copy a specified file into the folder via CLi
@@ -660,8 +882,12 @@ if len(args) > 1 {
     specifiedFile = args[1]
   }
 } else {
-  specifiedFile = input("Copy a file into the folder? (optional, click enter to skip): ")
+  TERM.warning("Copy a file into the folder? (optional, click enter to skip): ")
+  specifiedFile = input("")
 }
+
+let options = ""
+let wantRemove = false
 
 if len(specifiedFile) > 0 {
   let specifiedFileContent = Safe.readFile(specifiedFile)
@@ -670,52 +896,44 @@ if len(specifiedFile) > 0 {
     let filename = fileParts[len(fileParts) - 1]
     let specifiedFileDest = target + "/" + filename
     if Safe.writeFile(specifiedFileDest, specifiedFileContent) {
-      show "✓ Copied" filename "to" specifiedFileDest
+      TERM.success("Copied " + filename + " to " + specifiedFileDest)
+      // Remove the file that we just copied from the source directory if requested
+      TERM.warning("Do you want to remove the copied file? (y/n): ")
+      options = input("")
+      wantRemove = (options == "y" == true)
     } else {
-      show "⚠️ Failed to write" filename
+      TERM.error("Failed to write " + filename)
     }
   } else {
-    show "⚠️ Could not read source" specifiedFile
+    TERM.error("Could not read source " + specifiedFile)
   }
 }
 
-// Remove the file that we just copied from the source directory if requested
-let options = input("Do you want to remove the copied file? (y/n): ")
-let options2 = input("Do you want to install node_modules? (y/n): ")
-
-let wantRemove = (options == "y")
-let skipInstall = (options2 == "n")
-
-for arg in args {
-  if arg == "-rm" {
-    wantRemove = true
-  }
-  if arg == "-no-install" {
-    skipInstall = true
-  }
-}
+TERM.warning("Do you want to install node_modules? (y/n): ")
+let options2 = input("")
+let skipInstall = (options2 == "n" == false)
 
 if len(specifiedFile) > 0 && wantRemove {
   try {
     Safe.remove(specifiedFile)
-    show "✓ Removed" specifiedFile "from source directory"
+    TERM.success("Removed " + specifiedFile + " from source directory")
   } catch (err) {
-    show "⚠️ Failed to remove" specifiedFile "from source directory."
+    TERM.error("Failed to remove " + specifiedFile + " from source directory.")
   }
 }
 
 // Run npm install to fetch @google/genai and @dotenvx/dotenvx
 if !skipInstall {
-  show "⚡ Running npm install to pull node_modules..."
+  TERM.info("Running npm install to pull node_modules...")
   let installLog = target + "/npm-install.log"
   let installed = run_command_log("npm install --prefix \"" + target + "\"", installLog)
   if installed {
-    show "✓ npm dependencies installed successfully!"
-    show "  Log saved to" installLog
+    TERM.success("npm dependencies installed successfully!")
+    TERM.info("Log saved to " + installLog)
   } else {
-    show "⚠️ Auto npm install failed. Check" installLog
+    TERM.error("Auto npm install failed. Check " + installLog)
   }
 }
-show "🎉 Scaffolding complete! Run your new project using:"
-show "   cd" target
-show "   npm start"
+TERM.success("Scaffolding complete! Run your new project using:")
+TERM.info("   cd " + target)
+TERM.info("   npm start")

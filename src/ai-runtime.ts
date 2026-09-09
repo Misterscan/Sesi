@@ -419,6 +419,9 @@ export class AIRuntime {
     if (request.search) {
       throw new Error('search is not available for local model calls.');
     }
+    if (request.responseSchema) {
+      throw new Error('Native structured output is not available for local model calls.');
+    }
 
     const modelName = this.resolveLocalModelName(request.model);
     const generator = await this.getLocalPipeline(modelName);
@@ -805,6 +808,9 @@ export class AIRuntime {
     if (request.maxTokens !== undefined) body.max_output_tokens = request.maxTokens;
     if (request.topP !== undefined) body.top_p = request.topP;
     if (effort) body.reasoning = { effort };
+    if (request.responseSchema) {
+      body.text = { format: { type: 'json_schema', name: 'sesi_response', schema: request.responseSchema, strict: true } };
+    }
     if (request.tools && request.tools.length > 0) body.tools = this.normalizeOpenAITools(request.tools);
     if (request.search) body.tools = [...(body.tools ?? []), { type: 'web_search' }];
 
@@ -960,6 +966,50 @@ export class AIRuntime {
       return Math.floor(totalTokens);
     } catch (error: any) {
       throw new Error(`Sesi: Gemini token counting failed: ${error.message}`);
+    }
+  }
+
+  async countImageTokens(model: string, imageData: string, mimeType: string): Promise<number> {
+    const normalizedModel = String(model || '').trim();
+    if (this.isLocalModel(normalizedModel)) {
+      throw new Error('Native image token counting is not available for local models.');
+    }
+
+    if (this.isGPTModel(normalizedModel)) {
+      try {
+        const response = await this.openAIClient.responses.inputTokens.count({
+          model: normalizedModel,
+          input: [{
+            role: 'user',
+            content: [{ type: 'input_image', image_url: `data:${mimeType};base64,${imageData}` }],
+          }],
+        });
+        const inputTokens = response?.input_tokens;
+        if (typeof inputTokens !== 'number' || !Number.isFinite(inputTokens) || inputTokens < 0) {
+          throw new Error('OpenAI input-token endpoint returned no valid input_tokens value.');
+        }
+        return Math.floor(inputTokens);
+      } catch (error: any) {
+        throw new Error(`Sesi: OpenAI image token counting failed: ${error.message}`);
+      }
+    }
+
+    if (!/^(?:models\/)?gemini-/i.test(normalizedModel)) {
+      throw new Error('Native image token counting requires a GPT or Gemini model name.');
+    }
+
+    try {
+      const response = await this.client.models.countTokens({
+        model: this.normalizeModelName(normalizedModel),
+        contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: imageData } }] }],
+      });
+      const totalTokens = response?.totalTokens;
+      if (typeof totalTokens !== 'number' || !Number.isFinite(totalTokens) || totalTokens < 0) {
+        throw new Error('Gemini countTokens returned no valid totalTokens value.');
+      }
+      return Math.floor(totalTokens);
+    } catch (error: any) {
+      throw new Error(`Sesi: Gemini image token counting failed: ${error.message}`);
     }
   }
 
@@ -1241,17 +1291,16 @@ export class AIRuntime {
       
       // Inject current date/time for context
       const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
-      const fullPrompt = timeContext + request.prompt;
-      const systemInstruction = request.systemPrompt?.trim() || undefined;
+      const systemInstruction = timeContext + request.systemPrompt?.trim() || undefined;
 
       // Build thinkingConfig if requested
       let thinkingConfig: any = undefined;
       if (request.thinkingLevel) {
-        let level = 'low';
+        let level = 'medium';
         let thinking = true;
         if (typeof request.thinkingLevel === 'object' && request.thinkingLevel !== null) {
           thinking = (request.thinkingLevel as any).thinking !== 'no';
-          level = (request.thinkingLevel as any).level || 'low';
+          level = (request.thinkingLevel as any).level || 'medium';
         } else if (typeof request.thinkingLevel === 'string') {
           level = request.thinkingLevel;
           thinking = level.toLowerCase() !== 'no';
@@ -1359,7 +1408,7 @@ export class AIRuntime {
 
       contents.push({
         role: 'user',
-        parts: [...imageParts, ...audioParts, { text: fullPrompt }],
+        parts: [...imageParts, ...audioParts, { text: request.prompt }],
       });
 
       while (!isComplete && currentPoll < maxPolls) {
@@ -1381,6 +1430,10 @@ export class AIRuntime {
 
         if (thinkingConfig) {
           genConfig.thinkingConfig = thinkingConfig;
+        }
+        if (request.responseSchema) {
+          genConfig.responseMimeType = 'application/json';
+          genConfig.responseJsonSchema = request.responseSchema;
         }
 
         if (systemInstruction) {

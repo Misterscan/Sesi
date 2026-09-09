@@ -51,14 +51,6 @@ assert(
   'local models do not use a VM-host-dependent dynamic import'
 );
 assert(
-  builtinsSource.includes("import('translate')"),
-  'translate uses a statically discoverable import for packaged executables'
-);
-assert(
-  !builtinsSource.includes("importEsmModule('translate')"),
-  'translate does not use a VM-host-dependent dynamic import'
-);
-assert(
   Number(String(packageJson.engines?.node ?? '').match(/\d+/)?.[0] ?? 0) >= 20,
   'npm package declares the ONNX Runtime minimum Node version'
 );

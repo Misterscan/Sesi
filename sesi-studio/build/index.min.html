@@ -2,6 +2,8 @@
 href="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/editor/editor.main.css"><script src="node_modules/@xterm/xterm/lib/xterm.js"></script><script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script><!-- xterm.css for terminal styling --><link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css"><style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 :root{--bg-base:#0f1012;--bg-panel:#161719;--accent-cyan:#8b5cf6;--accent-blue:#f59e0b;--accent-green:#10b981;--silver-light:#f3f4f6;--silver-mid:#9ca3af;--silver-dark:#6b7280;--glass-bg:#161719;--glass-border:rgba(255,255,255,0.08);--glass-highlight:rgba(255,255,255,0.12)}*{box-sizing:border-box;margin:0;padding:0}body{background-color:var(--bg-base);color:var(--silver-light);font-family:'Space Grotesk',sans-serif;font-size:13px;height:100vh;overflow:hidden;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}header{background:rgba(15,23,42,0.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--glass-border);height:48px;padding:0 16px;display:flex;justify-content:space-between;align-items:center;z-index:100}.brand{display:flex;align-items:center;gap:10px}.brand img{width:24px;height:24px}.brand h1{font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--silver-light)}.glow-text{color:var(--silver-mid);font-weight:400}.controls{display:flex;gap:12px;align-items:center}.btn{background:var(--bg-panel);border:1px solid var(--glass-border);color:var(--silver-light);font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.15s ease}.btn:hover{background:#1e1f22;border-color:var(--silver-mid)}.btn:active{transform:translateY(1px)}.studio-container{display:grid;grid-template-columns:240px 1fr 340px;height:calc(100vh - 48px);width:100vw;overflow:hidden}.panel{background:var(--glass-bg);border-right:1px solid var(--glass-border);display:flex;flex-direction:column;overflow:hidden;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}.panel-header{height:36px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--glass-border);background:rgba(0,0,0,0.2)}.panel-title{font-size:11px;font-weight:bold;text-transform:uppercase;color:var(--accent-cyan);letter-spacing:0.5px}#fileTree{flex:1;overflow-y:auto;padding:8px 0;list-style:none;font-family:'JetBrains Mono',monospace;font-size:11.5px}#fileTree ul{list-style:none;padding:0;margin:0}.file-item{padding:6px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--silver-mid);transition:all 0.15s ease}.file-item:hover{background:rgba(0,229,255,0.05);color:#fff}.file-item.active{background:rgba(0,229,255,0.1);border-left:2px solid var(--accent-cyan);color:var(--accent-cyan);font-weight:500}.file-icon{font-size:14px}.editor-section{display:grid;grid-template-rows:1fr 200px;overflow:hidden}.editor-container-wrapper{display:flex;flex-direction:column;overflow:hidden;position:relative}.tab-bar{height:36px;background:rgba(0,0,0,0.3);border-bottom:1px solid var(--glass-border);display:flex;overflow-x:auto}.tab{height:100%;padding:0 16px;display:flex;align-items:center;gap:8px;border-right:1px solid var(--glass-border);font-size:12px;color:var(--silver-mid);cursor:pointer;background:rgba(0,0,0,0.1);transition:background 0.15s ease}.tab.active{background:var(--bg-panel);color:#fff;border-bottom:2px solid var(--accent-cyan)}.tab-close{font-size:10px;color:var(--silver-dark);cursor:pointer}.tab-close:hover{color:#ff5f56}#editorContainer{flex:1;width:100%;height:100%}.terminal-container-wrapper{border-top:1px solid var(--glass-border);display:flex;flex-direction:column;overflow:hidden;background:#000}#terminalContainer{flex:1;padding:8px;overflow:hidden}.copilot-panel{border-left:1px solid var(--glass-border);border-right:none}.chat-messages{flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;background:rgba(0,0,0,0.15)}.chat-tabs{height:32px;background:rgba(0,0,0,0.4);display:flex;border-bottom:1px solid var(--glass-border);overflow-x:auto}.chat-tab{padding:0 12px;display:flex;align-items:center;gap:6px;font-size:10px;color:var(--silver-mid);cursor:pointer;border-right:1px solid var(--glass-border);white-space:nowrap}.chat-tab.active{background:rgba(0,229,255,0.1);color:var(--accent-cyan)}.chat-tab-add{padding:0 10px;color:var(--accent-green);cursor:pointer}.chat-tab-close{font-size:8px}.chat-tab-close:hover{color:#ff5f56}.message{max-width:90%;padding:10px 14px;border-radius:6px;font-size:12.5px;line-height:1.5}.message.system{background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);align-self:flex-start;color:var(--silver-light)}.message.user{background:#1e1f22;border:1px solid var(--glass-border);align-self:flex-end;color:var(--silver-light);border-top-right-radius:2px}.message pre{background:var(--bg-base);padding:12px;border:1px solid var(--glass-border);border-radius:6px;margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--silver-light);overflow-x:auto;position:relative}.code-actions-header{background:rgba(15,23,42,0.85);border-bottom:1px solid var(--glass-border);display:flex;justify-content:flex-end;gap:6px;padding:4px 8px;margin:-8px -8px 8px -8px}.code-action-btn{background:none;border:1px solid var(--accent-cyan);color:var(--accent-cyan);font-size:9px;font-weight:bold;text-transform:uppercase;padding:2px 6px;border-radius:3px;cursor:pointer;transition:all 0.15s ease}.code-action-btn:hover{background:var(--accent-cyan);color:#000}.message code{color:var(--accent-cyan);font-family:Monaco,monospace}.chat-input-area{padding:12px;border-top:1px solid var(--glass-border);display:flex;gap:8px;background:rgba(0,0,0,0.2)}.chat-input{flex:1;background:#000;border:1px solid var(--silver-dark);border-radius:4px;padding:8px 12px;color:var(--accent-cyan);font-family:inherit;font-size:12px;outline:none}.chat-input:focus{border-color:var(--accent-cyan);box-shadow:0 0 8px rgba(0,229,255,0.15)}.chat-btn{padding:8px 14px}.settings-tab:hover{background:rgba(139,92,246,0.1);color:#fff !important}.settings-tab.active{background:rgba(139,92,246,0.15);color:var(--accent-cyan) !important;border-left:3px solid var(--accent-cyan);padding-left:21px !important}.settings-section{margin-bottom:32px}.settings-section h3{font-size:14px;color:var(--accent-cyan);margin-top:0;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px}.setting-item{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.05)}.setting-label{display:flex;flex-direction:column;gap:4px}.setting-title{font-size:13px;color:var(--silver-light)}.setting-desc{font-size:11px;color:var(--silver-dark)}.command-palette-item{padding:10px 20px;font-size:13px;color:var(--silver-light);cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:3px solid transparent;transition:all 0.15s ease}.command-palette-item:hover{background:rgba(255,255,255,0.04);color:#fff}.command-palette-item.selected{background:rgba(139,92,246,0.15);color:var(--accent-cyan);border-left:3px solid var(--accent-cyan);padding-left:17px}.command-palette-shortcut{font-size:10px;color:var(--silver-dark);font-family:monospace;background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;transition:all 0.15s ease}.command-palette-item.selected .command-palette-shortcut{color:var(--accent-cyan);background:rgba(0,229,255,0.1)}
+</style><style>
+.sesi-embedded-comment{color:#6a9955!important;font-style:italic}.sesi-embedded-string{color:#ce9178!important}.sesi-embedded-keyword{color:#c586c0!important;font-weight:600}.sesi-embedded-number{color:#b5cea8!important}.sesi-embedded-regexp{color:#d16969!important}.sesi-embedded-operator{color:#d4d4d4!important}.sesi-embedded-type{color:#4ec9b0!important}.sesi-embedded-function{color:#dcdcaa!important}.sesi-embedded-variable{color:#9cdcfe!important}.sesi-embedded-class{color:#4ec9b0!important}
 </style></head><body><!-- Header --><header><div class="brand"><img src="img/favicon.png" alt="Sesi Logo" width="48"><h1>Sesi <span class="glow-text">Studio</span></h1></div><div class="controls"><button class="btn" id="newBtn" onclick="createNewBuffer()">+ New File</button><button class="btn" id="saveBtn" onclick="saveActiveFile()">Save (Ctrl+S)</button><button class="btn" id="runBtn" onclick="runActiveFile()">Run active script</button><button class="btn" id="paletteBtn" onclick="toggleCommandPalette()" title="Command Palette (Ctrl+P)">⌨️
 Commands</button><button class="btn" id="settingsBtn" onclick="toggleSettingsModal()" title="Settings Hub">⚙️ Settings</button></div></header><!-- Studio Workspace --><div class="studio-container"><!-- File tree sidebar --><div class="panel" style="display: flex; flex-direction: column; border-right: 1px solid var(--glass-border);"><div
 style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--glass-border);"><div class="panel-header"><span class="panel-title">Workspace</span><button onclick="loadWorkspaceFiles(currentDirectoryPath)"
@@ -141,7 +143,13 @@ return [];
 }
 // Load Monaco Editor
 require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs' } });
-require(['vs/editor/editor.main'], async function () {
+require(['vs/editor/editor.main', 'vs/basic-languages/javascript/javascript', 'vs/basic-languages/python/python'], async function (_editorMain, javascriptDefinition, pythonDefinition) {
+if (!monaco.languages.getLanguages().some(language => language.id === 'javascript')) monaco.languages.register({ id: 'javascript' });
+if (!monaco.languages.getLanguages().some(language => language.id === 'python')) monaco.languages.register({ id: 'python' });
+monaco.languages.setMonarchTokensProvider('javascript', javascriptDefinition.language);
+monaco.languages.setLanguageConfiguration('javascript', javascriptDefinition.conf);
+monaco.languages.setMonarchTokensProvider('python', pythonDefinition.language);
+monaco.languages.setLanguageConfiguration('python', pythonDefinition.conf);
 let syntax = {
 keywords: [
 'if', 'else', 'while', 'for', 'in', 'to', 'return', 'break', 'continue', 'try', 'catch', 'finally', 'async', 'await', 'allow', 'as', 'with',
@@ -149,13 +157,17 @@ keywords: [
 'let', 'fn', 'make', 'import', 'from', 'export'
 ],
 typeKeywords: ['number', 'string', 'bool', 'null', 'array', 'object', 'any'],
-constants: ['true', 'false', 'null', 'media', 'audio', 'video', 'text', 'doc', 'PI', 'E', 'INFINITY', 'NaN'],
+constants: ['true', 'false', 'null', 'media', 'audio', 'video', 'text', 'doc', 'E', 'LN10', 'LN2', 'LOG10E', 'LOG2E', 'PI', 'SQRT1_2', 'SQRT2', 'INFINITY', 'NaN'],
 builtins: [
 'set_alias', 'model', 'image', 'workflow',
-'show', 'memory', 'memory_search', 'memory_trim', 'prompt', 'structured_output', 'tool_call', 'define_tool', 'web_send', 'web_get', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'args', 'len', 'range', 'type', 'str', 'num', 'float', 'bool', 'keys', 'values', 'push', 'append', 'pop', 'join', 'split', 'regex', 'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage', 'gif', 'video', 'ffmpeg', 'matrix_dot', 'matrix_transpose', 'matrix_add', 'matrix_sub', 'matrix_mul_elements', 'matrix_scale', 'matrix_sigmoid', 'matrix_dsigmoid', 'matrix_sum_rows', 'matrix_mse', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'contains', 'locate', 'map', 'filter', 'reduce', 'find', 'retry', 'lazy', 'force', 'timeout', 'profile', 'profile_start', 'profile_end', 'profile_report', 'encrypt', 'decrypt', 'read_file', 'write_file', 'append_file', 'write_image', 'open', 'open_file', 'convert', 'encode', 'decode', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'spawn', 'exec', 'run', 'sesi', 'python', 'js', 'html', 'time', 'env', 'random', 'exp', 'trunc', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'now', 'sleep', 'format', 'to_json', 'from_json', 'speech', 'from_speech', 'translate', 'listen', 'api', 'create_app', 'get', 'post', 'put', 'delete', 'patch', 'head', 'use', 'live', 'db_open', 'launch', 'newPage', 'goto', 'content', 'screenshot', 'pdf', 'click', 'fill', 'type', 'press', 'inner_text', 'attribute', 'evaluate', 'wait_for_selector', 'wait_for_timeout', 'input', 'play', 'beep', 'synth', 'save', 'load', 'kick', 'snare', 'hat', 'sequence', 'midi', 'render', 'comp', 'mix', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'clear', 'cursor', 'color', 'background', 'rgb', 'rgbBackground', 'write', 'eraseLine', 'eraseScreen', 'move', 'up', 'down', 'left', 'right', 'saveCursor', 'restoreCursor', 'hideCursor', 'showCursor', 'title', 'bell', 'size', 'circle', 'rect', 'line', 'pixel', 'pixel_grid', 'text', 'save_svg', 'save_png', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw', 'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null', 'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten'
+'show', 'memory', 'memory_search', 'memory_trim', 'prompt', 'structured_output', 'tool_call', 'define_tool', 'web_send', 'web_get', 'list_tools', 'error_type', 'raise_error', 'multi_req', 'args', 'len', 'range', 'type', 'str', 'num', 'float', 'bool', 'keys', 'values', 'push', 'append', 'pop', 'join', 'split', 'regex', 'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage', 'gif', 'video', 'ffmpeg', 'matrix_dot', 'matrix_transpose', 'matrix_add', 'matrix_sub', 'matrix_mul_elements', 'matrix_scale', 'matrix_sigmoid', 'matrix_dsigmoid', 'matrix_sum_rows', 'matrix_mse', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'contains', 'locate', 'map', 'filter', 'reduce', 'find', 'retry', 'lazy', 'force', 'timeout', 'profile', 'profile_start', 'profile_end', 'profile_report', 'encrypt', 'decrypt', 'read_file', 'write_file', 'append_file', 'write_image', 'open', 'open_file', 'convert', 'encode', 'decode', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'spawn', 'exec', 'run', 'sesi', 'python', 'js', 'html', 'time', 'env', 'random', 'abs', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'atan2', 'cbrt', 'ceil', 'clz32', 'cos', 'cosh', 'exp', 'expm1', 'floor', 'fround', 'hypot', 'imul', 'log', 'log1p', 'log2', 'log10', 'max', 'min', 'pow', 'round', 'sign', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc', 'now', 'sleep', 'format', 'to_json', 'from_json', 'speech', 'from_speech', 'listen', 'api', 'create_app', 'get', 'post', 'put', 'delete', 'patch', 'head', 'use', 'live', 'db_open', 'launch', 'newPage', 'goto', 'content', 'screenshot', 'pdf', 'click', 'fill', 'type', 'press', 'inner_text', 'attribute', 'evaluate', 'wait_for_selector', 'wait_for_timeout', 'input', 'play', 'beep', 'synth', 'save', 'load', 'kick', 'snare', 'hat', 'sequence', 'midi', 'render', 'comp', 'mix', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'clear', 'cursor', 'color', 'background', 'rgb', 'rgbBackground', 'write', 'eraseLine', 'eraseScreen', 'move', 'up', 'down', 'left', 'right', 'saveCursor', 'restoreCursor', 'hideCursor', 'showCursor', 'title', 'bell', 'size', 'circle', 'rect', 'line', 'pixel', 'pixel_grid', 'text', 'save_svg', 'save_png', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw', 'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null', 'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten'
 ],
 docs: {}
 };
+syntax.builtins.push(
+'pixel_rect', 'pixel_circle', 'pixel_line', 'pixel_ellipse', 'pixel_polygon', 'pixel_triangle',
+'pixel_star', 'pixel_ring', 'pixel_arc', 'pixel_bezier', 'pixel_text'
+);
 try {
 const res = await fetch('/api/syntax');
 if (res.ok) {
@@ -226,7 +238,11 @@ cases: {
 [/'/, { token: 'string.quote', bracket: '@open', next: '@string_single' }],
 ],
 string: [
-[/[^\\"]+/, 'string'],
+[/(\[)(x)(\])/, ['sequenceGrid.bracket', 'sequenceGrid.hit', 'sequenceGrid.bracket']],
+[/(\[)(X)(\])/, ['sequenceGrid.bracket', 'sequenceGrid.accent', 'sequenceGrid.bracket']],
+[/(\[)([ .-])(\])/, ['sequenceGrid.bracket', 'sequenceGrid.rest', 'sequenceGrid.bracket']],
+[/[^\\[\"]+/, 'string'],
+[/\[/, 'string'],
 [/\\./, 'string.escape'],
 [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }]
 ],
@@ -236,7 +252,11 @@ functionName: [
 [/./, { token: '', next: '@pop' }]
 ],
 string_single: [
-[/[^\\']+/, 'string'],
+[/(\[)(x)(\])/, ['sequenceGrid.bracket', 'sequenceGrid.hit', 'sequenceGrid.bracket']],
+[/(\[)(X)(\])/, ['sequenceGrid.bracket', 'sequenceGrid.accent', 'sequenceGrid.bracket']],
+[/(\[)([ .-])(\])/, ['sequenceGrid.bracket', 'sequenceGrid.rest', 'sequenceGrid.bracket']],
+[/[^\\[']+/, 'string'],
+[/\[/, 'string'],
 [/\\./, 'string.escape'],
 [/'/, { token: 'string.quote', bracket: '@close', next: '@pop' }]
 ],
@@ -252,6 +272,20 @@ comment: [
 ],
 }
 });
+const embeddedTokenClass = (monacoType, tokenText) => {
+const type = String(monacoType || '').toLowerCase();
+if (/^\s*$/.test(tokenText)) return null;
+if (type.includes('comment')) return 'sesi-embedded-comment';
+if (type.includes('string')) return 'sesi-embedded-string';
+if (type.includes('keyword')) return 'sesi-embedded-keyword';
+if (type.includes('number')) return 'sesi-embedded-number';
+if (type.includes('regexp')) return 'sesi-embedded-regexp';
+if (type.includes('operator') || type.includes('delimiter') || type.includes('bracket')) return 'sesi-embedded-operator';
+if (type.includes('type')) return 'sesi-embedded-type';
+if (type.includes('function')) return 'sesi-embedded-function';
+if (type.includes('class')) return 'sesi-embedded-class';
+return 'sesi-embedded-variable';
+};
 monaco.languages.setLanguageConfiguration('sesi', {
 comments: { lineComment: '//', blockComment: ['/*', '*/'] },
 brackets: [['{', '}'], ['[', ']'], ['(', ')']],
@@ -311,16 +345,18 @@ whitespace: [
 }
 });
 const sesiBuiltinModuleExports = {
-'std/math': ['PI (number)', 'E (number)', 'sin(x)', 'cos(x)', 'tan(x)', 'sqrt(x)', 'floor(x)', 'ceil(x)', 'abs(x)', 'pow(x, y)', 'log(x)', 'exp(x)'],
+'std/math': ['E (number)', 'LN10 (number)', 'LN2 (number)', 'LOG10E (number)', 'LOG2E (number)', 'PI (number)', 'SQRT1_2 (number)', 'SQRT2 (number)', 'abs(x)', 'acos(x)', 'acosh(x)', 'asin(x)', 'asinh(x)', 'atan(x)', 'atanh(x)', 'atan2(y, x)', 'cbrt(x)', 'ceil(x)', 'clz32(x)', 'cos(x)', 'cosh(x)', 'exp(x)', 'expm1(x)', 'floor(x)', 'fround(x)', 'hypot(...values)', 'imul(x, y)', 'log(x)', 'log1p(x)', 'log2(x)', 'log10(x)', 'max(...values)', 'min(...values)', 'pow(x, y)', 'random()', 'round(x)', 'sign(x)', 'sin(x)', 'sinh(x)', 'sqrt(x)', 'tan(x)', 'tanh(x)', 'trunc(x)'],
 'std/time': ['now()', 'sleep(ms)', 'format(timestamp, options)'],
 'std/base64': ['encode(value, mode?)', 'decode(base64_text, mode?)'],
 'std/db': ['db_open(filename, password)', '.collection(name)', '.find(query)', '.insert(doc)', '.update(query, update)', '.delete(query)'],
 'std/browser': ['launch(options)', '.newPage()', '.goto(url)', '.page.title()', '.click(selector)', '.inner_text(selector)', '.attribute(selector, attr)', '.evaluate(jsCode)', '.screenshot(path, options)', '.pdf(path, options)', '.close()'],
 'std/audio': ['sf2(path, options)', 'mix(path, tracks, type, options)', 'sequence(path, notes, type, options)', 'play(note, ms, options)', 'synth(freq, ms, type, options)', 'save(path, freq, ms, type, options)', 'beep(freq, ms)', 'midi(path, tracks)'],
 'std/theory': ['chord(root, type)', 'scale(root, type)', 'transpose(notes, steps)', 'duration(min, sec)', 'bar(bars, bpm, beatsPerBar?)'],
-'std/draw': ['clear()', 'circle(x, y, r, fill, options?)', 'rect(x, y, w, h, fill, options?)', 'pixel(x, y, color)', 'pixel_grid(grid, palette, scale?, x?, y?)', 'line(x1, y1, x2, y2, color, options?)', 'text(x, y, text, size, color, options?)', 'ellipse(cx, cy, rx, ry, fill, options?)', 'polygon(points, fill, options?)', 'path(d, fill, options?)', 'gradient(type, id, stops, options?)', 'style(cssText)', 'raw(svgCode)', 'render(w, h)', 'save_svg(path, w, h)', 'save_png(path, w, h, background?)'],
+'std/draw': ['clear()', 'circle(x, y, r, fill, options?)', 'rect(x, y, w, h, fill, options?)', 'pixel(x, y, color)', 'pixel_grid(grid, palette, scale?, x?, y?)', 'pixel_rect(x, y, w, h, color, filled?)', 'pixel_circle(cx, cy, r, color, filled?)', 'pixel_line(x1, y1, x2, y2, color)', 'pixel_ellipse(cx, cy, rx, ry, color, filled?)', 'pixel_polygon(points, color, filled?)', 'pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled?)', 'pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled?)', 'pixel_ring(cx, cy, radius, thickness, color)', 'pixel_arc(cx, cy, radius, startAngle, endAngle, color)', 'pixel_bezier(x1, y1, cx, cy, x2, y2, color)', 'pixel_text(x, y, text, color, scale?)', 'line(x1, y1, x2, y2, color, options?)', 'text(x, y, text, size, color, options?)', 'ellipse(cx, cy, rx, ry, fill, options?)', 'polygon(points, fill, options?)', 'path(d, fill, options?)', 'gradient(type, id, stops, options?)', 'style(cssText)', 'raw(svgCode)', 'render(w, h)', 'save_svg(path, w, h)', 'save_png(path, w, h, background?)'],
+'std/game': ['VERSION', 'create(config?)', 'vec2(x, y)', 'vec3(x, y, z)', 'quat(x, y, z, w)', 'color(r, g, b, a)', 'game.assets.add(name, type, source, options?)', 'game.create_scene(name, options?)', 'game.run(options?)', 'game.build(path, options?)'],
 'std/terminal': ['clear(mode?)', 'color(text, color)', 'style(text, styles)', 'background(text, color)', 'rgb(text, red, green, blue)', 'rgbBackground(text, red, green, blue)', 'write(text)', 'line(text?)', 'eraseLine(mode?)', 'eraseScreen(mode?)', 'cursor(x, y)', 'move(x, y)', 'up(amount?)', 'down(amount?)', 'left(amount?)', 'right(amount?)', 'saveCursor()', 'restoreCursor()', 'hideCursor()', 'showCursor()', 'title(text)', 'bell()', 'size()'],
-'std/api': ['create_app(config?)', '.get(path, schema?, handler)', '.post(path, schema?, handler)', '.put(path, schema?, handler)', '.delete(path, schema?, handler)', '.use(middleware)', '.openapi()', '.routes()', '.listen(port, options?)']
+'std/api': ['create_app(config?)', '.get(path, schema?, handler)', '.post(path, schema?, handler)', '.put(path, schema?, handler)', '.delete(path, schema?, handler)', '.use(middleware)', '.openapi()', '.routes()', '.listen(port, options?)'],
+'std/mpc': ['create(config?)', 'project(config?)', 'sequence(name, bars?, bpm?, timeSig?)', 'drum_kit(nameOrPreset?)', 'program(name, type?, pads?)', 'pad(padNumber, sound?, options?)', 'sixteen_levels(pad, mode?, options?)', 'note_repeat(pad, rate?, bars?, options?)', 'swing(events, percent?, grid?)', 'chop(sample, slices?, options?)', 'slice(sample, slices?, options?)', 'vintage(mode, sample)', 'effect(type, params)', 'fx(type, params)', 'sample(type_or_path, options?)', 'song(steps, name?)', 'render_wav(target, path, options?)', 'render_midi(target, path)', 'play(target, options?)']
 };
 function sesiStripComments(text) {
 let result = '';
@@ -400,7 +436,7 @@ try {
 const response = await fetch(`/api/file?path=${encodeURIComponent(normalized)}`);
 if (!response.ok) return null;
 const body = await response.json();
-return body && typeof body.content === 'string' ? body.content : null;
+return body && body.exists === true && typeof body.content === 'string' ? body.content : null;
 } catch (_) { return null; }
 }
 async function sesiResolvePath(specifier, moduleOnly = false) {
@@ -413,7 +449,7 @@ const bases = [sesiDirname(activePath), root, root ? root + '/sesi_modules' : 's
 const candidates = [];
 for (const name of names) {
 if (name.startsWith('/')) candidates.push(sesiNormalizePath(name));
-else for (const base of bases) candidates.push(sesiNormalizePath((base === '.' ? '' : base + '/') + name));
+else for (const base of bases) candidates.push(sesiNormalizePath((!base || base === '.' ? '' : base + '/') + name));
 }
 for (const candidate of [...new Set(candidates)]) {
 if (await sesiReadWorkspaceFile(candidate) !== null) return { type: 'local', path: candidate, searchDir: sesiDirname(candidate) };
@@ -429,19 +465,84 @@ while ((match = fnRegex.exec(content || '')) !== null) exports.push({ type: 'fun
 while ((match = letRegex.exec(content || '')) !== null) exports.push({ type: 'variable', name: match[1] });
 return exports;
 }
+function sesiCleanDocumentationComment(commentText) {
+const lines = String(commentText || '').split(/\r?\n/).map(line => line.replace(/^\s*\*\s?/, '').replace(/\s+$/, ''));
+while (lines.length && lines[0].trim() === '') lines.shift();
+while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+if (!lines.length) return '';
+const indents = lines.filter(line => line.trim() !== '').map(line => (line.match(/^\s*/) || [''])[0].length);
+const commonIndent = indents.length ? Math.min(...indents) : 0;
+return lines.map(line => line.slice(commonIndent)).join('\n');
+}
+function sesiModuleDocumentation(content) {
+if (window.sesiGetModuleDocumentation) return window.sesiGetModuleDocumentation(content || '');
+const source = String(content || '').replace(/^\uFEFF/, '').replace(/^\s*/, '');
+if (source.startsWith('/*')) {
+const end = source.indexOf('*/', 2);
+return end < 0 ? '' : sesiCleanDocumentationComment(source.slice(2, end));
+}
+if (!source.startsWith('//')) return '';
+const commentLines = [];
+for (const line of source.split(/\r?\n/)) {
+const match = line.match(/^\s*\/\/\/?\s?(.*)$/);
+if (!match) break;
+commentLines.push(match[1]);
+}
+return sesiCleanDocumentationComment(commentLines.join('\n'));
+}
+function sesiPlainMarkdown(value) {
+return String(value || '').split(/\r?\n/).map(line => line
+.replace(/&/g, '&amp;')
+.replace(/</g, '&lt;')
+.replace(/>/g, '&gt;')
+.replace(/([\\`*_{}\[\]()#+\-.!|])/g, '\\$1')).join('  \n');
+}
+function sesiScopeAnalysisForModel(model) {
+const source = model.getValue();
+const cached = window.activeFileScopeCache;
+if (cached && cached.source === source) return cached;
+if (!window.sesiTokenizer || !window.sesiFindDecls || !window.sesiAnalyzeScope) return cached || null;
+try {
+const tokens = window.sesiTokenizer(source);
+const { decls, refs } = window.sesiFindDecls(tokens);
+const diagnostics = window.sesiAnalyzeScope(tokens, decls, refs);
+return { source, tokens, decls, refs, tokenScopes: diagnostics.tokenScopes || new Map(), diagnostics };
+} catch (_) { return cached || null; }
+}
+function sesiIdentifierTokenAtPosition(analysis, position) {
+if (!analysis) return null;
+const line = position.lineNumber - 1;
+const char = position.column - 1;
+return analysis.tokens.find(token => token.type === 'IDENTIFIER' && token.line === line && char >= token.col && char < token.col + token.length) || null;
+}
+function sesiWordRange(position, word) {
+return new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn);
+}
+function sesiDetailsHover(details, range, importedFrom = '') {
+const contents = [{ value: `\`\`\`sesi\n${details.signature}\n\`\`\`` }];
+if (details.documentation) contents.push({ value: sesiPlainMarkdown(details.documentation) });
+if (importedFrom) contents.push({ value: `*Imported from:* \`${importedFrom}\`  \n*Declared on line ${details.line}*` });
+else contents.push({ value: `*Declared on line ${details.line}*` });
+return { range, contents };
+}
+async function sesiResolvedModuleHover(specifier, range) {
+const resolved = await sesiResolvePath(specifier, true);
+if (!resolved) return { range, contents: [{ value: `### Module: \`${specifier}\`\n\n⚠️ **Module not found** in the current file, workspace, or \`sesi_modules\`.` }] };
+if (resolved.type === 'builtin') {
+const exports = sesiBuiltinModuleExports[specifier] || [];
+const extra = specifier === 'std/base64' ? '\n\nBase64 encoding and decoding for UTF-8 text and raw bytes.' : '';
+return { range, contents: [{ value: `### Module: \`${specifier}\` *(Built-in)*\n\nSesi Standard Library module.${extra}${exports.length ? '\n\n**Exports:**\n' + exports.map(item => `- \`${item}\``).join('\n') : ''}` }] };
+}
+const content = await sesiReadWorkspaceFile(resolved.path);
+const documentation = sesiModuleDocumentation(content);
+const exports = sesiExportsFromContent(content);
+const documentationMarkdown = documentation ? sesiPlainMarkdown(documentation) + '\n\n' : '';
+return { range, contents: [{ value: `### Module: \`${specifier}\`\n\n${documentationMarkdown}*Type:* Local Sesi Module  \n*Path:* \`${resolved.path}\`  \n*Resolved in:* \`${resolved.searchDir}\`${exports.length ? '\n\n**Exports:**\n' + exports.map(item => item.type === 'function' ? `- \`${item.isAsync ? 'async fn' : 'fn'} ${item.name}(${item.params})\`` : `- \`let ${item.name}\``).join('\n') : '\n\n*No exports found in file.*'}` }] };
+}
 async function sesiModuleHover(model, position) {
 const stringInfo = sesiStringAtPosition(model, position);
 if (!stringInfo || !stringInfo.isModule) return null;
-const resolved = await sesiResolvePath(stringInfo.value, true);
-if (!resolved) return { range: stringInfo.range, contents: [{ value: `### Module: \`${stringInfo.value}\`\n\n⚠️ **Module not found** in the current file, workspace, or \`sesi_modules\`.` }] };
-if (resolved.type === 'builtin') {
-const exports = sesiBuiltinModuleExports[stringInfo.value] || [];
-const extra = stringInfo.value === 'std/base64' ? '\n\nBase64 encoding and decoding for UTF-8 text and raw bytes.' : '';
-return { range: stringInfo.range, contents: [{ value: `### Module: \`${stringInfo.value}\` *(Built-in)*\n\nSesi Standard Library module.${extra}${exports.length ? '\n\n**Exports:**\n' + exports.map(item => `- \`${item}\``).join('\n') : ''}` }] };
-}
-const content = await sesiReadWorkspaceFile(resolved.path);
-const exports = sesiExportsFromContent(content);
-return { range: stringInfo.range, contents: [{ value: `### Module: \`${stringInfo.value}\`\n\n*Type:* Local Sesi Module  \n*Path:* \`${resolved.path}\`${exports.length ? '\n\n**Exports:**\n' + exports.map(item => item.type === 'function' ? `- \`${item.isAsync ? 'async fn' : 'fn'} ${item.name}(${item.params})\`` : `- \`let ${item.name}\``).join('\n') : '\n\n*No exports found in file.*'}` }] };
+return sesiResolvedModuleHover(stringInfo.value, stringInfo.range);
 }
 // Register Sesi Hover Provider for Rich In-Editor Documentation
 monaco.languages.registerHoverProvider('sesi', {
@@ -450,42 +551,78 @@ const moduleHover = await sesiModuleHover(model, position);
 if (moduleHover) return moduleHover;
 const word = model.getWordAtPosition(position);
 if (!word) return null;
-// 1. Try to fetch from scope analysis cache
-const cache = window.activeFileScopeCache;
-if (cache) {
-const { tokens, tokenScopes } = cache;
-const line = position.lineNumber - 1;
-const char = position.column - 1;
-const tok = tokens.find(t => t.line === line && char >= t.col && char <= t.col + t.length);
-if (tok && tok.type === 'IDENTIFIER') {
-const scope = tokenScopes.get(tok);
-if (scope) {
-const decl = scope.resolve(tok.lexeme);
-if (decl) {
-let typeStr = decl.type || 'variable';
-let desc = `Local ${typeStr} defined on Line ${decl.token.line + 1}.`;
-if (typeStr === 'parameter') {
-desc = `Parameter of enclosing function.`;
-} else if (typeStr === 'import') {
-desc = `Module imported identifier.`;
-} else if (typeStr === 'loop_variable') {
-desc = `For-loop iterator variable.`;
-} else if (typeStr === 'catch_variable') {
-desc = `Catch-block exception variable.`;
+const range = sesiWordRange(position, word);
+const analysis = sesiScopeAnalysisForModel(model);
+const tok = sesiIdentifierTokenAtPosition(analysis, position);
+let importTarget = null;
+let resolvedImport = null;
+if (analysis && tok) {
+if (window.sesiGetMakeMemberTargetAtToken && window.sesiFindMakeMemberDefinition) {
+const makeTarget = window.sesiGetMakeMemberTargetAtToken(analysis.tokens, analysis.tokenScopes, tok);
+if (makeTarget) {
+let makeContent = model.getValue();
+let importedFrom = '';
+if (!makeTarget.local) {
+const makeModule = await sesiResolvePath(makeTarget.specifier, true);
+makeContent = makeModule && makeModule.type === 'local' ? await sesiReadWorkspaceFile(makeModule.path) : null;
+importedFrom = makeTarget.specifier;
 }
+const makeDefinition = makeContent !== null
+? window.sesiFindMakeMemberDefinition(makeContent, makeTarget.makeName, makeTarget.memberName)
+: null;
+if (makeDefinition && makeDefinition.details) {
+const hover = sesiDetailsHover(makeDefinition.details, range, importedFrom);
+hover.contents.push({ value: `*Member of:* \`${makeTarget.makeName}\`` });
+return hover;
+}
+}
+}
+if (window.sesiGetNamespaceImportAtToken) {
+const namespaceImport = window.sesiGetNamespaceImportAtToken(analysis.tokens, analysis.tokenScopes, tok);
+if (namespaceImport) return sesiResolvedModuleHover(namespaceImport.specifier, range);
+}
+if (window.sesiGetImportTargetAtToken) {
+importTarget = window.sesiGetImportTargetAtToken(analysis.tokens, analysis.tokenScopes, tok);
+}
+if (importTarget) {
+resolvedImport = await sesiResolvePath(importTarget.specifier, true);
+if (resolvedImport && resolvedImport.type === 'local') {
+const content = await sesiReadWorkspaceFile(resolvedImport.path);
+const definition = content !== null && window.sesiFindExportDefinition
+? window.sesiFindExportDefinition(content, importTarget.exportName)
+: null;
+if (definition && definition.details) return sesiDetailsHover(definition.details, range, importTarget.specifier);
+if (content !== null) {
 return {
+range,
 contents: [
-{ value: '```sesi\n(' + typeStr + ') ' + tok.lexeme + '\n```' },
-{ value: desc }
+{ value: `\`\`\`sesi\n(unresolved export) ${importTarget.exportName}\n\`\`\`` },
+{ value: `No exported declaration named **${importTarget.exportName}** was found in \`${importTarget.specifier}\`.` }
 ]
 };
 }
 }
 }
+const scope = analysis.tokenScopes.get(tok);
+const declaration = scope && scope.resolve(tok.lexeme);
+if (declaration && (!importTarget || resolvedImport?.type !== 'builtin')) {
+const details = window.sesiGetDeclarationDetails
+? window.sesiGetDeclarationDetails(model.getValue(), analysis.tokens, declaration)
+: null;
+if (details) return sesiDetailsHover(details, range);
+const typeStr = declaration.type || 'variable';
+return {
+range,
+contents: [
+{ value: `\`\`\`sesi\n(${typeStr}) ${tok.lexeme}\n\`\`\`` },
+{ value: `Local ${typeStr} defined on line ${declaration.token.line + 1}.` }
+]
+};
 }
-// 2. Fall back to standard docs
+}
+// Fall back to standard docs, using an imported built-in's export name when available.
 const docs = syntax.docs;
-const item = docs[word.word];
+const item = docs[importTarget ? importTarget.exportName : word.word];
 if (item) {
 return {
 contents: [
@@ -510,6 +647,10 @@ rules: [
 { token: 'function', foreground: 'c084fc', fontStyle: 'bold' },
 { token: 'identifier', foreground: 'f3f4f6' },
 { token: 'string', foreground: '10b981' },
+{ token: 'sequenceGrid.bracket', foreground: '6b7280' },
+{ token: 'sequenceGrid.hit', foreground: '22d3ee', fontStyle: 'bold' },
+{ token: 'sequenceGrid.accent', foreground: 'f59e0b', fontStyle: 'bold' },
+{ token: 'sequenceGrid.rest', foreground: '4b5563' },
 { token: 'comment', foreground: '6b7280', fontStyle: 'italic' },
 { token: 'number', foreground: 'ec4899' },
 { token: 'operator', foreground: '9ca3af' },
@@ -798,9 +939,54 @@ renderLineHighlight: 'all',
 scrollBeyondLastLine: false,
 cursorSmoothCaretAnimation: 'on'
 });
+const embeddedCodeDecorations = window.editor.createDecorationsCollection();
+let embeddedHighlightTimeout;
+function refreshEmbeddedCodeHighlighting() {
+if (!window.sesiFindEmbeddedCodeRanges || !window.editor.getModel()) {
+embeddedCodeDecorations.clear();
+return;
+}
+const model = window.editor.getModel();
+if (model.getLanguageId() !== 'sesi') {
+embeddedCodeDecorations.clear();
+return;
+}
+const decorations = [];
+for (const embedded of window.sesiFindEmbeddedCodeRanges(model.getValue())) {
+const lines = embedded.text.split('\n');
+const tokenizedLines = monaco.editor.tokenize(embedded.text, embedded.language);
+let localOffset = 0;
+for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+const lineText = lines[lineIndex];
+const lineTokens = tokenizedLines[lineIndex] || [];
+for (let tokenIndex = 0; tokenIndex < lineTokens.length; tokenIndex++) {
+const token = lineTokens[tokenIndex];
+const endOffset = tokenIndex + 1 < lineTokens.length ? lineTokens[tokenIndex + 1].offset : lineText.length;
+if (endOffset <= token.offset) continue;
+const cssClass = embeddedTokenClass(token.type, lineText.slice(token.offset, endOffset));
+if (!cssClass) continue;
+const start = model.getPositionAt(embedded.start + localOffset + token.offset);
+const end = model.getPositionAt(embedded.start + localOffset + endOffset);
+decorations.push({
+range: new monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column),
+options: { inlineClassName: cssClass, inlineClassNameAffectsLetterSpacing: false }
+});
+}
+localOffset += lineText.length + 1;
+}
+}
+embeddedCodeDecorations.set(decorations);
+}
+function scheduleEmbeddedCodeHighlighting() {
+if (embeddedHighlightTimeout) clearTimeout(embeddedHighlightTimeout);
+embeddedHighlightTimeout = setTimeout(refreshEmbeddedCodeHighlighting, 40);
+}
+window.editor.onDidChangeModel(scheduleEmbeddedCodeHighlighting);
+scheduleEmbeddedCodeHighlighting();
 // Track editor changes
 let validateTimeout;
 window.editor.onDidChangeModelContent(() => {
+scheduleEmbeddedCodeHighlighting();
 if (window.activeFilePath && window.openFiles[window.activeFilePath]) {
 window.openFiles[window.activeFilePath].content = window.editor.getValue();
 window.openFiles[window.activeFilePath].isDirty = true;
@@ -2017,6 +2203,7 @@ const { decls, refs } = window.sesiFindDecls(tokens);
 const scopeDiagnostics = window.sesiAnalyzeScope(tokens, decls, refs);
 // Cache the scope analysis results for hover and definition providers
 window.activeFileScopeCache = {
+source: content,
 tokens,
 decls,
 refs,

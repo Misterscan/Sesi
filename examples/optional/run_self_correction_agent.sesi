@@ -6,27 +6,35 @@ allow "shell-automation" in with {run_command}
 allow "ai_agent" in as Agent
 
 // Set model alias for agent execution
-set_alias("agent", "gemini-3.1-pro-preview")
+set_alias("agent", "gemini-3.8-flash")
 
 show "Initializing Coding Assistant Agent..."
 
-// Tool to write a script
+/**
+  Tool to write a script to disk.
+
+  Parameters:
+  - arg: A JSON string containing the filename and code. Accepts keys "filename", "name", or "script_name" for the filename, and "code" or "content" for the code.
+
+  Returns:
+  A string indicating success or failure of the write operation.
+*/
 fn write_script(arg: string) -> string {
   try {
     let parsed = from_json(arg)
-    let filename = parsed["filename"]
+    let filename = parsed.filename
     if filename == null {
-      filename = parsed["name"]
+      filename = parsed.name
     }
     if filename == null {
-      filename = parsed["script_name"]
+      filename = parsed.script_name
     }
     if filename == null {
       return "Failed: 'filename', 'name', or 'script_name' field is missing."
     }
-    let code = parsed["code"]
+    let code = parsed.code
     if code == null {
-      code = parsed["content"]
+      code = parsed.content
     }
     if code == null {
       return "Failed: 'code' or 'content' field is missing or not a string."
@@ -42,20 +50,28 @@ fn write_script(arg: string) -> string {
   }
 }
 
-// Tool to execute and test a script
+/**
+  Tool to execute and test a script.
+
+  Parameters:
+  - arg: A JSON string containing the filename to test, or a plain string with the filename.
+
+  Returns:
+  A string indicating the success or failure of the script execution, along with output or error details.
+*/
 fn test_script(arg: string) -> string {
   let filename = arg
   if locate(arg, "{") == 0 {
     try {
       let parsed = from_json(arg)
-      if parsed["filename"] != null {
-        filename = parsed["filename"]
+      if parsed.filename != null {
+        filename = parsed.filename
       } else {
-        if parsed["name"] != null {
-          filename = parsed["name"]
+        if parsed.name != null {
+          filename = parsed.name
         } else {
-          if parsed["script_name"] != null {
-            filename = parsed["script_name"]
+          if parsed.script_name != null {
+            filename = parsed.script_name
           }
         }
       }
@@ -83,14 +99,22 @@ fn test_script(arg: string) -> string {
   }
 }
 
-// Tool to generate architecture & code plan via Sesi's native workflow()
+/**
+  Tool to generate an architecture and code plan via Sesi's native workflow().
+
+  Parameters:
+  - arg: A JSON string containing the task description, or a plain string with the task.
+
+  Returns:
+  A string representing the generated code plan or an error message if the workflow fails.
+*/
 fn generate_code_plan(arg: string) -> string {
   let task = arg
   if locate(arg, "{") == 0 {
     try {
       let parsed = from_json(arg)
-      if parsed["task"] != null {
-        task = parsed["task"]
+      if parsed.task != null {
+        task = parsed.task
       }
     } catch(e) {}
   }
@@ -113,10 +137,10 @@ fn generate_code_plan(arg: string) -> string {
 // Create the coding agent
 let coder = Agent.create({
   "model": "agent",
-  "system": "You are a software developer assistant. You write JavaScript and Python code, test it, analyze errors, and iterate until the code executes successfully.
+  system: "You are a software developer assistant. You write JavaScript and Python code, test it, analyze errors, and iterate until the code executes successfully.
 For complex tasks (like designing/training a CNN), call 'generate_code_plan' first to get a structured implementation design, then write the code based on the generated plan.",
-  "temperature": 0.3,
-  "tools": {
+  temperature: 0.3,
+  tools: {
     "write_script": write_script,
     "test_script": test_script,
     "generate_code_plan": generate_code_plan

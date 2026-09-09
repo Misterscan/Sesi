@@ -13,6 +13,10 @@ allow "safe" in as safe
 let input_target = "index.html"
 let output_dir = "minified"
 
+/*
+  Run the command-line interface for the HTML minifier.
+  This function handles input arguments and ensures the output directory exists.
+*/
 fn runCLI() { // Wrapped in function to prevent accidental directory creation from exported module
   if len(args) > 0 { input_target = args[0] }
   if len(args) > 1 { output_dir = args[1] }
@@ -23,6 +27,12 @@ fn runCLI() { // Wrapped in function to prevent accidental directory creation fr
   } catch (err) {}
 }
 
+/*
+  Minify the given HTML string.
+  This function normalizes line endings, preserves <pre> blocks,
+  trims unnecessary whitespace, and collapses consecutive spaces.
+  It also closes gaps between HTML tags to produce compact output.
+*/
 export fn minify_html(html: string) -> string {
   // 1. Normalize carriage returns
   let normalized = swap(html, "\r", "")
@@ -86,7 +96,11 @@ export fn minify_html(html: string) -> string {
   return joined
 }
 
-// Reusable I/O worker block
+/*
+  Process a single HTML file by reading its content, minifying it,
+  and writing the minified output to the specified path.
+  This function handles file I/O errors gracefully.
+*/
 fn process_file(in_path: string, out_path: string) {
   show "Processing:" in_path
   try {
@@ -106,6 +120,11 @@ fn process_file(in_path: string, out_path: string) {
 // Execution Routing
 // ---------------------------------------------------------
 
+/*
+  Entry point for running the HTML minifier.
+  This function determines whether to run in single file mode or batch directory mode
+  based on the input target and invokes the appropriate processing functions.
+*/
 fn run_minify() { // Wrapped in function to prevent accidental execution from exported module
   runCLI()
   if ends_with(input_target, ".html") {

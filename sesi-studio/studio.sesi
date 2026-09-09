@@ -32,6 +32,16 @@ set_alias("copilot", "gemini-3.5-flash-lite")
 set_alias("agent", "gemini-3.6-flash")
 set_alias("search", "gemini-3-flash-preview")
 
+/**
+  Get the collections from a Sesi database.
+
+  Parameters:
+  - `db_path`: The path to the database file.
+  - `password`: The password for the encrypted database (if applicable).
+
+  Returns:
+  An array of collection names, or an empty array if the database could not be read.
+*/
 fn get_db_collections(db_path, password) {
   try {
     let content = Safe.read(db_path)
@@ -67,6 +77,12 @@ fn get_db_collections(db_path, password) {
 let timestamp = Time.now()
 let ws_streamed_any = false
 
+/**
+  Handle incoming WebSocket agent chunks.
+
+  Parameters:
+  - `chunk`: The incoming WebSocket message chunk.
+*/
 fn on_ws_agent_chunk(chunk) {
   if Agent.send_agent_chunk(chunk) {
     ws_streamed_any = true
@@ -99,6 +115,12 @@ favicon = Safe.viewMedia("sesi-studio/img/favicon.png")
 
 let pending_file_to_open = ""
 
+/**
+  Handle incoming HTTP requests for the Sesi Studio server.
+
+  Parameters:
+  - `req`: The incoming HTTP request object.
+*/
 fn handle_http(req) {
   let path = req.path
   let method = req.method
@@ -109,7 +131,7 @@ fn handle_http(req) {
       "headers": {"Content-Type": "application/json"},
       "body": {"wsPort": ws_port}
     }
-  }
+  } 
   
   if path == "/api/open" {
     let file = req.query["file"]
@@ -190,6 +212,13 @@ fn handle_http(req) {
   if path == "/api/file" && method == "GET" {
     try {
       let query_path = req.query["path"]
+      if query_path == null || query_path == "" || !Safe.fileExists(query_path) {
+        return {
+          "status": 404,
+          "headers": {"Content-Type": "application/json"},
+          "body": {"error": "File not found", "path": query_path, "exists": false}
+        }
+      }
       let file_parts = split(query_path, ".")
       let ext = to_lower(file_parts[len(file_parts) - 1])
       let mode = "text"
@@ -204,7 +233,7 @@ fn handle_http(req) {
       return {
         "status": 200, 
         "headers": {"Content-Type": "application/json"},
-        "body": {"content": content, "path": query_path, "isBinary": is_binary}
+        "body": {"content": content, "path": query_path, "isBinary": is_binary, "exists": true}
       }
     } catch (e) {
       return {"status": 500, "body": {"error": str(e)}}
@@ -224,6 +253,7 @@ fn handle_http(req) {
   if path == "/api/chat" && method == "POST" {
     try {
       let body_obj = from_json(req.body)
+      // User query
       let q = body_obj["query"]
       let sessionId = body_obj["sessionId"]
       let history_str = ""
@@ -286,6 +316,7 @@ fn handle_http(req) {
         system_prompt = system_prompt + Prompts.prompt2
       }
 
+      // Copilot agent with `medium` thinking level and configured tools
       let agent = Copilot.create({
         "model": "agent",
         "system": system_prompt,
@@ -410,7 +441,9 @@ fn handle_http(req) {
       if file_path == null {
         file_path = "unsaved.sesi"
       }
+      // Completion prompt for the inline code completion agent
       prompt completionPrompt { "You are a professional software engineer. Your job is to act as an inline code completion engine (like GitHub Copilot) for the Sesi programming language.\n\nHere is the context of the active file:\nFile name: " file_path "\n\nPrefix (code before cursor):\n" prefix "\n\nSuffix (code after cursor):\n" suffix "\n\nTask: Complete the code exactly from where the cursor left off.\nRules:\n- Respond ONLY with the raw code completion that immediately continues the prefix.\n- Do NOT wrap your response in markdown code blocks.\n- Do NOT include the prefix or suffix in your response.\n- Do NOT provide explanations, commentary, or comments.\n- Complete only the immediate logical block, line, or expression.\n- If no completion makes sense, return absolutely nothing." }
+      // Inline code completion agent
       let agent = Copilot.create({
         "model": "copilot",
         "system": copilotMemory,
@@ -428,7 +461,8 @@ fn handle_http(req) {
   if path == "/api/syntax" {
     try {
       // Use a brief Node script to leverage RegEx for extracting TextMate syntax safely
-      let result = js("const fs=require('fs');const t=JSON.parse(fs.readFileSync('editors/vscode/syntaxes/sesi.tmLanguage.json'));const e=fs.readFileSync('editors/vscode/extension.js','utf8');const x=p=>{let m=[];if(p)p.forEach(r=>{if(r.match)m=m.concat(r.match.replace(/\\\\\\\\b/g,'').replace(/\\\\b/g,'').replace(/^\\(\\?\\:/,'(').replace(/^\\(/,'').replace(/\\)$/,'').split('|'))});return m};let dm=e.match(/const docs = ({[\\s\\S]*?});\\s*(?:let|const) hoverProvider/);console.log(JSON['stringify']({keywords:x(t.repository?.keywords?.patterns),typeKeywords:x(t.repository?.types?.patterns),constants:x(t.repository?.constants?.patterns),builtins:x(t.repository?.builtins?.patterns),docs:dm?eval('('+dm[1]+')'):{}}));")
+      let code = "const fs=require('fs');const t=JSON.parse(fs.readFileSync('editors/vscode/syntaxes/sesi.tmLanguage.json'));const e=fs.readFileSync('editors/vscode/extension.js','utf8');const x=p=>{let m=[];if(p)p.forEach(r=>{if(r.match)m=m.concat(r.match.replace(/\\\\\\\\b/g,'').replace(/\\\\b/g,'').replace(/^\\(\\?\\:/,'(').replace(/^\\(/,'').replace(/\\)$/,'').split('|'))});return m};let dm=e.match(/const docs = ({[\\s\\S]*?});\\s*(?:let|const) hoverProvider/);console.log(JSON['stringify']({keywords:x(t.repository?.keywords?.patterns),typeKeywords:x(t.repository?.types?.patterns),constants:x(t.repository?.constants?.patterns),builtins:x(t.repository?.builtins?.patterns),docs:dm?eval('('+dm[1]+')'):{}}));"
+      let result = js(code)
       return {"status": 200, "headers": {"Content-Type": "application/json"}, "body": result}
     } catch (e) {
       return {"status": 500, "body": {"error": "Failed to load syntax config"}}
@@ -439,7 +473,7 @@ fn handle_http(req) {
     try {
       let ext_content = Safe.read("editors/vscode/extension.js")
       let prefix = "(function(require, module, process){\n"
-      let exports = "\nwindow.sesiTokenizer = tokenize;\nwindow.sesiFindDecls = findDeclarationsAndReferences;\nwindow.sesiAnalyzeScope = analyzeScope;\nwindow.sesiScope = Scope;\nwindow.sesiIsConfigBlockKey = isConfigBlockKey;"
+      let exports = "\nwindow.sesiTokenizer = tokenize;\nwindow.sesiFindEmbeddedCodeRanges = findEmbeddedCodeRanges;\nwindow.sesiFindDecls = findDeclarationsAndReferences;\nwindow.sesiAnalyzeScope = analyzeScope;\nwindow.sesiScope = Scope;\nwindow.sesiIsConfigBlockKey = isConfigBlockKey;\nwindow.sesiGetModuleDocumentation = getModuleDocumentation;\nwindow.sesiGetDeclarationDetails = getDeclarationDetails;\nwindow.sesiFindExportDefinition = findExportDefinitionInText;\nwindow.sesiGetImportTargetAtToken = getImportTargetAtToken;\nwindow.sesiGetNamespaceImportAtToken = getNamespaceImportAtToken;\nwindow.sesiGetMakeMemberTargetAtToken = getMakeMemberTargetAtToken;\nwindow.sesiFindMakeMemberDefinition = findMakeMemberDefinitionInText;"
       let suffix = "\n})(function(name) { if (name === 'vscode') { return { Range: class { constructor(s, e) { this.start = s; this.end = e; } }, Position: class { constructor(l, c) { this.line = l; this.character = c; } }, Diagnostic: class { constructor(r, m, s) { this.range = r; this.message = m; this.severity = s; } }, DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 } }; } if (name === 'path') { return { dirname: (p) => p.split('/').slice(0, -1).join('/') || '.', join: (...args) => args.filter(Boolean).join('/').replace(/\\/+/g, '/'), resolve: (...args) => args.filter(Boolean).join('/').replace(/\\/+/g, '/') }; } if (name === 'fs') { return { existsSync: () => false, readFileSync: () => '' }; } if (name === 'os') { return { homedir: () => '' }; } return {}; }, { exports: {} }, { cwd: () => '', env: {}, platform: 'darwin' });"
       ext_content = prefix + ext_content + exports + suffix
       return {"status": 200, "headers": {"Content-Type": "application/javascript"}, "body": ext_content}
@@ -516,6 +550,7 @@ fn handle_http(req) {
       let tool_name = body_obj["tool_name"]
       let tool_args = body_obj["tool_args"]
       
+      // Tool function from the global tools registry
       let tool_fn = global_tools[tool_name]
       if tool_fn == null {
         return {"status": 400, "headers": {"Content-Type": "application/json"}, "body": {"success": false, "error": "Tool " + tool_name + " not found"}}
@@ -565,13 +600,15 @@ fn handle_http(req) {
       let theme_items = Safe.getFiles("sesi-studio/extensions/themes")
       let result = []
       
+      // Extract metadata from the first comment block of a file.
+      //
+      // Returns the metadata object if found, otherwise null.
       fn get_metadata(base_path, file_name) {
         let full_path = base_path + "/" + file_name
         try {
-          /* 
-            Use Node to safely extract the first comment block as JSON
-            Using indexOf to avoid complex Regex escaping issues in Sesi/Shell strings 
-          */
+          // Use Node to safely extract the first comment block as JSON.
+          //
+          // Using indexOf to avoid complex Regex escaping issues in Sesi/Shell strings. 
           let json_str = js("const fs=require('fs');const c=fs.readFileSync('" + full_path + "','utf8');const s=c.indexOf('/*');const e=c.indexOf('*/');if(s===-1||e===-1)process.stdout.write('null');else process.stdout.write(c.slice(s+2,e).trim())")
           if json_str == "null" || json_str == "" {
             return null
@@ -1230,6 +1267,17 @@ fn handle_http(req) {
 
 let term_buffer = ""
 
+/**
+  WebSocket message handler for the Sesi Studio.
+  Handles terminal writes, pings, confirmation responses, and chat messages.
+
+  Parameters:
+  - `client`: The WebSocket client instance.
+  - `msg`: The incoming WebSocket message as a JSON string.
+
+  Returns:
+  None. The function handles the WebSocket message internally.
+*/
 fn handle_ws(client, msg) {
   try {
     let parsed = from_json(msg)
@@ -1302,6 +1350,7 @@ fn handle_ws(client, msg) {
 
       Agent.set_ws_client(client)
 
+      // Copilot agent with `medium` thinking level.
       let agent = Copilot.create({
         "model": "agent",
         "system": system_prompt,
@@ -1442,7 +1491,7 @@ try {
 show ""
 show "  ╔══════════════════════════════════════════╗"
 show "  ║                                          ║"
-show "  ║   🧠 Sesi Studio v2.0                     ║"
+show "  ║   🧠 Sesi Studio v2.1.5                   ║"
 show "  ║   → http://localhost:" str(http_port) "              ║"
 show "  ║                                          ║"
 show "  ╚══════════════════════════════════════════╝"

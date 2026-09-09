@@ -1,6 +1,5 @@
 /* 
-    customize_css.sesi
-    Generate a customized theme for Sesi Studio using `model()`.
+  Generate a customized theme for Sesi Studio using `model()`.
     
     This script is designed to be run from the command line to create new 
     visual themes for the Sesi Studio IDE.
@@ -98,13 +97,15 @@ prompt sys {context instruction required}
 show "Retrieving CSS...
 "
 
-/* Change the model and parameters as needed. 
+/* 
+  Change the model and parameters as needed. 
   - gemini-3-flash-preview is a good choice for code generation tasks, but feel free to experiment with other models or settings.
   - gemini-3.5-flash for higher quality but token hungry.
   - gemini-3.6-flash for consistency and high-quality CSS generation.
   - gemini-3.1-pro-preview for a more polished and refined output.
   - Both may take slightly longer than gemini-3-flash-preview, but can produce higher quality CSS with better adherence to best practices and design principles.
-  Note: We set cache: false to ensure we get a fresh response each time, which is important during development when you may be iterating on the style description. 
+  
+  Note: We set `cache: false` to ensure we get a fresh response each time, which is important during development when you may be iterating on the style description. 
 */
 let css = ""
 if new == "y" || new == "new" {

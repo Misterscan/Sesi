@@ -101,6 +101,7 @@ export interface FunctionProto {
   name: string;
   arity: number;          // required params (params without defaults)
   params: Array<Parameter & { hasDefault: boolean }>;
+  documentation?: string;
   chunk: Chunk;
   isAsync: boolean;
   upvalues: Array<{ index: number; isLocal: boolean }>;

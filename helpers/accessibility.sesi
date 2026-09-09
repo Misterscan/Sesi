@@ -1,24 +1,40 @@
 /*
-    accessibility.sesi
-    Importable accessibility preferences and semantic metadata helper.
+  Accessibility module.
 
-Usage:
-    allow "helpers/accessibility" in with { Accessibility }
-
-    let accessibility = Accessibility({
-      "language": "en",
-      "reduced_motion": true,
-      "high_contrast": false,
-      "screen_reader": true,
-      "text_scale": 1.25
-    })
-
-    let notice = accessibility.live_region("Saved successfully")
-    let logo = accessibility.image_attributes("Sesi logo")
-
-This module intentionally performs no work when imported.
+  This module provides an object template for managing accessibility preferences
+  and generating semantic metadata for user-interface elements. It supports
+  language preferences, reduced-motion settings, high-contrast mode,
+  screen-reader support, text scaling, live regions, accessible image
+  attributes, control attributes, and skip-link metadata.
 */
 
+/*
+  Creates an Accessibility instance with default accessibility preferences.
+
+  Fields:
+  - language: Preferred accessibility language. Defaults to `"en"`.
+  - reduced_motion: Whether reduced-motion behavior is enabled. Defaults to `false`.
+  - high_contrast: Whether high-contrast mode is enabled. Defaults to `false`.
+  - screen_reader: Whether screen-reader support is enabled. Defaults to `false`.
+  - text_scale: Text scaling multiplier. Defaults to `1`.
+
+  Notes:
+  - Each instance receives its own preference values.
+  - The instance can be configured during construction by passing an options
+    object to the template.
+  - Supported configuration keys are `language`, `reduced_motion`,
+    `high_contrast`, `screen_reader`, and `text_scale`.
+
+  Output:
+  - Returns a new Accessibility object containing the default preferences and
+    all methods defined by the template.
+
+  Example:
+  ```sesi
+  let accessibility = Accessibility()
+  show accessibility.preferences()
+  ```
+*/
 export make Accessibility {
   let language = "en"
   let reduced_motion = false
@@ -26,13 +42,68 @@ export make Accessibility {
   let screen_reader = false
   let text_scale = 1
 
-  fn start(self, options = null) {
+  //
+  // Initializes an Accessibility instance with optional preference values.
+  //
+  // Parameters:
+  // - self: The Accessibility instance being initialized.
+  // - options: Optional object containing initial accessibility preferences. Supported keys are `language`, `reduced_motion`, `high_contrast`, `screen_reader`, and `text_scale`. Defaults to `null`.
+  //
+  // Returns:
+  // - Returns `true` after initialization has completed.
+  //
+  // Example:
+  // ```sesi
+  // let accessibility = Accessibility({
+  //   "language": "fr",
+  //   "reduced_motion": true,
+  //   "text_scale": 1.25
+  // })
+  // show accessibility.preferences()
+  // ```
+  //
+  // Notes:
+  // - When `options` is `null`, the instance keeps its default preferences.
+  // - Invalid or unsupported option values are ignored by `configure()`.
+  // - The constructor returns `true` after attempting to apply the supplied options.
+  fn start(self, options = null) -> bool {
     if options != null {
       self.configure(options)
     }
+    return true
   }
 
-  fn configure(self, options) {
+  //
+  // Configures one or more accessibility preferences.
+  //
+  // Parameters:
+  // - self: The Accessibility instance whose preferences should be updated.
+  // - options: Object containing preference values to apply. Supported keys are `language`, `reduced_motion`, `high_contrast`, `screen_reader`, and `text_scale`.
+  //
+  // Returns:
+  // - Returns `true` when `options` is an object, even if individual values are invalid or ignored.
+  // - Returns `false` when `options` is not an object.
+  //
+  // Example:
+  // ```sesi
+  // let accessibility = Accessibility()
+  // let updated = accessibility.configure({
+  //   "language": "es",
+  //   "high_contrast": true,
+  //   "screen_reader": true,
+  //   "text_scale": 1.5
+  // })
+  // show updated
+  // show accessibility.preferences()
+  // ```
+  //
+  // Notes:
+  // - `language` must be a non-empty string after trimming.
+  // - Boolean preferences must contain boolean values.
+  // - `text_scale` must be a number between `0.5` and `3`, inclusive.
+  // - Invalid values do not replace the existing preference values.
+  // - Configuration is applied selectively, so omitted keys leave existing values unchanged.
+  fn configure(self, options) -> bool {
     if type(options) != "object" {
       return false
     }
@@ -68,7 +139,31 @@ export make Accessibility {
     return true
   }
 
-  fn enable(self, feature) {
+  
+  //
+  // Enables a supported accessibility feature.
+  //
+  // Parameters:
+  // - self: The Accessibility instance to update.
+  // - feature: Name of the feature to enable. Supported values are `"reduced_motion"`, `"high_contrast"`, and `"screen_reader"`.
+  //
+  // Returns:
+  // - Returns `true` when the specified feature is supported and has been enabled.
+  // - Returns `false` when `feature` is not a supported accessibility feature.
+  //
+  // Example:
+  // ```sesi
+  // let accessibility = Accessibility()
+  // let enabled = accessibility.enable("high_contrast")
+  // show enabled
+  // show accessibility.is_enabled("high_contrast")
+  // ```
+  //
+  // Notes:
+  // - Enabling an already enabled feature is safe and still returns `true`.
+  // - The `language` and `text_scale` preferences cannot be enabled through this method.
+  // - Feature names must match the supported values exactly.
+  fn enable(self, feature) -> bool {
     if feature == "reduced_motion" {
       self.reduced_motion = true
       return true
@@ -87,7 +182,32 @@ export make Accessibility {
     return false
   }
 
-  fn disable(self, feature) {
+  //
+  // Disables a supported accessibility feature.
+  //
+  // Parameters:
+  // - self: The Accessibility instance to update.
+  // - feature: Name of the feature to disable. Supported values are `"reduced_motion"`, `"high_contrast"`, and `"screen_reader"`.
+  //
+  // Returns:
+  // - Returns `true` when the specified feature is supported and has been disabled.
+  // - Returns `false` when `feature` is not a supported accessibility feature.
+  //
+  // Example:
+  // ```sesi
+  // let accessibility = Accessibility({
+  //   "screen_reader": true
+  // })
+  // let disabled = accessibility.disable("screen_reader")
+  // show disabled
+  // show accessibility.is_enabled("screen_reader")
+  // ```
+  //
+  // Notes:
+  // - Disabling an already disabled feature is safe and still returns `true`.
+  // - The `language` and `text_scale` preferences are not affected by this method.
+  // - Feature names must match the supported values exactly.
+  fn disable(self, feature) -> bool {
     if feature == "reduced_motion" {
       self.reduced_motion = false
       return true
@@ -106,7 +226,30 @@ export make Accessibility {
     return false
   }
 
-  fn is_enabled(self, feature) {
+  //
+  // Checks whether a supported accessibility feature is currently enabled.
+  //
+  // Parameters:
+  // - self: The Accessibility instance to inspect.
+  // - feature: Name of the feature to check. Supported values are `"reduced_motion"`, `"high_contrast"`, and `"screen_reader"`.
+  //
+  // Returns:
+  // - Returns `true` when the requested feature is enabled.
+  // - Returns `false` when the requested feature is disabled or when the feature name is unsupported.
+  //
+  // Example:
+  // ```sesi
+  // let accessibility = Accessibility()
+  // accessibility.enable("reduced_motion")
+  // let motion_reduced = accessibility.is_enabled("reduced_motion")
+  // show motion_reduced
+  // ```
+  //
+  // Notes:
+  // - Unsupported feature names return `false` rather than raising an error.
+  // - This method reports only boolean feature preferences.
+  // - Use `preferences()` to retrieve all accessibility settings, including language and text scale.
+  fn is_enabled(self, feature) -> bool {
     if feature == "reduced_motion" {
       return self.reduced_motion
     }
@@ -122,7 +265,32 @@ export make Accessibility {
     return false
   }
 
-  fn preferences(self) {
+  //
+  // Returns a snapshot of the current accessibility preferences.
+  //
+  // Parameters:
+  // - self: The Accessibility instance to inspect.
+  //
+  // Returns:
+  // - Returns an object with the keys `language`, `reduced_motion`, `high_contrast`, `screen_reader`, and `text_scale`.
+  //
+  // Example:
+  // ```sesi
+  // let accessibility = Accessibility({
+  //   "language": "de",
+  //   "high_contrast": true,
+  //   "text_scale": 1.25
+  // })
+  // let settings = accessibility.preferences()
+  // show settings["language"]
+  // show settings["high_contrast"]
+  // ```
+  //
+  // Notes:
+  // - The returned object represents the values at the time the method is called.
+  // - The object uses the same preference names accepted by `configure()`.
+  // - The returned values can be serialized with `to_json()` for storage or transmission.
+  fn preferences(self) -> object {
     return {
       "language": self.language,
       "reduced_motion": self.reduced_motion,
@@ -132,7 +300,35 @@ export make Accessibility {
     }
   }
 
-  fn live_region(self, message, politeness = "polite") {
+  //
+  // Creates semantic metadata for an ARIA live region.
+  //
+  // Parameters:
+  // - self: The Accessibility instance used to create the metadata.
+  // - message: Content to expose to assistive technologies. It is converted to a string with `str()`.
+  // - politeness: Announcement priority. Supported values are `"polite"` and `"assertive"`. Defaults to `"polite"`.
+  //
+  // Returns:
+  // - Returns an object containing `text`, `role`, `aria-live`, and `aria-atomic` attributes.
+  //
+  // Example:
+  // ```sesi
+  // let accessibility = Accessibility()
+  // let announcement = accessibility.live_region("Your settings were saved.")
+  // show announcement
+  //
+  // let urgent = accessibility.live_region("Connection lost.", "assertive")
+  // show urgent["role"]
+  // ```
+  //
+  // Notes:
+  // - `"polite"` produces the `"status"` role.
+  // - `"assertive"` produces the `"alert"` role.
+  // - Any other politeness value falls back to `"polite"`.
+  // - The returned object sets `"aria-atomic"` to `"true"` so the complete message is announced.
+  // - The expected output shape is:
+  //   `{"text": string, "role": string, "aria-live": string, "aria-atomic": "true"}`.
+  fn live_region(self, message, politeness = "polite") -> object {
     let live = politeness
     if live != "polite" {
       if live != "assertive" {
@@ -153,7 +349,37 @@ export make Accessibility {
     }
   }
 
-  fn image_attributes(self, description, decorative = false) {
+  //
+  // Creates accessible attributes for an image.
+  //
+  // Parameters:
+  // - self: The Accessibility instance used to create the metadata.
+  // - description: Alternative text describing the image for assistive technologies. It is converted to a string with `str()`.
+  // - decorative: Whether the image is purely decorative. Defaults to `false`.
+  //
+  // Returns:
+  // - Returns an object containing `alt` and `aria-hidden` attributes.
+  //
+  // Example:
+  // ```sesi
+  // let accessibility = Accessibility()
+  //
+  // let informative = accessibility.image_attributes(
+  //   "A mountain lake surrounded by pine trees."
+  // )
+  // show informative
+  //
+  // let decorative = accessibility.image_attributes("Decorative divider", true)
+  // show decorative
+  // ```
+  //
+  // Notes:
+  // - Informative images receive the supplied description as `alt` and `"aria-hidden": "false"`.
+  // - Decorative images receive an empty `alt` value and `"aria-hidden": "true"`.
+  // - Decorative images should not include meaningful alternative text because assistive technologies are instructed to ignore them.
+  // - The expected output shape is:
+  //   `{"alt": string, "aria-hidden": string}`.
+  fn image_attributes(self, description, decorative = false) -> object {
     if decorative {
       return {
         "alt": "",
@@ -167,7 +393,43 @@ export make Accessibility {
     }
   }
 
-  fn control(self, label, description_id = null, required = false) {
+  //
+  // Creates accessible metadata for an interactive control.
+  //
+  // Parameters:
+  // - self: The Accessibility instance used to create the metadata.
+  // - label: Accessible name for the control. It is converted to a string with `str()`.
+  // - description_id: Optional ID of an element containing additional control instructions or description. Defaults to `null`.
+  // - required: Whether the control is required. Defaults to `false`.
+  //
+  // Returns:
+  // - Returns an object containing `aria-label` and `aria-required`.
+  // - When `description_id` is not `null`, the returned object also contains `aria-describedby`.
+  //
+  // Example:
+  // ```sesi
+  // let accessibility = Accessibility()
+  //
+  // let attributes = accessibility.control(
+  //   "Email address",
+  //   "email-help",
+  //   true
+  // )
+  //
+  // show attributes["aria-label"]
+  // show attributes["aria-describedby"]
+  // show attributes["aria-required"]
+  // ```
+  //
+  // Notes:
+  // - `label` is always converted to a string.
+  // - `required` is converted to a string before being stored in `aria-required`.
+  // - `description_id` is omitted when it is `null`.
+  // - The expected output shape is:
+  //   `{"aria-label": string, "aria-required": string}`,
+  //   with an optional `"aria-describedby": string` field.
+  // - The method does not validate whether the supplied description ID exists in the document.
+  fn control(self, label, description_id = null, required = false) -> object {
     let attributes = {
       "aria-label": str(label),
       "aria-required": str(required)
@@ -180,7 +442,39 @@ export make Accessibility {
     return attributes
   }
 
-  fn skip_link(self, target = "#main", label = "Skip to main content") {
+  //
+  // Creates metadata for a skip link that points users to the main content.
+  //
+  // Parameters:
+  // - self: The Accessibility instance used to create the metadata.
+  // - target: ID or fragment identifier of the content target. Defaults to `"#main"`.
+  // - label: Visible or accessible label for the skip link. Defaults to `"Skip to main content"`.
+  //
+  // Returns:
+  // - Returns an object containing `href`, `text`, and `class` attributes.
+  //
+  // Example:
+  // ```sesi
+  // let accessibility = Accessibility()
+  //
+  // let link = accessibility.skip_link()
+  // show link
+  //
+  // let custom_link = accessibility.skip_link(
+  //   "#content",
+  //   "Skip to article"
+  // )
+  // show custom_link["href"]
+  // show custom_link["text"]
+  // ```
+  //
+  // Notes:
+  // - `target` and `label` are converted to strings.
+  // - The returned class is always `"skip-link"`.
+  // - The expected output shape is:
+  //   `{"href": string, "text": string, "class": "skip-link"}`.
+  // - The target should identify a focusable or navigable main-content element.
+  fn skip_link(self, target = "#main", label = "Skip to main content") -> object {
     return {
       "href": str(target),
       "text": str(label),

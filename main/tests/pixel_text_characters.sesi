@@ -1,0 +1,15 @@
+allow "std/draw" in as Draw
+
+// Draw every character supported by Draw.pixel_text() at a large enough
+// scale to inspect the individual 5x7 bitmap cells.
+let output = "temp/dev/pixel-text-characters.png"
+let foreground = "#f8fafc"
+
+Draw.clear()
+Draw.pixel_text(8, 8, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", foreground, 3)
+Draw.pixel_text(8, 36, "abcdefghijklmnopqrstuvwxyz", foreground, 3)
+Draw.pixel_text(8, 64, "0123456789", "#67e8f9", 3)
+Draw.pixel_text(206, 64, "- +!?.,:;()@#_", "#fbbf24", 3)
+
+Draw.save_png(output, 484, 93, "#0f172a")
+show("Pixel text character sheet: " + output)

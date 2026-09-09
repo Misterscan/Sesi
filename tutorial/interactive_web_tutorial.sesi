@@ -8,12 +8,29 @@
   named file, checked by Sesi, executed in safe mode, and then deleted.
 */
 allow "shell-automation" in with {run_sesi}
+allow "std/time" in with {sleep}
 allow "helpers/safe" in as safe
+allow "lib/ansi" in as TERM
+allow "lib/env" in with {DEV_PORT, LOCAL_HOST}
 
-let PORT = 8080
+// Port on which the tutorial server will listen.
+let PORT = DEV_PORT
+let HOST = LOCAL_HOST
+// Path to the frontend HTML file for the tutorial.
 let FRONTEND = "tutorial/tutorial_frontend.html"
+// Maximum length of the code that can be submitted in the tutorial.
 let MAX_CODE_LENGTH = 50000
 
+/**
+  Returns a JSON response with the given status and payload.
+
+  Parameters:
+  - status: HTTP status code.
+  - payload: Object to be converted to JSON and sent as the response body.
+
+  Returns:
+  A JSON response object.
+*/
 fn json_response(status, payload) {
   return {
     "status": status,
@@ -25,6 +42,20 @@ fn json_response(status, payload) {
   }
 }
 
+/**
+  Handles incoming HTTP requests for the tutorial server.
+
+  Supports the following endpoints:
+  - `GET /`: Serves the tutorial frontend HTML.
+  - `GET /health`: Returns a simple health check JSON response.
+  - `POST /run`: Executes submitted Sesi code and returns the output as JSON.
+
+  Parameters:
+  - req: The HTTP request object.
+
+  Returns:
+  An HTTP response object.
+*/
 fn handleRequest(req) {
   if req.method == "GET" && req.path == "/" {
     try {
@@ -74,7 +105,7 @@ fn handleRequest(req) {
       safe.write(temp_file, code)
 
       run_sesi(temp_file, false, true)
-      let out = run_sesi(temp_file)
+      let out = run("sesi " + temp_file)
 
       response = json_response(200, {"output": out})
     } catch (err) {
@@ -93,16 +124,16 @@ fn handleRequest(req) {
   return json_response(404, {"error": "Not found"})
 }
 
-show "======================================================"
-show "⚡ Sesi Learning Lab is online!"
-show "======================================================"
-
 let server = listen(PORT, handleRequest)
-try {
-  open("http://localhost:" + str(PORT) + "/")
-} catch (e) {
-  show "Could not automatically open browser. Please visit http://localhost:" + str(PORT)
-}
+TERM.info("Sesi Learning Lab is starting...")
+sleep(500)
+TERM.box("Online!")
 
-let end = input("Press Enter to stop the server...\n")
+try {
+  open(HOST)
+} catch (e) {
+  TERM.error("Could not automatically open browser. Please visit " + HOST)
+}
+TERM.info("\nPress Enter anytime to stop the server...\n")
+let end = input("")
 server.close(end)

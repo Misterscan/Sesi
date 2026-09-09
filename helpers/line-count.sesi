@@ -14,15 +14,17 @@ allow "safe" in as Safe
 allow "std/terminal" in with {color}
 
 // Check if file is provided as an argument, else prompt user for filename
-let file = ""
-try {
-    file = args[0]
-    if file == null {
-        file = trim(input("Enter filename: "))
-    } else {
-        file = trim(file)
-    }
-} catch (e) {}
+fn getFilename() {
+    let file = ""
+    try {
+        file = args[0]
+        if file == null {
+            file = trim(input("Enter filename: "))
+        } else {
+            file = trim(file)
+        }
+    } catch (e) {}
+}
 
 // Returns the number of lines in a file
 export fn getLineCount(file) {
@@ -30,7 +32,3 @@ export fn getLineCount(file) {
     let lines = split(content, "\n")
     return len(lines)
 }
-
-// Print the number of lines in the file
-let lineCount = getLineCount(file)
-show "# of lines in" color(file, "yellow") ":\n" color(lineCount, "green")

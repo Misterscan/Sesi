@@ -1,0 +1,24 @@
+{
+  "name": "Sesi Theme",
+  "type": "dark",
+  "colors": {
+    "editor.background": "#0f1012",
+    "editor.foreground": "#f3f4f6"
+  },
+  "tokenColors": [
+    {
+      "name": "Sesi Strings",
+      "scope": [
+        "string.quoted.double.sesi",
+        "string.quoted.single.sesi",
+        "string.quoted.double.js",
+        "string.quoted.single.js",
+        "string.quoted.double.python",
+        "string.quoted.single.python"
+      ],
+      "settings": {
+        "foreground": "#e5c07b"
+      }
+    }
+  ]
+}

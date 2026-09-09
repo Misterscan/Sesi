@@ -1,0 +1,150 @@
+allow "std/draw" in as Draw
+
+let width = 1280
+let height = 720
+
+/**
+  Generates a high-resolution (1280x720) mountain dusk landscape 
+  using raster pixel primitives and exports it to a PNG file.
+
+  Parameters:
+  - `outputPath`: The destination file path for the saved PNG.
+  - `width`: The width of the output PNG in pixels.
+  - `height`: The height of the output PNG in pixels.
+
+  Returns:
+   `true` if the raster image was rendered and saved, `false` otherwise.
+*/
+fn generateScenicLandscape(outputPath: string, width: number, height: number) -> bool {
+  // Clear any existing drawing buffers
+  Draw.clear()
+
+  // 1. Sky Gradient Bands (Draw.pixel_rect)
+  Draw.pixel_rect(0, 0, width, 120, "#1a102f", true)
+  Draw.pixel_rect(0, 120, width, 100, "#2b1b4d", true)
+  Draw.pixel_rect(0, 220, width, 90, "#48225b", true)
+  Draw.pixel_rect(0, 310, width, 80, "#6c2d5d", true)
+  Draw.pixel_rect(0, 390, width, 70, "#993d56", true)
+  Draw.pixel_rect(0, 460, width, 60, "#cb5a4c", true)
+  Draw.pixel_rect(0, 520, width, 50, "#ea7c49", true)
+
+  // 2. Evening Stars (Draw.pixel_star and Draw.pixel)
+  Draw.pixel_star(140, 80, 4, 10, 3, "#fff2b2", true)
+  Draw.pixel_star(320, 60, 4, 8, 2, "#fce4a6", true)
+  Draw.pixel_star(980, 90, 4, 12, 4, "#fff6cc", true)
+  Draw.pixel_star(1120, 50, 4, 7, 2, "#fff9db", true)
+  Draw.pixel_star(620, 70, 4, 6, 2, "#fff0a3", true)
+
+  // Background single-pixel starfield
+  Draw.pixel(220, 40, "#ffffff")
+  Draw.pixel(450, 110, "#eeddaa")
+  Draw.pixel(780, 45, "#ffffff")
+  Draw.pixel(890, 130, "#fff0b0")
+  Draw.pixel(1040, 85, "#ffffff")
+
+  // 3. Setting Sun & Halo (Draw.pixel_circle and Draw.pixel_ring)
+  Draw.pixel_ring(640, 440, 95, 6, "rgba(255, 235, 150, 0.25)")
+  Draw.pixel_ring(640, 440, 85, 4, "rgba(255, 235, 150, 0.45)")
+  Draw.pixel_circle(640, 440, 75, "#ffeb99", true)
+
+  // 4. Distant Mountain Range (Draw.pixel_polygon)
+  let farMountains = [
+    [0, 520],
+    [160, 360],
+    [320, 480],
+    [480, 340],
+    [640, 460],
+    [820, 320],
+    [1010, 470],
+    [1180, 350],
+    [1280, 430],
+    [1280, 580],
+    [0, 580]
+  ]
+  Draw.pixel_polygon(farMountains, "#3c1a40", true)
+
+  // 5. Mid-ground Sharp Peaks (Draw.pixel_triangle)
+  Draw.pixel_triangle(60, 580, 240, 370, 440, 580, "#26132d", true)
+  Draw.pixel_triangle(360, 580, 560, 390, 760, 580, "#23112a", true)
+  Draw.pixel_triangle(700, 580, 920, 360, 1140, 580, "#200f26", true)
+
+  // Snowcaps on sharp peaks
+  Draw.pixel_triangle(215, 420, 240, 370, 265, 420, "#e8d8eb", true)
+  Draw.pixel_triangle(535, 430, 560, 390, 585, 430, "#e8d8eb", true)
+  Draw.pixel_triangle(895, 410, 920, 360, 945, 410, "#e8d8eb", true)
+
+  // 6. Lake / Water Basin (Draw.pixel_rect)
+  Draw.pixel_rect(0, 570, width, 150, "#120a1f", true)
+
+  // Sun Reflection in Water (Draw.pixel_ellipse & Draw.pixel_arc)
+  Draw.pixel_ellipse(640, 600, 55, 6, "rgba(255, 235, 150, 0.4)", true)
+  Draw.pixel_ellipse(640, 620, 45, 5, "rgba(255, 210, 120, 0.35)", true)
+  Draw.pixel_ellipse(640, 642, 35, 4, "rgba(255, 180, 90, 0.3)", true)
+  Draw.pixel_arc(640, 665, 30, 0, 180, "rgba(255, 160, 80, 0.25)")
+  Draw.pixel_arc(640, 685, 22, 0, 180, "rgba(255, 140, 70, 0.2)")
+
+  // 7. Foreground Shoreline & Rolling Foothills (Draw.pixel_bezier & Draw.pixel_polygon)
+  let shorePoints = [
+    [0, 650],
+    [280, 610],
+    [520, 640],
+    [780, 630],
+    [1040, 600],
+    [1280, 630],
+    [1280, 720],
+    [0, 720]
+  ]
+  Draw.pixel_polygon(shorePoints, "#0c0714", true)
+
+  // Curving shoreline outline
+  Draw.pixel_bezier(0, 650, 280, 610, 520, 640, "#1f142e")
+  Draw.pixel_bezier(520, 640, 780, 630, 1040, 600, "#1f142e")
+  Draw.pixel_bezier(1040, 600, 1160, 615, 1280, 630, "#1f142e")
+
+  // 8. Pine Tree Silhouettes on the Foreground Shore
+  fn drawPineTree(baseX: number, baseY: number, treeHeight: number) {
+    let halfWidth = (treeHeight / 3) | num
+    // Tree foliage layers
+    Draw.pixel_triangle(baseX - halfWidth, baseY, baseX, baseY - treeHeight, baseX + halfWidth, baseY, "#050308", true)
+    Draw.pixel_triangle(baseX - ((halfWidth * 0.8) | num), baseY - ((treeHeight * 0.3) | num), baseX, baseY - ((treeHeight * 1.15) | num), baseX + ((halfWidth * 0.8) | num), baseY - ((treeHeight * 0.3) | num), "#050308", true)
+    // Trunk
+    Draw.pixel_line(baseX, baseY, baseX, baseY + 6, "#030205")
+  }
+
+  drawPineTree(80, 660, 75)
+  drawPineTree(130, 655, 95)
+  drawPineTree(175, 662, 65)
+  drawPineTree(220, 670, 50)
+  drawPineTree(1100, 630, 80)
+  drawPineTree(1150, 625, 105)
+  drawPineTree(1200, 635, 70)
+
+  // 9. Birds in Flight (Draw.pixel_arc)
+  Draw.pixel_arc(420, 260, 10, 200, 340, "#23112a")
+  Draw.pixel_arc(438, 260, 10, 200, 340, "#23112a")
+  Draw.pixel_arc(460, 240, 8, 200, 340, "#23112a")
+  Draw.pixel_arc(474, 240, 8, 200, 340, "#23112a")
+
+  // 10. Scene Label (Draw.pixel_text with scale multiplier)
+  Draw.pixel_text(40, 680, "DUSK VALLEY", "#8f7299", 2)
+
+  // Save the full 1280x720 canvas
+  try {
+    Draw.save_png(outputPath, width, height, "transparent")
+    show "✓ Successfully rendered high-res scene (" width "x" height ") to:" outputPath
+    return true
+  } catch (err) {
+    show "❌ Failed to save canvas image:" err
+    return false
+  }
+}
+
+let dir = "generated_media/"
+prompt outputPath {dir "scenic_dusk_" width "x" height ".png"}
+
+if !exists(dir) {
+  make_dir(dir)
+}
+
+// Execute generator
+generateScenicLandscape(outputPath, width, height)

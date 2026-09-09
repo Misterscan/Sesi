@@ -102,7 +102,18 @@ export class Lexer {
         this.addToken('COLON');
         break;
       case '?':
-        this.addToken('QUESTION');
+        if (this.match('.')) {
+          this.addToken('QUESTION_DOT', null, '?.');
+        } else {
+          this.addToken('QUESTION');
+        }
+        break;
+      case '$':
+        if (this.isAlpha(this.peek())) {
+          this.dollarIdentifier();
+        } else {
+          throw new Error(`Unexpected character: $ at line ${this.line}, column ${this.column - 1}`);
+        }
         break;
       case '.':
         this.addToken('DOT');
@@ -284,6 +295,16 @@ export class Lexer {
     this.advance(); // closing quote
     const lexeme = this.source.substring(startPosition, this.position);
     this.addToken('STRING', value, lexeme);
+  }
+
+  private dollarIdentifier(): void {
+    const start = this.position - 1;
+    while (this.isAlphaNumeric(this.peek())) {
+      this.advance();
+    }
+    const lexeme = this.source.substring(start, this.position);
+    const varName = lexeme.substring(1);
+    this.addToken('DOLLAR_IDENTIFIER', varName, lexeme);
   }
 
   private number(): void {

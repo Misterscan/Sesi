@@ -75,7 +75,7 @@ export fn normalize_path(path: string) -> string {
   return result
 }
 
-fn get_home_dir() -> string {
+fn get_home_dir() -> any {
   try {
     let out = env("HOME")
     if out != null {
@@ -93,7 +93,7 @@ fn get_home_dir() -> string {
   return null
 }
 
-fn get_sesi_path() -> string {
+fn get_sesi_path() -> any {
   try {
     let out = env("SESI_PATH")
     if out != null {
@@ -154,7 +154,7 @@ fn resolve_path(source: string, importing_file: string) -> string {
   return normalize_path(join_paths(dir, filename))
 }
 
-export fn extract_module(line: string) -> string {
+export fn extract_module(line: string) -> any {
   let kw_pos = locate(line, "allow")
   let kw_len = 5
   if kw_pos == -1 {
@@ -333,7 +333,7 @@ fn show_tree(node: string, prefix: string, is_last: bool, branch_visited: object
 
 // Command execution flow
 if len(args) == 0 {
-  show_help()
+  return
 } else {
   let entry_file = null
   let svg_file = "dependency-graph.svg"

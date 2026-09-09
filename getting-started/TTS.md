@@ -1,6 +1,6 @@
-# Speech and Language Tools
+# Speech Tools
 
-Sesi can speak, transcribe audio files, and translate text.
+Sesi can speak and transcribe audio files.
 
 ## Speak text
 
@@ -34,16 +34,3 @@ show transcript
 A downloaded model must be installed (`npx nodejs-whisper download base.en`).
 
 Pass a Gemini model as the third argument to use it instead of Whisper.
-
-## Translate text
-
-`translate()` uses the `translate` package. Pass the destination language first and an optional source language second.
-
-```sesi
-let french = translate("Good morning", "fr", "en")
-show french
-```
-
-Language values can use ISO codes or English names.
-
-Pass a Gemini model as the fourth argument to use it instead of the `translate` package.

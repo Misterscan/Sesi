@@ -60,6 +60,82 @@ Below is the official reference documentation and native codebase of Sesi:
 Use this data to answer the user's question with absolute technical precision:
 - Maintain Sesi's programming rules. 
 - Be helpful, highly structured, and technical.
+- Prefer code piping when it offers better legibility and readability.
+    Example:
+    ```
+    let file = null
+    try {file = read_file(\"filename\")} catch (e) {file = null}
+    if file | is_null {
+      show \"File is empty or could not be read.\"
+    }
+    ```
+
+    However, avoid overusing code piping when it makes the code less readable.
+    Also, parentheses should be used appropriately to maintain clarity and avoid ambiguity in expressions using pipe `|`.
+    ```
+    if (file | len) > 0 {
+      show \"File has content.\"
+    }
+
+    let fileLength = (file | len) + 1
+    let pick = (nonexistent | len) || (file | len)
+    ```
+    - Functions that return a variable as a boolean rather than a strict `bool` should explicitly state `any` as their return type.
+    - Do not mention that you got this from a database.
+    - Do not mention that you are an AI model.
+    - You must import any neccesary modules at the top before claring them in your scripts.
+    - Do not mention that you got anything from documentation, just reference it if needed.
+
+    Absolutely NO `+` usage in show statements.
+
+    Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error, they are treated as statement separators. 
+    Newlines that live inside a string literal are fine. STRICTLY FOLLOW THE PROVIDED EXAMPLES IN THE DOCUMENTATION WHERE NEWLINES ARE USED AND DO NOT INSINUATE.
+    Newlines are also permitted in function declarations and structured output, however strongly preferred when dealing with multiple parameters:
+    ```
+    fn take_action(
+      cmds: array<string>?,
+      _prompt,
+      description: string = "",
+      required: bool,
+      ext_param: string,
+      ext_param2: any = null
+    ) { ... }
+
+    let output = structured_output(
+      type: \"string\",
+      name: \"string\",
+      config: \"object\",
+      status: \"bool\",
+      ext_field: \"any\",
+      ext_field2: \"array\"
+    )(raw_data)
+
+
+    prompt example {\"Multi line strings are fine
+    but they MUST begin on the same line as the opening '{' 
+    and end on the same line as the closing '}' \"}
+
+    let test = model(\"gemini-3.1-flash-lite\") {thinkingLevel: \"low\", maxT: 2048, cache: false, search} <-- NOTICE ITS NOT SEPARATED BY NEWLINES IN THE CONFIGURATION {example} 
+    ```
+
+    Objects do not require to be quoted in strings:
+    ```
+    let desc = \"Example text for configuration.\"
+    let config = {
+      name: \"Object Test\",
+      description: desc,
+      active_state: true,
+      sub_config: {
+        testing: true,
+        code: null,
+        production: false,
+        env_path: \"base/keys.txt\"
+      }
+    }
+    show config.name
+    show config.active_state
+    show config.sub_config.env_path
+    ```
 "}
 
 async fn handleRequest(req) {
@@ -68,13 +144,13 @@ async fn handleRequest(req) {
   // Handle CORS preflight
   if req.method == "OPTIONS" {
     return {
-      "status": 200,
-      "headers": {
+      status: 200,
+      headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "X-Requested-With, Content-Type"
       },
-      "body": ""
+      body: ""
     }
   }
 
@@ -87,13 +163,13 @@ async fn handleRequest(req) {
 
     if len(q) == 0 {
       return {
-        "status": 400,
-        "headers": {
+        status: 400,
+        headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*"
         },
-        "body": {
-          "error": "Empty query parameter 'q'"
+        body: {
+          error: "Empty query parameter 'q'"
         }
       }
     }
@@ -121,7 +197,7 @@ async fn handleRequest(req) {
     let response_content = "Sorry, no response could be generated."
     let failed = false
     try {
-      response_content = model("gemini-3.5-flash-lite") {system: history, temperature: 0.3, max_tokens: 2048} {prompt_context}
+      response_content = model("gemini-3.1-flash-lite") {system: history, temperature: 0.3, max_tokens: 2048} {prompt_context}
     } catch (e) {
       show "[SERVER ERROR] Sesi model call failed:" e
       failed = true
@@ -129,13 +205,13 @@ async fn handleRequest(req) {
 
     if failed {
       return {
-        "status": 500,
-        "headers": {
+        status: 500,
+        headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*"
         },
-        "body": {
-          "error": "Sesi model call failed"
+        body: {
+          error: "Sesi model call failed"
         }
       }
     }
@@ -146,15 +222,15 @@ async fn handleRequest(req) {
     show "[SERVER] Response successfully sent."
 
     return {
-      "status": 200,
-      "headers": {
+      status: 200,
+      headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "X-Requested-With, Content-Type"
       },
-      "body": {
-        "response": response_content
+      body: {
+        response: response_content
       }
     }
   }
@@ -214,12 +290,12 @@ async fn handleRequest(req) {
   }
 
   return {
-    "status": status,
-    "headers": {
+    status: status,
+    headers: {
       "Content-Type": contentType,
       "Access-Control-Allow-Origin": "*"
     },
-    "body": body
+    body: body
   }
 }
 

@@ -1,5 +1,11 @@
 allow "helpers/safe" in as safe
 
+/**
+  Run all test files in the "tests/" directory.
+  
+  This script searches for all ".ts" test files in the "tests/" directory and executes them.
+  If any test fails, the script will stop and report the failure.
+*/
 fn runTests() {
     let testsDir = "tests/"
     let directoryEntries = safe.getFiles(testsDir)

@@ -91,10 +91,219 @@ Grade: A"}
 The newline is a real line break _inside the string literal_ — not `\n`, not any escape sequence.
 
 - **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{"key": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
-- **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{"name": "Alice"}`).
+- **Object Literals:** Conversely, standard object literals `{}` don't require quoted keys. You can write them naturally like `{name: "Alice", age: 30}`. Using quoted keys is optional but allowed if needed for compatibility or clarity.
 - **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
-- **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
+- **Systems Primitive:** Forbid `const` (use `let`) and `main()` wrappers. `return` is valid inside `fn` blocks and at the top level; a top-level `return` stops the current script or module. Focus on side-effects and direct top-level execution.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
+- **Multi-line Comments:** Use the `/** ... */` block comment style for multi-line comments. Include double newlines to separate sections and backticks for code elements. This style should be used for documenting functions, including parameters, return values, and any relevant details.
+
+    ```sesi
+    /**
+      Multi-line comment
+
+      Use double newlines to separate sections.
+
+      List:
+        - `item 1`
+        - `item 2`
+        - `item 3`
+    */
+    ```
+    This also applies to function comments. You should use the same multi-line comment style for documenting functions, including double newlines to separate sections and backticks for code elements.
+    Include parameters, return values, and any relevant details in your function comments.
+    Example:
+    ```
+    /**
+      Adds two numbers.
+
+      Parameters:
+      - `a`: The first number.
+      - `b`: The second number.
+
+      Returns:
+      - The sum of `a` and `b`.
+
+      Example:
+      ```sesi
+      let result = add(3, 5)
+      show "The result is:" result
+      ```
+
+      Notes:
+      - This function simply adds two numbers and returns the result.
+    */
+    fn add(a: number, b: number) -> number {
+      return a + b
+    }
+    ```
+
+    For comments within nested functions:
+    ```
+    /**
+      Example function with a nested function and comments.
+      Parameters:
+      - `x`: The input parameter for the example function.
+
+      Returns:
+      - `true` if the response has been answered, `false` otherwise.
+    */
+    fn exampleFunction(x: any) -> any {
+      ...
+      /** This is an example of a single-line comment within a nested function.
+      * -> **LEAVE BLANK** 
+      * Parameters:
+      *   - `y`: The input parameter for the nested function.
+      * -> **LEAVE BLANK**
+      * Returns:
+      *   - `true` if the response has been answered, `false` otherwise.
+      */
+      fn nestedFunction(y: any) {
+        ...
+      }
+    }
+
+    For comments within nested make objects:
+    /**
+      Example make template with a nested function and comments.
+      Fields:
+      - `x`: The input parameter for the example function.
+      - ...
+
+      Returns:
+      - ...
+    */
+    make Example {
+      let x = 0
+      ...
+      /** This is an example of a single-line comment within a nested function.
+      * -> **LEAVE BLANK** 
+      * Parameters:
+      *   - `self`: ...
+      *   - `y`: The input parameter for the nested function.
+      * -> **LEAVE BLANK**
+      * Returns:
+      *   - ...
+      */
+      fn nestedFunction(self, y: any) {
+        ...
+      }
+    }
+    ```
+
+    The same can be applied to other types of comments and documentation within your code and is optional, but recommended for onboarding and maintaining code clarity.
+    Example:
+    ```
+    // Retrieved response from the model.
+    let answer = ""
+
+    /**
+      Indicates whether the response has been answered.
+
+      Notes:
+      - `true` if the response has been answered, `false` otherwise.
+    */
+    let answered = false
+
+    /**
+      Parts of the response.
+
+      Array:
+      - `part1`: The first part of the response.
+      - `part2`: The second part of the response.
+      - `part3`: The third part of the response.
+    */
+    let parts = ["part1", "part2", "part3"]
+
+    /**
+      Template for structured data.
+
+      Object:
+      - `field1`: The first field of the template.
+        - `value1`: The value for the first field.
+      - `field2`: The second field of the template.
+        - `value2`: The value for the second field.
+      - `field3`: The third field of the template.
+        - `value3`: The value for the third field.
+    */
+    let template = {"field1": "value1", "field2": "value2", "field3": "value3"}
+    ```
+
+    - Prefer code piping when it offers better legibility and readability.
+    Example:
+    ```
+    let file = null
+    try {file = read_file("filename")} catch (e) {file = null}
+    if file | is_null {
+      show "File is empty or could not be read."
+    }
+    ```
+
+    However, avoid overusing code piping when it makes the code less readable.
+    Also, parentheses should be used appropriately to maintain clarity and avoid ambiguity in expressions using pipe `|`.
+    ```
+    if (file | len) > 0 {
+      show "File has content."
+    }
+
+    let fileLength = (file | len) + 1
+    let pick = (nonexistent | len) || (file | len)
+    ```
+    - Functions that return a variable as a boolean rather than a strict `bool` should explicitly state `any` as their return type.
+    - Do not mention that you got this from a database.
+    - Do not mention that you are an AI model.
+    - You must import any neccesary modules at the top before claring them in your scripts.
+    - Do not mention that you got anything from documentation, just reference it if needed.
+
+    Absolutely NO `+` usage in show statements.
+
+    Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error, they are treated as statement separators. 
+    Newlines that live inside a string literal are fine. STRICTLY FOLLOW THE PROVIDED EXAMPLES IN THE DOCUMENTATION WHERE NEWLINES ARE USED AND DO NOT INSINUATE.
+    Newlines are also permitted in function declarations and structured output, however strongly preferred when dealing with multiple parameters:
+    ```
+    fn take_action(
+      cmds: array<string>?,
+      _prompt,
+      description: string = "",
+      required: bool,
+      ext_param: string,
+      ext_param2: any = null
+    ) { ... }
+
+    let output = structured_output(
+      type: "string",
+      name: "string",
+      config: "object",
+      status: "bool",
+      ext_field: "any",
+      ext_field2: "array"
+    )(raw_data)
+   
+    prompt example {"Multi line strings are fine
+    but they MUST begin on the same line as the opening '{' 
+    and end on the same line as the closing '}' "}
+
+    let test = model("gemini-3.1-flash-lite") {thinkingLevel: "low", maxT: 2048, cache: false, search} <-- NOTICE ITS NOT SEPARATED BY NEWLINES IN THE CONFIGURATION {example} 
+
+    ```
+
+    Objects do not require to be quoted in strings:
+    ```
+    let desc = "Example text for configuration."
+    let config = {
+      name: "Object Test",
+      description: desc,
+      active_state: true,
+      sub_config: {
+        testing: true,
+        code: null,
+        production: false,
+        env_path: "base/keys.txt"
+      }
+    }
+    show config.name
+    show config.active_state
+    show config.sub_config.env_path
+    ```
 
 For all quirks and specific syntaxing, visit context-pack/.
 

@@ -37,11 +37,8 @@ fn validate_url(url) {
   return false
 }
 
-// Register as a custom tool
-define_tool("url_validator", validate_url, "Validates if the URL has http or https scheme")
-
-// Validate the URL using the registered tool
-let isValid = tool_call(url_validator)(target_url)
+// Validate the URL using the validate_url() function
+let isValid = validate_url(target_url)
 if !isValid {
   show "Error: Invalid URL specified:" target_url
   show "The scraper requires a valid URL starting with http:// or https://"

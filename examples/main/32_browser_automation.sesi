@@ -19,7 +19,7 @@ show "=== Sesi Web Scraping & Browser Automation ==="
 allow "std/browser" in as Browser
 
 show "Launching headless Chromium browser..."
-let browser = {"headless": true} | Browser.launch
+let browser = {headless: true} | Browser.launch
 let page = browser.newPage()
 
 // Part 1: Scrape Hacker News
@@ -34,8 +34,8 @@ show "Top 5 Stories on Hacker News:"
 let file = ""
 fn append_stories(file, stories) {
     for story in stories {
-        let title = "### Title: " + story["title"] + "\n"
-        let url = " URL: " + story["url"] + "\n\n"
+        let title = "### Title: " + story.title + "\n"
+        let url = " URL: " + story.url + "\n\n"
         file = file + title + "\n" + url
     }
     return file
@@ -68,7 +68,7 @@ show "Search Result Page Title: " wikiTitle
 
 // Capture screenshot of the results
 show "Capturing page screenshot..."
-({"path": "wiki_search.png"}) | page.screenshot
+({path: "wiki_search.png"}) | page.screenshot
 show "Saved screenshot to wiki_search.png"
 
 // Clean up

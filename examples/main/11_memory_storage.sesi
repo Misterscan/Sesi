@@ -4,10 +4,14 @@ allow "helpers/safe" in with { json }
 
 memory database {"name: string, age: number, role: string"}
 
-database = {"name": "John", "age": 30, "role": "developer"}
-show color("Name:", "cyan") database["name"]
-show color("Age:", "cyan") str(database["age"])
-show color("Role:", "cyan") database["role"]
+database = {
+  name: "John",
+  age: 30,
+  role: "developer"
+}
+show color("Name:", "cyan") database.name
+show color("Age:", "cyan") str(database.age)
+show color("Role:", "cyan") database.role
 try {
   "data" | json(database)
   show color("Database saved!", "green", "bold")
@@ -15,15 +19,19 @@ try {
   show "Error:" error
 }
 
-let new_info = {"name": "Jane", "age": 25, "role": "designer"}
+let new_info = {
+  name: "Jane",
+  age: 25,
+  role: "designer"
+}
 let merged = database
 for key in new_info | keys {
   merged[key] = new_info[key]
 }
 database = merged
-show "Name:" database["name"]
-show "Age:" database["age"]
-show "Role:" database["role"]
+show "Name:" database.name
+show "Age:" database.age
+show "Role:" database.role
 try {
   "data" | json(database)
   show "Database updated!"
@@ -31,15 +39,17 @@ try {
   show "Error:" error
 }
 
-/* USING IT FOR AI IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
-COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
+/* 
+  USING IT FOR AI IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
 
 memory conversation {"You are a helpful programming assistant. Respond concisely."}
-memory conversationfn askBot(question: string) -> string {
-let message = conversation + "User:" + question
-let response = model("gemini-3.5-flash-lite") {message}
-conversation = message + "Assistant:" + response
-return response
+memory conversation
+
+fn askBot(question: string) -> string {
+  let message = conversation + "User:" + question
+  let response = model("gemini-3.5-flash-lite") {message}
+  conversation = message + "Assistant:" + response
+  return response
 }
 show "Starting conversation..."
 let answer1 = askBot("What is a closure in JavaScript?")
@@ -47,4 +57,5 @@ show "Q1 Answer:" answer1
 let answer2 = askBot("Can you give me an example?")
 show "Q2 Answer:" answer2
 let answer3 = askBot("How do I use it in practice?")
-show "Q3 Answer:" answer3 */
+show "Q3 Answer:" answer3
+*/

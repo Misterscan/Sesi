@@ -1,3 +1,10 @@
+/**
+  Sesi Studio Agent module.
+
+  Provides functions for managing the WebSocket client, handling user permissions,
+  and performing file read/write operations with user confirmation.
+*/
+
 allow "std/time" in as Time
 allow "ai_agent" in as Agent
 allow "std/browser" in with {launch}
@@ -15,19 +22,52 @@ let current_ws_client = null
 let current_confirm_response = "pending"
 let permission_error = ""
 
+/**
+  Set the current WebSocket client for the agent.
+
+ Parameters:
+ - `client`: The WebSocket client to set.
+
+ Returns:
+ None.
+*/
 export fn set_ws_client(client) {
   current_ws_client = client
 }
 
+/**
+  Clear the current WebSocket client and reset the confirmation response.
+
+ Returns:
+ None.
+*/
 export fn clear_ws_client() {
   current_ws_client = null
   current_confirm_response = "pending"
 }
 
+/**
+  Receive the user's confirmation response.
+
+ Parameters:
+ - `response`: The confirmation response from the user.
+
+ Returns:
+ None.
+*/
 export fn receive_confirmation(response) {
   current_confirm_response = response
 }
 
+/**
+  Send a chunk of data to the agent via the WebSocket client.
+
+ Parameters:
+ - `chunk`: The data chunk to send.
+
+ Returns:
+ `true` if the chunk was successfully sent, `false` otherwise.
+*/
 export fn send_agent_chunk(chunk) {
   if current_ws_client != null {
     try {
@@ -38,6 +78,15 @@ export fn send_agent_chunk(chunk) {
   return false
 }
 
+/**
+  Ask the user for permission with a prompt message.
+
+ Parameters:
+ - `prompt_msg`: The message to display in the permission prompt.
+
+ Returns:
+ `true` if the user grants permission, `false` if the user denies permission, or an error message string if the WebSocket is disconnected.
+*/
 export fn ask_user_permission(prompt_msg) {
   if current_ws_client == null {
     return "The Studio WebSocket is disconnected, so no permission dialog can be shown."
@@ -62,6 +111,17 @@ export fn ask_user_permission(prompt_msg) {
   }
   return false
 }
+/**
+  Read the contents of a file, with user permission.
+
+ Parameters:
+ - `args`: A dictionary containing the file path or filename.
+   - `path`: The path to the file (optional if `filename` is provided).
+   - `filename`: The filename of the file (optional if `path` is provided).
+
+ Returns:
+ The contents of the file if successful, or an error message string if permission is denied or an error occurs.
+*/
 export fn read(args) {
   let path = args["path"]
   if path == null {
@@ -80,6 +140,18 @@ export fn read(args) {
   return Safe.readFile(path)
 }
 
+/**
+  Write content to a file, with user permission.
+
+ Parameters:
+ - `args`: A dictionary containing the file path or filename and the content to write.
+   - `path`: The path to the file (optional if `filename` is provided).
+   - `filename`: The filename of the file (optional if `path` is provided).
+   - `content`: The content to write to the file.
+
+ Returns:
+ A success message if the write operation is successful, or an error message string if permission is denied or an error occurs.
+*/
 export fn write(args) {
   let path = args["path"]
   if path == null {
@@ -100,6 +172,16 @@ export fn write(args) {
   return "Successfully wrote to file " + path
 }
 
+/**
+  List the contents of a directory.
+
+ Parameters:
+ - `args`: A dictionary containing the directory path.
+   - `path`: The path to the directory (optional, defaults to the current directory).
+
+ Returns:
+ A string containing the list of files and directories, or an error message string if an error occurs.
+*/
 export fn list(args) {
   let path = args["path"]
   if path == null || path == "" {
@@ -117,6 +199,16 @@ export fn list(args) {
   }
 }
 
+/**
+  Search Google with a query.
+
+ Parameters:
+ - `args`: A dictionary containing the search query.
+   - `query`: The search query string.
+
+ Returns:
+ The search results as a string, or an error message string if an error occurs.
+*/
 export fn searchGoogle(args) {
   let query = args["query"]
   if query == null {
@@ -130,6 +222,17 @@ export fn searchGoogle(args) {
   }
 }
 
+/**
+  Run a helper script with user permission.
+
+ Parameters:
+ - `args`: A dictionary containing the script name and arguments.
+   - `script_name`: The name of the helper script to run.
+   - `args_str`: The arguments to pass to the script as a string (optional).
+
+ Returns:
+ The output of the script, or an error message string if permission is denied or an error occurs.
+*/
 export fn runScript(args) {
   let script_name = args["script_name"]
   let args_str = args["args_str"]
@@ -157,6 +260,16 @@ export fn runScript(args) {
   }
 }
 
+/**
+  Evaluate Sesi code with user permission.
+
+ Parameters:
+ - `args`: A dictionary containing the code to evaluate.
+   - `code`: The Sesi code string to evaluate.
+
+ Returns:
+ The output of the evaluated code, or an error message string if permission is denied or an error occurs.
+*/
 export fn evaluate(args) {
   let code = args["code"]
   if code == null || code == "" {
@@ -186,7 +299,18 @@ export fn evaluate(args) {
   }
 }
 
+/**
+  Generate an image using a subagent with user permission.
 
+ Parameters:
+ - `args`: A dictionary containing the image generation parameters.
+   - `prompt`: The user-provided prompt for the image.
+   - `aspect_ratio`: The desired aspect ratio of the image (optional, defaults to "1:1").
+   - `output_path`: The path to save the generated image (optional, defaults to "generated_image.png").
+
+ Returns:
+ The result of the image generation, including success or error messages.
+*/
 export fn generateImage(args) {
   let user_prompt = args["prompt"]
   let ratio = args["aspect_ratio"]
@@ -230,6 +354,18 @@ export fn generateImage(args) {
   }
 }
 
+/**
+  Draw a picture using a subagent with user permission.
+
+ Parameters:
+ - `args`: A dictionary containing the picture drawing parameters.
+   - `prompt`: The user-provided prompt for the picture.
+   - `aspect_ratio`: The desired aspect ratio of the picture (optional, defaults to "1:1").
+   - `output_path`: The path to save the drawn picture (optional, defaults to "agent_picture.png").
+
+ Returns:
+ The result of the picture drawing, including success or error messages.
+*/
 export fn drawPicture(args) {
   let user_prompt = args["prompt"]
   let path = args["output_path"]
@@ -324,6 +460,16 @@ export fn drawPicture(args) {
   }
 }
 
+/**
+  Open a browser and navigate to a URL.
+
+ Parameters:
+ - `args`: A dictionary containing the URL to navigate to.
+   - `url`: The URL of the webpage to open.
+
+ Returns:
+ A success message with the page title, or an error message string if an error occurs.
+*/
 export fn browser(args) {
   let url = args["url"]
   if url == null {
@@ -344,6 +490,16 @@ export fn browser(args) {
   }
 }
 
+/**
+  Click an element on the webpage using a CSS selector.
+
+ Parameters:
+ - `args`: A dictionary containing the CSS selector of the element to click.
+   - `selector`: The CSS selector of the element to click.
+
+ Returns:
+ A success message if the element is clicked, or an error message string if an error occurs.
+*/
 export fn click(args) {
   let selector = args["selector"]
   if selector == null {
@@ -359,7 +515,17 @@ export fn click(args) {
     return "Error clicking selector: " + str(e)
   }
 }
+/**
+  Fill an input element on the webpage using a CSS selector.
 
+ Parameters:
+ - `args`: A dictionary containing the CSS selector of the element to fill and the value to input.
+   - `selector`: The CSS selector of the element to fill.
+   - `value`: The value to input into the element.
+
+ Returns:
+ A success message if the element is filled, or an error message string if an error occurs.
+*/
 export fn fill(args) {
   let selector = args["selector"]
   let value = args["value"]
@@ -376,7 +542,16 @@ export fn fill(args) {
     return "Error filling selector: " + str(e)
   }
 }
+/**
+  Take a screenshot of the current webpage.
 
+ Parameters:
+ - `args`: A dictionary containing the screenshot parameters.
+   - `path`: The path to save the screenshot (optional, defaults to "browser_screenshot.png").
+
+ Returns:
+ A success message with the screenshot path, or an error message string if an error occurs.
+*/
 export fn screenshot(args) {
   let path = args["path"]
   if path == null {
@@ -393,6 +568,15 @@ export fn screenshot(args) {
   }
 }
 
+/**
+  Get the content of the current webpage.
+
+ Parameters:
+ - `args`: A dictionary containing any additional parameters (currently unused).
+
+ Returns:
+ The inner text of the body element, or the full page content if inner text retrieval fails, or an error message string if an error occurs.
+*/
 export fn grabContent(args) {
   if args == null {}
   if active_page == null {
@@ -410,6 +594,15 @@ export fn grabContent(args) {
   }
 }
 
+/**
+  Close the currently open browser.
+
+ Parameters:
+ - `args`: A dictionary containing any additional parameters (currently unused).
+
+ Returns:
+ A success message if the browser is closed successfully, or an error message string if an error occurs.
+*/
 export fn closeBrowser(args) {
   if args == null {}
   try {
@@ -427,6 +620,11 @@ export fn closeBrowser(args) {
   }
 }
 
+/**
+  Global tools available for the agent.
+
+  This object contains the tools that are globally available for the agent to use, including file operations, web search, script execution, image generation, and browser automation functions.
+*/
 export let global_tools = {
   "read_file": read,
   "write_file": write,
@@ -444,6 +642,11 @@ export let global_tools = {
   "browser_close": closeBrowser
 }
 
+/**
+  Copilot tools available for the agent.
+
+  This object contains the tools that are specifically available for the copilot agent to use, including file operations, web search, script execution, and image generation functions.
+*/
 export let copilot_tools = {
     "read_file": read,
     "write_file": write,

@@ -1,0 +1,1793 @@
+/**
+  Utility functions for safely running Git commands and handling errors.
+  These functions include pushing, pulling, cloning, checking out branches, and merging, all with safety checks for shell control characters.
+*/
+
+/**
+  Safely run a shell command and handle errors.
+
+  Parameters:
+  - `cmd`: The shell command to run.
+
+  Returns:
+  - The output of the command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = saferun("echo Hello, World!")
+  show output // Hello, World!
+  ```
+
+  Notes:
+  - This function uses a try-catch block to safely execute shell commands.
+  - If the command fails, the error message is returned instead of throwing an exception.
+*/
+fn saferun(cmd: string) -> string {
+    try {
+        return run(cmd)
+    } catch (e) {
+        show "Error running command:" cmd "
+        " e
+        return e | str
+    }
+}
+
+/**
+  Safely quote a Git argument and reject shell control characters.
+
+  Parameters:
+  - `value`: The argument value to quote and validate.
+
+  Returns:
+  - The safely quoted argument.
+
+  Example:
+  ```sesi
+  let quoted = git_arg("safe_argument")
+  show quoted // "safe_argument"
+  ```
+
+  Notes:
+  - This function uses a regular expression to detect shell control characters.
+  - If any unsafe characters are found, an error is raised.
+  - The argument is safely quoted for use in Git commands.
+*/
+fn git_arg(value: string) -> string {
+    if regex("[&|<>^%!\"\\r\\n]", value, {"mode": "match", "flags": "g"}) != [] {
+        raise_error("UnsafeGitArgument", "Git arguments cannot contain shell control characters")
+    }
+    return "\"" + value + "\""
+}
+
+/**
+  Safely run a Git command and handle errors.
+
+  Parameters:
+  - `cmd`: The Git command to run.
+
+  Returns:
+  - The output of the Git command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git("status")
+  show output
+  ```
+
+  Notes:
+  - This function uses the `saferun` function to execute Git commands safely.
+  - If the Git command contains unsafe shell control characters, an error is raised.
+  - The Git command is safely  executed using the `saferun` function.
+*/
+export fn git(cmd: string) -> string {
+    if regex("[&|<>^%!\\r\\n]", cmd, {"mode": "match", "flags": "g"}) != [] {
+        raise_error("UnsafeGitCommand", "Git commands cannot contain shell control characters")
+    }
+    let git_cmd = "git " + cmd
+    return saferun(git_cmd)
+}
+
+/**
+  Safely clone a Git repository into a specific directory.
+
+  Parameters:
+  - `repo`: The URL of the Git repository to clone.
+  - `dir`: The target directory to clone the repository into.
+
+  Returns:
+  - The output of the Git clone command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_clone("https://github.com/user/repo.git", "target_dir")
+  show output
+  ```
+
+  Notes:
+  - Clone means to create a copy of the specified Git repository in the target directory.
+*/
+export fn git_clone(repo: string, dir: string) -> string {
+    let cmd = "clone " + git_arg(repo) + " " + git_arg(dir)
+    return git(cmd)
+}
+
+/**
+  Safely checkout a specific Git branch.
+
+  Parameters:
+  - `branch`: The name of the branch to checkout.
+
+  Returns:
+  - The output of the Git checkout command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_checkout("feature-branch")
+  show output
+  ```
+  Notes:
+  - Checkout means to switch to the specified branch in the Git repository.
+*/
+export fn git_checkout(branch: string) -> string {
+    let cmd = "checkout " + git_arg(branch)
+    return git(cmd)
+}
+
+/**
+  Safely create and checkout a new Git branch.
+
+  Parameters:
+  - `branch`: The name of the new branch to create and checkout.
+
+  Returns:
+  - The output of the Git checkout -b command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_checkout_new("new-feature-branch")
+  show output
+  ```
+
+  Notes:
+  - This function creates a new branch and switches to it immediately.
+*/
+export fn git_checkout_new(branch: string) -> string {
+    let cmd = "checkout -b " + git_arg(branch)
+    return git(cmd)
+}
+
+/**
+  Safely merge a specific Git branch into the current branch.
+
+  Parameters:
+  - `branch`: The name of the branch to merge.
+
+  Returns:
+  - The output of the Git merge command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_merge("feature-branch")
+  show output
+  ```
+
+  Notes:
+  - Merge means to integrate changes from the specified branch into the current branch.
+*/
+export fn git_merge(branch: string) -> string {
+    let cmd = "merge " + git_arg(branch)
+    return git(cmd)
+}
+
+/**
+  Safely merge a specific Git branch into the current branch with no fast-forward.
+
+  Parameters:
+  - `branch`: The name of the branch to merge.
+
+  Returns:
+  - The output of the Git merge --no-ff command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_merge_no_ff("feature-branch")
+  show output
+  ```
+
+  Notes:
+  - The `--no-ff` option ensures that the merge is always recorded as a separate commit, even if it could be fast-forwarded.
+*/
+export fn git_merge_no_ff(branch: string) -> string {
+    let cmd = "merge --no-ff " + git_arg(branch)
+    return git(cmd)
+}
+
+/**
+  Safely merge a specific Git branch into the current branch with a squash commit.
+
+  Parameters:
+  - `branch`: The name of the branch to merge.
+
+  Returns:
+  - The output of the Git merge --squash command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_merge_squash("feature-branch")
+  show output
+  ```
+
+  Notes:
+  - The `--squash` option combines all changes from the specified branch into a single commit on the current branch.
+*/
+export fn git_merge_squash(branch: string) -> string {
+    let cmd = "merge --squash " + git_arg(branch)
+    return git(cmd)
+}
+
+/**
+  Safely abort an ongoing Git merge.
+
+  Returns:
+  - The output of the Git merge --abort command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_merge_abort()
+  show output
+  ```
+
+  Notes:
+  - The `--abort` option cancels the ongoing merge and returns the repository to its previous state.
+*/
+export fn git_merge_abort() -> string {
+    let cmd = "merge --abort"
+    return git(cmd)
+}
+
+/**
+  Safely rebase the current branch onto a specific Git branch.
+
+  Parameters:
+  - `branch`: The name of the branch to rebase onto.
+
+  Returns:
+  - The output of the Git rebase command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_rebase("feature-branch")
+  show output
+  ```
+
+  Notes:
+  - The `git rebase` command reapplies commits from the current branch onto the specified branch, allowing for a cleaner commit history.
+*/
+export fn git_rebase(branch: string) -> string {
+    let cmd = "rebase " + git_arg(branch)
+    return git(cmd)
+}
+
+/**
+  Safely abort an ongoing Git rebase.
+
+  Returns:
+  - The output of the Git rebase --abort command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_rebase_abort()
+  show output
+  ```
+
+  Notes:
+  - The `--abort` option cancels the ongoing rebase and returns the repository to its previous state.
+*/
+export fn git_rebase_abort() -> string {
+    let cmd = "rebase --abort"
+    return git(cmd)
+}
+
+/**
+  Continue an ongoing Git rebase after resolving conflicts.
+
+  Returns:
+  - The output of the Git rebase --continue command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_rebase_continue()
+  show output
+  ```
+
+  Notes:
+  - The `--continue` option resumes the rebase process after conflicts have been resolved.
+*/
+export fn git_rebase_continue() -> string {
+    let cmd = "rebase --continue"
+    return git(cmd)
+}
+
+/**
+  Skip the current patch during an ongoing Git rebase.
+
+  Returns:
+  - The output of the Git rebase --skip command if it succeeds, otherwise the error message.
+
+  Example:
+  ```sesi
+  let output = git_rebase_skip()
+  show output
+  ```
+
+  Notes:
+  - The `--skip` option skips the current patch and continues the rebase process.
+*/
+export fn git_rebase_skip() -> string {
+    let cmd = "rebase --skip"
+    return git(cmd)
+}
+
+/**
+  Pull the latest changes from the remote repository.
+
+  Returns:
+  - The output of the Git pull command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_pull()
+  show output
+  ```
+
+  Notes:
+  - The `git pull` command fetches changes from the remote repository and merges them into the current branch.
+*/
+export fn git_pull() -> string {
+    let cmd = "pull"
+    return git(cmd)
+}
+
+/**
+  Pull the latest changes from the remote repository and rebase the current branch.
+
+  Returns:
+  - The output of the Git pull --rebase command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_pull_rebase()
+  show output
+  ```
+
+  Notes:
+  - The `--rebase` option rebases the current branch on top of the upstream branch after fetching.
+*/
+export fn git_pull_rebase() -> string {
+    let cmd = "pull --rebase"
+    return git(cmd)
+}
+
+/**
+  Pull the latest changes from the remote repository, rebase the current branch, and automatically stash local changes.
+
+  Returns:
+  - The output of the Git pull --rebase --autostash command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_pull_rebase_autostash()
+  show output
+  ```
+
+  Notes:
+  - The `--autostash` option automatically stashes local changes before rebasing and applies them afterward.
+*/
+export fn git_pull_rebase_autostash() -> string {
+    let cmd = "pull --rebase --autostash"
+    return git(cmd)
+}
+
+/**
+  Fetch the latest changes from the remote repository.
+
+  Returns:
+  - The output of the Git fetch command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_fetch()
+  show output
+  ```
+
+  Notes:
+  - The `git fetch` command retrieves changes from the remote repository without merging them into the current branch.
+*/
+export fn git_fetch() -> string {
+    let cmd = "fetch"
+    return git(cmd)
+}
+
+/**
+  Fetch all branches from the remote repository.
+
+  Returns:
+  - The output of the Git fetch --all command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_fetch_all()
+  show output
+  ```
+
+  Notes:
+  - The `--all` option fetches all branches from the remote repository.
+*/
+export fn git_fetch_all() -> string {
+    let cmd = "fetch --all"
+    return git(cmd)
+}
+
+/**
+  Fetch the latest changes from the remote repository and prune deleted branches.
+
+  Returns:
+  - The output of the Git fetch --prune command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_fetch_prune()
+  show output
+  ```
+
+  Notes:
+  - The `--prune` option removes any remote-tracking references that no longer exist on the remote.
+*/
+export fn git_fetch_prune() -> string {
+    let cmd = "fetch --prune"
+    return git(cmd)
+}
+
+/**
+  Fetch all branches from the remote repository and prune deleted branches.
+
+  Returns:
+  - The output of the Git fetch --all --prune command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_fetch_all_prune()
+  show output
+  ```
+
+  Notes:
+  - The `--all` option fetches all branches from the remote repository.
+  - The `--prune` option removes any remote-tracking references that no longer exist on the remote.
+*/
+export fn git_fetch_all_prune() -> string {
+    let cmd = "fetch --all --prune"
+    return git(cmd)
+}
+
+/**
+  Fetch the latest changes from the remote repository, prune deleted branches, and fetch tags.
+
+  Returns:
+  - The output of the Git fetch --prune --tags command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_fetch_prune_tags()
+  show output
+  ```
+
+  Notes:
+  - The `--prune` option removes any remote-tracking references that no longer exist on the remote.
+  - The `--tags` option fetches all tags from the remote repository.
+*/
+export fn git_fetch_prune_tags() -> string {
+    let cmd = "fetch --prune --tags"
+    return git(cmd)
+}
+
+/**
+  Fetch all branches from the remote repository, prune deleted branches, and fetch tags.
+
+  Returns:
+  - The output of the Git fetch --all --prune --tags command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_fetch_all_prune_tags()
+  show output
+  ```
+
+  Notes:
+  - The `--all` option fetches all branches from the remote repository.
+  - The `--prune` option removes any remote-tracking references that no longer exist on the remote.
+  - The `--tags` option fetches all tags from the remote repository.
+*/
+export fn git_fetch_all_prune_tags() -> string {
+    let cmd = "fetch --all --prune --tags"
+    return git(cmd)
+}
+
+/**
+  Fetch tags from the remote repository.
+
+  Returns:
+  - The output of the Git fetch --tags command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_fetch_tags()
+  show output
+  ```
+
+  Notes:
+  - The `--tags` option fetches all tags from the remote repository.
+*/
+export fn git_fetch_tags() -> string {
+    let cmd = "fetch --tags"
+    return git(cmd)
+}
+
+/**
+  Fetch all branches and tags from the remote repository.
+
+  Returns:
+  - The output of the Git fetch --all --tags command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_fetch_all_tags()
+  show output
+  ```
+
+  Notes:
+  - The `--all` option fetches all branches from the remote repository.
+  - The `--tags` option fetches all tags from the remote repository.
+*/
+export fn git_fetch_all_tags() -> string {
+    let cmd = "fetch --all --tags"
+    return git(cmd)
+}
+
+/**
+  Push the current branch to the remote repository.
+
+  Returns:
+  - The output of the Git push command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_push()
+  show output
+  ```
+
+  Notes:
+  - The `git push` command pushes the current branch to the remote repository.
+*/
+export fn git_push() -> string {
+    let cmd = "push"
+    return git(cmd)
+}
+
+/**
+  Force push the current branch to the remote repository.
+
+  Returns:
+  - The output of the Git push --force command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_push_force()
+  show output
+  ```
+
+  Notes:
+  - The `--force` option forces the push to the remote repository, potentially overwriting changes.
+*/
+export fn git_push_force() -> string {
+    let cmd = "push --force"
+    return git(cmd)
+}
+
+/**
+  Force push the current branch to the remote repository with lease.
+
+  Returns:
+  - The output of the Git push --force-with-lease command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_push_force_with_lease()
+  show output
+  ```
+
+  Notes:
+  - The `--force-with-lease` option forces the push to the remote repository only if the remote branch has not been updated, preventing accidental overwrites.
+*/
+export fn git_push_force_with_lease() -> string {
+    let cmd = "push --force-with-lease"
+    return git(cmd)
+}
+
+/**
+  Push the current branch to the remote repository and set the upstream branch.
+
+  Parameters:
+  - `branch`: The name of the branch to push and set as upstream.
+
+  Returns:
+  - The output of the Git push --set-upstream origin <branch> command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_push_set_upstream("main")
+  show output
+  ```
+
+  Notes:
+  - The `--set-upstream` option sets the upstream branch for the current branch.
+*/
+export fn git_push_set_upstream(branch: string) -> string {
+    let cmd = "push --set-upstream origin " + git_arg(branch)
+    return git(cmd)
+}
+
+/**
+  Push all tags to the remote repository.
+
+  Returns:
+  - The output of the Git push --tags command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_push_tags()
+  show output
+  ```
+
+  Notes:
+  - The `--tags` option pushes all tags to the remote repository.
+*/
+export fn git_push_tags() -> string {
+    let cmd = "push --tags"
+    return git(cmd)
+}
+
+/**
+  Push all branches to the remote repository.
+
+  Returns:
+  - The output of the Git push --all command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_push_all()
+  show output
+  ```
+
+  Notes:
+  - The `--all` option pushes all branches to the remote repository.
+*/
+export fn git_push_all() -> string {
+    let cmd = "push --all"
+    return git(cmd)
+}
+
+/**
+  Force push all tags to the remote repository.
+
+  Returns:
+  - The output of the Git push --force --tags command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_push_force_tags()
+  show output
+  ```
+
+  Notes:
+  - The `--force` option forces the push to the remote repository, potentially overwriting changes.
+*/
+export fn git_push_force_tags() -> string {
+    let cmd = "push --force --tags"
+    return git(cmd)
+}
+
+/**
+  Force push all branches to the remote repository.
+
+  Returns:
+  - The output of the Git push --force --all command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_push_force_all()
+  show output
+  ```
+
+  Notes:
+  - The `--force` option forces the push to the remote repository, potentially overwriting changes.
+*/
+export fn git_push_force_all() -> string {
+    let cmd = "push --force --all"
+    return git(cmd)
+}
+
+/**
+  Force push all tags to the remote repository with lease.
+
+  Returns:
+  - The output of the Git push --force-with-lease --tags command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_push_force_with_lease_tags()
+  show output
+  ```
+
+  Notes:
+  - The `--force-with-lease` option forces the push to the remote repository only if the remote branch has not been updated, preventing accidental overwrites.
+*/
+export fn git_push_force_with_lease_tags() -> string {
+    let cmd = "push --force-with-lease --tags"
+    return git(cmd)
+}
+
+/**
+  Force push all branches to the remote repository with lease.
+
+  Returns:
+  - The output of the Git push --force-with-lease --all command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_push_force_with_lease_all()
+  show output
+  ```
+
+  Notes:
+  - The `--force-with-lease` option forces the push to the remote repository only if the remote branch has not been updated, preventing accidental overwrites.
+*/
+export fn git_push_force_with_lease_all() -> string {
+    let cmd = "push --force-with-lease --all"
+    return git(cmd)
+}
+/**
+  Show the working tree status.
+
+  Returns:
+  - The output of the Git status command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_status()
+  show output
+  ```
+
+  Notes:
+  - The `git status` command shows the current state of the working directory and the staging area.
+*/
+export fn git_status() -> string {
+    let cmd = "status"
+    return git(cmd)
+}
+
+/**
+  Show the working tree status in short format.
+
+  Returns:
+  - The output of the Git status --short command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_status_short()
+  show output
+  ```
+
+  Notes:
+  - The `--short` option shows the status in a concise format.
+*/
+export fn git_status_short() -> string {
+    let cmd = "status --short"
+    return git(cmd)
+}
+
+/**
+  Show changes between the working tree and the index (staging area).
+
+  Returns:
+  - The output of the Git diff command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_diff()
+  show output
+  ```
+
+  Notes:
+  - The `git diff` command shows the differences between the working tree and the index (staging area).
+*/
+export fn git_diff() -> string {
+    let cmd = "diff"
+    return git(cmd)
+}
+
+/**
+  Show changes between the index (staging area) and the last commit.
+
+  Returns:
+  - The output of the Git diff --cached command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_diff_cached()
+  show output
+  ```
+
+  Notes:
+  - The `--cached` option shows the differences between the index (staging area) and the last commit.
+*/
+export fn git_diff_cached() -> string {
+    let cmd = "diff --cached"
+    return git(cmd)
+}
+
+/**
+  Show a summary of changes between the working tree and the index (staging area).
+
+  Returns:
+  - The output of the Git diff --stat command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_diff_stat()
+  show output
+  ```
+
+  Notes:
+  - The `--stat` option shows a summary of changes between the working tree and the index (staging area).
+*/
+export fn git_diff_stat() -> string {
+    let cmd = "diff --stat"
+    return git(cmd)
+}
+
+/**
+  Show a summary of changes between the index (staging area) and the last commit.
+
+  Returns:
+  - The output of the Git diff --cached --stat command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_diff_cached_stat()
+  show output
+  ```
+
+  Notes:
+  - The `--cached --stat` option shows a summary of changes between the index (staging area) and the last commit.
+*/
+export fn git_diff_cached_stat() -> string {
+    let cmd = "diff --cached --stat"
+    return git(cmd)
+}
+
+/**
+  Show the names of changed files between the working tree and the index (staging area).
+
+  Returns:
+  - The output of the Git diff --name-only command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_diff_name_only()
+  show output
+  ```
+
+  Notes:
+  - The `--name-only` option shows only the names of changed files between the working tree and the index (staging area).
+*/
+export fn git_diff_name_only() -> string {
+    let cmd = "diff --name-only"
+    return git(cmd)
+}
+
+/**
+  Show the names of changed files between the index (staging area) and the last commit.
+
+  Returns:
+  - The output of the Git diff --cached --name-only command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_diff_cached_name_only()
+  show output
+  ```
+
+  Notes:
+  - The `--cached --name-only` option shows only the names of changed files between the index (staging area) and the last commit.
+*/
+export fn git_diff_cached_name_only() -> string {
+    let cmd = "diff --cached --name-only"
+    return git(cmd)
+}
+
+/**
+  Show the names and status of changed files between the working tree and the index (staging area).
+
+  Returns:
+  - The output of the Git diff --name-status command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_diff_name_status()
+  show output
+  ```
+
+  Notes:
+  - The `--name-status` option shows the names and status of changed files between the working tree and the index (staging area).
+*/
+export fn git_diff_name_status() -> string {
+    let cmd = "diff --name-status"
+    return git(cmd)
+}
+
+/**
+  Show the names and status of changed files between the index (staging area) and the last commit.
+
+  Returns:
+  - The output of the Git diff --cached --name-status command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_diff_cached_name_status()
+  show output
+  ```
+
+  Notes:
+  - The `--cached --name-status` option shows the names and status of changed files between the index (staging area) and the last commit.
+*/
+export fn git_diff_cached_name_status() -> string {
+    let cmd = "diff --cached --name-status"
+    return git(cmd)
+}
+
+/**
+  Show changes between the working tree and the index (staging area) with color highlighting.
+
+  Returns:
+  - The output of the Git diff --color command if it succeeds, otherwise the error message.
+
+  Example:
+
+  ```sesi
+  let output = git_diff_color()
+  show output
+  ```
+
+  Notes:
+  - The `--color` option enables color highlighting for the diff output.
+*/
+export fn git_diff_color() -> string {
+    let cmd = "diff --color"
+    return git(cmd)
+}
+
+/**
+  Stage one or more files or path patterns in the Git index.
+
+  Parameters:
+  - `files`: A file path or space-separated list of paths to stage.
+
+  Returns:
+  - The standard output from `git add`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_add("src/main.sesi")
+  show result
+  ```
+
+  Notes:
+  - The supplied paths are quoted before execution.
+  - The command uses `git add --`, so paths beginning with a hyphen are not interpreted as options.
+*/
+export fn git_add(files: string) -> string {
+    let cmd = "add -- " + git_arg(files)
+    return git(cmd)
+}
+
+/**
+  Stage all changes in the current repository.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The standard output from `git add .`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_add_all()
+  show result
+  ```
+
+  Notes:
+  - This stages modified, deleted, and untracked files beneath the current directory.
+  - Review the result with `git_status_short()` before committing.
+*/
+export fn git_add_all() -> string {
+    let cmd = "add ."
+    return git(cmd)
+}
+
+/**
+  Remove files from the working tree and Git index.
+
+  Parameters:
+  - `files`: A file path or space-separated list of paths to remove.
+
+  Returns:
+  - The standard output from `git rm`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_rm("old-config.json")
+  show result
+  ```
+
+  Notes:
+  - Git removes the specified files from both the working tree and the index.
+  - Paths are passed after `--` to prevent option injection.
+*/
+export fn git_rm(files: string) -> string {
+    let cmd = "rm -- " + git_arg(files)
+    return git(cmd)
+}
+
+/**
+  Remove files from the Git index while retaining them in the working tree.
+
+  Parameters:
+  - `files`: A file path or space-separated list of paths to unstage.
+
+  Returns:
+  - The standard output from `git rm --cached`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_rm_cached("local-settings.json")
+  show result
+  ```
+
+  Notes:
+  - The files remain on disk but are no longer tracked by the index.
+*/
+export fn git_rm_cached(files: string) -> string {
+    let cmd = "rm --cached -- " + git_arg(files)
+    return git(cmd)
+}
+
+/**
+  Move or rename tracked files.
+
+  Parameters:
+  - `old`: The current path of the file.
+  - `new`: The destination path.
+
+  Returns:
+  - The standard output from `git mv`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_mv("old.sesi", "new.sesi")
+  show result
+  ```
+
+  Notes:
+  - Both paths are quoted and placed after `--`.
+*/
+export fn git_mv(old: string, new: string) -> string {
+    let cmd = "mv -- " + git_arg(old) + " " + git_arg(new)
+    return git(cmd)
+}
+
+/**
+  Forcefully move or rename tracked files.
+
+  Parameters:
+  - `old`: The current path of the file.
+  - `new`: The destination path.
+
+  Returns:
+  - The standard output from `git mv -f`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_mv_force("generated.txt", "archive/generated.txt")
+  show result
+  ```
+
+  Notes:
+  - Existing destination files may be overwritten according to Git's behavior.
+*/
+export fn git_mv_force(old: string, new: string) -> string {
+    let cmd = "mv -f -- " + git_arg(old) + " " + git_arg(new)
+    return git(cmd)
+}
+
+/**
+  Preview a Git file move without applying it.
+
+  Parameters:
+  - `old`: The current path of the file.
+  - `new`: The proposed destination path.
+
+  Returns:
+  - The standard output from `git mv --dry-run`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let preview = git_mv_dry_run("README-old.md", "README.md")
+  show preview
+  ```
+
+  Notes:
+  - The working tree and index are not changed.
+*/
+export fn git_mv_dry_run(old: string, new: string) -> string {
+    let cmd = "mv --dry-run -- " + git_arg(old) + " " + git_arg(new)
+    return git(cmd)
+}
+
+/**
+  Move files while skipping errors for existing destinations.
+
+  Parameters:
+  - `old`: The current path of the file.
+  - `new`: The destination path.
+
+  Returns:
+  - The standard output from `git mv -k`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_mv_skip_errors("a.txt", "archive/a.txt")
+  show result
+  ```
+
+  Notes:
+  - Git skips problematic paths instead of aborting the entire move operation where supported.
+*/
+export fn git_mv_skip_errors(old: string, new: string) -> string {
+    let cmd = "mv -k -- " + git_arg(old) + " " + git_arg(new)
+    return git(cmd)
+}
+
+/**
+  Create a Git commit with the supplied message.
+
+  Parameters:
+  - `message`: The commit message.
+
+  Returns:
+  - The standard output from `git commit -m`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_commit("Fix configuration loading")
+  show result
+  ```
+
+  Notes:
+  - The message is shell-quoted before execution.
+  - Changes must be staged before calling this function.
+*/
+export fn git_commit(message: string) -> string {
+    let cmd = "commit -m " + git_arg(message)
+    return git(cmd)
+}
+
+/**
+  Amend the latest Git commit with a new message.
+
+  Parameters:
+  - `message`: The replacement commit message.
+
+  Returns:
+  - The standard output from `git commit --amend -m`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_commit_amend("Improve error handling")
+  show result
+  ```
+
+  Notes:
+  - This rewrites the most recent commit.
+  - Use carefully when the commit has already been shared.
+*/
+export fn git_commit_amend(message: string) -> string {
+    let cmd = "commit --amend -m " + git_arg(message)
+    return git(cmd)
+}
+
+/**
+  Amend the latest Git commit while preserving its existing message.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The standard output from `git commit --amend --no-edit`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_commit_amend_no_edit()
+  show result
+  ```
+
+  Notes:
+  - Staged changes are added to the previous commit.
+*/
+export fn git_commit_amend_no_edit() -> string {
+    let cmd = "commit --amend --no-edit"
+    return git(cmd)
+}
+
+/**
+  Amend the latest Git commit without changing its message and add a signoff.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The standard output from `git commit --amend --no-edit --signoff`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_commit_amend_no_edit_with_signoff()
+  show result
+  ```
+
+  Notes:
+  - Git appends a Signed-off-by trailer to the commit message.
+*/
+export fn git_commit_amend_no_edit_with_signoff() -> string {
+    let cmd = "commit --amend --no-edit --signoff"
+    return git(cmd)
+}
+
+/**
+  Create a signed-off Git commit.
+
+  Parameters:
+  - `message`: The commit message.
+
+  Returns:
+  - The standard output from `git commit -s -m`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_commit_signoff("Add deployment script")
+  show result
+  ```
+
+  Notes:
+  - The `-s` option adds a Signed-off-by trailer.
+*/
+export fn git_commit_signoff(message: string) -> string {
+    let cmd = "commit -s -m " + git_arg(message)
+    return git(cmd)
+}
+
+/**
+  Amend the latest commit with a new signed-off message.
+
+  Parameters:
+  - `message`: The replacement commit message.
+
+  Returns:
+  - The standard output from the Git amend command, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_commit_signoff_amend("Document release process")
+  show result
+  ```
+
+  Notes:
+  - The commit message is inserted directly into the command and should be treated as trusted input.
+  - Prefer `git_commit_amend()` or another helper that uses `git_arg()` when handling untrusted text.
+*/
+export fn git_commit_signoff_amend(message: string) -> string {
+    let cmd = "commit -s --amend -m \"" + message + "\""
+    return git(cmd)
+}
+
+/**
+  Amend the latest commit, preserve its message, and add a signoff.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The standard output from `git commit -s --amend --no-edit`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_commit_signoff_amend_no_edit()
+  show result
+  ```
+
+  Notes:
+  - The latest commit is rewritten with staged changes and a signoff trailer.
+*/
+export fn git_commit_signoff_amend_no_edit() -> string {
+    let cmd = "commit -s --amend --no-edit"
+    return git(cmd)
+}
+
+/**
+  Amend the latest commit, preserve its message, and add a signoff trailer explicitly.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The standard output from `git commit -s --amend --no-edit --signoff`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_commit_signoff_amend_no_edit_with_signoff()
+  show result
+  ```
+
+  Notes:
+  - This operation rewrites the latest commit.
+*/
+export fn git_commit_signoff_amend_no_edit_with_signoff() -> string {
+    let cmd = "commit -s --amend --no-edit --signoff"
+    return git(cmd)
+}
+
+/**
+  Generate a commit message from the staged Git changes and optionally create the commit.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - A confirmation string describing whether the commit was created.
+
+  Example:
+  ```sesi
+  let result = git_commit_ai()
+  show result
+  ```
+
+  Notes:
+  - The function reads the short status and cached diff.
+  - It asks a configured Gemini model for a Conventional Commit message.
+  - The generated message is shown to the user before confirmation.
+  - The user must enter `y` to create the commit.
+  - A configured model provider key is required.
+*/
+export fn git_commit_ai() -> string {
+    // Current Git status.
+    let status = git_status_short()
+    // Current Git diff.
+    let diff = git_diff_cached()
+    // Generated commit message using AI model.
+    let message = model("gemini-3.5-flash-lite") {thinking: "low", maxT: 300} {"You are generating a git commit message.
+
+    Rules:
+    - Return only the commit message.
+    - Use Conventional Commit format.
+    - Use one concise subject line.
+    - Add a blank line and 3-7 bullet points only if the diff needs explanation.
+    If under 3 files changed, max 3 bullet points. If 3-10 files changed, max 5 bullet points. If over 10 files changed, max 7 bullet points. All depending on the diff.
+    - Prefer these types when appropriate: feat, fix, refactor, docs, test, chore, build, ci, perf.
+    - Keep the subject under 72 characters.
+    - Do not invent changes not shown in the diff.
+    - Do not wrap the response in markdown.
+
+    Git status:
+    " status "
+    Git diff:
+    " diff }
+
+    show "Generated commit message:
+    " message 
+    let ask = input("Create commit with this message? (y/n): ")
+    if ask == "y" {
+        try {
+            git_commit(message)
+            return "Commit created!"
+        } catch (e) {
+            return "Commit could not be created."
+        }
+    } else {
+        return "Commit not created."
+    }
+}
+
+/**
+  Display the commit history in compact one-line format.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The standard output from `git log --oneline`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let history = git_log()
+  show history
+  ```
+*/
+export fn git_log() -> string {
+    let cmd = "log --oneline"
+    return git(cmd)
+}
+
+/**
+  Display the commit history with per-commit file statistics.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The standard output from `git log --stat`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let history = git_log_detailed()
+  show history
+  ```
+*/
+export fn git_log_detailed() -> string {
+    let cmd = "log --stat"
+    return git(cmd)
+}
+
+/**
+  List local Git branches.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The standard output from `git branch`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let branches = git_branch()
+  show branches
+  ```
+*/
+export fn git_branch() -> string {
+    let cmd = "branch"
+    return git(cmd)
+}
+
+/**
+  Return the name of the currently checked-out branch.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The current branch name from `git rev-parse --abbrev-ref HEAD`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let current = git_branch_current()
+  show "Current branch:" current
+  ```
+*/
+export fn git_branch_current() -> string {
+    let cmd = "rev-parse --abbrev-ref HEAD"
+    return git(cmd)
+}
+
+/**
+  List all local Git tags.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The standard output from `git tag`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let tags = git_tag()
+  show tags
+  ```
+*/
+export fn git_tag() -> string {
+    let cmd = "tag"
+    return git(cmd)
+}
+
+/**
+  Create a Git tag.
+
+  Parameters:
+  - `tag`: The name of the tag to create.
+
+  Returns:
+  - The standard output from `git tag`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_tag_create("v1.0.0")
+  show result
+  ```
+
+  Notes:
+  - This creates a lightweight tag at the current commit.
+*/
+export fn git_tag_create(tag: string) -> string {
+    let cmd = "tag " + git_arg(tag)
+    return git(cmd)
+}
+
+/**
+  Delete a local Git tag.
+
+  Parameters:
+  - `tag`: The name of the tag to delete.
+
+  Returns:
+  - The standard output from `git tag -d`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_tag_delete("v0.9.0")
+  show result
+  ```
+
+  Notes:
+  - This removes only the local tag.
+*/
+export fn git_tag_delete(tag: string) -> string {
+    let cmd = "tag -d " + git_arg(tag)
+    return git(cmd)
+}
+
+/**
+  Push a tag to the default origin remote.
+
+  Parameters:
+  - `tag`: The name of the tag to push.
+
+  Returns:
+  - The standard output from `git push origin`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_tag_push("v1.0.0")
+  show result
+  ```
+*/
+export fn git_tag_push(tag: string) -> string {
+    let cmd = "push origin " + git_arg(tag)
+    return git(cmd)
+}
+
+/**
+  Push all local tags to the origin remote.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The standard output from `git push origin --tags`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_tag_push_all()
+  show result
+  ```
+*/
+export fn git_tag_push_all() -> string {
+    let cmd = "push origin --tags"
+    return git(cmd)
+}
+
+/**
+  Delete a tag from the origin remote.
+
+  Parameters:
+  - `tag`: The name of the remote tag to delete.
+
+  Returns:
+  - The standard output from `git push origin --delete`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_tag_delete_remote("v0.9.0")
+  show result
+  ```
+
+  Notes:
+  - This removes the tag from the remote repository and does not automatically remove the local tag.
+*/
+export fn git_tag_delete_remote(tag: string) -> string {
+    let cmd = "push origin --delete " + git_arg(tag)
+    return git(cmd)
+}
+
+/**
+  Reset the current branch and working tree to a commit, discarding changes.
+
+  Parameters:
+  - `commit`: A commit hash, branch reference, or other Git revision.
+
+  Returns:
+  - The standard output from `git reset --hard`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_reset_hard_to_commit("HEAD~1")
+  show result
+  ```
+
+  Notes:
+  - Uncommitted working-tree and staged changes may be permanently discarded.
+*/
+export fn git_reset_hard_to_commit(commit: string) -> string {
+    let cmd = "reset --hard " + git_arg(commit)
+    return git(cmd)
+}
+
+/**
+  Move the current branch reference to a commit while preserving working-tree changes.
+
+  Parameters:
+  - `commit`: A commit hash, branch reference, or other Git revision.
+
+  Returns:
+  - The standard output from `git reset --soft`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_reset_soft_to_commit("HEAD~1")
+  show result
+  ```
+
+  Notes:
+  - Changes remain staged after the reset.
+*/
+export fn git_reset_soft_to_commit(commit: string) -> string {
+    let cmd = "reset --soft " + git_arg(commit)
+    return git(cmd)
+}
+
+/**
+  Move the current branch reference to a commit and unstage changes.
+
+  Parameters:
+  - `commit`: A commit hash, branch reference, or other Git revision.
+
+  Returns:
+  - The standard output from `git reset --mixed`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_reset_mixed_to_commit("HEAD~1")
+  show result
+  ```
+
+  Notes:
+  - This is Git's default reset mode.
+  - Working-tree changes are preserved but removed from the index.
+*/
+export fn git_reset_mixed_to_commit(commit: string) -> string {
+    let cmd = "reset --mixed " + git_arg(commit)
+    return git(cmd)
+}
+
+/**
+  Revert a commit by creating a new inverse commit.
+
+  Parameters:
+  - `commit`: The commit hash or revision to revert.
+
+  Returns:
+  - The standard output from `git revert`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_revert("abc1234")
+  show result
+  ```
+
+  Notes:
+  - Unlike reset, revert preserves existing history by creating a new commit.
+*/
+export fn git_revert(commit: string) -> string {
+    let cmd = "revert " + git_arg(commit)
+    return git(cmd)
+}
+
+/**
+  Revert a commit without opening an editor for the generated message.
+
+  Parameters:
+  - `commit`: The commit hash or revision to revert.
+
+  Returns:
+  - The standard output from `git revert --no-edit`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_revert_no_edit("abc1234")
+  show result
+  ```
+*/
+export fn git_revert_no_edit(commit: string) -> string {
+    let cmd = "revert --no-edit " + git_arg(commit)
+    return git(cmd)
+}
+
+/**
+  Apply the inverse of a commit without creating the revert commit immediately.
+
+  Parameters:
+  - `commit`: The commit hash or revision to revert.
+
+  Returns:
+  - The standard output from `git revert --no-commit`, or an error message if the command fails.
+
+  Example:
+  ```sesi
+  let result = git_revert_no_commit("abc1234")
+  show result
+  ```
+
+  Notes:
+  - The inverse changes are applied to the working tree and index.
+  - Review or modify the changes before creating a commit.
+*/
+export fn git_revert_no_commit(commit: string) -> string {
+    let cmd = "revert --no-commit " + git_arg(commit)
+    return git(cmd)
+}

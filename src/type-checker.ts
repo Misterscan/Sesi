@@ -54,7 +54,7 @@ function annotationLabel(ann: TypeAnnotation): string {
 function inferType(expr: Expression, env: TypeEnv): TypeAnnotation {
   switch (expr.type) {
     case 'Literal': {
-      const name = expr.rawType as 'number' | 'string' | 'bool' | 'null';
+      const name = expr.rawType;
       return { type: 'PrimitiveType', name };
     }
     case 'ArrayLiteral':
@@ -65,8 +65,13 @@ function inferType(expr: Expression, env: TypeEnv): TypeAnnotation {
       const ann = env.get(expr.name);
       return ann ?? ANY;
     }
+    case 'EnvLookupExpression':
+      return { type: 'PrimitiveType', name: 'string' };
+    case 'PromptExpression':
+      return { type: 'PrimitiveType', name: 'string' };
     case 'UnaryOp':
       if (expr.operator === '-') return inferType(expr.operand, env);
+      if (expr.operator === '!') return { type: 'PrimitiveType', name: 'bool' };
       break;
     case 'BinaryOp': {
       const l = inferType(expr.left, env);
@@ -80,12 +85,43 @@ function inferType(expr: Expression, env: TypeEnv): TypeAnnotation {
       if (['+', '-', '*', '/', '%'].includes(expr.operator)) {
         return { type: 'PrimitiveType', name: 'number' };
       }
+      if (['==', '!=', '<>', '<', '>', '<=', '>='].includes(expr.operator)) {
+        return { type: 'PrimitiveType', name: 'bool' };
+      }
       break;
     }
     case 'LogicalOp':
       return { type: 'PrimitiveType', name: 'bool' };
-    case 'ConditionalExpression':
-      return inferType(expr.thenExpr, env);
+    case 'MemberExpression': {
+      const objType = inferType(expr.object, env);
+      const base = objType.type === 'OptionalType' ? objType.baseType : objType;
+      if (base.type === 'ObjectType') {
+        return base.valueType;
+      }
+      return ANY;
+    }
+    case 'IndexExpression': {
+      const objType = inferType(expr.object, env);
+      const base = objType.type === 'OptionalType' ? objType.baseType : objType;
+      if (base.type === 'ObjectType') {
+        return base.valueType;
+      }
+      if (base.type === 'ArrayType') {
+        return base.elementType;
+      }
+      return ANY;
+    }
+    case 'CallExpression': {
+      if (expr.callee.type === 'Identifier') {
+        const ann = env.get(expr.callee.name);
+        if (ann) {
+          return ann;
+        }
+      }
+      return ANY;
+    }
+    case 'AwaitExpression':
+      return inferType(expr.expression, env);
   }
   return ANY;
 }
@@ -95,7 +131,12 @@ function isCompatible(expected: TypeAnnotation, actual: TypeAnnotation): boolean
 
   if (expected.type === 'OptionalType') {
     if (actual.type === 'PrimitiveType' && actual.name === 'null') return true;
-    return isCompatible(expected.baseType, actual);
+    const actualBase = actual.type === 'OptionalType' ? actual.baseType : actual;
+    return isCompatible(expected.baseType, actualBase);
+  }
+
+  if (actual.type === 'OptionalType') {
+    return isCompatible(expected, actual.baseType);
   }
 
   if (expected.type === 'UnionType') {

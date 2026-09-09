@@ -24,7 +24,7 @@ Sesi supports passing structured data or parameters into the Python sub-process 
 The second argument is automatically serialized to JSON and stored in the `SESI_ARGS` environment variable. You can load this variable in your Python code using `json.loads(os.environ['SESI_ARGS'])`.
 
 ```sesi
-let data = {"username": "Alice", "score": 98}
+let data = {username: "Alice", score: 98}
 let response = python("
 import os, json
 args = json.loads(os.environ['SESI_ARGS'])
@@ -62,7 +62,7 @@ Writing long Python snippets inside a Sesi string literal can be hard to format 
 ```sesi
 // Load and execute an external python script file
 let scriptContent = read_file("scripts/data_analysis.py")
-let result = python(scriptContent, {"threshold": 10})
+let result = python(scriptContent, {threshold: 10})
 show result
 ```
 

@@ -1,8 +1,11 @@
 {
   "name": "@misterscan/sesi",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "description": "Sesi: A Concise, Legible Programming Language",
   "main": "dist/index.js",
+  "workspaces": [
+    "packages/sesi-game"
+  ],
   "bin": {
     "sesi": "bin/sesi.js"
   },
@@ -39,6 +42,7 @@
     "dev": "dotenvx run -- npm run build --watch",
     "test": "sesi tests/run.sesi",
     "test:watch": "tsx watch tests/basic.test.ts",
+    "test:game": "tsx tests/game.test.ts",
     "sesi": "sesi",
     "sesi:local": "sesi -l",
     "sesi:dry": "sesi -c",
@@ -62,7 +66,7 @@
     "build:installer": "npm run build:exe && npm run msi:eula && npm run build:msi",
     "build:mac:pkg": "node ./scripts/build-macos-pkg.mjs",
     "build:mac:installer": "npm run build:exe && npm run build:mac:pkg",
-    "extension:package": "cd editors/vscode && npx @vscode/vsce package",
+    "extension:package": "cd editors/vscode && vsce package",
     "example": "node --no-deprecation example.js",
     "example:ai": "node --no-deprecation example-ai.js",
     "examples": "sesi -l examples.sesi",
@@ -78,6 +82,8 @@
     "concise",
     "legible",
     "ast-interpreter",
+    "babylonjs",
+    "desktop-games",
     "misterscan",
     "cli"
   ],
@@ -87,54 +93,55 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "2.21.0",
+    "@dotenvx/dotenvx": "2.23.0",
     "@dotenvx/dotenvx-armor": "0.56.1",
     "@dotenvx/dotenvx-ops": "0.56.1",
-    "@google/genai": "2.17.1",
+    "@google/genai": "2.21.0",
     "@huggingface/transformers": "4.2.0",
     "adm-zip": "0.6.0",
     "blessed": "^0.1.81",
-    "html-to-text": "10.0.0",
+    "html-to-text": "10.0.1",
     "image-size": "^2.0.2",
     "js-tiktoken": "^1.0.21",
-    "js-yaml": "5.3.0",
-    "marked": "18.0.9",
+    "js-yaml": "5.4.1",
+    "marked": "18.0.12",
     "nodejs-whisper": "^0.3.1",
-    "openai": "7.4.0",
-    "playwright": "1.62.1",
-    "translate": "3.1.0",
+    "openai": "7.12.1",
+    "playwright": "1.63.0",
     "turndown": "7.2.4",
     "whisper-cli": "^1.4.1",
-    "ws": "8.21.3"
+    "ws": "8.21.3",
+    "@vscode/vsce": "^3.9.2"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "26.2.0",
+    "@types/node": "26.5.0",
     "@types/turndown": "^5.0.6",
-    "globals": "17.11.0",
+    "globals": "17.12.0",
     "rcedit": "^5.0.2",
-    "tsx": "4.23.12",
+    "tsx": "4.23.13",
     "typescript": "7.0.2"
   },
   "overrides": {
     "@fastify/ajv-compiler": "^4.0.5",
     "@fastify/fast-json-stringify-compiler": "^5.0.0",
-    "fastify": "^5.11.2",
-    "fast-uri": "^3.1.5",
+    "fastify": "^5.12.3",
+    "fast-uri": "^4.1.4",
     "find-my-way": "^9.7.0",
-    "onnxruntime-node": "^1.27.0",
-    "sharp": "^0.35.3",
+    "onnxruntime-node": "^1.29.0",
+    "sharp": "^0.35.4",
     "adm-zip": "0.6.0",
     "undici": "8.10.0",
-    "deepmerge-ts": "8.0.1"
+    "deepmerge-ts": "8.0.2",
+    "qs": "6.16.0"
   },
   "allowScripts": {
     "fsevents@2.3.2": true,
-    "@google/genai@2.17.1": true,
+    "@google/genai@2.21.0": true,
     "esbuild@0.28.1": true,
-    "onnxruntime-node@1.27.0": true,
+    "onnxruntime-node@1.29.0": true,
     "protobufjs@7.6.5": true,
-    "sharp@0.35.3": true,
+    "sharp@0.35.4": true,
     "smart-whisper@0.8.1": true
   }
 }

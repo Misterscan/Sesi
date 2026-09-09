@@ -1,0 +1,2607 @@
+/**
+  Provides utility functions for interacting with AI models, processing AI responses, and performing web searches.
+
+  This module includes functions for cleaning AI responses, sending prompts to local AI models, finding URLs in text, and performing online searches.
+  These functions aim to simplify the process of working with AI-generated content and integrating it into various applications.
+*/
+allow "helpers/html-minify" in with {minify_html}
+allow "helpers/safe" in as Safe
+allow "misc" in with {generateGitIgnore, getLines}
+allow "string" in with {
+    toPascal, toKebab,
+    substring,
+}
+allow "timestamp" in with {
+    formattedTime, localTime,
+    getDate
+}
+allow "refs" in as DOCS
+allow "ansi" in as TERM
+
+let _ = DOCS.getBUILTINS()
+_ = _ + "\n" + DOCS.getVARIABLES()
+_ = _ + "\n" + DOCS.getFUNCTIONS()
+_ = _ + "\n" + DOCS.getMAKE()
+_ = _ + "\n" + DOCS.getHOW_TO()
+_ = _ + "\n" + DOCS.getGUIDE()
+
+/**
+  Cleans an AI model response by extracting content from markdown code blocks or trimming raw text.
+
+  Parameters:
+  - responseText: The raw string response from an AI model.
+
+  Returns:
+  - A cleaned string containing the extracted code or trimmed response text.
+
+  Example:
+  ```sesi
+  let cleaned = cleanAIResponse("```javascript\nconsole.log('hi');\n```")
+  show cleaned
+  ```
+
+  Notes:
+  - Automatically falls back to returning the trimmed raw response if no markdown code blocks are found.
+*/
+export fn cleanAIResponse(responseText: string) -> string {
+    let preClean = regex("```[a-zA-Z]*\\n([\\s\\S]*?)\\n```", responseText, {"mode": "match", "flags": "g"})
+
+    // Fall back to raw response if no code blocks exist
+    if len(preClean) == 0 {
+        return trim(responseText)
+    }
+
+    let cleanedText = ""
+    for arr in preClean {
+        cleanedText = cleanedText + arr.match + "\n"
+    }
+
+    cleanedText = regex("```[a-zA-Z]*\\n|\\n```", cleanedText, {"mode": "replace", "replacement": "", "flags": "g"})
+    return trim(cleanedText)
+}
+
+/**
+  Sends a prompt to the local AI model with predefined thinking and token limits.
+
+  Parameters:
+  - promptText: The text prompt to send to the local model.
+
+  Returns:
+  - A string containing the model's response.
+
+  Example:
+  ```sesi
+  let resp = local("Explain recursion")
+  show resp
+  ```
+
+  Notes:
+  - Configured with medium thinking and a maximum of 500 tokens.
+*/
+export fn local(promptText: string) -> string {
+    return model("local") {thinking: "medium", maxT: 500} {promptText}
+}
+
+/**
+  Finds and extracts the first valid HTTP or HTTPS URL from a search results string.
+
+  Parameters:
+  - searchResults: A block of text containing search results or lines of text.
+
+  Returns:
+  - A string containing the first discovered URL, or an empty string if none found.
+
+  Example:
+  ```sesi
+  let url = findURL("Check out https://example.com for details.")
+  show url
+  ```
+
+  Notes:
+  - Preserves query parameters and paths associated with the URL.
+*/
+fn findURL(searchResults: string) -> string {
+    let lines = split(searchResults, "\n")
+    for line in lines {
+        if regex("https?://[\\w.-]+", line, {"mode": "match", "flags": "g"}) != [] {
+            // Extract the first URL found in the line and preserve the whole URL, including any query parameters
+            let urlMatch = regex("https?://[\\w.-]+(?:/[\\w./?=&%+-]*)?", line, {"mode": "match", "flags": "g"})
+            if urlMatch != [] {
+                return urlMatch[0]
+            }
+        }
+    }
+    return ""
+}
+
+/**
+  Performs an online web search using an AI model and appends formatted source URLs to the results.
+
+  Parameters:
+  - query: The search query string.
+
+  Returns:
+  - A string containing the model's findings followed by a formatted list of sources.
+
+  Example:
+  ```sesi
+  let info = onlineSearch("Latest developments in AI")
+  show info
+  ```
+
+  Notes:
+  - Uses the `gemini-3.5-flash-lite` model with web search capability enabled.
+*/
+export fn onlineSearch(query: string) -> string {
+    prompt searchInstructions {"You have access to a search tool that can retrieve information from the web. Use this tool to find relevant information based on the user's query. Provide your findings, and include links to the sources."}
+    let results =  model("gemini-3.5-flash-lite") {system: searchInstructions, search, maxT: 1024} {"Search for the following query: " query"
+    Return only the relevant information and links to the sources."}
+    let urlCheck = ""
+    let URLs = []
+    let extracted = results | split("\n")
+
+    // Extract URLs from the search results and store them in the URLs array
+    for lines in extracted {
+        urlCheck = findURL(lines)
+        if urlCheck != "" {
+            push(URLs, urlCheck.match)
+        }
+    }
+
+    if (URLs | length) > 0 {
+        let URL = URLs | join("\n")
+
+        // Clean up the results by removing any trailing "Source" or "Sources" sections, as well as any content after a "[" character
+        if results | contains("Source") || results | contains("source") {
+            results = split(results, "Source")[0] | trim
+        } else if results | contains("SOURCE") {
+            results = split(results, "SOURCE")[0] | trim
+        } else if results | contains("Sources") || results | contains("sources") {
+            results = split(results, "Sources")[0] | trim
+        } else if results | contains("SOURCES") {
+            results = split(results, "SOURCES")[0] | trim
+        } else if results | contains("[") {
+            results = split(results, "[")[0] | trim
+        }
+        results = results + "\n\nSource(s):\n" + URL
+        return results
+    } else {
+        return results
+    }
+}
+
+/**
+  Evaluates mathematical expressions or breaks down word problems step-by-step.
+
+  Parameters:
+  - promptText: The math expression or word problem to calculate. Can be any type.
+
+  Returns:
+  - A string containing the calculated result or step-by-step breakdown.
+
+  Example:
+  ```sesi
+  let ans = calculate("45 * 12 / 3")
+  show ans
+  ```
+
+  Notes:
+  - Uses the `gemini-3.5-flash-lite` model configured with a calculator persona.
+*/
+export fn calculate(promptText: any) -> string {
+    prompt calculator {"You are a reliable and accurate calculator. You are tasked with performing calculations based on user input.
+    If the input is a mathematical expression, evaluate it and provide the number only.
+    If the input is a word problem or a question that requires calculations, break down the problem step by step and provide the final answer."}
+    return model("gemini-3.5-flash-lite") {system: calculator, thinking: "medium"} {"Calculate the following: " promptText | str}
+}
+
+/**
+  Reviews content for potential issues, improvements, and best practices.
+
+  Parameters:
+  - promptText: The content or data to review.
+
+  Returns:
+  - A string containing the analyst's review and recommendations.
+
+  Example:
+  ```sesi
+  let feedback = review("let x = [1, 2, 3];")
+  show feedback
+  ```
+
+  Notes:
+  - Uses the `gemini-3.6-flash` model with low thinking level.
+*/
+export fn review(promptText: string) -> string {
+    prompt sys {"You are a professional and observant analyst. You are tasked with reviewing data based on user input."}
+    prompt reviewPrompt {"Review the following content for potential issues, improvements, and best practices: "promptText}
+    return model("gemini-3.6-flash") {system: sys, thinking: "low"} {reviewPrompt}
+}
+
+/**
+  Breaks down complex concepts into simple, easy-to-understand explanations.
+
+  Parameters:
+  - promptText: The concept, term, or text to explain.
+
+  Returns:
+  - A detailed explanation string.
+
+  Example:
+  ```sesi
+  let explanation = explain("Quantum entanglement")
+  show explanation
+  ```
+
+  Notes:
+  - Uses the `gemini-3.5-flash-lite` model with medium thinking.
+*/
+export fn explain(promptText: string) -> string {
+    prompt explainer {"You break down complex concepts into simple, easy-to-understand explanations. You are tasked with explaining the following prompt in detail."}
+    return model("gemini-3.5-flash-lite") {system: explainer, thinking: "medium"} {"Explain the following in detail: " promptText}
+}
+
+/**
+  Summarizes text content in a clear and concise manner while understanding intent and nuance.
+
+  Parameters:
+  - promptText: The text to summarize.
+
+  Returns:
+  - A summary string.
+
+  Example:
+  ```sesi
+  let summary = summarize(longArticleText)
+  show summary
+  ```
+
+  Notes:
+  - Uses the `gemini-3.5-flash-lite` model with medium thinking.
+*/
+export fn summarize(promptText: string) -> string {
+    prompt summarizer {"You are a professional summarizer that understands intent and nuance. You are tasked with summarizing the following prompt in a clear and concise manner."}
+    return model("gemini-3.5-flash-lite") {system: summarizer, thinking: "medium"} {"Summarize the following: " promptText}
+}
+
+/**
+  Compares and contrasts two items, providing similarities, differences, and notable points in a structured format.
+
+  Parameters:
+  - a: First item or text to compare.
+  - b: Second item or text to compare.
+
+  Returns:
+  - A string containing a table or structured comparison analysis.
+
+  Example:
+  ```sesi
+  let comparison = compare("Python", "JavaScript")
+  show comparison
+  ```
+
+  Notes:
+  - Uses the `gemini-3.5-flash-lite` model with medium thinking.
+*/
+export fn compare(a: string, b: string) -> string {
+    prompt comparer {"You have an innate ability to compare and contrast different pieces of information. You are tasked with comparing the following two items and providing a detailed analysis of their similarities, differences, and any notable points."}
+    return model("gemini-3.5-flash-lite") {system: comparer, thinking: "medium"} {"Compare the following:
+    A: " a "
+
+    B: " b"
+
+    Return a table or structured format that clearly outlines the similarities, differences, and notable points between the two items."}
+}
+
+/**
+  Generates a list of insightful questions based on the provided prompt.
+
+  Parameters:
+  - promptText: The source text or topic to generate questions from.
+
+  Returns:
+  - A string listing the generated questions.
+
+  Example:
+  ```sesi
+  let qList = generateQuestions("The history of space exploration")
+  show qList
+  ```
+
+  Notes:
+  - Returns only the question list without extraneous explanations.
+*/
+export fn generateQuestions(promptText: string) -> string {
+    prompt questionGenerator {"You are an inquisitive and insightful individual. You are tasked with generating a list of questions based on the following prompt."}
+    return model("gemini-3.5-flash-lite") {system: questionGenerator, thinking: "medium"} {"Generate questions based on the following: " promptText "
+    Return only the list of questions without any additional explanations or comments."}
+}
+
+/**
+  Generates creative ideas, names, concepts, and suggestions based on input.
+
+  Parameters:
+  - promptText: The topic or goal to inspire ideas around.
+
+  Returns:
+  - A JSON object string or native Sesi object containing fields: 'ideas', 'names', 'concepts', and 'suggestions'.
+
+  Example:
+  ```sesi
+  let ideas = inspire("A coffee shop for programmers")
+  show ideas
+  ```
+
+  Notes:
+  - Cleans AI response and parses structured JSON output.
+  - Uses search tool to ground inspirations in real-world context.
+*/
+export fn inspire(promptText: string, returnType: any = "JSON") -> object | string {
+    prompt inspirer {"You are a creative and inspiring individual. You are tasked with providing useful ideas, interesting names, thorough concepts, and creative suggestions based on the following prompt."}
+    let resp = structured_output({ideas: string, names: string, concepts: string, suggestions: string})
+    (model("gemini-3.5-flash-lite") {system: inspirer, thinking: "medium", search} {"
+    Provide inspiration based on the following: "promptText".
+    Each should contain 3-4 sentences
+    If a field doesn't require an entry, simply leave it empty."})
+    let i = resp.ideas | split(". ")
+    let n = resp.names | split(". ")
+    let c = resp.concepts | split(". ")
+    let s = resp.suggestions | split(". ")
+    if returnType == "JSON" { return {"ideas": i, "names": n, "concepts": c, "suggestions": s} | to_json
+    } else if returnType == "object" { return {"ideas": i, "names": n, "concepts": c, "suggestions": s} }
+}
+
+/**
+  Enhances a prompt to be more effective and detailed while preserving its exact intent.
+
+  Parameters:
+  - promptText: The raw prompt text to improve.
+
+  Returns:
+  - An improved prompt string.
+
+  Example:
+  ```sesi
+  let betterPrompt = improvePrompt("write a web scraper")
+  show betterPrompt
+  ```
+
+  Notes:
+  - Attempts generation using `gpt-5.6-terra` first, falling back to `gemini-3.5-flash-lite`.
+*/
+export fn improvePrompt(promptText: string) -> string {
+    prompt promptEngineer {"You are an experienced prompt engineer. You are well versed in creating effective and detailed prompts while preserving the exact intent."}
+    prompt improve {"Enhance the following prompt: "promptText"
+    Return only the improved prompt without any additional explanations or comments."}
+    let resp = ""
+    try {
+        resp = model("gpt-5.6-terra") {system: promptEngineer, thinking: "medium"} {improve}
+    } catch (err) {
+        TERM.warning(err.message)
+        TERM.warning("Retrying with a more capable model...")
+        resp = model("gemini-3.5-flash-lite") {system: promptEngineer, thinking: "medium"} {improve}
+    }
+    return resp
+}
+
+/**
+  Generates metadata for the provided image(s) using an AI model.
+
+  Parameters:
+  - imageRef: A reference to the image or an array of images for which metadata should be generated.
+
+  Returns:
+  - A string containing the generated metadata for the provided image(s).
+  - If the model fails to generate metadata, an error message will be returned.
+
+  Example:
+  ```sesi
+  let metadata = getMetadata("image.png")
+  show "Generated metadata:" metadata
+  ```
+
+  Notes:
+  - The function attempts to use the `gpt-5.6-luna` model first. If it fails, it falls back to the `gemini-3.5-flash-lite` model.
+  - The generated metadata will describe the contents of the image in detail.
+  - Ensure that the image file(s) exist and are accessible to avoid errors.
+*/
+export fn getMetadata(imageRef: string | array) -> string {
+    let meta = ""
+    prompt metadata {"You are an experienced Image Analyst specialized in analyzing images and generating detailed metadata describing their contents."}
+    try {
+        meta = model("gpt-5.6-luna") {system: metadata, images: imageRef} {""}
+    } catch (e) {
+        TERM.warning(e.message)
+        TERM.warning("Retrying with a more capable model...")
+        meta = model("gemini-3.5-flash-lite") {system: metadata, images: imageRef} {""}
+    }
+    if meta == "" {
+        show "Error: Model response came back empty, make sure the image file(s) exists."
+        return "Error: Model response came back empty, make sure the image file(s) exists."
+    }
+    return meta
+}
+
+/**
+  Generates source code in a specified programming language based on a user prompt.
+
+  Parameters:
+  - promptText: Description or requirements of the code to generate.
+  - language: The target programming language (default is "JavaScript").
+
+  Returns:
+  - A string containing the generated code.
+
+  Example:
+  ```sesi
+  let code = genCode("Create a binary search tree", "Python")
+  show code
+  ```
+
+  Notes:
+  - Attempts generation with `gpt-5.6-terra`, falling back to `gemini-3.7-flash`.
+*/
+export fn genCode(promptText: string, language: string = "JavaScript") -> string {
+    prompt sys {"# SESI REFERENCE (IF APPLICABLE):\n"_"\nYou are a professional and organized software developer. You are tasked with generating code based on user input."}
+    prompt makeCode {"Generate code in "language" for the following prompt: "promptText"
+    Return only the code without any additional explanations or comments."}
+    let resp = ""
+    try {
+        resp = model("gpt-5.6-terra") {system: sys, thinking: "medium"} {makeCode} | cleanAIResponse
+    } catch (err) {
+        TERM.warning(err.message)
+        TERM.warning("Retrying with a more capable model...")
+        resp = model("gemini-3.7-flash") {system: sys, thinking: "medium"} {makeCode} | cleanAIResponse
+    }
+    return resp
+}
+
+/**
+  Generates an image from a text prompt and saves it to disk.
+
+  Parameters:
+  - promptText: Text prompt describing the image to generate.
+  - size: Resolution or size specification (default "1K").
+  - ratio: Aspect ratio (default "1:1").
+  - filename: Base filename for saving the output (default "generated_image").
+  - ext: File extension (default "png").
+
+  Returns:
+  - A string representing the final saved file path.
+
+  Example:
+  ```sesi
+  let img = genImage("A futuristic city at sunset", "2K", "16:9", "city", "png")
+  show img
+  ```
+
+  Notes:
+  - Uses `gemini-3-flash-preview` for prompt enhancement and `gemini-3.1-flash-image` for image generation.
+*/
+export fn genImage(promptText: string, size: string = "1K", ratio: string = "1:1", filename: string = "generated_image", ext: string = "png") -> string {
+    prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for image generation."}
+    let imgPrompt = model("gemini-3-flash-preview") {system: promptEngineer, thinking: "medium"} {promptText}
+    imgPrompt = split(imgPrompt, ">")[1] | trim
+
+    TERM.info("Generating image with the following prompt: " + imgPrompt)
+    let imgResponse = image("gemini-3.1-flash-image") {size: size, ratio: ratio} {imgPrompt}
+
+    if ext == "" || ext == "png" {
+        write_image(filename + ".png", imgResponse)
+    } else {
+        write_image(filename + "." + ext, imgResponse)
+    }
+
+    TERM.success("Image generated and saved as '" + filename + "." + ext + "'")
+    return filename + "." + ext
+}
+
+/**
+  Generates an image quickly using lighter models and saves it to disk.
+
+  Parameters:
+  - promptText: Text prompt describing the image.
+  - ratio: Aspect ratio (default "1:1").
+  - filename: Base filename for saving (default "generated_image").
+  - ext: File extension (default "png").
+
+  Returns:
+  - A string representing the saved file path.
+
+  Example:
+  ```sesi
+  let img = genImageLite("A cute cat", "1:1", "cat", "png")
+  show img
+  ```
+
+  Notes:
+  - Uses `gemini-2.5-flash-lite` for prompt engineering and `gemini-3.1-flash-image` with 512 size.
+*/
+export fn genImageLite(promptText: string, ratio: string = "1:1", filename: string = "generated_image", ext: string = "png") -> string {
+    prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for image generation."}
+    let imgPrompt = model("gemini-2.5-flash-lite") {system: promptEngineer, thinking: "medium"} {promptText"
+    Just return the prompt without any additional explanations or comments."}
+    imgPrompt = imgPrompt | trim
+
+    TERM.info("Generating image with the following prompt: " + imgPrompt)
+    let imgResponse = image("gemini-3.1-flash-image") {size: "512", ratio: ratio} {imgPrompt}
+
+    if ext == "" || ext == "png" {
+        write_image(filename + ".png", imgResponse)
+    } else {
+        write_image(filename + "." + ext, imgResponse)
+    }
+
+    TERM.success("Image generated and saved as '" + filename + "." + ext + "'")
+    return filename + "." + ext
+}
+
+/**
+  Generates high-resolution images using advanced models and robust fallbacks.
+
+  Parameters:
+  - promptText: Text prompt for image creation.
+  - size: Resolution or size specification (default "4K").
+  - ratio: Aspect ratio (default "1:1").
+  - filename: Base filename for output (default "generated_image").
+  - ext: File extension (default "png").
+
+  Returns:
+  - A string representing the saved image filename.
+
+  Example:
+  ```sesi
+  let img = genImageMax("Epic mountain landscape", "4K", "16:9", "mountain", "png")
+  show img
+  ```
+
+  Notes:
+  - Attempts generation using `gpt-5.6-luna` and `gpt-image-2`, falling back to `gemini-3.5-flash-lite` and `gemini-3-pro-image`.
+*/
+export fn genImageMax(promptText: string, size: string = "4K", ratio: string = "1:1", filename: string = "generated_image", ext: string = "png") -> string {
+    prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for image generation. Do not mention the size or ratio in the prompt, as those will be handled separately."}
+    let imgPrompt = ""
+    try {
+        imgPrompt = model("gpt-5.6-luna") {system: promptEngineer, thinking: "medium"} {promptText "
+        Just return the prompt without any additional explanations or comments."}
+    } catch (err) {
+        TERM.warning(err.message)
+        TERM.warning("Retrying with a more capable model...")
+        imgPrompt = model("gemini-3.5-flash-lite") {system: promptEngineer, thinking: "medium"} {promptText "
+        Just return the prompt without any additional explanations or comments."}
+    }
+    imgPrompt = imgPrompt | trim
+
+    TERM.info("Generating image with the following prompt: " + imgPrompt)
+    let imgResponse = ""
+    try {
+        imgResponse = image("gpt-image-2") {size: size, ratio: ratio} {imgPrompt}
+    } catch (err) {
+        TERM.warning(err.message)
+        TERM.warning("Retrying with a more capable model...")
+        imgResponse = image("gemini-3-pro-image") {size: size, ratio: ratio} {imgPrompt}
+    }
+
+    if ext == "" || ext == "png" {
+        write_image(filename + ".png", imgResponse)
+    } else {
+        write_image(filename + "." + ext, imgResponse)
+    }
+
+    TERM.success("Image generated and saved as '" + filename + "." + ext + "'")
+    return filename + "." + ext
+}
+
+/**
+  Generates a video from a text prompt and saves it as a base64 encoded file.
+
+  Parameters:
+  - promptText: Description of the video to generate.
+  - timeLen: Duration in seconds. Accepts: `4`, `6`, and `8` (default 8).
+  - resolution: Aspect ratio or resolution (default "16:9").
+  - filename: Base filename for saving (default "generated_video").
+  - ext: File extension (default "mp4").
+
+  Returns:
+  - A string representing the saved video filename.
+
+  Example:
+  ```sesi
+  let vid = genVideo("Waves crashing on a beach", 5, "16:9", "waves", "mp4")
+  show vid
+  ```
+
+  Notes:
+  - Uses `gemini-3-flash-preview` for prompt generation and `gemini-omni-flash` for video rendering.
+*/
+export fn genVideo(promptText: string, timeLen: number = 8, resolution: string = "16:9", filename: string = "generated_video", ext: string = "mp4") -> string {
+    prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for video generation."}
+    let vidPrompt = model("gemini-3-flash-preview") {system: promptEngineer, thinking: "medium", maxT: 1024} {promptText}
+    vidPrompt = vidPrompt | trim
+
+    TERM.info("Generating video with the following prompt: " + vidPrompt)
+
+    if timeLen | is_null || timeLen <= 0 {
+        timeLen = 8
+    }
+    let videoResponse = video("gemini-omni-flash") {duration: timeLen, ratio: resolution} {vidPrompt}
+
+    if ext == "" || ext == "mp4" {
+        write_file(filename + ".mp4", videoResponse, "base64")
+    } else {
+        write_file(filename + "." + ext, videoResponse, "base64")
+    }
+
+    TERM.success("Video generated and saved as '" + filename + "." + ext + "'")
+    return filename + "." + ext
+}
+
+/**
+  Generates a lightweight video preview from a text prompt.
+
+  Parameters:
+  - promptText: Description for video generation.
+  - timeLen: Duration in seconds. Accepts: `4`, `6`, and `8` (default 4).
+  - resolution: Aspect ratio (default "16:9").
+  - filename: Base filename for output (default "generated_video").
+  - ext: File extension (default "mp4").
+
+  Returns:
+  - A string representing the saved video filename.
+
+  Example:
+  ```sesi
+  let vid = genVideoLite("Spinning globe", 4, "16:9", "globe", "mp4")
+  show vid
+  ```
+
+  Notes:
+  - Uses `gemini-2.5-flash-lite` for prompt engineering and `veo-3.1-lite-generate-preview` for video creation.
+*/
+export fn genVideoLite(promptText: string, timeLen: number = 4, resolution: string = "16:9", filename: string = "generated_video", ext: string = "mp4") -> string {
+    prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for video generation."}
+    let vidPrompt = model("gemini-2.5-flash-lite") {system: promptEngineer, thinking: "medium", maxT: 500} {promptText"
+    Just return the prompt without any additional explanations or comments."}
+    vidPrompt = vidPrompt | trim
+
+    TERM.info("Generating video with the following prompt: " + vidPrompt)
+
+    if timeLen | is_null || timeLen <= 0 { timeLen = 4 }
+    let videoResponse = video("veo-3.1-lite-generate-preview") {duration: timeLen, ratio: resolution} {vidPrompt}
+
+    if ext == "" || ext == "mp4" {
+        write_file(filename + ".mp4", videoResponse, "base64")
+    } else {
+        write_file(filename + "." + ext, videoResponse, "base64")
+    }
+
+    TERM.success("Video generated and saved as '" + filename + "." + ext + "'")
+    return filename + "." + ext
+}
+
+/**
+  Generates JSON data based on a user prompt.
+
+  Parameters:
+  - promptText: Description or structure requirements for the JSON data.
+
+  Returns:
+  - A string containing the generated JSON.
+
+  Example:
+  ```sesi
+  let jData = genJSON("List three planets with their radii")
+  show jData
+  ```
+
+  Notes:
+  - Uses the `gemini-3.1-flash-lite` model and cleans markdown response formatting.
+*/
+export fn genJSON(promptText: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating JSON data based on user input."}
+    prompt makeJSON {"Generate JSON data for the following prompt: "promptText}
+    return model("gemini-3.1-flash-lite") {system: sys, thinking: "medium"} {makeJSON} | cleanAIResponse
+}
+
+/**
+  Generates YAML data based on a user prompt with model fallback support.
+
+  Parameters:
+  - promptText: Description or structure requirements for the YAML data.
+
+  Returns:
+  - A string containing the generated YAML data or an error message if empty.
+
+  Example:
+  ```sesi
+  let yml = genYAML("Docker compose config for a Node.js app")
+  show yml
+  ```
+
+  Notes:
+  - Attempts generation using `gpt-5.6-terra`, falling back to `gemini-3.1-flash-lite`.
+*/
+export fn genYAML(promptText: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating YAML data based on user input."}
+    prompt makeYAML {"Generate YAML data for the following prompt: "promptText}
+    let yaml = ""
+    try {
+        yaml = model("gpt-5.6-terra") {system: sys, thinking: "medium"} {makeYAML} | cleanAIResponse
+    } catch (e) {
+        TERM.warning(e.message)
+        TERM.warning("Retrying with a more capable model...")
+        yaml = model("gemini-3.1-flash-lite") {system: sys, thinking: "medium"} {makeYAML} | cleanAIResponse
+        
+    }
+    if yaml == "" {
+        show "Error: Model response came back empty, try again later."
+        return "Error: Model response came back empty, try again later."
+    }
+    return yaml
+}
+
+/**
+  Generates BAML data based on a user prompt with model fallback support.
+
+  Parameters:
+  - promptText: Description or requirements for the BAML data.
+
+  Returns:
+  - A string containing the generated BAML content or an error message if empty.
+
+  Example:
+  ```sesi
+  let baml = genBAML("Define a User schema")
+  show baml
+  ```
+
+  Notes:
+  - Attempts generation using `gpt-5.6-terra`, falling back to `gemini-3.1-flash-lite`.
+*/
+export fn genBAML(promptText: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating BAML data based on user input."}
+    prompt makeBAML {"Generate BAML data for the following prompt: "promptText}
+    let baml = ""
+    try {
+        baml = model("gpt-5.6-terra") {system: sys, thinking: "medium"} {makeBAML} | cleanAIResponse
+    } catch (e) {
+        TERM.warning(e.message)
+        TERM.warning("Retrying with a more capable model...")
+        baml = model("gemini-3.1-flash-lite") {system: sys, thinking: "medium"} {makeBAML} | cleanAIResponse
+        
+    }
+    if baml == "" {
+        show "Error: Model response came back empty, try again later."
+        return "Error: Model response came back empty, try again later."
+    }
+    return baml
+}
+
+/**
+  Generates XML data based on a user prompt.
+
+  Parameters:
+  - promptText: Description or structure requirements for the XML.
+
+  Returns:
+  - A string containing the generated XML markup.
+
+  Example:
+  ```sesi
+  let xml = genXML("RSS feed structure with two sample items")
+  show xml
+  ```
+
+  Notes:
+  - Uses the `gemini-3.1-flash-lite` model.
+*/
+export fn genXML(promptText: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating XML data based on user input."}
+    prompt makeXML {"Generate XML data for the following prompt: "promptText}
+    return model("gemini-3.1-flash-lite") {system: sys, thinking: "medium"} {makeXML} | cleanAIResponse
+}
+
+/**
+  Generates CSV data based on a user prompt.
+
+  Parameters:
+  - promptText: Description of tabular data to generate.
+
+  Returns:
+  - A string containing the generated CSV-formatted data.
+
+  Example:
+  ```sesi
+  let csv = genCSV("Table of top 5 programming languages and release years")
+  show csv
+  ```
+
+  Notes:
+  - Uses the `gemini-3.1-flash-lite` model.
+*/
+export fn genCSV(promptText: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating CSV data based on user input."}
+    prompt makeCSV {"Generate CSV data for the following prompt: "promptText}
+    return model("gemini-3.1-flash-lite") {system: sys, thinking: "medium"} {makeCSV} | cleanAIResponse
+}
+
+/**
+  Generates SQL queries based on a user prompt.
+
+  Parameters:
+  - promptText: Description of the database query requirements.
+
+  Returns:
+  - A string containing the generated SQL statements.
+
+  Example:
+  ```sesi
+  let sql = genSQL("Query to find users older than 30 ordered by signup date")
+  show sql
+  ```
+
+  Notes:
+  - Uses the `gemini-3.1-flash-lite` model.
+*/
+export fn genSQL(promptText: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating SQL queries based on user input."}
+    prompt makeSQL {"Generate SQL queries for the following prompt: "promptText}
+    return model("gemini-3.1-flash-lite") {system: sys, thinking: "medium"} {makeSQL} | cleanAIResponse
+}
+
+/**
+  Generates Markdown content based on a user prompt.
+
+  Parameters:
+  - promptText: Description or outline of the markdown content.
+
+  Returns:
+  - A string containing the generated markdown text.
+
+  Example:
+  ```sesi
+  let md = genMarkdown("Changelog entry for version 1.0.0")
+  show md
+  ```
+
+  Notes:
+  - Uses the `gemini-3.1-flash-lite` model.
+*/
+export fn genMarkdown(promptText: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating Markdown content based on user input."}
+    prompt makeMarkdown {"Generate Markdown content for the following prompt: "promptText}
+    return model("gemini-3.1-flash-lite") {system: sys, thinking: "medium"} {makeMarkdown}
+}
+
+/**
+  Parse a complete HTML document and validate its structural integrity.
+
+  Parameters:
+  - markup: The complete HTML document source to inspect.
+
+  Returns:
+  - An object containing `status` and `error`. The status is `"passed"` when the document has valid, balanced tags and an `<html>` root; otherwise it is `"failed"`.
+  
+  Example:
+  ```sesi
+  let result = parseHTML("<html><body><h1>Hello</h1></body></html>")
+  show result["status"]
+  ```
+  
+  Notes:
+  - Quoted attribute values are supported.
+  - HTML void elements such as `img`, `br`, `input`, and `meta` do not require closing tags.
+  - Script and style contents are treated as raw content.
+  - The function does not evaluate JavaScript or CSS.
+*/
+fn parseHTML(markup: string) -> object {
+    let voidTags = ["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]
+    let stack = []
+    let token = ""
+    let quote = ""
+    let insideTag = false
+    let sawHTML = false
+    let rawTag = ""
+    let rawToken = ""
+
+    for char in split(markup, "") {
+        if rawTag != "" {
+            if char == "<" {
+                rawToken = "<"
+            } else if rawToken != "" {
+                rawToken = rawToken + char
+                if char == ">" {
+                    let rawTagName = regex("^</?\\s*|[\\s/>].*$", rawToken, {"mode": "replace", "replacement": "", "flags": "g"}) | to_lower
+                    if (rawToken | starts_with("</")) && rawTagName == rawTag {
+                        if (stack | length) == 0 || stack[(stack | length) - 1] != rawTag {
+                            return {"status": "failed", "error": "Mismatched closing tag: " + rawTag}
+                        }
+                        stack | pop
+                        rawTag = ""
+                    }
+                    rawToken = ""
+                }
+            }
+        } else if insideTag {
+            token = token + char
+            if quote != "" {
+                if char == quote {
+                    quote = ""
+                }
+            } else if char == "\"" || char == "'" {
+                quote = char
+            } else if char == ">" {
+                insideTag = false
+                if !(token | starts_with("<!--")) && !(token | starts_with("<!")) && !(token | starts_with("<?")) {
+                    let tagName = regex("^</?\\s*|[\\s/>].*$", token, {"mode": "replace", "replacement": "", "flags": "g"}) | to_lower
+                    if token | starts_with("</") {
+                        if (stack | length) == 0 || stack[(stack | length) - 1] != tagName {
+                            return {"status": "failed", "error": "Mismatched closing tag: " + tagName}
+                        }
+                        stack | pop
+                    } else if !(voidTags | includes(tagName)) && !(token | ends_with("/>")) {
+                        stack | push(tagName)
+                        if tagName == "html" {
+                            sawHTML = true
+                        }
+                        if tagName == "script" || tagName == "style" {
+                            rawTag = tagName
+                        }
+                    }
+                }
+                token = ""
+            }
+        } else if char == "<" {
+            insideTag = true
+            token = "<"
+        }
+    }
+
+    if insideTag { return {"status": "failed", "error": "Unterminated HTML tag"} }
+    if (stack | length) > 0 { return {"status": "failed", "error": "Unclosed HTML tag: " + stack[(stack | length) - 1]} }
+    if !sawHTML { return {"status": "failed", "error": "Missing html document root"} } 
+
+    return {"status": "passed", "error": ""} 
+}
+
+let generationRunId = str(random()) + "_" + formattedTime()
+let timestamp = formattedTime()
+
+/**
+  Record the result of a website-generation step.
+
+  Parameters:
+  - stepName: Human-readable name of the generation step.
+  - stepNumber: Numeric order of the step within the generation process.
+  - modelName: Name of the AI model used for the step.
+  - thinkingLevel: Reasoning level supplied to the model.
+  - systemPrompt: System instruction provided to the model.
+  - input: Prompt or source content sent to the model.
+  - output: Generated output or error information to record.
+  - expectsHTML: Whether the output should be validated as an HTML document. Defaultsto `true`.
+  - executionStatus: Status of the step, such as `"completed"` or `"failed"`. Defaults to `"completed"`.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  logSteps("draft", 1, "gemini-3-flash-preview", "medium", systemPrompt, userPrompt, htmlOutput)
+  ```
+
+  Notes:
+  - Creates the `site_generation_logs` directory when necessary.
+  - Stores one JSON log entry per generation step.
+  - HTML output is cleaned and validated when `expectsHTML` is `true`.
+  - Validation status is marked as failed when the output is empty, execution fails, or HTML parsing fails.
+*/
+fn logSteps(stepName: string, stepNumber: number, modelName: string, thinkingLevel: string, systemPrompt: string, input: string, output: any, expectsHTML: bool = true, executionStatus: string = "completed") {
+    make_dir("site_generation_logs")
+    let outputText = ""
+    if type(output) == "string" {
+        outputText = output
+    } else {
+        outputText = to_json(output)
+    }
+    let parseStatus = "not_applicable"
+    let parseError = ""
+    let validationStatus = "passed"
+
+
+    if executionStatus != "completed" || (outputText | length) == 0 {
+        validationStatus = "failed"
+    }
+    if expectsHTML {
+        outputText = outputText | cleanAIResponse
+        let parseResult = parseHTML(outputText)
+        parseStatus = parseResult.status
+        parseError = parseResult.error
+        if parseStatus == "failed" {
+            validationStatus = "failed"
+        }
+    }
+
+    // Log the generation step details to a log file for future reference and debugging.
+    let logEntry = {
+        "run_id": generationRunId,
+        "model": modelName,
+        "thinking_level": thinkingLevel,
+        "step": stepName,
+        "step_number": stepNumber,
+        "system_character_count": systemPrompt | length,
+        "input_character_count": (systemPrompt | length) + (input | length),
+        "output_character_count": outputText | length,
+        "timestamp": getDate("name") + " at " + localTime(null, "en-US", "detailed"),
+        "execution_status": executionStatus,
+        "validation_status": validationStatus,
+        "html_parse_status": parseStatus,
+        "html_parse_error": parseError,
+        "output": outputText
+    }
+    append_file("site_generation_logs/" + "step" + stepNumber + "_at_" + timestamp + ".log", to_json(logEntry) + "\n")
+}
+
+/**
+  Execute one AI website-generation step with error handling, logging, and optional HTML validation.
+
+  Parameters:
+  - stepName: Human-readable name of the generation step.
+  - stepNumber: Numeric order of the step within the generation process.
+  - modelName: Name of the AI model to call.
+  - thinkingLevel: Reasoning level passed to the model.
+  - systemPrompt: System instruction for the model.
+  - input: Prompt or source content supplied to the model.
+  - expectsHTML: Whether the returned content should be checked as HTML. Defaults to `true`.
+
+  Returns:
+  - A string containing the cleaned model output.
+
+  Example:
+  ```sesi
+  let res = runModelStep("draft", 1, "gemini-3-flash-preview", "medium", sysPrompt, promptInput)
+  show res
+  ```
+
+  Notes:
+  - The response is passed through `cleanAIResponse`.
+  - Successful executions are recorded with `logSteps`.
+  - Model failures are logged and rethrown as a `GenerationStepFailed` error.
+*/
+fn runModelStep(stepName: string, stepNumber: number, modelName: string, thinkingLevel: string, systemPrompt: string, input: string, expectsHTML: bool = true) -> string {
+    try {
+        // Run the AI model with the specified parameters and capture the output.
+        let output = model(modelName) {system: systemPrompt, thinking: thinkingLevel, maxT: 10000} {input} | cleanAIResponse
+        logSteps(stepName, stepNumber, modelName, thinkingLevel, systemPrompt, input, output, expectsHTML)
+        return output
+    } catch (error) {
+        // Handle any errors that occur during the model execution.
+        // Convert the error to a JSON string for logging and reporting.
+        let errorText = to_json(error)
+        logSteps(stepName, stepNumber, modelName, thinkingLevel, systemPrompt, input, errorText, false, "failed")
+        raise_error("GenerationStepFailed", errorText)
+        return ""
+    }
+}
+
+/**
+  Generates a fully structured, styled, and interactive HTML website through multi-step refinement.
+
+  Parameters:
+  - promptText: Initial prompt describing the desired website.
+  - purpose: Specific purpose or goal of the website (default empty).
+  - minify: Whether to minify the final HTML output (default false).
+
+  Returns:
+  - A string containing the final HTML/CSS/JS website code.
+
+  Example:
+  ```sesi
+  let site = genHTML("Portfolio website", "Showcase my projects", true)
+  write_file("index.html", site)
+  ```
+
+  Notes:
+  - Generation Steps:
+    1. Draft the initial website structure and content.
+    2. Apply styling and visual design.
+    3. Accessibility and semantic HTML validation.
+    4. Optimize the website for performance and responsiveness.
+    5. Enhance the website with additional features and improvements.
+    6. Final review and quality assurance of the website.
+    7. If necessary, iterate on previous steps to refine and improve the website based on feedback and evaluation.
+    8. If set to true, minify and prepare the final version of the website for deployment.
+*/
+export fn genHTML(promptText: string, purpose: string = "", minify: bool = false) -> string {
+    let dir = "drafts/"; make_dir(dir)
+    let filename = promptText | trunc(20) | swap(" ", "_") | to_lower | trim
+
+    // Save an intermediate HTML generation result to the drafts directory.
+    //
+    // Parameters:
+    // - filename: Base name used to construct the draft output path.
+    // - content: HTML content to save.
+    // - stage: Numeric generation stage associated with the draft.
+    // - step: Human-readable name of the generation step.
+    //
+    // Returns:
+    // - `true` when the draft is saved successfully; otherwise, an error message.
+    //
+    // Notes:
+    // - The output filename includes the stage, normalized step name, and source filename.
+    // - File-writing errors are caught and reported through the terminal helper.
+    fn saveDraft(filename: string, content: string, stage: number = 0, step: string) -> any {
+        filename = dir + "step" + (stage | str) + "_" + (to_lower(step) | trim) + "_for_" + filename + "_draft.html"
+        try {
+            write_file(filename, content)
+            TERM.success("Saved step " + stage + ": " + step)
+            return true
+        } catch (e) {
+            TERM.error("Failed to save " + step + " draft at step " + stage)
+            return e.message
+        }
+    }
+
+    // Improve the initial prompt and purpose for better website generation.
+    let improved = improvePrompt(
+        "Website prompt: " + promptText + "
+        Website purpose: " + purpose + "
+        # IMPORTANT: Return the improved prompt and purpose as a JSON object with the fields 'prompt' and 'purpose'."
+    ) | from_json
+    promptText = improved["prompt"]
+    purpose = improved["purpose"]
+    // Define system prompts for different aspects of website generation
+    prompt sys1 {"You are a product-oriented frontend architect."}
+    prompt sys2 {"You are a senior UI/visual designer specializing in production CSS."}
+    prompt sys3 {"You are an HTML semantics and accessibility specialist."}
+    prompt sys4 {"You are a responsive frontend engineer specializing in mobile layouts."}
+    prompt sys5 {"You are a senior vanilla JavaScript engineer focused on robust UI behavior."}
+    prompt eval {"You are a frontend QA engineer. Find defects. Do not redesign."}
+    prompt makeSite {"Draft a website for the following purpose: "purpose" and based on the following prompt: "promptText"
+    Return only the HTML/CSS template code for the website without any additional explanations or comments."}
+
+    // Generate the website in multiple steps, including drafting, styling, optimizing, enhancing interactivity, evaluating for defects, fixing defects if found, and minifying the final output.
+    let logStep1 = "Step 1: Drafting the initial website structure and content based on the prompt...\n"
+    TERM.info(logStep1)
+    let step1 = runModelStep("draft", 1, "gemini-3-flash-preview", "medium", sys1, makeSite)
+    saveDraft(filename, step1, 1, "Initial Draft")
+
+    let logStep2 = "Step 2: Improving the CSS styling and JS logic...\n"
+    TERM.info(logStep2)
+    prompt step2Input {"Improve the CSS styling, enhance the layout, and ensure JS is functional:
+    " step1 "
+    Return only the improved HTML/CSS code without any additional explanations or comments."}
+
+    let step2 = runModelStep("styling", 2, "gemini-3.7-flash", "medium", sys2, step2Input)
+    saveDraft(filename, step2, 2, "CSS Enhancement")
+
+    let logStep3 = "Step 3: Ensuring proper semantic tags and accessibility...\n"
+    TERM.info(logStep3)
+    prompt step3Input {"Ensure proper semantic tags without altering the existing design and functionality:
+    " step2 "
+    Return only the optimized HTML/CSS code without any additional explanations or comments. DO NOT REMOVE ANY EXISTING FUNCTIONALITY, CONTENT, OR DESIGN ELEMENTS."}
+
+    let step3 = runModelStep("optimization", 3, "gemini-3.6-flash", "medium", sys3, step3Input)
+    saveDraft(filename, step3, 3, "Semantics and Accessibility")
+
+    let logStep4 = "Step 4: Ensuring the website is responsive and mobile-friendly...\n"
+    TERM.info(logStep4)
+    prompt step4Input {"Ensure the website is responsive and mobile-friendly without altering the existing design and functionality:
+    " step3 "
+    Return only the responsive and mobile-friendly HTML/CSS code without any additional explanations or comments."}
+
+    let step4 = runModelStep("responsive", 4, "gemini-3.1-pro-preview", "medium", sys4, step4Input)
+    saveDraft(filename, step4, 4, "Responsive Check")
+
+    let finalLog = "Final Step: Adding or enhancing present JavaScript functionality and interactivity...\n"
+    TERM.info(finalLog)
+    prompt finalInput {"Add or enhance present JavaScript functionality and interactive elements:
+    " step4 "
+    Return only the final self-contained HTML/CSS/JS code for the website, without any additional explanations or comments."}
+
+    let finalStep = runModelStep("interactivity", 5, "gemini-3.7-flash", "medium", sys5, finalInput)
+    saveDraft(filename, finalStep, 5, "JS Functionality")
+
+    let evalLog = "Evaluation Step: Reviewing the final website for any defects, issues, or areas of improvement...\n"
+    TERM.info(evalLog)
+    prompt evalInput {"Original purpose:
+    " purpose "
+
+    Original website request:
+    " promptText "
+
+    Inspect this implementation, do not rewrite it.
+
+    Find:
+    - broken functionality
+    - semantic problems
+    - accessibility problems
+    - responsive issues
+    - JS bugs
+    - violations of original requirements
+
+    Return a JSON object of the following structure. Use an empty string for every field with no defect:
+    {
+        \"broken\": string,
+        \"semantic\": string,
+        \"accessibility\": string,
+        \"responsive\": string,
+        \"js\": string,
+        \"requirements\": string
+    }
+    " finalStep}
+
+    // Run the evaluation step to review the final website for defects and issues.
+    let evalRaw = runModelStep("evaluation", 6, "gemini-3.5-flash-lite", "medium", eval, evalInput, false)
+    // Parse the evaluation output into a structured format.
+    let evalStep = {}
+    try {
+        evalStep = structured_output({broken: string, semantic: string, accessibility: string, responsive: string, js: string, requirements: string})(evalRaw)
+    } catch (error) {
+        let errorText = to_json(error)
+        logSteps("evaluation_parse", 6, "gemini-3.5-flash-lite", "medium", eval, evalInput, errorText, false, "failed")
+        raise_error("EvaluationParseFailed", errorText)
+    }
+
+    // Check if any defects were found and handle accordingly.
+    if evalStep.broken == "" && evalStep.semantic == "" && evalStep.accessibility == "" && evalStep.responsive == "" && evalStep.js == "" && evalStep.requirements == "" {
+        TERM.success("No defects found in the final website implementation.")
+    } else {
+        TERM.warning("Detected errors, patching before final delivery...")
+        prompt defectFixer {"You are a professional and organized software developer. You are tasked with fixing the following defects in this HTML code."}
+        prompt fixedInput {"Bugs to patch:
+        " to_json(evalStep) "
+        Code to fix:
+        " finalStep "
+        Return only the fixed HTML/CSS/JS code without any additional explanations or commentse."}
+
+        let fixedStep = runModelStep("defect_fix", 7, "gemini-3.7-flash", "medium", defectFixer, fixedInput)
+        saveDraft(filename, fixedStep, 7, "Defect Revision")
+        finalStep = fixedStep
+    }
+
+    if minify {
+        let minifyLog = "Minification Step: Minifying the final HTML for optimal performance...\n"
+        TERM.info(minifyLog)
+        let minifiedStep = minify_html(finalStep)
+        saveDraft(filename, minifiedStep, 8, "HTML Minification")
+        finalStep = minifiedStep
+    }
+
+    TERM.success("Website generated!")
+    return finalStep
+}
+
+/**
+  Generates an HTML website quickly with a fast-track pass and automated defect patching.
+
+  Parameters:
+  - promptText: Prompt describing the website.
+  - purpose: Purpose of the website (default empty).
+  - minify: Whether to minify the final output (default false).
+
+  Returns:
+  - A string containing the resulting HTML code or an error message.
+
+  Example:
+  ```sesi
+  let html = genHTMLFast("Landing page", "Sell widgets", true)
+  ```
+
+  Notes:
+  - Generation Steps:
+    1. Improve the prompt and purpose for better results.
+    2. Generate the initial HTML based on the improved prompt and purpose.
+    3. Evaluate the generated HTML for defects.
+    4. Fix any detected defects.
+    5. Minify the final HTML if the minify flag is set.
+*/
+export fn genHTMLFast(promptText: string, purpose: string = "", minify: bool = false) -> string {
+    let dir = "drafts/"; make_dir(dir)
+    let filename = promptText | trunc(20) | swap(" ", "_") | to_lower | trim
+    filename = dir + filename + "_draft.html"
+    prompt sys1 {"You are a product-oriented frontend architect."}
+    prompt sys2 {"You are a senior UI/visual designer specializing in production CSS."}
+    prompt evalSite {"You are a frontend QA engineer. Find defects. Do not redesign."}
+    prompt makeSite {"Create a website for the following purpose: "purpose" and based on the following prompt: "promptText"
+    Return only the HTML/CSS/JS code for the website without any additional explanations or comments."}
+    prompt evalInput {"Original purpose:
+    " purpose "
+
+    Original website request:
+    " promptText "
+
+    Inspect this implementation, do not rewrite it.
+
+    Find:
+    - broken functionality
+    - semantic problems
+    - accessibility problems
+    - responsive issues
+    - JS bugs
+    - violations of original requirements
+
+    Return a JSON object of the following structure. Use an empty string for every field with no defect:
+    {
+        \"broken\": string,
+        \"semantic\": string,
+        \"accessibility\": string,
+        \"responsive\": string,
+        \"js\": string,
+        \"requirements\": string
+    }
+    "}
+
+    let pass1 = ""
+    let review = ""
+    let eval = ""
+    let fixed = ""
+
+    try {
+        TERM.info("Enhancing prompt and purpose to best suit your needs...")
+        let improved = improvePrompt(
+        "Website prompt: " + promptText + "
+        Website purpose: " + purpose + "
+        # IMPORTANT: Return the improved prompt and purpose as a JSON object with the fields 'prompt' and 'purpose'."
+    ) | from_json
+        promptText = improved["prompt"]
+        purpose = improved["purpose"]
+        TERM.info("Generating HTML with prompt:
+" + promptText + "
+========
+with the purpose to:
+========
+" + purpose + "
+...")
+        try {
+            pass1 = model("gpt-5.6-terra") {system: sys1, thinking: "medium"} {makeSite} | cleanAIResponse
+        } catch (e) {
+            TERM.warning(e.message)
+            TERM.warning("Retrying with a more capable model...")
+            pass1 = model("gemini-3-flash-preview") {system: sys1, thinking: "medium"} {makeSite} | cleanAIResponse
+        }
+        TERM.info("Enhancing CSS and making sure site is functional...\n")
+        write_file(filename, pass1)
+        review = model("gemini-3.7-flash") {system: sys2, thinking: "medium"} {"Enhance the following CSS and make sure the JS logic is functional rather than placeholder:
+        " pass1 "
+
+        Return only the complete code for the website without any additional explanations or comments."} | cleanAIResponse
+        try {
+            eval = model("gpt-5.6-luna") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse
+        } catch (e) {
+            TERM.warning(e.message)
+            TERM.warning("Retrying with a more capable model...")
+            eval = model("gemini-3.5-flash-lite") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse
+        }
+        if eval.broken != "" || eval.semantic != "" || eval.accessibility != "" || eval.responsive != "" || eval.js != "" || eval.requirements != "" {
+            TERM.warning("Detected errors, patching before final delivery...")
+            prompt defectFixer {"You are a professional and organized software developer. You are tasked with fixing the following defects in this HTML code. Preserve semantics, accessibility, word usage/text, and responsive design. Do not redesign the website."}
+            prompt fixedInput {"Bugs to patch:
+            " to_json(eval) "
+            Code to fix:
+            " review "
+            Return only the complete fixed code without any additional explanations or comments."}
+            fixed = model("gemini-3.7-flash") {system: defectFixer, thinking: "medium"} {fixedInput} | cleanAIResponse
+            review = fixed
+        } else {
+            TERM.success("No defects found in the final website implementation.")
+        }
+    } catch (e) {
+        TERM.error(e.message)
+        return "Error generating HTML: " + e.message
+    }
+    TERM.success("Successfully generated HTML!")
+
+    if minify {
+        return minify_html(review)
+    }
+    return review
+}
+
+/**
+  Generates an HTML website quickly using reference files for context and guidance.
+
+  Parameters:
+   - promptText: The main prompt describing the website to generate.
+   - purpose: The purpose of the website.
+   - filenames: An array of reference file paths to include in the generation.
+   - minify: Whether to minify the final HTML output (default: true).
+  Returns:
+  - A string containing the generated HTML code or an error message.
+
+  Example:
+  ```sesi
+  let site = genHTMLFastWithRef("Portfolio", "Showcase work", ["style_guide.md"], true)
+  ```
+
+  Notes:
+  - Incorporates file contents as reference context within system prompts.
+*/
+export fn genHTMLFastWithRef(promptText: string, purpose: string, filenames: array<string>, minify: bool = true) -> string {
+    let contents = {}
+    if filenames != null {
+        for filename in filenames {
+            let ext = get_ext(filename)
+            contents[filename | swap("." + ext, "")] = read_file(filename)
+            TERM.info("Adding reference from file: " + filename)
+        }
+    } else if !(filenames[0] | ends_with(".md")) {
+        for file in filenames {
+           contents = file
+        }
+    } else {
+        return "Error: No reference files provided."
+    }
+    let dir = "drafts/"; make_dir(dir)
+    let filename = promptText | trunc(20) | swap(" ", "_") | to_lower | trim
+    filename = dir + filename + "_draft.html"
+    prompt sys1 {"
+    # REFERENCE:
+    "contents"
+    You are a product-oriented frontend architect."}
+    prompt sys2 {"
+    # REFERENCE:
+    "contents"
+    You are a senior UI/visual designer specializing in production CSS."}
+    prompt makeSite {"Create a website for the following purpose: "purpose" and based on the following prompt: "promptText"
+
+    # REFERENCE:
+    "contents"
+
+    Return only the HTML/CSS/JS code for the website without any additional explanations or comments."}
+    prompt evalSite {"
+    # REFERENCE:
+    "contents"
+    You are a frontend QA engineer. Find defects. Do not redesign."}
+    prompt evalInput {"Original purpose:
+    " purpose "
+
+    Original website request:
+    " promptText "
+
+    Inspect this implementation, do not rewrite it.
+
+    Find:
+    - broken functionality
+    - semantic problems
+    - accessibility problems
+    - responsive issues
+    - JS bugs
+    - violations of original requirements
+
+    Return a JSON object of the following structure. Use an empty string for every field with no defect:
+    {
+        \"broken\": string,
+        \"semantic\": string,
+        \"accessibility\": string,
+        \"responsive\": string,
+        \"js\": string,
+        \"requirements\": string
+    }
+    "}
+
+    let pass1 = ""
+    let review = ""
+    let eval = ""
+    let fixed = ""
+
+    try {
+        TERM.info("Enhancing prompt and purpose to best suit your needs...")
+        let improved = improvePrompt(
+            "Website prompt: " + promptText + "
+            Website purpose: " + purpose + "
+            # IMPORTANT: Return the improved prompt and purpose as a JSON object with the fields 'prompt' and 'purpose'."
+        ) | from_json
+        promptText = improved["prompt"]
+        purpose = improved["purpose"]
+        TERM.info("Generating HTML with prompt:
+" + promptText + "
+========
+with the purpose to:
+========
+" + purpose + "
+...
+")
+        try {
+            pass1 = model("gpt-5.6-terra") {system: sys1, thinking: "medium"} {makeSite} | cleanAIResponse
+        } catch (e) {
+            TERM.warning(e.message)
+            TERM.warning("Retrying with a more capable model...")
+            pass1 = model("gemini-3-flash-preview") {system: sys1, thinking: "medium"} {makeSite} | cleanAIResponse
+        }
+        TERM.info("Enhancing CSS and making sure site is functional...\n")
+        write_file(filename, pass1)
+        review = model("gemini-3.7-flash") {system: sys2, thinking: "medium"} {"Enhance the following CSS and make sure the JS logic is functional rather than placeholder:
+        " pass1 "
+
+        Return only the complete code for the website without any additional explanations or comments."} | cleanAIResponse
+        try {
+            eval = model("gpt-5.6-luna") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse
+        } catch (e) {
+            TERM.warning(e.message)
+            TERM.warning("Retrying with a more capable model...")
+            eval = model("gemini-3.5-flash-lite") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse
+        }
+        if eval.broken != "" || eval.semantic != "" || eval.accessibility != "" || eval.responsive != "" || eval.js != "" || eval.requirements != "" {
+            TERM.warn("Detected errors, patching before final delivery...")
+            prompt defectFixer {"You are a professional and organized software developer. You are tasked with fixing the following defects in this HTML code. Preserve semantics, accessibility, word usage/text, and responsive design. Do not redesign the website."}
+            prompt fixedInput {"Bugs to patch:
+            " to_json(eval) "
+            Code to fix:
+            " review "
+            Return only the complete fixed code without any additional explanations or comments."}
+            fixed = model("gemini-3.7-flash") {system: defectFixer, thinking: "medium"} {fixedInput} | cleanAIResponse
+            review = fixed
+        } else {
+            TERM.success("No defects found in the final website implementation.")
+        }
+    } catch (e) {
+        TERM.error(e.message)
+        return "Error generating HTML: " + e.message
+    }
+    TERM.success("Successfully generated HTML!")
+
+    if minify {
+        return minify_html(review)
+    }
+    return review
+}
+
+/**
+  Generates a comprehensive, multi-step HTML website using reference files for contextual guidance.
+
+  Parameters:
+  - promptText: Prompt describing the website.
+  - purpose: Purpose of the website.
+  - filenames: Array of reference files.
+  - minify: Whether to minify the final HTML (default true).
+
+  Returns:
+  - A string containing the final generated HTML website code.
+
+  Example:
+  ```sesi
+  let site = genHTMLWithRef("Landing Page", "Lead gen", ["docs.md"], true)
+  ```
+
+  Notes:
+  - Uses full iterative staging pipeline including drafting, styling, semantics, responsiveness, JS functionality, and evaluation with reference context.
+*/
+export fn genHTMLWithRef(promptText: string, purpose: string, filenames: array<string>, minify: bool = true) -> string {
+    let contents = {}
+    if filenames != null && (filenames[0] | ends_with(".md")) {
+        for filename in filenames {
+            let ext = get_ext(filename)
+            contents[filename | swap("." + ext, "")] = read_file(filename)
+            TERM.info("Adding reference from file: " + filename)
+        }
+    } else if !(filenames[0] | ends_with(".md")) {
+        for file in filenames {
+           contents = file
+        }
+    } else {
+        return "Error: No reference files provided."
+    }
+    let dir = "drafts/"; make_dir(dir)
+    let filename = promptText | trunc(20) | swap(" ", "_") | to_lower | trim
+
+    // Save an intermediate HTML generation result to the drafts directory.
+    //
+    // Parameters:
+    // - filename: Base name used to construct the draft output path.
+    // - content: HTML content to save.
+    // - stage: Numeric generation stage associated with the draft.
+    // - step: Human-readable name of the generation step.
+    //
+    // Returns:
+    // - `true` when the draft is saved successfully; otherwise, an error message.
+    //
+    // Notes:
+    // - The output filename includes the stage, normalized step name, and source filename.
+    // - File-writing errors are caught and reported through the terminal helper.
+    fn saveDraft(filename: string, content: string, stage: number = 0, step: string) -> any {
+        filename = dir + "step" + (stage | str) + "_" + (to_lower(step) | swap(" ", "_") | trim) + "_for_" + filename + "_draft.html"
+        try {
+            write_file(filename, content)
+            TERM.success("Saved step " + stage + ": " + step)
+            return true
+        } catch (e) {
+            TERM.error("Failed to save " + step + " draft at step " + stage)
+            return e.message
+        }
+    }
+
+    let improved = improvePrompt(
+        "Website prompt: " + promptText + "
+        Website purpose: " + purpose + "
+        # IMPORTANT: Return the improved prompt and purpose as a JSON object with the fields 'prompt' and 'purpose'."
+    ) | from_json
+    promptText = improved["prompt"]
+    purpose = improved["purpose"]
+    // Define system prompts for different aspects of website generation
+    prompt sys1 {"
+    # REFERENCE:
+    "contents"
+    You are a product-oriented frontend architect."}
+    prompt sys2 {"
+    # REFERENCE:
+    "contents"
+    You are a senior UI/visual designer specializing in production CSS."}
+    prompt sys3 {"
+    # REFERENCE:
+    "contents"
+    You are an HTML semantics and accessibility specialist."}
+    prompt sys4 {"
+    # REFERENCE:
+    "contents"
+    You are a responsive frontend engineer specializing in mobile layouts."}
+    prompt sys5 {"
+    # REFERENCE:
+    "contents"
+    You are a senior vanilla JavaScript engineer focused on robust UI behavior."}
+    prompt eval {"
+    # REFERENCE:
+    "contents"
+    You are a frontend QA engineer. Find defects. Do not redesign."}
+    prompt makeSite {"Draft a website for the following purpose: "purpose" and based on the following prompt: "promptText"
+
+    # REFERENCE:
+    "contents"
+
+    Return only the HTML/CSS template code for the website without any additional explanations or comments."}
+
+    // Generate the website in multiple steps, including drafting, styling, optimizing, enhancing interactivity, evaluating for defects, fixing defects if found, and minifying the final output.
+    let logStep1 = "Step 1: Drafting the initial website structure and content based on the prompt...\n"
+    TERM.info(logStep1)
+    let step1 = runModelStep("draft", 1, "gemini-3-flash-preview", "medium", sys1, makeSite)
+    saveDraft(filename, step1, 1, "Initial Draft")
+
+    let logStep2 = "Step 2: Improving the CSS styling and JS logic...\n"
+    TERM.info(logStep2)
+    prompt step2Input {"Improve the CSS styling, enhance the layout, and ensure JS is functional:
+    " step1 "
+    Return only the improved HTML/CSS code without any additional explanations or comments."}
+
+    let step2 = runModelStep("styling", 2, "gemini-3.7-flash", "medium", sys2, step2Input)
+    saveDraft(filename, step2, 2, "CSS Enhancement")
+
+    let logStep3 = "Step 3: Ensuring proper semantic tags...\n"
+    TERM.info(logStep3)
+    prompt step3Input {"Ensure proper semantic tags are applied without altering the existing design and functionality:
+    " step2 "
+    Return only the HTML/CSS code with the applied semantic tags without any additional explanations or comments. DO NOT REMOVE ANY EXISTING FUNCTIONALITY, CONTENT, OR DESIGN ELEMENTS."}
+
+    let step3 = runModelStep("semantics", 3, "gemini-3.6-flash", "medium", sys3, step3Input)
+    saveDraft(filename, step3, 3, "Semantics Tagging")
+
+    let logStep4 = "Step 4: Ensuring the website is responsive and mobile-friendly...\n"
+    TERM.info(logStep4)
+    prompt step4Input {"Ensure the website is responsive and mobile-friendly without altering the existing design and functionality:
+    " step3 "
+    Return only the responsive and mobile-friendly HTML/CSS code without any additional explanations or comments."}
+
+    let step4 = runModelStep("responsive", 4, "gemini-3.1-pro-preview", "medium", sys4, step4Input)
+    saveDraft(filename, step4, 4, "Responsive Check")
+
+    let finalLog = "Final Step: Adding or enhancing present JavaScript functionality and interactivity...\n"
+    TERM.info(finalLog)
+    prompt finalInput {"Add or enhance present JavaScript functionality and interactive elements:
+    " step4 "
+    Return only the final self-contained HTML/CSS/JS code for the website, without any additional explanations or comments."}
+
+    let finalStep = runModelStep("interactivity", 5, "gemini-3.7-flash", "medium", sys5, finalInput)
+    saveDraft(filename, finalStep, 5, "JS Functionality")
+
+    let evalLog = "Evaluation Step: Reviewing the final website for any defects, issues, or areas of improvement...\n"
+    TERM.info(evalLog)
+    prompt evalInput {"
+    Original purpose:
+    " purpose "
+
+    Original website request:
+    " promptText "
+
+    Inspect this implementation, do not rewrite it.
+
+    Find:
+    - broken functionality
+    - semantic problems
+    - accessibility problems
+    - responsive issues
+    - JS bugs
+    - violations of original requirements
+    - introduced undocumented content or features
+
+    Return a JSON object of the following structure. Use an empty string for every field with no defect:
+    {
+        \"broken\": string,
+        \"semantic\": string,
+        \"accessibility\": string,
+        \"responsive\": string,
+        \"js\": string,
+        \"requirements\": string
+    }
+    " finalStep}
+
+    // Run the evaluation step to check for defects in the final website implementation.
+    let evalRaw = runModelStep("evaluation", 6, "gemini-3.5-flash-lite", "medium", eval, evalInput, false)
+    // Parse the raw evaluation output into a structured JSON object.
+    let evalStep = {}
+    try {
+        evalStep = structured_output({broken: string, semantic: string, accessibility: string, responsive: string, js: string, requirements: string})(evalRaw)
+    } catch (error) {
+        let errorText = to_json(error)
+        logSteps("evaluation_parse", 6, "gemini-3.5-flash-lite", "medium", eval, evalInput, errorText, false, "failed")
+        raise_error("EvaluationParseFailed", errorText)
+    }
+
+    if evalStep.broken == "" && evalStep.semantic == "" && evalStep.accessibility == "" && evalStep.responsive == "" && evalStep.js == "" && evalStep.requirements == "" {
+        TERM.success("No defects found in the final website implementation.")
+    } else {
+        TERM.warning("Detected errors, patching before final delivery...")
+        prompt defectFixer {"You are a professional and organized software developer. You are tasked with fixing the following defects in this HTML code."}
+        prompt fixedInput {"Bugs to patch:
+        " to_json(evalStep) "
+        Code to fix:
+        " finalStep "
+        Return only the fixed HTML/CSS/JS code without any additional explanations or commentse."}
+
+        let fixedStep = runModelStep("defect_fix", 7, "gemini-3.7-flash", "medium", defectFixer, fixedInput)
+        saveDraft(filename, fixedStep, 7, "Defect Revision")
+        finalStep = fixedStep
+    }
+
+    if minify {
+        let minifyLog = "Minification Step: Minifying the final HTML for optimal performance...\n"
+        TERM.info(minifyLog)
+        let minifiedStep = minify_html(finalStep)
+        saveDraft(filename, minifiedStep, 8, "HTML Minification")
+        finalStep = minifiedStep
+    }
+    TERM.success("Website generated!")
+    return finalStep
+}
+
+/**
+  Generates a package.json file string for a Node.js project.
+
+  Parameters:
+  - name: Name of the project.
+  - description: Brief description of the package.
+  - author: The author of the project.
+
+  Returns:
+  - A string containing the generated package.json contents.
+
+  Example:
+  ```sesi
+  let pkg = genPkgJSON("my-tool", "A CLI utility", "Alice")
+  show pkg
+  ```
+
+  Notes:
+  - Uses `gemini-2.5-flash` to enhance the description and format JSON.
+*/
+export fn genPkgJSON(name: string, description: string, author: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating a package.json file for a Node.js project."}
+    prompt makePkgJSON {"Generate a package.json file for a Node.js project with the following details:
+- Name: "name"
+- Description: "description" <- Improve this description to be more detailed and informative, yet concise.
+- Author: "author"
+- License: MIT"}
+
+    let generatedPkg = model("gemini-2.5-flash") {system: sys} {makePkgJSON}
+    return generatedPkg | cleanAIResponse
+}
+
+/**
+  Generates a project README.md file based on provided project details.
+
+  Parameters:
+  - title: The title of the project.
+  - description: A brief description of the project.
+  - body: The main content of the README, providing an overview of the project, its features, and other relevant information.
+  - installation: Instructions for installing the project.
+  - usage: Instructions for using the project.
+  Returns:
+  - A string containing the generated markdown README content.
+
+  Example:
+  ```sesi
+  let readme = genReadMe("MyLib", "A fast library", "Details...", "npm install mylib", "import mylib")
+  show readme
+  ```
+
+  Notes:
+  - Attempts generation using `gpt-5.6-terra`, falling back to `gemini-3.7-flash`.
+*/
+export fn genReadMe(title: string, description: string, body: string, installation: string, usage: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating a README.md file for a project."}
+    prompt makeReadMe {"Generate a README.md file for a project with the following details:
+- Title: "title"
+- Description: "description" <- Improve this description to be more detailed and informative, yet concise.
+- Body: "body" <- If the body is empty, generate a body that provides an overview of the project, its potential features, and any other relevant information. Otherwise, improve the body to be more detailed and informative.
+- Installation: "installation" <- Verify that the installation instructions are clear and accurate/up to date. If they are not, provide improved installation instructions.
+- Usage: "usage" <- Verify that the usage instructions are clear and accurate. If they are not, provide improved usage instructions.
+"}
+
+    let generatedReadMe = ""
+    try {
+        generatedReadMe = model("gpt-5.6-terra") {system: sys, search} {makeReadMe}
+    } catch (e) {
+        TERM.warning(e.message)
+        TERM.warning("Retrying with a more capable model...")
+        generatedReadMe = model("gemini-3.7-flash") {system: sys, search} {makeReadMe}
+    }
+
+    // Removes a trailing Markdown fenced code block from generated README content.
+    //
+    // Parameters:
+    // - text: Generated README content to inspect.
+    //
+    // Returns:
+    // - The README content with a terminal code block removed when one is present.
+    //
+    // Notes:
+    // - Fenced blocks are detected using lines beginning with three backticks.
+    // - Descriptive Markdown content outside the final code block is preserved.
+    fn cleanCodeBlockAtEndOfFile(text: string) -> string {
+        let lines = split(text, "\n")
+        let cleanedLines = []
+        let insideCodeBlock = false
+
+        for line in lines {
+            // Check for the start or end of a code block
+            if regex("^```", line, {"mode": "match", "flags": "g"}) != [] {
+                insideCodeBlock = !insideCodeBlock
+            }
+            // Add back descriptive text lines, but skip the last code block if it's at the end of the file
+            if !insideCodeBlock || (insideCodeBlock && line != lines[len(lines) - 1]) {
+                cleanedLines = append(cleanedLines, line)
+            }
+            // Some code blocks might've been accidentally left open, so we ensure we don't include the last code block if it's at the end of the file
+            if insideCodeBlock && line == lines[len(lines) - 1] {
+                insideCodeBlock = false
+            }
+        }
+
+        return join(cleanedLines, "\n")
+    }
+
+    if generatedReadMe | contains("```markdown") {
+        generatedReadMe = regex("```markdown\\n([\\s\\S]*?)\\n```", generatedReadMe, {"mode": "replace", "replacement": "$1", "flags": "g"})
+        generatedReadMe = cleanCodeBlockAtEndOfFile(generatedReadMe)
+    }
+    return generatedReadMe
+}
+
+/**
+  Generates an open source project LICENSE file.
+
+  Parameters:
+  - name: The name of the copyright holder.
+  - year: The year the license applies to.
+  - license: License type (e.g., "MIT", "Apache-2.0").
+
+  Returns:
+  - A string containing the generated license text.
+
+  Example:
+  ```sesi
+  let lic = genLicense("Jane Doe", "2026", "MIT")
+  show lic
+  ```
+
+  Notes:
+  - Uses the `gemini-3-flash-preview` model with search enabled.
+*/
+export fn genLicense(name: string, year: string, license: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating a LICENSE file for a project."}
+    prompt makeLicense {"Generate a LICENSE file for a project with the following details:
+
+- Name: "name"
+- Year: "year"
+- License: "license"
+"}
+
+    let generatedLicense = model("gemini-3-flash-preview") {system: sys, search} {makeLicense}
+    return generatedLicense | cleanAIResponse
+}
+
+/**
+  Generates a combined README and license file string.
+
+  Parameters:
+  - `title`: The title of the project.
+  - `description`: A brief description of the project.
+  - `body`: The main content of the README, providing an overview of the project, its features, and other relevant information.
+  - `installation`: Instructions for installing the project.
+  - `usage`: Instructions for using the project.
+  - `license`: The type of license for the project.
+  - `name`: The name of the copyright holder.
+  - `year`: The year the license applies to.
+
+  Returns:
+  - A combined markdown string containing the README and appended license.
+
+  Example:
+  ```sesi
+  let fullDoc = genReadMeWithLicense("Proj", "Desc", "Body", "Inst", "Usage", "MIT", "Dev", "2026")
+  show fullDoc
+  ```
+
+  Notes:
+  - Automatically generates the license and appends it to the README.
+*/
+export fn genReadMeWithLicense(title: string, description: string, body: string, installation: string, usage: string, license: string, name: string, year: string) -> string {
+    let licenseText = genLicense(name, year, license)
+    let readme = genReadMe(title, description, body, installation, usage + "\n" + licenseText + "----")
+    return readme
+}
+
+/**
+  Generates a requirements.txt file for Python projects.
+
+  Parameters:
+  - purpose: Description of the project requirements or purpose.
+
+  Returns:
+  - A string containing the generated requirements.txt contents.
+
+  Example:
+  ```sesi
+  let reqs = genRequirements("Web scraping")
+  show reqs
+  ```
+
+  Notes:
+  - Uses `gemini-3.5-flash-lite` with search enabled.
+*/
+export fn genRequirements(purpose: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating a requirements.txt file for a Python project. Do not conversate or provide any explanations. Only provide the requirements.txt file content."}
+    prompt makeRequirements {"Generate a requirements.txt file for a Python project with the following purpose:
+
+" purpose}
+
+    let generatedRequirements = model("gemini-3.5-flash-lite") {system: sys, search} {makeRequirements}
+    return generatedRequirements | cleanAIResponse
+}
+
+/**
+  Generates an .env.example file template based on project purpose.
+
+  Parameters:
+  - purpose: Description of the project.
+
+  Returns:
+  - A string containing environment variable examples.
+
+  Example:
+  ```sesi
+  let envs = genEnvExample("Express server with PostgreSQL and JWT")
+  show envs
+  ```
+
+  Notes:
+  - Uses `gemini-3.5-flash-lite` with search enabled.
+*/
+export fn genEnvExample(purpose: string) -> string {
+    prompt sys {"You are a professional and organized software developer. You are tasked with generating an .env.example file for a project."}
+    prompt makeEnvExample {"Generate an .env.example file for a project with the following purpose:
+
+" purpose}
+
+    let generatedEnvExample = model("gemini-3.5-flash-lite") {system: sys, search} {makeEnvExample}
+    return generatedEnvExample | cleanAIResponse
+}
+
+// Templates
+
+/**
+  Represents an AI-assisted project scaffolding and file generation template.
+
+  Fields:
+  - directory: The target root directory for the project.
+  - projectName: The PascalCased project name.
+  - purpose: The core purpose or description of the project.
+  - name: The author or creator name.
+  - licenseType: The license type (defaults to MIT).
+
+  Notes:
+  - Provides methods to initialize configuration (`start`), create the directory structure (`scaffold`), and generate all standard project files (`createFiles`).
+*/
+export make AIProject {
+    let directory = ""
+    let projectName = ""
+    let purpose = ""
+    let name = ""
+    let licenseType = ""
+
+    // Initializes the AIProject instance with project metadata.
+    //
+    // Parameters:
+    // - title: Project title/name.
+    // - purpose: Purpose of the project.
+    // - name: Author name.
+    // - directory: Root target directory.
+    // - licenseType: License type.
+    //
+    // Returns:
+    // - None.
+    //
+    // Notes:
+    // - Formats project name as PascalCase and directory as kebab-case. Default license is MIT.
+    fn start(self, title: string = projectName, purpose: string, name: string,  directory: string, licenseType: string) {
+        self.name = name
+        self.projectName = title | toPascal
+        self.purpose = purpose
+        self.directory = directory | toKebab
+        self.licenseType = licenseType
+        if self.licenseType == "" || self.licenseType | is_null {
+            self.licenseType = "MIT"
+        }
+    }
+
+    // Creates the project directory on disk.
+    //
+    // Parameters:
+    // - None (uses `self` instance state).
+    //
+    // Returns:
+    // - None.
+    //
+    // Notes:
+    // - Logs success or error messages via TERM.
+    fn scaffold(self) {
+        let projectPath = self.directory + "/" + self.projectName
+        try {
+            make_dir(projectPath)
+            TERM.success("Project directory created at: " + projectPath)
+        } catch (e) {
+            TERM.error("Error creating project directory: " + e)
+            return
+        }
+    }
+
+    // Generates and writes all standard project documentation and configuration files.
+    //
+    // Parameters:
+    // - None (uses `self` instance state).
+    //
+    // Returns:
+    // - None.
+    //
+    // Notes:
+    // - Automatically generates README, LICENSE, requirements.txt, .env.example, package.json, and a custom .gitignore using AI tools.
+    fn createFiles(self) {
+        let projectPath = self.directory + "/" + self.projectName
+        let gitignore = ""
+
+        try {// Generate project files
+            TERM.info("Generating README...")
+            let README = genReadMe(self.projectName, self.purpose, "", "", "")
+            TERM.info("Generating LICENSE...")
+            let LICENSE = genLicense(self.name, "2026", self.licenseType)
+            TERM.info("Generating requirements.txt...")
+            let requirements = genRequirements(self.purpose)
+            TERM.info("Generating .env.example...")
+            let envExample = genEnvExample(self.purpose)
+            TERM.info("Generating package.json...")
+            let pkgJSON = genPkgJSON(self.projectName, self.purpose, self.name)
+
+            try {// Generate .gitignore file based on the project purpose
+                TERM.info("Generating .gitignore file based on the project purpose...")
+                // Tool for generating a .gitignore file based on the project purpose.
+                define_tool("generateGitIgnore", generateGitIgnore, "Generate a .gitignore file for a project based on the provided contents.")
+                // Use the AI model to generate the contents of the .gitignore file based on the project purpose and current workspace context.
+                let generatedContents = model("gemini-3.5-flash-lite") {tools: generateGitIgnore, system: "You are a professional and organized software developer. You are tasked with generating a .gitignore file for a project."} {"
+                Use the generateGitIgnore tool for a project with the following purpose:
+                "self.purpose"
+
+                Here's the current workspaace context:
+                ==== README.md ====
+                "README"
+                ==== LICENSE ====
+                "LICENSE"
+                ==== requirements.txt ====
+                "requirements"
+                ==== .env.example ====
+                "envExample"
+                ==== package.json ====
+                "pkgJSON} | cleanAIResponse | from_json
+
+                let lines = generatedContents.arguments.custom_entries
+                for line in lines {
+                    gitignore = gitignore + line + "\n"
+                }
+            } catch (e1) {
+                TERM.error("Error generating .gitignore file: " + e1)
+                gitignore = ""
+            }
+
+            // Write the generated files to the project directory
+            write_file(projectPath + "/README.md", README)
+            write_file(projectPath + "/LICENSE", LICENSE)
+            write_file(projectPath + "/.gitignore", gitignore)
+            write_file(projectPath + "/requirements.txt", requirements)
+            write_file(projectPath + "/.env.example", envExample)
+            write_file(projectPath + "/package.json", pkgJSON)
+            TERM.success("Project files created successfully.")
+        } catch (e2) {
+            TERM.error("Error creating project files: " + e2)
+        }
+    }
+}
+
+// Sesi Specific Helpers
+
+/**
+  Debugs the given Sesi code content and returns the debugged result. Provides detailed feedback and suggestions for improvement if any issues are found.
+
+  Parameters:
+  - content: The Sesi code content to be debugged. Can be a string containing the code or a file path to the Sesi source file.
+
+  Returns:
+  - A detailed review of the Sesi code, including any identified issues, suggestions for improvement, and the corrected code if applicable.
+
+  Example:
+  ```sesi
+  let result = debugSesi("examples.sesi")
+  show result
+  ```
+
+  Notes:
+  - The function attempts to debug the Sesi code using the "gpt-5.6-terra" model first. If it fails, it falls back to the "gemini-3.7-flash" model.
+  - Any errors encountered during the debugging process will be returned as error messages.
+*/
+export fn debugSesi(content: string) -> string {
+    let c = ""
+    let debugged = ""
+    prompt fix {"# SESI REFERENCE: "_"\nYou are an expert in debugging Sesi code. You find syntax errors, bad practices, and hallucinated/mistaken code patterns in Sesi. If none of these issues are present, indicate that the code is correct. Otherwise, provide detailed feedback and suggestions for improvement.
+    # SPECIFICALLY FOR YOU, NOT THE USER\nMODEL CONFIGURATION BLOCKS `{}` CANNOT BE SEPARATED BY NEWLINE. SAME GOES FOR OTHER BUILTINS THAT USE CURLY BRACES AND ANY OTHER SESI-SPECIFIC SYNTAX. THAT IS NOT VALID SESI. THAT IS JS/PYTHON/ETC. NOT SESI. YOU HAVE THE LITERAL EXAMPLES AND PROPER USAGE IN THE REFERENCE ABOVE. DO NOT INSINUATE OTHERWISE OR STUBBORNLY IGNORE THIS RULE WHEN WRITING SESI CODE AND OFFERING SUGGESTIONS."}
+    TERM.info("Debugging Sesi code...")
+    if (content | get_ext) == null { c = content } else if (content | get_ext) != null { c = read_file(content) }
+    try {
+        debugged = model("gpt-5.6-terra") {system: fix, thinkingLevel: "medium", cache: true, maxT: 10000} {c}
+        TERM.success("Sesi code debugged successfully.")
+    } catch (e) {
+        try {
+            debugged = model("gemini-3.7-flash") {system: fix, thinkingLevel: "medium", cache: true, maxT: 10000} {c}
+            TERM.success("Sesi code debugged successfully.")
+        } catch (e2) {
+            return TERM.error("Error debugging Sesi code: " + e2.message)
+        }
+    }
+    return debugged
+}
+
+/**
+  Verifies and patches errors or issues in a Sesi source file using automated tooling.
+
+  Parameters:
+  - file: Path to the Sesi source file to check and patch.
+
+  Returns:
+  - A string containing the patched code or a message indicating no issues were found.
+
+  Example:
+  ```sesi
+  let result = patchSesi("examples.sesi")
+  show result
+  ```
+
+  Notes:
+  - The function uses the "gemini-3.7-flash" model to verify and patch the Sesi code.
+  - It relies on the "verify" and "view" tools to identify and understand issues in the Sesi file.
+  - The function returns the corrected Sesi code or indicates if no issues were found.
+*/
+export fn patchSesi(file: string, modelName: string = "gemini") -> string {
+    allow "shell-automation" in with {run_command}
+    // Checks the correctness of a Sesi file by running it and returning the log output.
+    //
+    // Parameters:
+    // - file: Path to the file to check.
+    //
+    // Returns:
+    // - A string containing the log output of the check process.
+    //
+    // Notes:
+    // - Trashes existing log files before running.
+    // - Helper utility used by tools.    
+    fn check(file: string) {
+        let tmp = "tmp.sesi.chk.log"
+        Safe.remove(tmp, true)
+        let output = run_command("node bin/sesi.js -c " + file + " 2>&1 || true")
+        Safe.log("tmp.sesi.chk", output)
+        return read_file(tmp)
+    }
+    // Reads the content of the specified Sesi file.
+    //
+    // Parameters:
+    // - file: Path to the file to read.
+    //
+    // Returns:
+    // - A string containing the file contents.
+    //
+    // Notes:
+    // - Helper utility used by tools.    
+    fn read(file: string) {
+        show "Reading" file "..."
+        return Safe.read(file)
+    }
+
+    fn write(code: string) {
+        show "Writing to" file ".patched"
+        let written = Safe.write(file + ".patched", code)
+        show written
+        let backup = ".backup/" + time() + "_" + file
+        show "Backup file saved to" backup
+        if exists(file + ".patched") {
+            archive(file, backup)
+            rename(backup, file)
+            show "File patched successfully.\n"
+        } else {
+            show "Failed to create patched file.\n"
+        }
+        return written
+    }
+
+    define_tool("verify", check, "Verifies the correctness of a Sesi file by checking for errors and issues.")
+    define_tool("view", read, "Reads the content of a Sesi file.")
+    define_tool("write_code", write, "Write the corrected Sesi code patch file and save to disk.")
+
+    let s = ""
+    let i = _ + "\n\nYou are an expert in verifying Sesi code for correctness and identifying errors."
+    prompt patcher {i "
+    Use the check tool to check the correctness of the Sesi file: "file"
+    Call verify exactly once. If it reports errors or issues, call view exactly once to inspect the file, then write the corrected code with the write tool and return the corrected Sesi code.
+    Do not call verify or view again. Return only the corrected code so the caller can execute it seperately. Do not wrap it in code blocks.
+    Otherwise, return 'No issues found!' exactly.
+    Do not provide any explanations or commentary."}
+
+    if modelName == "gpt" {
+        try {
+            s = model("gpt-5.6-terra") {system: patcher, tools: [check, read], max_tool_calls: 7, thinkingLevel: "low", cache: false, maxT: 10000} {"Proceed."} | cleanAIResponse
+        } catch (e) {
+            TERM.warning(e.message)
+            TERM.warning("Retrying with a more capable model...")
+            s = model("gemini-3.7-flash") {system: patcher, tools: [check, read], max_tool_calls: 7, thinkingLevel: "low", cache: false, maxT: 10000} {""} | cleanAIResponse
+        }
+    } else {
+        s = model("gemini-3.7-flash") {system: patcher, tools: [check, read], max_tool_calls: 7, thinkingLevel: "low", cache: false, maxT: 10000} {""} | cleanAIResponse
+    }
+    
+    if s == "No issues found!" {
+        TERM.success(file + " has been checked and verified for errors, none found!")
+        return s
+    } else { 
+        TERM.success(file + " has been patched!") 
+        return file
+    }
+}
+
+/**
+  Patches all Sesi files in a directory or a list of files.
+
+  Parameters:
+  - dir: The path to the directory containing Sesi files to be patched. If null, the function will use the 'files' parameter.
+  - files: An array of specific Sesi files to be patched. If null or empty, the function will use the 'dir' parameter.
+
+  Returns:
+  - None. The function patches the files in place and creates backup copies.
+
+  Example:
+  ```sesi
+  patchAllSesi("/path/to/sesi/files")
+  patchAllSesi(null, ["file1.sesi", "file2.sesi"])
+  ```
+
+  Notes:
+  - The function will create a backup of each file before patching it.
+  - If a file has already been patched, it will skip that file and continue with the next one.
+  - This tool is especially helpful if updating versioned Sesi files across a project.
+*/
+export fn patchAllSesi(dir: string? = null, files: array<string>? = null) {
+    if files != null {
+        for file in files {
+            show "Patching" file "\n"
+            try {
+                patchSesi(file)
+            } catch {
+                show "File already patched.\n"
+                continue
+            }
+            
+        }
+    } else if dir != null {
+        for file in list_dir(dir) {
+            if ((dir + "/" + file | get_ext) == "sesi") {
+                show "Patching" file "\n"
+                try {
+                    patchSesi(dir + "/" + file)
+                } catch {
+                    show "File already patched.\n"
+                    continue
+                }
+            }
+        }
+    }
+}
+
+/**
+  Automatically generates and applies documentation comments to a Sesi source file.
+
+  Parameters:
+  - file: Path to the target Sesi source file.
+
+  Returns:
+  - Result status of the documentation application (e.g., success message or error).
+
+  Example:
+  ```sesi
+  autoDoc("src/main.sesi")
+  ```
+
+  Notes:
+  - Uses AI models to generate detailed documentation based on Sesi reference guidelines and applies them back to the source file.
+  - The function reads the contents of the specified Sesi source file and generates detailed documentation comments for all functions, variables (if applicable), and other relevant elements in the file.
+  - The generated documentation follows the standard Sesi documentation format, including descriptions, parameters, return values, examples, and notes.
+  - If the source file already contains documentation comments, they will be left untouched unless comments appear outdated.
+  - If the returned code contains errors, it's passed to the patchSesi() function for automatic correction.
+*/
+export fn autoDoc(file: string, modelName: string = "gemini") -> any {
+    let contents = read_file(file)
+    // Generate function comments for the given source file
+    prompt docQuery {"## SESI REFERENCE:
+"_"
+
+## TASK
+Generate detailed function/make comments and documentation header for the source code supplied by the user. 
+
+Format:
+
+/**
+  Detailed function comments for the source file. (DO NOT INCLUDE THE `fn ...` lines themselves, only the comments.)
+
+  Include descriptions for all functions, their parameters, return values, example usage, and any relevant notes. eg.:
+
+  Description of the function.
+   
+  Parameters:
+  - param1: Description of the first parameter. <- THESE MUST BE HYPEN ITEMS
+  - param2: Description of the second parameter. <- THESE MUST BE HYPEN ITEMS
+
+  Returns:
+  - Description of the return value. <- THIS MUST BE A HYPEN ITEM. If the function does not return a value, indicate it as `None.`.
+
+  Example:
+  ```sesi <- sesi code fence is automatically recognized by the system, you MUST include it.
+  // Example usage of the function, exact usage depends on function and expected workflow builtin usages
+  let result = exampleFunction(param1, param2)
+  show result // or the expected function action to perform if not `show`
+  write_file(\"output.sesi\", result) // Example of writing the result to a file. Refer to the attached SESI REFERENCE for other available functions and usage examples.
+  ``` <- end of the sesi code fence
+  Notes: <- (Optional, but reccomended for good pratice) Provide any additional information about the function. This includes expected return shapes, data types, and any other relevant details. This is a non-negotiable.
+  - Any additional notes or important information about the function.
+
+  // The following applies to variables/objects/arrays only (defined in `let` statements).
+  Fields:
+  - field1: Description of the first field.
+  - field2: Description of the second field.
+
+  Notes:
+  - Any additional notes or important information about the variable/object/array.
+
+  Output:
+  - Description of the expected/final state of the variable/object/array.
+
+  <-- IF THE FUNCTION IS NESTED WITHIN ANOTHER FUNCTION OR OBJECT LIKE A `MAKE` TEMPLATE, THE COMMENTS FOLLOW `/** ... * ... */`. USE `*` FOR EACH LINE OF COMMENT, INCLUDING NEWLINES.
+  Example of nested function comments:
+  /**
+  * Description of the nested function.
+  *
+  * Parameters:
+  * - param1: Description of the first parameter.
+  * - param2: Description of the second parameter.
+  *
+  * Returns:
+  * - Description of the return value. If the function does not return a value, indicate it as `None.`.
+  *
+  * - Notes:
+  * - Any additional notes/important information.
+  */
+  <-- END OF NESTED FUNCTION COMMENTS -->
+*/
+
+# STRICT REQUIREMENTS:
+
+YOU ARE NOT DEBUGGING CODE AT ALL.
+DO NOT LEAVE ANY FUNCTIONS UNDOCUMENTED. THIS IS A NON-NEGOTIABLE.
+DO NOT PRIORITIZE BREVITY, THESE COMMENTS ARE FOR THE USER TO UNDERSTAND HOW TO USE FUNCTIONS, MODULES, AND VARIABLES WHEN IMPORTED IN OTHER SCRIPTS OR USED WITHIN THE SAME SCRIPT.
+YOU MUST FOLLOW THE FORMAT EXACTLY AS SHOWN ABOVE OTHERWISE THE PARSER WILL FAIL TO RECOGNIZE THE COMMENTS CORRECTLY.
+    "}
+
+    prompt verify {"
+Apply each of the following function comments contained in `/**...*/` blocks to their respective functions (directly above) in the source code.
+Do not wrap the final output in additional code blocks or comments.
+    " docQuery}
+
+    try {
+        TERM.info("Generating documentation for " + file + " ...")
+        let docs = ""
+        if modelName == "gpt" {
+            try {
+                docs = model("gpt-5.6-terra") {system: docQuery, thinking: "medium", cache: false} {contents}
+            } catch (e) {
+                TERM.warning(e.message)
+                TERM.warning("Retrying with a more capable model...")
+                docs = model("gemini-3.7-flash") {system: docQuery, temp: 0.6, cache: true} {contents}
+            }
+        } else {
+            docs = model("gemini-3.7-flash") {system: docQuery, temp: 0.6, cache: true} {contents}
+        }
+        
+        TERM.info("Applying comments now...")
+        let addedComments = model("gemini-3.5-flash-lite") {system: verify, thinkingLevel: "medium"} {docs"\n"contents}
+        Safe.tempFile("sesi_test", addedComments, "sesi")
+        Safe.archiveFile("sesi_test_temp.sesi")
+        let parserCheck = patchSesi("sesi_test_temp.sesi")
+
+        if parserCheck != "No issues found." {
+            addedComments = read_file()
+        } else if len(addedComments) > len(read_file(file)) {
+            try {
+                write_file(file, addedComments)
+                TERM.success("Successfully applied!")
+                return "Success!"
+            } catch (e3) {
+                TERM.error("Error applying comments to the source file: " + e3.message)
+                return e3
+            }
+        }
+        Safe.remove("sesi_test_temp.sesi", true)
+    } catch (e) {
+        TERM.error("Error generating documentation: " + e.message)
+        return e
+    }
+}
+// Alternate documenter
+/**
+  Reads a Sesi source file, generates idiomatic documentation comments
+  for functions, object templates, and variable declarations, and writes
+  the documented version back to disk.
+
+  Parameters:
+  - `filePath`: The relative or absolute path to the target `.sesi` file.
+
+  Returns:
+  - `true` if the file was documented and saved successfully, `false` otherwise.
+
+  Example:
+  ```sesi
+  let success = autoDocumentFile("src/service.sesi")
+  if success {
+    show "Documentation completed successfully."
+  }
+  ```
+
+  Notes:
+  - Creates a safety backup of the original file via `archive()` before rewriting.
+  - Cleans markdown fences if emitted by the model.
+*/
+fn autoDocumentFile(filePath: string) -> bool {
+  if !exists(filePath) {
+    show "Error: Target file does not exist at path:" filePath
+    return false
+  }
+
+  show "Reading source file:" filePath
+  let sourceCode = ""
+  try {
+    sourceCode = read_file(filePath)
+  } catch (err) {
+    show "Failed to read file:" err
+    return false
+  }
+
+  if (sourceCode | len) == 0 {
+    show "Warning: File is empty. Nothing to document."
+    return false
+  }
+
+  // Backup the original file to .archive/
+  try {
+    archive(filePath, ".backup/" + filePath)
+    show "Created backup in .archive/ for safety."
+  } catch (err) {
+    show "Notice: Could not create archive backup:" err
+  }
+
+  prompt docPrompt {"You are an expert Sesi documentation generator. Inspect the following Sesi source code and insert idiomatic multi-line documentation comments (/** ... */) directly above each undocumented function (fn), object template (make), and major variable declaration (let).
+
+Formatting Rules:
+
+1. For Functions ('fn' / 'async fn'):
+/**
+  Brief description of what the function performs.
+
+  Parameters:
+  - `param1`: Description of parameter.
+  - `param2`: Description of parameter.
+
+  Returns:
+  - Description of the returned value.
+
+  Example:
+  ```sesi
+  let res = functionName(...)
+  ```
+*/
+
+2. For Object Templates ('make'):
+/**
+  Brief description of the template and its purpose.
+*/
+
+3. For Complex Variables ('let' with objects, arrays, or important states):
+/**
+  Description of the variable purpose.
+
+  Fields / Elements:
+  - `key1`: Explanation of field.
+
+  Notes:
+  - Additional information.
+*/
+
+4. For nested items within functions/make templates:
+/**
+*   Description
+*
+*   Paramaters:
+*   -
+*   -
+*
+*   Returns:
+*   -
+*
+*   etc...
+*/
+
+Preserve all existing code logic, imports, whitespace, and existing valid doc comments.
+Return ONLY the raw executable Sesi code. Do not wrap the response in markdown code blocks or code fences.
+
+Source Code:
+" sourceCode}
+
+  show "Generating documentation comments..."
+  let updatedCode = model("gemini-3.1-flash-lite") {temperature: 0.5} {docPrompt}
+
+  if updatedCode | is_null || (updatedCode | len) == 0 {
+    show "Failed to generate documentation from model."
+    return false
+  }
+
+  // Strip accidental markdown fences if returned by the model
+  let cleaned = updatedCode
+  if cleaned | starts_with("```sesi") {
+    cleaned = slice(cleaned, 7)
+  } else if cleaned | starts_with("```") {
+    cleaned = slice(cleaned, 3)
+  }
+
+  if cleaned | ends_with("```") {
+    cleaned = slice(cleaned, 0, (cleaned | len) - 3)
+  }
+
+  cleaned = trim(cleaned)
+
+  try {
+    write_file(filePath, cleaned)
+    show "Successfully updated and documented:" filePath
+    return true
+  } catch (err) {
+    show "Failed to write documented code back to file:" err
+    return false
+  }
+}

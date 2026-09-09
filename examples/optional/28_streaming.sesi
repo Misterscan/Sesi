@@ -6,8 +6,16 @@ Demonstrates:
    2. Handling real-time token stream chunks with callback functions.
 */
 
+/**
+  Handle a chunk of streaming output from the model.
+
+  Parameters:
+  - chunk: The chunk of text received from the model.
+
+  Returns:
+  The same chunk of text after processing.
+*/
 fn handleChunk(chunk: string) -> string {
-  // This callback is executed in real-time as chunks arrive from the model
   show "Chunk:" chunk
   return chunk
 }

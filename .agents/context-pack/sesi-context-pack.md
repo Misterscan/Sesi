@@ -1521,7 +1521,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
 
 **AI**: - speech
   - from_speech
-  - translate
   - count_tokens
   - estimate_tokens
   - estimate_cost
@@ -1535,7 +1534,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   - list_tools
 **ai**: - speech
   - from_speech
-  - translate
   - count_tokens
   - estimate_tokens
   - estimate_cost
@@ -1591,7 +1589,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
     - timeout
   **ai**: - speech
     - from_speech
-    - translate
     - count_tokens
     - estimate_tokens
     - estimate_cost
@@ -1763,7 +1760,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
     - matrix_mse
   **media**: - speech
     - from_speech
-    - translate
     - ffmpeg
     - gif
     - video
@@ -2075,7 +2071,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   - video
   - speech
   - from_speech
-  - translate
 **networking**: - web_get
   - web_send
   - listen
@@ -2177,7 +2172,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
 
 **ai_and_tokens**: - speech
   - from_speech
-  - translate
   - count_tokens
   - estimate_tokens
   - estimate_cost
@@ -2243,6 +2237,7 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   - time
   - random
 **math**: - exp
+  - floor
   - matrix_dot
   - matrix_transpose
   - matrix_add
@@ -2420,7 +2415,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
       - matrix_mse
     **media**: - speech
       - from_speech
-      - translate
       - ffmpeg
       - gif
       - video
@@ -2636,33 +2630,40 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
     - builtin_symbol_exemptions
     - unused_binding_detection
     - make_scope_self_parameter_suppression
-**game_module**: **asset_handling**: **local_assets**: Embedded as base64 data URLs.
-    **remote_assets**: Allows http, https, and data URLs.
+**game_module**: **add_on**: **install**: npm install @misterscan/sesi-game
+    **package**: @misterscan/sesi-game
+    **purpose**: Keeps Electron, Babylon.js, GUI, loaders, inspector, Havok, and packager dependencies out of core Sesi.
+  **asset_handling**: **development_path_root**: Current working directory, matching file, draw, and audio writers.
+    **gltf**: Dependency URIs are resolved, packaged, and rewritten; GLB is also supported.
+    **local_assets**: Must remain within permitted project roots and are bundled into desktop builds.
+    **packaged_path_root**: Staged application directory.
+    **remote_assets**: Downloaded during builds with redirect, timeout, size, and optional SHA-256 checks.
+    **supported_types**: - model
+      - texture
+      - environment
+      - audio
+      - font
+  **build**: **code**: Entry and transitive Sesi modules are compiled to bytecode; source is omitted.
+    **output**: Unsigned unpacked application for the current OS and architecture.
+    **overwrite_default**: false
+    **permissions**: Deny-by-default packaged-app manifest.
+  **execution**: **host**: Electron window with an allowlisted preload bridge.
+    **one_game_per_process**: true
+    **safe_mode_behavior**: Development runs and builds raise SecurityError; use sesi -l.
+    **source_graph_detection**: Recursively inspects literal Sesi imports before execution.
   **export**: createGameModule
-  **exports**: **create**: **game_methods**: **add**: **purpose**: Adds a validated game entity.
-        **build**: **purpose**: Writes a standalone HTML game file.
-        **rule**: **purpose**: Adds collision, key, timer, or bounds behavior.
-        **run**: **purpose**: Starts a local preview server and optionally opens a browser.
-      **returns**: game_object
+  **exports**: - VERSION
+    - create
+    - vec2
+    - vec3
+    - quat
+    - color
   **module_name**: std/game
-  **preview**: **host**: 127.0.0.1
-    **safe_mode_behavior**: disabled
-  **purpose**: Provides a data-driven Canvas game system that creates self-contained HTML previews or game files.
-
-  **supported_entity_shapes**: - rect
-    - circle
-    - sprite
-    - text
-  **supported_rule_actions**: - destroy
-    - spawn
-    - set
-    - addScore
-    - reverseVelocity
-    - sound
-  **supported_rule_events**: - collision
-    - key
-    - timer
-    - bounds
+  **coordinates**: **forward**: +Z
+    **handedness**: left-handed
+    **right**: +X
+    **up**: +Y
+  **purpose**: Provides an imperative Babylon-powered 3D desktop engine whose Sesi callbacks and live objects execute inside an isolated Electron host.
 **std_api**: **defaults**: **cors**: true
     **cors_origin**: *
     **docs_path**: /docs
@@ -2701,6 +2702,35 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
     - snare
     - hat
     - clap
+**std_mpc**: **effects**: - filter
+    - delay
+    - reverb
+    - compressor
+    - lofi
+    - eq
+  **functions**: - MPC.create(config = null) -> sequence
+    - MPC.project(config = null) -> sequence
+    - MPC.sequence(name, bars = 2, bpm = 90, time_sig = "4/4") -> sequence
+    - MPC.drum_kit(nameOrPreset = null) -> drum_kit
+    - MPC.program(name, type = "drum", pads = null) -> drum_kit
+    - MPC.pad(pad_number, sound = null, options = null) -> pad_config
+    - MPC.sixteen_levels(pad, mode = "velocity", options = null) -> array
+    - MPC.note_repeat(pad, rate = "1/16", bars = 1, options = null) -> array
+    - MPC.swing(events, percent = 58, grid = "1/16") -> array
+    - MPC.chop(sample, slices = 16, options = null) -> drum_kit
+    - MPC.slice(sample, slices = 16, options = null) -> drum_kit
+    - MPC.vintage(mode, sample) -> audio_sample
+    - MPC.effect(type, params = null) -> effect
+    - MPC.fx(type, params = null) -> effect
+    - MPC.sample(type_or_path, options = null) -> audio_sample
+    - MPC.song(steps, name = null) -> song
+    - MPC.render_wav(target, path = null, options = null) -> boolean
+    - MPC.render_midi(target, path = null) -> boolean
+    - MPC.play(target, options = null) -> null
+  **import**: allow "std/mpc" in as MPC
+  **vintage_modes**: - mpc60
+    - mpc3000
+    - sp1200
 **std_base64**: **functions**: - Base64.encode(value, mode = text)
     - Base64.decode(base64_text, mode = text)
   **import**: allow "std/base64" in as Base64
@@ -2750,29 +2780,63 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
     - Draw.pixel_grid(grid, palette, scale = 1, x = 0, y = 0)
     - Draw.save_png(path, width, height, background = "transparent") -> bool
   **import**: allow "std/draw" in as Draw
-**std_game**: **bounds_modes**: - clamp
-    - wrap
-    - bounce
-  **entity_shapes**: - rect
-    - circle
-    - sprite
-    - text
+**std_game**: **constants**: - Game.VERSION
   **functions**: - Game.create(config) -> game
-    - game.add(entity)
-    - game.rule(rule)
-    - game.build(path)
-    - game.run(options = null) -> handle
+    - Game.vec2(x = 0, y = 0) -> native vec2
+    - Game.vec3(x = 0, y = 0, z = 0) -> native vec3
+    - Game.quat(x = 0, y = 0, z = 0, w = 1) -> native quaternion
+    - Game.color(r = 1, g = 1, b = 1, a = 1) -> native color
+    - game.assets.add(name, type, source, options = null)
+    - game.create_scene(name, options = null) -> scene
+    - game.scene(name) -> scene|null
+    - game.activate_scene(name) -> scene
+    - game.on_start(callback)
+    - game.on_update(callback)
+    - game.on_fixed_update(callback)
+    - game.on_stop(callback)
+    - game.run(options = null)
+      - options.icon: registered texture asset name, local PNG/JPEG/ICO/ICNS path, or image data URL; defaults to Sesi placeholder icon
+    - game.build(path, options = null)
   **import**: allow "std/game" in as Game
-  **rule_actions**: - destroy
-    - spawn
-    - set
-    - addScore
-    - reverseVelocity
-    - sound
-  **rule_events**: - collision
-    - key
-    - timer
-    - bounds
+  **physics**: **body_types**: - static
+      - dynamic
+      - animated
+      - trigger
+    **opt_in**: scene.enable_physics(options)
+    **shapes**: - box
+      - sphere
+      - capsule
+      - cylinder
+      - convex_hull
+      - mesh
+  **scene_constructors**: **cameras**: - free_camera
+      - orbit_camera
+      - follow_camera
+    **gui**: - gui_text
+      - gui_image
+      - gui_button
+      - gui_panel
+      - gui_stack
+    **gui_layout**: **alignments**: - horizontal_alignment: left|center|right
+        - vertical_alignment: top|center|bottom
+      **mutable_properties**: - width
+        - height
+        - left
+        - top
+        - horizontal_alignment
+        - vertical_alignment
+    **lights**: - hemispheric_light
+      - directional_light
+      - point_light
+      - spot_light
+    **materials**: - standard_material
+      - pbr_material
+    **meshes**: - box
+      - sphere
+      - plane
+      - ground
+      - cylinder
+      - load_model
 **std_terminal**: **formatting_functions**: - Terminal.color(text, color)
     - Terminal.style(text, styles)
     - Terminal.background(text, color)
@@ -2897,6 +2961,47 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
     - midi_generation
     - soundfont_rendering
   **purpose**: WAV_synthesis_and_MIDI_generation
+**std/mpc**: **capabilities**: - akai_mpc_track_sequencing
+    - roger_linn_swing_50_75
+    - sixteen_levels_mode
+    - note_repeat_and_triplets
+    - voice_choke_groups
+    - vintage_modes_mpc60_mpc3000_sp1200
+    - air_multi_mode_effects
+    - sample_chop_shop
+    - wav_stereo_export
+    - midi_smf1_export
+  **exports**: - create
+    - project
+    - sequence
+    - drum_kit
+    - program
+    - pad
+    - sixteen_levels
+    - note_repeat
+    - swing
+    - chop
+    - slice
+    - vintage
+    - effect
+    - fx
+    - sample
+    - song
+    - render_wav
+    - render_midi
+    - play
+  **features**: - akai_mpc_workflow
+    - pad_matrix_banks
+    - roger_linn_swing
+    - sixteen_levels
+    - note_repeat
+    - choke_groups
+    - track_sequencing
+    - vintage_modes_mpc60_mpc3000_sp1200
+    - air_insert_effects
+    - wav_rendering
+    - midi_rendering
+  **purpose**: Akai_MPC_track_sequencing_and_effects
 **std/base64**: **exports**: - encode
     - decode
   **modes**: - text
@@ -3004,60 +3109,73 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   **output_formats**: - SVG
     - PNG
   **purpose**: SVG_and_pixel_PNG_rendering
-**std/game**: **description**: Data-driven Canvas game construction and browser preview.
-  **entity_shapes**: - rect
-    - circle
-    - sprite
-    - text
-  **exports**: - create
-  **features**: - entities
-    - sprite_assets
-    - rules
-    - collisions
-    - keyboard_input
-    - pointer_input
-    - scores
-    - timers
-    - browser_preview
-    - static_html_build
-    - sprites
-    - keyboard_controls
-    - collision_rules
-    - scoring
-    - HTML_export
-    - canvas_game_generation
-    - entity_management
-    - audio_effects
-    - html_build
-    - timer_rules
-    - score_tracking
-    - asset_embedding
-    - local_preview_server
-    - HTML_build_output
-  **purpose**: data_driven_canvas_game_creation
-  **rule_actions**: - destroy
-    - spawn
-    - set
-    - addScore
-    - reverseVelocity
-    - sound
-  **rule_events**: - collision
-    - key
-    - timer
-    - bounds
-  **type**: browser_canvas_game_builder
-**std/math**: **exports**: - PI
-    - E
-    - sin
-    - cos
-    - tan
-    - sqrt
-    - floor
-    - ceil
+**std/game**: **dependency**: @misterscan/sesi-game
+  **description**: Imperative Babylon-powered 3D game development in an isolated Electron desktop runtime.
+  **exports**: - VERSION
+    - create
+    - vec2
+    - vec3
+    - quat
+    - color
+  **features**: - live_native_engine_objects
+    - 3D_scenes_and_meshes
+    - glTF_and_GLB_assets
+    - WebGPU_with_WebGL2_fallback
+    - cameras_lights_standard_and_PBR_materials
+    - Havok_physics_and_collision_callbacks
+    - fixed_and_variable_lifecycle_callbacks
+    - keyboard_pointer_wheel_pointer_lock_and_gamepad_input
+    - raycasts_intersections_and_animations
+    - spatial_audio_and_Babylon_GUI
+    - app_scoped_storage
+    - unsigned_unpacked_desktop_builds
+    - deny_by_default_packaged_permissions
+  **purpose**: Imperative 3D desktop game creation and packaging.
+  **requirements**: **install**: npm install @misterscan/sesi-game
+    **local_mode**: sesi -l
+**std/math**: **exports**: - E
+    - LN10
+    - LN2
+    - LOG10E
+    - LOG2E
+    - PI
+    - SQRT1_2
+    - SQRT2
     - abs
-    - pow
-    - log
+    - acos
+    - acosh
+    - asin
+    - asinh
+    - atan
+    - atanh
+    - atan2
+    - cbrt
+    - ceil
+    - clz32
+    - cos
+    - cosh
     - exp
+    - expm1
+    - floor
+    - fround
+    - hypot
+    - imul
+    - log
+    - log1p
+    - log2
+    - log10
+    - max
+    - min
+    - pow
+    - random
+    - round
+    - sign
+    - sin
+    - sinh
+    - sqrt
+    - tan
+    - tanh
+    - trunc
 **std/terminal**: **capabilities**: - colors
     - styles
     - cursor_control
@@ -3093,77 +3211,63 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
 
 ### game_module
 
-**API**: **game.add**: **purpose**: Add a game entity
-    **supported_shapes**: - rect
-      - circle
-      - sprite
-      - text
-  **game.build**: **output**: HTML file
-  **game.rule**: **supported_actions**: - destroy
-      - spawn
-      - set
-      - addScore
-      - reverseVelocity
-      - sound
-    **supported_events**: - collision
-      - key
-      - timer
-      - bounds
-  **game.run**: **disabled_in_safe_mode**: true
-    **output**: Local preview server object
-    **preview_methods**: - url
-      - stop
-**browser_runtime_features**: - canvas_rendering
-  - keyboard_input
-  - pointer_input
-  - entity_physics
-  - gravity
-  - collision_detection
-  - entity_bounds_modes
-  - sprite_assets
-  - score_hud
-  - sound_effects
-  - timer_rules
-**capabilities**: - create canvas games from data definitions
-  - rectangle entities
-  - circle entities
-  - sprite entities
-  - text entities
-  - entity motion and gravity
-  - keyboard controls
-  - pointer input
-  - collision detection
-  - bounds handling
-  - score tracking
-  - timer rules
-  - sound effects
-  - HTML export
-  - local preview server
-**exported_function**: create
-**game_configuration**: **optional**: - title
-    - background
-    - input
-    - scores
-  **required**: - width
-    - height
-**implementation**: Native Canvas HTML runtime
+**capabilities**: - imperative live 3D scenes
+  - Babylon.js WebGPU rendering with WebGL2 fallback
+  - primitive meshes and glTF/GLB models
+  - free, orbit, and follow cameras
+  - hemispheric, directional, point, and spot lights
+  - standard and PBR materials
+  - Havok rigid-body physics and triggers
+  - keyboard, pointer, wheel, pointer-lock, and gamepad input
+  - lifecycle, input, GUI, and collision callbacks
+  - raycasts, intersections, animation, spatial audio, and Babylon GUI
+  - app-scoped key/value storage
+  - unsigned unpacked desktop application builds
+  - custom run-window/app icons with a default placeholder
+**implementation**: Optional @misterscan/sesi-game Electron, Babylon.js, and Havok runtime
 **methods**: - Game.create
-  - game.add
-  - game.rule
+  - Game.vec2
+  - Game.vec3
+  - Game.quat
+  - Game.color
+  - game.assets.add
+  - game.create_scene
+  - game.scene
+  - game.activate_scene
+  - game.on_start
+  - game.on_update
+  - game.on_fixed_update
+  - game.on_stop
   - game.build
   - game.run
 **module**: std/game
-**rule_actions**: - destroy
-  - spawn
-  - set
-  - addScore
-  - reverseVelocity
-  - sound
-**rule_events**: - collision
-  - key
-  - timer
-  - bounds
-**type**: native_data_driven_canvas_module
+**coordinates**: **forward**: +Z
+  **handedness**: left-handed
+  **right**: +X
+  **up**: +Y
+**development_asset_root**: Current working directory, identical to generated-file paths.
+**runtime_model**: - Runs the Sesi script exactly once inside an isolated Electron host.
+  - Game objects are live native handles with whitelisted mutable properties.
+  - Frame, fixed-step, input, GUI, and collision callbacks are synchronous.
+  - Start and stop callbacks may be asynchronous.
+  - Fixed ticks never overlap and callback failures pause the loop with an error overlay.
+**security**: **development_and_builds_require**: sesi -l
+  **safe_mode_behavior**: Rejects std/game before Electron is launched.
+  **window**: **context_isolation**: true
+    **navigation_and_window_creation**: denied
+    **node_integration**: false
+**version**: 2.0.0
+
+### native_object_runtime
+
+**capabilities**: - property get and set hooks
+  - nested mutable vectors, quaternions, and colors
+  - stable object and bound-method identity
+  - safe keys, values, type, and stringification integration
+  - interpreter and bytecode VM property-access parity
+  - disposed, read-only, and cross-scene validation
+  - prototype-pollution protection
+**runtime_type**: native_object
 
 ### collections
 
@@ -3321,7 +3425,11 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
 
 ### math
 
-**builtins**: - **description**: Returns Euler's number raised to x.
+**builtins**: - **description**: Rounds a number down to the nearest integer without requiring an import.
+    **name**: floor
+    **pipe_supported**: true
+    **signature**: floor(value) -> number|null
+  - **description**: Returns Euler's number raised to x.
     **name**: exp
     **pipe_supported**: true
     **signature**: exp(x) -> number
@@ -3329,18 +3437,49 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
     **name**: trunc
     **pipe_supported**: true
     **signature**: trunc(value, length = 0) -> number|string|null
-**std_math**: **constants**: - PI
-    - E
-  **functions**: - sin
-    - cos
-    - tan
-    - sqrt
-    - floor
+**std_math**: **constants**: - E
+    - LN10
+    - LN2
+    - LOG10E
+    - LOG2E
+    - PI
+    - SQRT1_2
+    - SQRT2
+  **functions**: - abs
+    - acos
+    - acosh
+    - asin
+    - asinh
+    - atan
+    - atanh
+    - atan2
+    - cbrt
     - ceil
-    - abs
-    - pow
-    - log
+    - clz32
+    - cos
+    - cosh
     - exp
+    - expm1
+    - floor
+    - fround
+    - hypot
+    - imul
+    - log
+    - log1p
+    - log2
+    - log10
+    - max
+    - min
+    - pow
+    - random
+    - round
+    - sign
+    - sin
+    - sinh
+    - sqrt
+    - tan
+    - tanh
+    - trunc
   **import**: allow "std/math" in as Math
 
 ### matrix
@@ -3757,16 +3896,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   **requirements**: **whisper**: nodejs-whisper and a downloaded Whisper model are required for local transcription.
   **returns**: Transcript text.
   **signature**: from_speech(audio_path, language = null, gemini_model = null) -> string
-- **description**: Translates text using the translate package or an optional Gemini model.
-  **name**: translate
-  **parameters**: **from_language**: Source ISO code or English language name.
-    **gemini_model**: Optional Gemini model.
-    **text**: Source text.
-    **to_language**: Target ISO code or English language name.
-  **pipe_supported**: true
-  **returns**: Translated text.
-  **signature**: translate(text, to_language, from_language = "en", gemini_model = null) -> string
-
 ---
 
 ## Compiler & VM
@@ -4379,7 +4508,7 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
       - tar
     **windows**: - PowerShell Expand-Archive
       - tar
-  **package_manager_user_agent**: Sesi-PackageManager/1.8.6
+  **package_manager_user_agent**: Sesi-PackageManager/1.9.0
   **source**: GitHub_zipball
   **source_archive**: GitHub ZIP archive
 **manifest**: sesi.json
@@ -4677,7 +4806,7 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   - media_conversion
   - non_zip_archive_access
   - std/browser
-  - std/game.run
+  - std/game development runs and builds
   - command_line_media_conversion
 **safe_mode**: **default**: true
   **effects**: - disables unrestricted_local_filesystem_access
@@ -4701,7 +4830,7 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
     - native HTTP and WebSocket servers are disabled
     - FFmpeg and media processing are disabled
     - non-ZIP archive access is disabled
-    - game preview server is disabled
+    - std/game development runs and builds are disabled
     - local_filesystem_access
     - process_execution
     - browser_launching
@@ -4794,8 +4923,8 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   - crypto
   - child_process
   - vm
-**optional_or_feature_specific**: - playwright
-  - translate
+**optional_or_feature_specific**: - @misterscan/sesi-game
+  - playwright
   - nodejs-whisper
   - smart-whisper
   - node-wav
@@ -4812,7 +4941,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   - nodejs-whisper
   - smart-whisper
   - node-wav
-  - translate
   - espeak-ng
   - cmake
 **parsing_and_conversion**: - js-yaml
@@ -4831,7 +4959,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   - js-tiktoken
   - adm-zip
   - ws
-  - translate
   - html-to-text
   - nodejs-whisper
   - smart-whisper
@@ -4854,7 +4981,6 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   - js-tiktoken
   - adm-zip
   - ws
-  - translate
   - nodejs-whisper
   - smart-whisper
   - node-wav
@@ -4900,6 +5026,11 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   - js-yaml
   - marked
   - turndown
+**game_engine**: **add_on**: @misterscan/sesi-game
+  **bundled_dependencies**: - Electron 43.4.1
+    - Babylon.js core, loaders, GUI, and inspector 9.22.1
+    - Havok 1.3.14
+    - Electron Packager
 **image_processing**: - sharp
   - image-size
 **optional_system_tools**: - ffmpeg
@@ -5042,4 +5173,3 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
     - last_ms
 
 ---
-

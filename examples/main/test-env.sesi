@@ -1,21 +1,14 @@
-allow "std/terminal" in with {color}
+allow "lib/ansi" in as TERM
 
 try {
-    let env = env()
-    show color(".env successfully loaded", "green") "
-    "
+    let geminiKey = $GEMINI_API_KEY // or GEMINI_API_KEY | env
+    let isSafeMode = $SESI_SAFE_MODE // or SESI_SAFE_MODE | env
+    let sesiPass = $SESI_PASSWORD // or SESI_PASSWORD | env
 
-    let geminiKey = env.GEMINI_API_KEY // or GEMINI_API_KEY | env
-    let isSafeMode = env.SESI_SAFE_MODE // or SESI_SAFE_MODE | env
-    let sesiPass = env.SESI_PASSWORD // or SESI_PASSWORD | env
-
-    show color("[Gemini API Key (encrypted)]:
-", "cyan") color(geminiKey, "magenta")
-    show color("[Sesi Safe Mode ?]:
-", "cyan") color(isSafeMode, "magenta")
-    show color("[Sesi Password]:
-", "cyan") color(sesiPass, "magenta")
+    TERM.badge("Gemini API Key (encrypted)", ": " + geminiKey)
+    TERM.badge("Sesi Safe Mode ?", ": " + isSafeMode)
+    TERM.badge("Sesi Password", ": " + sesiPass)
 } catch (e) {
-    show color("Warning: .env file could not be read or is not present. Please create one at the root of the project directory.", "yellow")
-    show color(str(e), "red")
+    TERM.warning("Environment variables could not be read.")
+    TERM.error(str(e))
 }

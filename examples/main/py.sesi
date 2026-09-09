@@ -1,8 +1,8 @@
 // 1. Define structured data in Sesi
 let reviews = [
-  {"id": 1, "text": "This product is absolutely amazing! Saved me hours.", "rating": 5},
-  {"id": 2, "text": "It was ok, but a bit slow to load initially.", "rating": 3},
-  {"id": 3, "text": "Terrible customer service and the app crashed instantly.", "rating": 1}
+  {id: 1, text: "This product is absolutely amazing! Saved me hours.", rating: 5},
+  {id: 2, text: "It was ok, but a bit slow to load initially.", rating: 3},
+  {id: 3, text: "Terrible customer service and the app crashed instantly.", rating: 1}
 ]
 
 show "--- Sesi: Sending data to Python ---"
@@ -48,8 +48,10 @@ let rawResult = python(pythonCode, reviews)
 let processed = from_json(rawResult)
 
 show "--- Sesi: Received Results from Python ---"
-show "Average Rating:" processed["average_rating"]
+show "Average Rating:" processed.average_rating
 
-for analysis in processed["analysis"] {
-  show "Review ID:" analysis["id"] "Rating:" analysis["rating"] "Sentiment:" analysis["sentiment"]
+for analysis in processed.analysis {
+  show "Review ID:" analysis.id "
+Rating:" analysis.rating "
+Sentiment:" analysis.sentiment
 }

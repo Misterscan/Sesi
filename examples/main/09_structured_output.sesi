@@ -18,13 +18,15 @@ let structured_data = structured_output({title: string, completed: bool})(raw_te
 show color("Title:", "yellow") color(structured_data["title"], "cyan")
 show color("Completed:", "yellow") color(str(structured_data["completed"]), "cyan")
 
-/* Sentiment analysis with structured output
-THIS IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
-COMMENTED OUT BECAUSE AI WITH FORCE THEMSELVES TO RUN IT.
+/* 
+    Sentiment analysis with structured output
+    THIS IS OPTIONAL AND NOT REQUIRED TO USE IN YOUR SCRIPTS.
 
-Structured output with model()
+    Structured output with model()
+    Example:
 let review = "This product is amazing! I love how it works. Highly recommended!"
-let sentiment = structured_output({sentiment: string, confidence: number, keywords: string})(model("gemini-3.5-flash-lite") {"Analyze the sentiment of this review and extract key information. Return JSON with: sentiment (positive/negative/neutral), confidence (0-1), keywords (comma-separated) " review})
+let sentiment = structured_output({sentiment: string, confidence: number, keywords: string})(model("gemini-3.5-flash-lite") {"Analyze the sentiment of this review and extract key information." review})
 show "Sentiment:" sentiment["sentiment"]
 show "Confidence:" sentiment["confidence"]
-show "Keywords:" sentiment["keywords"] */
+show "Keywords:" sentiment["keywords"] 
+*/

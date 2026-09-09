@@ -5,7 +5,12 @@ allow "std/time" in with {
 /*
   Convert the current date into a local readable format.
   Supports friendly aliases ("number", "name") or standard styles ("short", "medium", "long", "full").
-  Also supports locale-specific formatting (e.g., "en-US", "fr-FR", "ja-JP").
+
+  Parameters:
+  - `dateStyle`: The style in which to format the date. Can be "number", "name", or standard styles like "short", "medium", "long", "full".
+
+  Returns:
+  A string representing the current date formatted according to the specified style.
 */
 export fn getDate(dateStyle: string) -> string {
   let numerical = "short"
@@ -30,6 +35,14 @@ export fn getDate(dateStyle: string) -> string {
   Convert the current time into a local readable format.
   Supports friendly aliases ("basic", "in_ms", "detailed") or standard styles.
   Also supports locale-specific formatting (e.g., "en-US", "fr-FR", "ja-JP") and time zone specification (e.g., "America/New_York", "Europe/London").
+
+  Parameters:
+  - `timeZone`: The time zone in which to format the time (e.g., "America/New_York").
+  - `locale`: The locale to use for formatting (e.g., "en-US").
+  - `timeStyle`: The style in which to format the time. Can be "basic", "in_ms", "detailed", or standard styles.
+
+  Returns:
+  A string representing the current local time formatted according to the specified style, locale, and time zone.
 */
 export fn localTime(timeZone: string, locale: string, timeStyle: string) -> string {
   let compacted = "short"
@@ -59,6 +72,12 @@ export fn localTime(timeZone: string, locale: string, timeStyle: string) -> stri
 
 /* 
   Convert the current time into a universal readable format (UTC).
+
+  Parameters:
+  - None
+
+  Returns:
+  A string representing the current universal time (UTC) formatted in a readable style.
 */
 export fn universalTime() -> string {
   let timestamp = format(now(), {"timeZone": "UTC", "timeStyle": "medium"})
@@ -69,18 +88,28 @@ export fn universalTime() -> string {
   Format the time specifically for safe use in filenames.
   Replaces spaces, colons, and AM/PM markers to prevent filesystem errors.
   Supports locale-specific formatting and time zone specification.
+
+  Parameters:
+  - `timeZone`: The time zone in which to format the time (e.g., "America/New_York").
+  - `locale`: The locale to use for formatting (e.g., "en-US").
+
+  Returns:
+  A string representing the current time formatted in a filesystem-safe manner.
 */
 export fn formattedTime(timeZone: string, locale: string) -> string {
   let dateRef = getDate("number") // e.g., "6/4/2024"
   let timeRef = localTime(timeZone, locale, "in_ms") // e.g., "12:04:32 PM"
   
   // Sequentially sanitize the string for cross-platform filesystem safety
-  let safeTime = swap(timeRef, " ", "-")
-  let safeDate = swap(dateRef, "/", "-")
-  let safeT = swap(safeTime, ":", "-")
-  let safe = safeDate + "-" + safeT
+  fn sanitizeForFilename() -> string {
+    let safeTime = swap(timeRef, " ", "-")
+    let safeDate = swap(dateRef, "/", "-")
+    let safeT = swap(safeTime, ":", "-")
+    let safe = safeDate + "-" + safeT
   
-  return safe // e.g., "6-4-2024-12-04-32-PM"
+    return safe // e.g., "6-4-2024-12-04-32-PM"
+  }
+  return sanitizeForFilename()
 }
 
 /*

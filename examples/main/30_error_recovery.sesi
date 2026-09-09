@@ -15,10 +15,10 @@ fn flakyAction() {
 
 show "=== Executing flaky action with retry ==="
 try {
-  let result = flakyAction | retry({"max_retries": 2, "initial_delay": 100, "backoff_factor": 2.0})
+  let result = flakyAction | retry({max_retries: 2, initial_delay: 100, backoff_factor: 2.0})
   show "Result:" result
 } catch (error) {
-  show "Failed permanently with error:" error["message"]
+  show "Failed permanently with error:" error.message
 }
 
 fn slowFallback() {

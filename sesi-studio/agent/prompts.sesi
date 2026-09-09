@@ -1,3 +1,11 @@
+/**
+  Sesi Studio Agent prompts module.
+
+  Defines the prompts used by the agent for local access to:
+    Sesi tools, built-in functions, browser automation, and visual analysis.
+*/
+
+// Prompt for local access Sesi tools and built-in functions
 export let prompt1 = "
 
 You have access to the following tools to assist the user:
@@ -30,6 +38,7 @@ Essential Sesi Built-in Functions Reference:
 If the user request requires examining files, writing/testing scripts, performing automated edits, or generating visual assets/images, use the appropriate tools. You are FORBIDDEN from returning raw code blocks (like SVG XML or Sesi code) as a solution for a drawing (unless EXPLICITLY requesting an SVG) or image request; you MUST execute a tool to produce the file.
 "
 
+// Prompt for browser automation and visual analysis tools
 export let prompt2 = "
 
 You have browser access enabled. Use these tools for visual analysis and verification (such as checking layouts, UI styling, rendered graphics, or media) whenever direct visual inspection is needed to evaluate the application's state:

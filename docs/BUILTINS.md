@@ -41,9 +41,9 @@ show "Hello," name ". You are" age "years old!"
 
 ---
 
-## Speech & Translation Functions
+## Speech Functions
 
-These built-ins provide microphone transcription and text translation.
+These built-ins provide speech synthesis and microphone transcription.
 
 ### speech(text, voice = null, gemini_model = null) -> bool|string
 
@@ -78,24 +78,6 @@ show lyrics
 **Returns**: the transcript as text. `nodejs-whisper` and a downloaded model must be installed (`npx nodejs-whisper download base.en`).
 
 Pass a Gemini model as the third argument to transcribe through Gemini instead of Whisper.
-
----
-
-### translate(text, to_language, from_language = "en", gemini_model = null) -> string
-
-Translate text with the [`translate`](https://www.npmjs.com/package/translate) package. Language values can use ISO language codes or English language names.
-
-```sesi
-let greeting = translate("Good morning", "es", "en")
-let instructions = loadedFile | translate("en", "fr")
-
-show greeting
-show instructions
-```
-
-**Returns**: translated text.
-
-Pass a Gemini model as the fourth argument to translate through Gemini instead of the `translate` package.
 
 ---
 
@@ -184,8 +166,8 @@ let raw = "{\"a\": 1, \"b\": [1, 2]}"
 let obj = from_json(raw)
 let piped = raw | from_json
 
-show obj["a"]     // 1
-show piped["b"][1]   // 2
+show obj.a     // 1
+show piped.b[1]   // 2
 ```
 
 **Returns**: `any` - native Sesi primitive, array, or object, or `null` if parsing fails
@@ -472,7 +454,7 @@ The returned names can be passed directly to `model()` to enable automatic orche
 fn summarize(text: string) -> string {return "Summary: " + text}
 define_tool("summarize", summarize, "Summarize supplied text")
 
-let answer = model("gemini-3.6-flash") {tools: list_tools(), max_tool_calls: 4} {"Summarize the user's text."}
+let answer = model("gemini-3.8-flash") {tools: list_tools(), max_tool_calls: 4} {"Summarize the user's text."}
 ```
 
 Sesi derives JSON parameter schemas from the registered functions, executes model-selected calls, and sends each result back to the model until it produces final text. `tools: true` exposes every registered tool; an array of names exposes only those tools. `max_tool_calls` defaults to `8`. Sensitive system functions cannot be invoked through automatic orchestration.
@@ -488,14 +470,14 @@ and named groups.
 ```sesi
 let matches = regex("(?<word>[A-Z]+)", "IDs ABC and XYZ")
 
-show matches[0]["match"]
-show matches[0]["groups"]["word"]
+show matches[0].match
+show matches[0].groups.word
 
-let valid = regex("^[a-z]+$", "Sesi", {"mode": "test", "flags": "i"})
+let valid = regex("^[a-z]+$", "Sesi", {mode: "test", flags: "i"})
 
-let parts = "[,;]\\s*" | regex("one, two; three", {"mode": "split"})
+let parts = "[,;]\\s*" | regex("one, two; three", {mode: "split"})
 
-let cleaned = "\\s+" | regex("too   much space", {"mode": "replace", "flags": "g", "replacement": " "})
+let cleaned = "\\s+" | regex("too   much space", {mode: "replace", flags: "g", replacement: " "})
 ```
 
 Options may be a flags string such as `"i"`, or an object:
@@ -544,7 +526,7 @@ Count request tokens with the model provider's native counting endpoint.
 
 ```sesi
 let count = count_tokens("Summarize this text.", "gpt-5.6-sol")
-let gemini_count = count_tokens(text, "gemini-3.6-flash")
+let gemini_count = count_tokens(text, "gemini-3.8-flash")
 let local_count = text | count_tokens("local")
 ```
 
@@ -562,7 +544,7 @@ key.
 Estimate tokens locally without making a provider request. The options match `tokenize`; unknown and non-OpenAI model names explicitly fall back to `o200k_base`.
 
 ```sesi
-let approximate = estimate_tokens(long_text, "gemini-3.6-flash")
+let approximate = estimate_tokens(long_text, "gemini-3.8-flash")
 let guess = longer_prompt | estimate_tokens("gpt-5.6-sol")
 ```
 
@@ -577,10 +559,10 @@ Use this only when an offline approximation is acceptable. For native Gemini cou
 Estimate paid-tier text-token cost in USD. `input` and `output` may each be a token count or text.
 
 ```sesi
-let planned = estimate_cost("gemini-3.6-flash", prompt, 2000)
+let planned = estimate_cost("gemini-3.8-flash", prompt, 2000)
 
-show planned["input_tokens"]
-show planned["total_cost_usd"]
+show planned.input_tokens
+show planned.total_cost_usd
 
 // Unknown/private models can provide USD rates per one million tokens.
 let custom = "private-model" | estimate_cost(500000, 100000, {
@@ -589,9 +571,19 @@ let custom = "private-model" | estimate_cost(500000, 100000, {
 })
 ```
 
-When `input` or `output` is text, GPT models use local tokenization and Gemini models use native Gemini counting. Passing numeric counts never makes a provider request.
+When `input` or `output` is text, GPT models use local tokenization and Gemini models use native Gemini counting. For supported image models, pass the prompt and local reference image paths as an `input` array. Gemini image output sizes (`"512"`, `"1K"`, `"2K"`, or `"4K"`) are accepted as `output` where supported by that model. Passing numeric counts never makes a provider request.
 
-The result includes token counts, separate input/output costs, total cost, per-million rates, pricing source, and pricing snapshot date. Built-in GPT rates cover the current `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna` family, including the documented long-context tier. Tool fees, cache storage, audio, images, free-tier allowances, taxes, and negotiated discounts are not included.
+```sesi
+let image_cost = estimate_cost("gemini-3.1-flash-image", ["prompt text", "local_image.png"], "1K")
+show image_cost.total_cost_usd
+
+// For multiple images
+let images = ["local_image1.png", "local_image2.png"]
+let multiple_image_cost = estimate_cost("gemini-3.1-flash-image", ["prompt text", images], "1K")
+show multiple_image_cost.total_cost_usd
+```
+
+The result includes token counts, separate input/output costs, total cost, per-million rates, pricing source, and pricing snapshot date. Built-in rates include supported Gemini and GPT image models.
 
 **Returns**: `object`, or `null` for an unsupported model without custom rates
 
@@ -605,8 +597,8 @@ Return provider-reported token usage and estimated cost for the most recent `mod
 let answer = model("gpt-5.6-sol") {"Explain closures briefly."}
 let usage = model_usage()
 
-show "Tokens:" usage["total_tokens"]
-show "Estimated USD:" usage["total_cost_usd"]
+show "Tokens:" usage.total_tokens
+show "Estimated USD:" usage.total_cost_usd
 ```
 
 Token counts come from the provider response. Gemini thinking tokens are reported separately as `thinking_tokens` and included in `billable_output_tokens`, `total_tokens`, and cost. Local logic-cache hits return `cached: true`, zero tokens, and zero added cost. Cost fields are `null` when the model has no built-in pricing entry.
@@ -623,8 +615,8 @@ Converts all alphabetic characters in a string to uppercase.
 to_upper("hello")      // "HELLO"
 "hello" | to_upper
 
-to_upper("Sesi V1.8.6")  // "SESI V1.8.6"
-"Sesi V1.8.6" | to_upper
+to_upper("Sesi V1.9.0")  // "SESI V1.9.0"
+"Sesi V1.9.0" | to_upper
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -639,8 +631,8 @@ Converts all alphabetic characters in a string to lowercase.
 to_lower("SESI")      // "sesi"
 "SESI" | to_lower
 
-to_lower("Sesi V1.8.6")  // "sesi v1.8.6"
-"Sesi V1.8.6" | to_lower
+to_lower("Sesi V1.9.0")  // "sesi v1.9.0"
+"Sesi V1.9.0" | to_lower
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -763,7 +755,7 @@ obj | keys
 Get all values of an object.
 
 ```sesi
-let obj = {"name": "Alice", "age": 30}
+let obj = {name: "Alice", age: 30}
 
 values(obj)        // ["Alice", 30]
 obj | values
@@ -1006,17 +998,17 @@ open("https://code-with-sesi.netlify.app")
 open("docs/logo.png")
 "docs/logo.png" | open
 
-open("https://code-with-sesi.netlify.app", {"browser": "Google Chrome"})
-"https://code-with-sesi.netlify.app" | open({"browser": "Google Chrome"})
+"https://code-with-sesi.netlify.app", {browser: "Google Chrome"})
+"https://code-with-sesi.netlify.app" | open({browser: "Google Chrome"})
 
-open("reports/dashboard.html", {"browser": "Firefox"})
-"reports/dashboard.html" | open({"browser": "Firefox"})
+open("reports/dashboard.html", {browser: "Firefox"})
+"reports/dashboard.html" | open({browser: "Firefox"})
 
-open("notes/todo.txt", {"editor": "Visual Studio Code"})
-"notes/todo.txt" | open({"editor": "Visual Studio Code"})
+open("notes/todo.txt", {editor: "Visual Studio Code"})
+"notes/todo.txt" | open({editor: "Visual Studio Code"})
 
-open("docs/logo.png", {"image_viewer": "Preview"})
-"docs/logo.png" | open ({"image_viewer": "Preview"})
+open("docs/logo.png", {image_viewer: "Preview"})
+"docs/logo.png" | open ({image_viewer: "Preview"})
 ```
 
 **Options**:
@@ -1041,14 +1033,14 @@ Open a local file with OS default behavior, or force a preferred editor/viewer/b
 open_file("README.md")
 "README.md" | open_file
 
-open_file("README.md", {"editor": "Visual Studio Code"})
-"README.md" | open_file({"editor": "Visual Studio Code"})
+"README.md" | open_file({editor: "Visual Studio Code"})
+"README.md" | open_file({editor: "Visual Studio Code"})
 
-open_file("favicon.png", {"viewer": "Preview"})
-"favicon.png" | open_file({"viewer": "Preview"})
+open_file("favicon.png", {viewer: "Preview"})
+"favicon.png" | open_file({viewer: "Preview"})
 
-open_file("index.html", {"mode": "browser", browser: "Google Chrome"})
-"index.html" | open_file({"mode": "browser", browser: "Google Chrome"})
+open_file("index.html", {mode: "browser", browser: "Google Chrome"})
+"index.html" | open_file({mode: "browser", browser: "Google Chrome"})
 ```
 
 **Note**: Paths are resolved relative to the current working directory.
@@ -1381,9 +1373,9 @@ let args = [
 ]
 
 let result = ffmpeg(args)
-args | ffmpeg({"timeout": 5000})
+args | ffmpeg({timeout: 5000})
 
-show result["ok"] result["code"]
+show result.ok result.code
 ```
 
 Options:
@@ -1510,22 +1502,30 @@ Includes Sesi's FastAPI-style HTTP API framework with auto-generated Swagger UI 
 ```sesi
 allow "std/api" in as API
 
+/**
+  List users.
+
+ Returns every user visible to the caller.
+*/
 fn listUsers(req) {
-  return {"status": 200, "body": {"users": []}}
+  return {status: 200, body: {users: []}}
 }
+
 let app_config = {
-  "title": "Users API",
-  "version": "1.0.0",
-  "description": "A user management API"
+  title: "Users API",
+  version: "1.0.0",
+  description: "A user management API"
 }
+
 let user_config = {
-  "summary": "List users",
-  "tags": ["Users"]
+  summary: "List users",
+  tags: ["Users"]
 }
 
 let app = API.create_app(app_config)
 app_config | API.create_app
 
+app.get("/users", listUsers)
 app.get("/users", user_config, listUsers)
 "/users" | app.get(user_config, listUsers)
 
@@ -1539,13 +1539,15 @@ let server = app.listen(8080)
 
 Creates an API application instance. `config` options include `title`, `version`, `description`, and `base_path`.
 
-##### `app.get(path, schema, handler)` / `app.post` / `app.put` / `app.patch` / `app.delete`
+##### `app.get(path, handler)` / `app.get(path, schema, handler)` / `app.post` / `app.put` / `app.patch` / `app.delete`
 
-Registers an HTTP route. `schema` can define `summary`, `description`, `tags`, `query`, `body`, `response`, and `deprecated`.
+Registers an HTTP route. Comments immediately above a user-defined handler provide the generated OpenAPI `summary` (the first documentation line) and `description` (the complete documentation). This metadata remains attached when the handler is exported and imported from another Sesi module.
+
+The optional `schema` can define `summary`, `description`, `tags`, `query`, `body`, `response`, and `deprecated`. Explicit `summary` and `description` values override comment-derived documentation.
 
 ##### `app.use(middleware)`
 
-Registers a request middleware function `fn(req)`.
+Registers a request middleware function. Accepts a named function handler `handler(req)`.
 
 ##### `app.openapi()` -> `object`
 
@@ -1602,7 +1604,7 @@ freq | Audio.synth(duration, "square")
 // Save a synthesized tone to a file
 let filename = "tone.wav"
 let note = "A4"
-let opts = {"attack": 50, "release": 500}
+let opts = {attack: 50, release: 500}
 duration = 2000
 
 Audio.save(filename, note, duration, "sine", opts)
@@ -1623,24 +1625,24 @@ let h = Audio.hat(50, 0.6)     // hi-hat
 50 | Audio.hat(0.6)
 
 // or Native Physical Modeling (Drums)
-let kick = {"note": "C1", "ms": 500, "type": "kick"}
-let snare = {"note": "C4", "ms": 500, "type": "snare"}
-let hat = {"note": "G8", "ms": 250, "type": "hat", "pan": 0.3}
+let kick = {note: "C1", ms: 500, type: "kick"}
+let snare = {note: "C4", ms: 500, type: "snare"}
+let hat = {note: "G8", ms: 250, type: "hat", pan: 0.3}
 
 // Professional Sample-Based Synthesis (SoundFonts)
 let sf2Lib = "GeneralUser-GS.sf2"
 
-let piano = Audio.sf2(sf2Lib, {"instrument": 0, "gain": 1.5})
-sf2Lib | Audio.sf2({"instrument": 0, "gain": 1.5})
+let piano = Audio.sf2(sf2Lib, {instrument: 0, gain: 1.5})
+sf2Lib | Audio.sf2({instrument: 0, gain: 1.5})
 
-let string_pad = Audio.sf2(sf2Lib, {"instrument": 49})
-sf2Lib | Audio.sf2({"instrument": 49})
+let string_pad = Audio.sf2(sf2Lib, {instrument: 49})
+sf2Lib | Audio.sf2({instrument: 49})
 
 // Save a sequence (song) of notes
 let song = [
-  {"note": "C4", ms: 500, "vol": 0.8},
-  {"note": "E4", ms: 500, "pan": -0.5},
-  {"note": "G4", ms: 1000, "cutoff": 5000} // LPF Filter
+  {note: "C4", ms: 500, vol: 0.8},
+  {note: "E4", ms: 500, pan: -0.5},
+  {note: "G4", ms: 1000, cutoff: 5000} // LPF Filter
 ]
 filename = "song.wav"
 
@@ -1660,7 +1662,7 @@ let lead = [piano("C4", 500), piano("E4", 500)]
 let bass = [k, s] // or let bass = [kick, snare]
 let final_arr = [lead, bass]
 filename = "mix.wav"
-opts = {"saturate": 1.5}
+opts = {saturate: 1.5}
 
 Audio.mix(filename, final_arr, "sine", opts)
 filename | Audio.mix(final_arr, "sine", opts)
@@ -1751,7 +1753,7 @@ Saves one or more tracks (arrays of note objects/strings) directly as a standard
 
 Returns a high-level instrument constructor function bound to a specific SoundFont file.
 
-- `options`: `{"instrument": 0, "channel": 0, "gain": 1.5}`
+- `options`: `{instrument: 0, channel: 0, gain: 1.5}`
 - The returned function takes `(note, ms)` and generates a Sesi-native note object that the mixer will automatically batch-render using FluidSynth.
 
 ---
@@ -1802,6 +1804,76 @@ Converts a number of musical bars into milliseconds based on BPM and time signat
 
 ---
 
+## Akai MPC Track Sequencing & Effects (std/mpc)
+
+The `std/mpc` module brings authentic Akai MPC (Music Production Center / MIDI Production Center) hardware and software workflows to Sesi. It faithfully implements official Akai MPC controls, including 16-pad matrix banks, the Roger Linn MPC swing algorithm (50% to 75%), 16 Levels performance mode, Note Repeat with triplet divisions, voice Choke Groups, multi-track step sequencing, vintage converter modeling (MPC60, MPC3000, SP1200), AIR multi-mode insert effects, and broadcast-quality WAV and multi-track MIDI file export.
+
+```sesi
+allow "std/mpc" in as MPC
+
+// 1. Create a 2-bar 90 BPM sequence with classic 58% MPC boom-bap swing
+let seq = MPC.sequence("Boom Bap Groove", 2, 90, "4/4")
+seq.set_swing(58)
+seq.set_vintage("mpc60") // 12-bit punchy Roger Linn sound
+
+// 2. Setup 16-pad drum kit with choke group
+let kit = MPC.drum_kit("classic_boom_bap")
+kit.set_pad(1, {sound: "kick", tune: -1, level: 1.0})
+kit.set_pad(2, {sound: "rimshot", level: 0.85})
+kit.set_pad(3, {sound: "snare", tune: 1, level: 0.95})
+kit.set_pad(4, {sound: "clap", level: 0.8})
+kit.set_pad(5, {sound: "hat", mute_group: 1, level: 0.75})
+kit.set_pad(7, {sound: "open_hat", mute_group: 1, level: 0.85}) // Choked by Pad 5!
+
+// 3. Add drum track with step patterns
+let drums = seq.add_track("Drums", "drum", kit)
+drums.pattern(1, "x...x...x...x...") // Kick
+drums.pattern(3, "....x.......x...") // Snare on 2 and 4
+drums.pattern(5, "x.x.x.x.x.x.x.x.") // 16th hats with 58% swing
+
+// 4. Use 16 Levels on bass or sample
+let bass_pad = kit.get_pad(13) // 808 sub
+let bass_chromatic = MPC.sixteen_levels(bass_pad, "tune")
+
+// 5. Render directly to WAV and MIDI
+seq.render_wav("beat.wav")
+seq.render_midi("beat.mid")
+```
+
+### Core MPC Exports
+
+- **`create(config?)` / `project(config?)`**: Creates an MPC sequence workstation instance with configuration (`bpm`, `swing`, `vintage`, `bars`, `time_signature`).
+- **`sequence(name, bars?, bpm?, time_sig?)`**: Creates an MPC Sequence with configurable tempo, bar length, time signature, and track collections.
+- **`drum_kit(nameOrPreset?)` / `program(name, type?, pads?)`**: Creates an Akai MPC 16-pad drum program.
+- **`pad(pad_number, sound?, options?)`**: Creates an individual pad definition with level, pan, tune, fine cents, choke/mute group, ADR envelope, and filter settings.
+- **`sixteen_levels(pad, mode?, options?)`**: Official Akai MPC **16 Levels** mode. Spreads a sound across all 16 pads by:
+  - `"velocity"`: 16 stepped velocity gradations from 8 to 127.
+  - `"tune"`: Chromatic semitone tuning across 16 pads (-12 to +3 semitones or custom range).
+  - `"filter"`: Stepped lowpass cutoff frequencies from 200 Hz to 18,000 Hz.
+  - `"decay"`: Stepped decay times from 30 ms to 1,200 ms.
+  - `"attack"`: Stepped attack envelope from 0 ms to 500 ms.
+- **`note_repeat(pad, rate?, bars?, options?)`**: Official Akai MPC **Note Repeat** button. Generates quantized repeats at `"1/4"`, `"1/8"`, `"1/16"`, `"1/32"`, `"1/64"`, and triplet modes (`"1/4T"`, `"1/8T"`, `"1/16T"`, `"1/32T"`), with swing and optional velocity ramping (`"crescendo"`, `"decrescendo"`).
+- **`swing(events, percent?, grid?)`**: Applies the Roger Linn MPC swing algorithm (50% straight to 75% heavy swing) to note events.
+- **`chop(sampleOrPath, slices?, options?)` / `slice(...)`**: Akai MPC "Chop Shop" sample slicer. Divides audio into equal regions, transients, or beats, and automatically maps slices to Pads 1..16 with voice Choke Groups enabled.
+- **`vintage(mode, sample)`**: Emulates vintage MPC hardware converters:
+  - `"mpc60"`: 12-bit linear quantization, non-linear companding, subtle 16kHz lowpass rolloff, and transient punch.
+  - `"mpc3000"`: 16-bit 44.1kHz warm converter modeling with analog transformer curve.
+  - `"sp1200"`: 12-bit 26.04kHz downsampling with classic ring aliasing.
+- **`effect(type, params)` / `fx(type, params)`**: Defines an AIR effect processor:
+  - `"filter"`: Multi-mode filter (`"lowpass"`, `"highpass"`, `"bandpass"`), cutoff, resonance, drive.
+  - `"delay"`: Sync or ms tape delay with feedback, damping, ping-pong stereo, and dry/wet mix.
+  - `"reverb"`: Algorithmic studio reverb with room size, decay, pre-delay, and damping.
+  - `"compressor"`: VCA compressor / master limiter with threshold, ratio, attack, release, makeup gain.
+  - `"lofi"`: Bit depth reduction (4-16 bit), sample rate downsampling, clipping drive, and mix.
+  - `"eq"`: 3-band parametric EQ (low, mid, high gain in dB).
+- **`sample(type_or_path, options?)`**: Loads external WAV files or generates synthesized drum sounds (`"kick"`, `"snare"`, `"rimshot"`, `"hat"`, `"open_hat"`, `"clap"`, `"808"`, `"sub"`, `"tom"`, `"perc"`, `"shaker"`, `"crash"`, `"ride"`).
+- **`song(steps, name?)`**: Chains sequences into an arranged song with repeat counts and per-step mute overrides.
+- **`render_wav(target, path, options?)`**: Mixes and exports full stereo 44.1kHz 16-bit PCM WAV audio with choke groups, swing micro-timing, track panning, insert effects, and master limiting. Pass `"memory"` as path to return the raw sample buffer.
+- **`render_midi(target, path)`**: Exports multi-track Standard MIDI File (Type 1 SMF) preserving Akai Roger Linn swing micro-timing, velocities, and note durations.
+- **`play(target, options?)`**: Auditions sequence, song, or sample directly via system audio.
+
+---
+
 ## Drawing Functions (std/draw)
 
 The `std/draw` module provides APIs for SVG graphics and raster pixel drawing.
@@ -1811,8 +1883,8 @@ allow "std/draw" in as Draw
 
 // Setup gradients
 let config = [
-  {"offset": "0%", "color": "blue"},
-  {"offset": "100%", "color": "black"}
+  {offset: "0%", color: "blue"},
+  {offset: "100%", color: "black"}
 ]
 
 Draw.gradient("linear", "sky", config)
@@ -1832,10 +1904,10 @@ keyframes | Draw.style
 // Render shapes with styling options
 // Using piping operators here can get messy, so we reccommend the normal method.
 Draw.rect(0, 0, 100, 100, "url(#sky)")
-Draw.circle(50, 50, 40, "red", {"class": "spinner"})
+Draw.circle(50, 50, 40, "red", {class: "spinner"})
 Draw.ellipse(50, 50, 20, 10, "gold")
 Draw.polygon("30,20 85,20 90,75 25,75", "green")
-Draw.path("M 10 10 C 20 20, 40 20, 50 10", "none", {"stroke": "white", "stroke-width": 2})
+Draw.path("M 10 10 C 20 20, 40 20, 50 10", "none", {stroke: "white", "stroke-width": 2})
 
 // Get the SVG string
 let svg = Draw.render(100, 100)
@@ -1854,7 +1926,7 @@ Clears the current drawing and definition buffers.
 
 Adds a circle to the drawing.
 
-- `options` (`object`, optional): Custom SVG attributes (e.g. `{"id": "c1", "class": "pulse", "stroke-width": 2}`).
+- `options` (`object`, optional): Custom SVG attributes (e.g. `{id: "c1", class: "pulse", "stroke-width": 2}`).
 
 ### rect(x, y, width, height, fill, options = {})
 
@@ -1900,7 +1972,7 @@ Defines a linear or radial gradient in the `<defs>` section.
 
 - `type` (`string`): `"linear"` or `"radial"`.
 - `id` (`string`): The identifier to use when referencing the gradient (e.g. `"url(#my-id)"`).
-- `stops` (`array<object>`): An array of stop configurations (e.g. `[{"offset": "0%", "color": "red"}, {"offset": "100%", "color": "blue"}]`).
+- `stops` (`array<object>`): An array of stop configurations (e.g. `[{offset: "0%", color: "red"}, {offset: "100%", color: "blue"}]`).
 - `options` (`object`, optional): Custom gradient attributes.
 
 ### style(cssText)
@@ -1921,7 +1993,22 @@ Saves the formatted SVG drawing to the specified path. Return `true` on success.
 
 ### pixel(x, y, color)
 
-Sets one pixel in the raster buffer. Later calls at the same integer coordinate replace the earlier color. Colors may be common names, `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb(...)`, or `rgba(...)`.
+Sets one pixel in the raster buffer at `(x, y)`. Later calls at the same integer coordinate replace the earlier color. Colors may be common names, `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb(...)`, or `rgba(...)`.
+
+### Pixel Shape Functions (`pixel_rect`, `pixel_circle`, `pixel_line`, `pixel_ellipse`, `pixel_polygon`, `pixel_triangle`, `pixel_star`, `pixel_ring`, `pixel_arc`, `pixel_bezier`, `pixel_text`)
+
+Draws raster shape primitives directly into the raster pixel buffer:
+- `pixel_rect(x, y, w, h, color, filled = true)`
+- `pixel_circle(cx, cy, r, color, filled = true)`
+- `pixel_line(x1, y1, x2, y2, color)`
+- `pixel_ellipse(cx, cy, rx, ry, color, filled = true)`
+- `pixel_polygon(points, color, filled = true)`
+- `pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled = true)`
+- `pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled = true)`
+- `pixel_ring(cx, cy, radius, thickness, color)`
+- `pixel_arc(cx, cy, radius, startAngle, endAngle, color)`
+- `pixel_bezier(x1, y1, cx, cy, x2, y2, color)`
+- `pixel_text(x, y, text, color, scale = 1)`
 
 ### pixel_grid(grid, palette, scale = 1, x = 0, y = 0)
 
@@ -2272,7 +2359,7 @@ show port
 // Get all environment variables as an object
 let allEnvs = env()
 
-show allEnvs["HOME"]
+show allEnvs.HOME
 ```
 
 **Parameters**:
@@ -2281,6 +2368,19 @@ show allEnvs["HOME"]
 - `defaultValue` (`any`, optional): The fallback value to return if the environment variable is not defined. Defaults to `null`.
 
 **Returns**: `string` (value of the env var), `object` (all env vars if key is omitted), or the `defaultValue` if not found.
+
+#### Environment Variable Shorthand ($VAR)
+
+Sesi provides a concise syntax shorthand using `$` directly to look up environment variables:
+
+```sesi
+// Shorthand for env("USER")
+show $USER
+
+// Use in expressions and defaults
+let port = $PORT || 8080
+let home = $HOME
+```
 
 ---
 
@@ -2307,8 +2407,8 @@ Convert Unix timestamp to a human-readable string.
 ```sesi
 let timestamp = now()
 
-let formattedDate = format(timestamp, {"dateStyle": "short"})
-timestamp | format({"dateStyle": "short"})
+let formattedDate = format(timestamp, {dateStyle: "short"})
+timestamp | format({dateStyle: "short"})
 
 let formattedBasic = format(timestamp)
 timestamp | format
@@ -2356,15 +2456,15 @@ Default behavior is automatic and requires no special syntax:
 
 Each step is an object with at minimum a `"prompt"` string. Optional keys include:
 
-- `"model"` (default: `"gemini-3.5-flash-lite"`)
+- `"model"` (default: `"gemini-3.7-flash"`)
 - `"temperature"`, `"max_tokens"`, `"top_k"`, `"top_p"`
-- `"thinkingLevel"`, `"cache"`, `"search"`
+- `"thinkingLevel"`, `"cache"`, `"search"`, `"system"`
 
 ```sesi
 let steps = [{"prompt": "Summarize:"}, {"prompt": "Critique:"}, {"prompt": "Finalize:"}]
 let result = workflow(steps, "Design a landing page brief")
 
-show result["final"]
+show result.final
 ```
 
 **Returns**: `object` with keys `"input"`, `"steps"` (array of step outputs), and `"final"`.
@@ -2454,7 +2554,7 @@ Create a custom typed error object you can throw with `raise_error`.
 ```sesi
 let title = "ValidationError"
 let message = "Missing email"
-let data = {"field": "email"}
+let data = {field: "email"}
 
 let err = error_type(title, message, data)
 title | error_type(message, data)
@@ -2471,15 +2571,15 @@ Throw a custom typed error that can be handled in `try/catch`.
 
 ```sesi
 try {
-  "RateLimit" | raise_error("Too many requests", {"retryIn": 30})
-} catch (e) {show "type:" e["type"] "message:" e["message"]}
+  "RateLimit" | raise_error("Too many requests", {retryIn: 30})
+} catch (e) {show "type:" e.type "message:" e.message}
 ```
 
 You can also pass an `error_type(...)` object directly:
 
 ```sesi
-let err = error_type("ValidationError", "Invalid payload", {"field": "email"})
-"ValidationError" | error_type("Invalid payload", {"field": "email"})
+let err = error_type("ValidationError", "Invalid payload", {field: "email"})
+"ValidationError" | error_type("Invalid payload", {field: "email"})
 
 raise_error(err)
 err | raise_error
@@ -2624,17 +2724,17 @@ Embedding results are locally cached by content hash — repeated searches over 
 
 ```sesi
 memory chat {"System: You are a helpful assistant."}
-chat = chat "User: Tell me about databases"
-chat = chat "Assistant: Databases store structured data..."
-chat = chat "User: What about caching?"
-chat = chat "Assistant: Caching improves performance..."
+chat = chat + "User: Tell me about databases"
+chat = chat + "Assistant: Databases store structured data..."
+chat = chat + "User: What about caching?"
+chat = chat + "Assistant: Caching improves performance..."
 
 let results = memory_search("chat", "database storage")
 "chat" | memory_search("database storage")
 
 for item in results {
-  show "Score:" item["score"]
-  show "Text:" item["text"]
+  show "Score:" item.score
+  show "Text:" item.text
   show "---"
 }
 ```
@@ -2807,6 +2907,19 @@ Return the mean squared error across two identically shaped matrices.
 
 ## Math Functions
 
+### floor(value) -> number|null
+
+Rounds a number down to the nearest integer. `floor` is globally available and does not require importing `std/math`.
+
+```sesi
+floor(3.7)  // 3
+3.7 | floor
+```
+
+**Returns**: `number`, or `null` when the input is not numeric.
+
+---
+
 ### exp(x) -> number
 
 Returns Euler's number $e$ (approx. `2.71828`) raised to the power of $x$.
@@ -2856,17 +2969,21 @@ trunc("Hello World", 5)  // "Hello"
 
 ## Math Functions (std/math)
 
-Additional math functions are available natively by importing the `"std/math"` module:
+The `"std/math"` module exposes the complete stable JavaScript `Math` surface supported by Node.js 20+, including constants, trigonometry, logarithms, rounding, integer helpers, and variadic operations:
 
 ```sesi
 allow "std/math" in as Math
 
 show Math.sqrt(16) // 4
-16 | Math.sqrt
-
-show Math.floor(3.7) // 3
-3.7 | Math.floor
+show Math.atan2(1, 0) // 1.5707963267948966
+show Math.min(8, 3, 5) // 3
 ```
+
+Constants: `E`, `LN10`, `LN2`, `LOG10E`, `LOG2E`, `PI`, `SQRT1_2`, `SQRT2`.
+
+Functions: `abs`, `acos`, `acosh`, `asin`, `asinh`, `atan`, `atanh`, `atan2`, `cbrt`, `ceil`, `clz32`, `cos`, `cosh`, `exp`, `expm1`, `floor`, `fround`, `hypot`, `imul`, `log`, `log1p`, `log2`, `log10`, `max`, `min`, `pow`, `random`, `round`, `sign`, `sin`, `sinh`, `sqrt`, `tan`, `tanh`, `trunc`.
+
+`min`, `max`, and `hypot` accept any number of arguments. Bare `floor(value)` remains globally available without this import.
 
 ## Function Introspection
 
@@ -2950,8 +3067,8 @@ Type-checking utility functions that return a boolean indicating whether the pro
 is_array([1, 2])         // true
 [1, 2] | is_array
 
-is_object({"a": 1})      // true
-{"a": 1} | is_object
+is_object({a: 1})      // true
+{a: 1} | is_object
 
 is_string("hello")       // true
 "hello" | is_string
@@ -3229,12 +3346,44 @@ obj | keys | includes("a")
 
 ## Standard Library Modules (Supported natively in v1.x)
 
+### std/game
+
+`std/game` is Sesi's optional Babylon.js/Electron 3D desktop engine. Scenes use left-handed coordinates with Y up, `+X` right, and `+Z` forward. Development-time relative asset paths use the current working directory, matching file, drawing, and audio writers. Core Sesi provides the native-object and module bridge; install the heavyweight backend per project:
+
+```bash
+npm install @misterscan/sesi-game
+```
+
+```sesi
+allow "std/game" in as Game
+
+let game = Game.create({title: "Arena"})
+let scene = game.create_scene("main")
+let camera = scene.orbit_camera("camera", {radius: 12})
+let light = scene.hemispheric_light("light", {intensity: 0.9})
+let player = scene.box("player", {position: Game.vec3(0, 1, 0)})
+
+fn update(dt) { player.rotation.y = player.rotation.y + dt }
+game.on_update(update)
+game.run()
+```
+
+Exports: `VERSION`, `create`, `vec2`, `vec3`, `quat`, and `color`. Game services cover named scenes, explicit assets, input actions, save storage, lifecycle callbacks, run, and desktop build. `game.run({icon: "asset_name"})` sets the window/app icon from a registered texture asset or local image path; omitting it uses the default placeholder icon. Scenes provide primitives and glTF/GLB models through `load_model`, cameras, lights, Standard/PBR materials, raycasts, intersection tests, transform and loaded-model animation, spatial sound, Babylon GUI, and opt-in Havok bodies/collisions. GUI controls support live width, height, left/top offsets, and horizontal/vertical alignment.
+
+Run and build require `sesi -l`. The Electron window is isolated and packaged applications use a deny-by-default capability manifest. The complete API, installation, lifecycle, physics, permissions, and packaging reference is [GAME.md](../getting-started/GAME.md).
+
 ### std/math
 
-Includes math constants and functions: `PI`, `E`, `sin`, `cos`, `tan`, `sqrt`, `floor`, `ceil`, `abs`, `pow`, `log`, `exp`.
+Includes the complete stable JavaScript `Math` surface supported by Node.js 20+.
+
+Constants: `E`, `LN10`, `LN2`, `LOG10E`, `LOG2E`, `PI`, `SQRT1_2`, `SQRT2`.
+
+Functions: `abs`, `acos`, `acosh`, `asin`, `asinh`, `atan`, `atanh`, `atan2`, `cbrt`, `ceil`, `clz32`, `cos`, `cosh`, `exp`, `expm1`, `floor`, `fround`, `hypot`, `imul`, `log`, `log1p`, `log2`, `log10`, `max`, `min`, `pow`, `random`, `round`, `sign`, `sin`, `sinh`, `sqrt`, `tan`, `tanh`, `trunc`.
 
 ```sesi
 allow "std/math" in with {
+  PI,
+  LN2,
   sqrt,
   abs,
   floor,
@@ -3242,7 +3391,12 @@ allow "std/math" in with {
   sin,
   cos,
   tan,
-  pow
+  pow,
+  atan2,
+  min,
+  max,
+  round,
+  hypot
 }
 ```
 
@@ -3255,7 +3409,7 @@ allow "std/time" in as Time
 
 let t = Time.now()
 // Format time with a specific timezone
-let formatted = t | Time.format({"timeZone": "America/New_York", "timeStyle": "medium"})
+let formatted = t | Time.format({timeZone: "America/New_York", timeStyle: "medium"})
 show formatted // e.g. "2:27:02 AM"
 ```
 
@@ -3266,10 +3420,10 @@ JSON serialization and parsing are built in as `to_json(value)` and `from_json(t
 ```sesi
 let original = {
   "project": "Sesi",
-  "version": "1.8.6"
+  "version": "1.9.0"
 }
 let encoded = to_json(original)
-show from_json(encoded)["project"]
+show from_json(encoded).project
 ```
 
 ### std/base64
@@ -3372,34 +3526,6 @@ Screen and cursor functions write immediately and return `none`:
 - `write(text)`, `line(text?)`, `title(text)`, and `bell()`.
 - `size()` — returns `{ "columns": number, "rows": number }`; both values are `0` when unavailable.
 
-### std/game
-
-Creates data-driven 2D Canvas games for modern browsers. The generated runtime owns the animation loop; Sesi scripts describe the scene and rules rather than supplying frame callbacks.
-
-```sesi
-allow "std/game" in as Game
-
-let game = Game.create({
-  "title": "Orbit",
-  "width": 640,
-  "height": 360,
-  "background": "#101426",
-  "input": {"left": ["ArrowLeft", "a"], "right": ["ArrowRight", "d"]},
-  "scores": {"score": 0}
-})
-
-game.add({"id": "player", "shape": "rect", "x": 20, "y": 20, "width": 20, "height": 20, "color": "#64e8ff", "collider": true, "bounds": "clamp", "control": {"speed": 240}})
-game.add({"id": "orb", "shape": "circle", "x": 120, "y": 50, "radius": 12, "vx": 120, "vy": 80, "bounds": "bounce", "collider": true, "tags": ["hazard"]})
-game.rule({"event": "collision", "source": "player", "targetRef": "hazard", "action": "addScore", "score": "score", "value": -1})
-game.build("orbit.html")
-```
-
-- `Game.create(config)` requires positive `width` and `height`; it accepts `title`, `background`, `input`, and initial `scores`.
-- `game.add(entity)` accepts `rect`, `circle`, `sprite`, and `text` shapes. Rectangles and sprites require `width` and `height`; circles require `radius`. Entities may use `vx`, `vy`, `tags`, `collider`, `bounds` (`clamp`, `wrap`, or `bounce`), and keyboard `control` with `left`, `right`, `up`, `down`, and `speed`.
-- `game.rule(rule)` supports `collision`, `key`, `timer`, and `bounds` events. Actions are `destroy`, `spawn`, `set`, `addScore`, `reverseVelocity`, and `sound`. Collision rules identify the other entity with `targetRef`; timer rules use optional `every` milliseconds.
-- Local sprite/audio assets are embedded as data URLs during `build`; `http`, `https`, and `data` assets remain external.
-- `game.run({"port": 0, "open": true})` serves the game on localhost and returns a handle with `url()` and `stop()`. It is unavailable in safe mode. `game.build(path)` uses normal Sesi filesystem permission checks.
-
 ### std/browser
 
 Includes Sesi's browser automation capabilities powered by Playwright: `launch(options?)`.
@@ -3409,7 +3535,7 @@ A browser instance supports opening new pages. A page instance supports navigati
 allow "std/browser" in with {launch}
 
 // Launch browser (headless or headed)
-let browser = {"headless": true} | launch
+let browser = {headless: true} | launch
 
 // Open a new page/tab
 let page = browser.newPage()
@@ -3435,13 +3561,13 @@ let scrollX = "window.scrollX" | page.evaluate
 let b64_screenshot = page.screenshot()
 
 // Take a screenshot and save it to a file
-{"path": "screenshot.png", "fullPage": true} | page.screenshot
+{path: "screenshot.png", fullPage: true} | page.screenshot
 
 // Generate PDF (base64 and saved to file)
-{"path": "page.pdf", "format": "A4"} | page.pdf
+{path: "page.pdf", format: "A4"} | page.pdf
 
 // Wait for a selector
-"h1" | page.wait_for_selector({"state": "visible", "timeout": 5000})
+"h1" | page.wait_for_selector({state: "visible", timeout: 5000})
 
 // Wait for a specific timeout in milliseconds
 1000 | page.wait_for_timeout

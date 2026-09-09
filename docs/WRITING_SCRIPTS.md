@@ -104,10 +104,10 @@ Sesi has numbers, strings, booleans, null, arrays, and objects.
 
 ```sesi
 let scores = [10, 20, 30]
-let profile = {"name": "Ada", "role": "developer"}
+let profile = {name: "Ada", role: "developer"}
 
 show scores[0]
-show profile["name"]
+show profile.name
 ```
 
 You can update variables and object fields:
@@ -116,8 +116,8 @@ You can update variables and object fields:
 let total = 0
 total = total + 5
 
-let config = {"runs": 0}
-config["runs"] = config["runs"] + 1
+let config = {runs: 0}
+config.runs = config.runs + 1
 ```
 
 Convert values when you need a specific type:
@@ -249,6 +249,49 @@ fn format_status(name: string, ok: bool) {
 show format_status("database", true)
 ```
 
+Document public and nontrivial declarations with a comment immediately above them. Sesi uses leading comments for hover details, retains function documentation across module exports and imports, and can pass handler descriptions to modules such as `std/api`.
+
+There is no required schema; even one clear descriptive sentence is valuable. For reusable functions, prefer this consistent structure:
+
+```sesi
+/**
+  Adds two numbers.
+
+  Parameters:
+  - `a`: The first number.
+  - `b`: The second number.
+
+  Returns:
+   The sum of `a` and `b`.
+*/
+fn add(a: number, b: number) -> number {
+  return a + b
+}
+```
+
+The same leading comments can document `make` and `let` declarations. This is particularly useful when a `let` contains an array or object. Describe the collection's purpose, array item shape and ordering, and meaningful object keys and defaults.
+
+```sesi
+
+/** Collects jobs waiting to be processed. */
+make JobQueue {
+  /**
+    Runtime settings shared by API requests.
+
+    Fields:
+    - `hosts`: Ordered fallback API hosts.
+    - `retries`: Maximum attempts per request.
+  */
+  let settings = {
+    "hosts": ["https://primary.example", "https://backup.example"],
+    "retries": 3
+  }
+  
+  /** Pending job objects in insertion order. */
+  let jobs = []
+}
+```
+
 You can use functions as small task units:
 
 ```sesi
@@ -349,7 +392,7 @@ Objects are useful for configuration and structured records.
 ```sesi
 let app = {
   "name": "Sesi",
-  "version": "1.8.6"
+  "version": "1.9.0"
 }
 
 for key in keys(app) {
@@ -360,11 +403,11 @@ for key in keys(app) {
 Prefer JSON helpers when storing structured data.
 
 ```sesi
-let settings = {"theme": "dark", "limit": 20}
+let settings = {theme: "dark", limit: 20}
 let encoded = to_json(settings)
 let decoded = from_json(encoded)
 
-show decoded["theme"]
+show decoded.theme
 ```
 
 ---
@@ -382,12 +425,12 @@ Sesi provides native string utilities to format, transform, and slice text:
 - **`locate(string, sub)`**: Returns the zero-based index of the first occurrence of a substring, or `-1` if not found.
 
 ```sesi
-let original = "  Hello, Sesi V1.8.6!  "
+let original = "  Hello, Sesi V1.9.0!  "
 
-let cleaned = trim(original)                   // "Hello, Sesi V1.8.6!"
-let shouted = to_upper(cleaned)                // "HELLO, SESI V1.8.6!"
+let cleaned = trim(original)                   // "Hello, Sesi V1.9.0!"
+let shouted = to_upper(cleaned)                // "HELLO, SESI V1.9.0!"
 let part = slice(cleaned, 7, 11)               // "Sesi"
-let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V1.8.6!"
+let replaced = swap(cleaned, " ", "_")         // "Hello,_Sesi_V1.9.0!"
 let found = contains(cleaned, "Sesi")          // true
 let idx = locate(cleaned, "Sesi")             // 7
 ```
@@ -516,7 +559,7 @@ Use `web_get` for HTTP GET requests.
 let response = web_get("https://jsonplaceholder.typicode.com/posts/1")
 let post = from_json(response)
 
-show "Title:" post["title"]
+show "Title:" post.title
 ```
 
 Use `web_send` for HTTP POST requests.
@@ -604,7 +647,7 @@ show "Server starting on port:" serverPort
 
 // Retrieve all environment variables
 let allVars = env()
-show "USER environment variable:" allVars["USER"]
+show "USER environment variable:" allVars.USER
 ```
 
 ---
@@ -683,8 +726,8 @@ Use `structured_output` when the rest of your script needs reliable fields.
 let raw = "{\"title\": \"Buy milk\", \"completed\": false}"
 let task = structured_output({title: string, completed: bool})(raw)
 
-show task["title"]
-show task["completed"]
+show task.title
+show task.completed
 ```
 
 You can combine `model` and `structured_output`:
@@ -694,8 +737,8 @@ let review = "The tool is fast, but the setup was confusing."
 let result = structured_output({sentiment: string, summary: string})
   (model("gemini-3.5-flash-lite") {"Analyze this review and return JSON with sentiment and summary: "review})
 
-show result["sentiment"]
-show result["summary"]
+show result.sentiment
+show result.summary
 ```
 
 Use `workflow` for multi-step reasoning.
@@ -708,7 +751,7 @@ let steps = [
 ]
 
 let result = workflow(steps, read_file("proposal.txt"))
-show result["final"]
+show result.final
 ```
 
 Reasoning calls require a configured provider key, such as `GEMINI_API_KEY`, when you use provider-backed models.
@@ -756,7 +799,7 @@ allow "std/db" in with {db_open}
 
 show "sqrt(9):" sqrt(9)
 show "Current time:" now()
-show from_json(to_json({"ready": true}))["ready"]
+show ({ready: true} | to_json | from_json).ready
 show decode(encode("Sesi"))
 ```
 
@@ -768,11 +811,16 @@ You can import standard modules or custom library namespaces into scoped objects
 // Import entire math module under a single Namespace
 allow "std/math" in as Math
 show "PI constant:" Math.PI
+show "Angle:" Math.atan2(1, 0)
+show "Minimum:" Math.min(8, 3, 5)
+
+// floor() is also globally available without importing std/math
+show floor(3.9)
 
 // JSON conversion is built in; no module import is needed
 let original = {
   "project": "Sesi",
-  "version": "1.8.6"
+  "version": "1.9.0"
 }
 show to_json(original)
 ```
@@ -895,7 +943,7 @@ fn run_analysis() {
 }
 
 // Use retry for robust filesystem operations
-let report_path = retry(run_analysis, {"max_retries": 3, "initial_delay": 500})
+let report_path = retry(run_analysis, {max_retries: 3, initial_delay: 500})
 show "Wrote report to:" report_path
 ```
 
@@ -922,7 +970,25 @@ try {
 
 ---
 
-## 23. Practical Checklist
+## 23. 3D desktop game scripts
+
+Use `std/game` for imperative Babylon-powered desktop games. Scenes are left-handed with Y up, `+X` right, and `+Z` forward. Relative asset paths use the current working directory, matching `write_file`, `Draw.save_png`, and `Audio.save`. Install `@misterscan/sesi-game`, run scripts with `sesi -l`, keep per-frame callbacks synchronous, put deterministic motion in `on_fixed_update`, register assets explicitly, and declare only the packaged capabilities the game needs.
+
+```sesi
+allow "std/game" in as Game
+let game = Game.create({title: "Writing Guide Game"})
+let scene = game.create_scene("main")
+let camera = scene.orbit_camera("camera", {radius: 12})
+let light = scene.hemispheric_light("light")
+let player = scene.box("player")
+fn fixed(dt) { player.position.x = player.position.x + dt }
+game.on_fixed_update(fixed)
+game.run()
+```
+
+See [GAME.md](../getting-started/GAME.md) for the complete API and packaging/security model.
+
+## 24. Practical Checklist
 
 When writing a Sesi script, check these points before you call it done:
 

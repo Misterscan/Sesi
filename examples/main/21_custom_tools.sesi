@@ -29,7 +29,7 @@ show ""
 
 show "=== Calling custom tools ==="
 let raw = "Sesi can define and call custom tools at runtime."
-let normalized = tool_call(normalize_text)(raw)
-let label = tool_call(classify_length)(normalized)
+let normalized = normalize_text(raw)
+let label = classify_length(normalized)
 show "normalized -> " normalized
 show "label -> " label

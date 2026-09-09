@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Sesi** is a concise and highly legible programming language. It uses a high-performance bytecode compilation model built in TypeScript. The architecture features a compiler that lowers the AST to a flat bytecode chunk, executed by a register-based virtual machine, with the original tree-walking interpreter retained as a fallback path. The architecture is optimized for simplicity and eliminating the need for `async/await` syntax or heavy module imports. By acting as a minimal orchestration layer, Sesi allows developers to write clean, straightforward logic that natively handles background processes and API or Reasoning calls without SDK overhead.
+**Sesi** is a concise and highly legible programming language. It uses a high-performance bytecode compilation model built in TypeScript. The architecture features a compiler that lowers the AST to a flat bytecode chunk, executed by a register-based virtual machine, with the original tree-walking interpreter retained as a fallback path. The architecture is optimized for simplicity. By acting as a minimal orchestration layer, Sesi allows developers to write clean, straightforward logic that natively handles background processes and API or Reasoning calls without SDK overhead.
 
 ## Component Stack
 
@@ -235,9 +235,9 @@ ModelCallExpression (AST)
     └─ Return text to program or throw
 ```
 
-## Error Handling (V1)
+## Error Handling
 
-Sesi now has basic exception-style error handling in v1:
+Sesi has basic exception-style error handling:
 
 1. **Parse Errors**: Parser logs the error and synchronizes to continue parsing later statements.
 2. **Runtime Errors**: Interpreter errors throw and can be caught with `try/catch`.
@@ -286,7 +286,7 @@ Sesi now has basic exception-style error handling in v1:
 - **No introspection**: Can't inspect function bodies
 - **Limited error info**: Basic error messages
 
-## Future Architecture (V2+)
+## Future Architecture (V3+)
 
 ### V2 Delivered ✅
 
@@ -323,15 +323,27 @@ README.md                 # Project overview
 
 src/
 ├── types.ts              # Type definitions and AST
+├── documentation.ts      # Documentation generation and handling
 ├── lexer.ts              # Tokenization
 ├── parser.ts             # AST generation
 ├── compiler.ts           # AST → Bytecode compiler
+├── profiler.ts           # Performance profiling for Sesi code
 ├── chunk.ts              # Bytecode Chunk & OpCode definitions
 ├── vm.ts                 # Bytecode virtual machine
+├── dry-checker.ts        # Static analysis and linting for Sesi code
+├── type-checker.ts       # Type checking for Sesi code
+├── token-pricing.ts      # Token pricing and economic model
+├── html-to-text.d.ts     # HTML to plain text conversion
+├── mpc.ts                # Music and audio processing core
 ├── interpreter.ts        # Tree-walking interpreter (fallback)
 ├── ai-runtime.ts         # Gemini integration
 ├── builtins.ts           # Built-in functions
+├── native-object.ts      # Guarded live native-object property protocol
+├── game.ts               # std/game core adapter and Electron preflight
 └── index.ts              # Main entry point
+
+packages/
+└── sesi-game/            # Optional Babylon.js, Havok, Electron, and packager runtime
 
 bin/
 └── sesi.js               # CLI executable
@@ -371,8 +383,9 @@ examples/
 │   ├── 33_base64.sesi           # Base64 encoding and string encryption
 │   ├── 34_sesi_api.sesi         # SwaggerUI API setup
 │   ├── 35_speech_language.sesi  # Speech and language helpers
-│   └── 36_regex_media.sesi     # Regex and media processing
-│
+│   ├── 36_regex_media.sesi     # Regex and media processing
+│   ├── 38_game_3d_arcade.sesi    # 3D arcade game example
+│   └── 39_game_load_assets.sesi  # Game asset loading example
 └── optional/                    # Optional reasoning & advanced AI examples
     ├── 08_model_call.sesi       # Basic reasoning model calls
     ├── 10_code_generation.sesi  # Code generation logic
@@ -389,6 +402,7 @@ docs/
 ├── BUILTINS.md           # Built-in reference
 ├── CLI.md                # Comprehensive CLI & Parametric Eval guide
 ├── IMAGE_GENERATION.md   # Image generation guide
+├── VIDEO_GENERATION.md    # AI video generation guide
 ├── COMPARISON.md         # Language comparison showcase
 ├── REASONING.md          # Reasoning and simple logic guide
 └── ROADMAP.md            # Future plans

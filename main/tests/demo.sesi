@@ -6,7 +6,12 @@ NOTE: No '+' operator inside prompt block body*/
 prompt quotePrompt {"Generate a short, motivational quote for " userName ". Only return the quote text."}
 
 // Function to analyze sentiment using structured output
-fn analyzeSentiment(text: string) {return structured_output({sentiment: string, score: number, explanation: string})(model("gemini-3.1-flash-lite") {"Analyze the sentiment of the following quote, score it, and give an explanation. Return the result as JSON:" text})}
+fn analyzeSentiment(text: string) {
+    return structured_output({
+        sentiment: string,
+        score: number,
+        explanation: string
+    })(model("gemini-3.1-flash-lite") {"Analyze the sentiment of the following quote, score it, and give an explanation." text})}
 show "--- Sesi Demo ---"
 show "Hello," userName
 

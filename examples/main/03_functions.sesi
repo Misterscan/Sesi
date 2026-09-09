@@ -1,7 +1,9 @@
 // Functions
 allow "std/terminal" in with { color }
 
+// Add two numbers.
 fn add(a: number, b: number) -> number {show color(str(a + b), "green")}
+// Greet a user with a message.
 fn greet(name: string = "World") -> string {show color("Hello " + name + "!", "cyan")}
 
 add(5, 3) // or 5 | add(3)
@@ -9,6 +11,8 @@ greet()
 greet("Alice") // or "Alice" | greet
 
 // Advanced Functions
+
+// Perform basic arithmetic operations based on the operation type.
 fn calculate(operation: string, a: number, b: number) -> any {
     if operation == "add" {
         show color(str(a + b), "green")
@@ -26,8 +30,10 @@ fn calculate(operation: string, a: number, b: number) -> any {
 calculate("multiply", 5, 3) // or "multiply" | calculate(5, 3)
 
 // Define your functions and call it using a custom tool
+
+// Get the current Sesi version.
 fn getSesi() -> string {
-    return "1.8.6"
+    return "1.9.0"
 }
 
 define_tool("get-sesi", getSesi, "Get the current Sesi version")
@@ -52,6 +58,7 @@ show "Current version:" v
     7. locate: Find the first index of a substring (-1 if not found).
     8. trunc: Truncate numbers to integers or trim strings to length.
 */
+
 let numbers = [1, 2, 3, 4, 5, 6]
 show "Initial numbers:" numbers
 
@@ -59,6 +66,8 @@ show "Initial numbers:" numbers
   1. map(array, callback)
   Transform each number to its square
 */
+
+// Square a number.
 fn square(x: number) -> number {
   return x * x
 }
@@ -69,6 +78,8 @@ show "Squares (map):" squares
   2. filter(array, callback)
   Filter for even numbers
 */
+
+// Check if a number is even.
 fn isEven(x: number) -> bool {
   return x % 2 == 0
 }
@@ -77,18 +88,21 @@ show "Evens (filter):" evens
 
 /*
   3. reduce(array, callback, initialValue)
-  Sum all numbers with no initial value
+  Sum all numbers with no initial value.
 */
+
+// Get the sum of two numbers.
 fn sum(accumulator: number, x: number) -> number {
   return accumulator + x
 }
 let totalSum = reduce(numbers, sum) // or simply numbers | reduce(sum)
 show "Total Sum (reduce):" totalSum
 
-// Product of all numbers starting with initial value of 10
+// Multiply two numbers.
 fn multiply(accumulator: number, x: number) -> number {
   return accumulator * x
 }
+// Product of all numbers starting with initial value of 10
 let product = reduce(numbers, multiply, 10) // or simply numbers | reduce(multiply, 10)
 show "Product starting with 10 (reduce):" product
 
@@ -96,7 +110,9 @@ show "Product starting with 10 (reduce):" product
   4. find(array, callback)
   Find the first number greater than 4
 */
-fn greaterThanFour(x: number) -> number {
+
+// Check if a number is greater than four.
+fn greaterThanFour(x: number) -> bool {
   return x > 4
 }
 let match = find(numbers, greaterThanFour) // or simply numbers | find(greaterThanFour)
@@ -104,7 +120,7 @@ show "First match > 4 (find):" match
 
 // String functions
 
-let original = "  Hello, Sesi V1.8.6!  "
+let original = "  Hello, Sesi V1.9.0!  "
 show "Original string:" original
 
 // 1. to_upper(string)
@@ -141,8 +157,8 @@ let replaced = swap(cleaned, " ", "_") // or simply cleaned | swap(" ", "_")
 show "Replaced spaces with underscores:" replaced
 
 // 6. contains(string, sub)
-let hasVersion = contains(cleaned, "V1.8.6") // or simply cleaned | contains("V1.8.6")
-show "Contains 'V1.8.6':" hasVersion
+let hasVersion = contains(cleaned, "V1.9.0") // or simply cleaned | contains("V1.9.0")
+show "Contains 'V1.9.0':" hasVersion
 
 // 7. locate(string, sub)
 let idx = locate(cleaned, "Sesi") // or simply cleaned | locate("Sesi")
@@ -207,6 +223,8 @@ show "\n--- Function Introspection ---"
     2. arity(func): Returns the number of parameters the function expects.
     3. is_function(value): Checks if the value is a function.
 */
+
+// Sample function for introspection.
 fn sample_func(a: number, b: number) -> number { return a + b }
 show "name(sample_func):" name(sample_func)
 // or simply sample_func | name
@@ -230,7 +248,7 @@ show "\n--- Collection / Type Checks ---"
 show "is_array([1, 2]):" is_array([1, 2])
 // or simply [1, 2] | is_array
 // if !([1, 2] | is_array) {...}
-show "is_object({'a': 1}):" is_object({"a": 1})
+show "is_object({'a': 1}):" is_object({a: 1})
 // or simply ({"a": 1}) | is_object
 // if !({"a": 1} | is_object) {...}
 show "is_string('hello'):" is_string("hello")

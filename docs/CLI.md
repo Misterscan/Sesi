@@ -18,7 +18,7 @@ Sesi’s CLI is a powerful, zero-footprint environment orchestrator. It allows y
 | `sesi -r <file>`                       | AST Dump               | Yes                               | Dumps raw syntax JSON AST payload without running code.                             |
 | `sesi --ast <file>`                    | AST Visualization      | Yes                               | Prints a pretty-printed, indented hierarchical tree representation of the AST.      |
 | `sesi --tokens <file>`                 | Token Stream           | Yes                               | Prints a structured, tabular grid detailing all tokens scanned by the Lexer.        |
-| `sesi --repl`                          | Interactive REPL       | **No (Interactive)**              | Starts a live Sesi prompt session with auto-printing of evaluated expressions.      |
+| `sesi`                          | Interactive REPL       | **No (Interactive)**              | Starts a live Sesi prompt session with auto-printing of evaluated expressions.      |
 | `sesi -enc <file> -p <pass>`           | Encryption             | Yes                               | Secures a script file using AES-256 password protection.                            |
 | `sesi -c <file>`                       | Dry Run                | Yes                               | Checks syntax, compilation, undefined symbols, and unused locals without executing. |
 | `sesi -dec <file> -p <pass>`           | Decryption             | Yes                               | Decrypts an encrypted script file back to cleartext `.sesi`.                        |
@@ -116,7 +116,7 @@ sesi examples/main/01_hello.sesi -h "how can i improve this script?"
 Run the bundled chatbot directly when you need to start a new chat without conversational history context (logs are archived to chatbot/archive/):
 
 ```bash
-sesi chatbot/sesi_db_chatbot.sesi new "how do I use memory?"
+npm run sesira new "how do I use memory?"
 ```
 
 ---
@@ -125,12 +125,12 @@ sesi chatbot/sesi_db_chatbot.sesi new "how do I use memory?"
 
 Sesi runs in a safe-by-default, zero-trust sandbox. System shell commands (`exec`, `spawn`) are blocked by default. Use these CLI flags to configure safety parameters:
 
-### A. Disable Sandboxing (`-l` / `--local`)
+### A. Disable Sandboxing (`-l` / `local`)
 
 Unlocks the execution of raw system commands and allows directory whitelist escapes:
 
 ```bash
-sesi main/script.sesi --local
+sesi main/script.sesi -- local
 ```
 
 ### B. Directory Whitelisting (`-a` / `--allowed-paths`)
@@ -204,13 +204,32 @@ sesi
 Inside the REPL, any **Expression Statement** (like mathematical equations, string variables, or expressions) will auto-show its evaluated result to the terminal.
 
 ```sesi
-Sesi Interactive Terminal (v1.8.6)
-Type ".exit" or press ESC to exit.
-sesi> let x = 10
-sesi> let y = 20
-sesi> x + y
-30
-sesi> .exit
+┌─ Sesi Interactive Terminal (v1.9.0) ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│Welcome to Sesi! Type code and press Enter.                                                                                                                                                         │
+│Type .exit or press ESC to quit.                                                                                                                                                                    │
+│sesi> let x = 10                                                                                                                                                                                    │
+│sesi> let y = 20                                                                                                                                                                                    │
+│sesi> x + y                                                                                                                                                                                         │
+│=> 30                                                                                                                                                                                               │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+│                                                                                                                                                                                                    │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌─ sesi> ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│.exit                                                                                                                                                                                               │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -238,8 +257,8 @@ If you are working inside the Sesi repository, you can leverage native package m
 
 | Package Script                      | CLI Equivalence           | Description                                           |
 | :---------------------------------- | :------------------------ | :---------------------------------------------------- |
-| `npm run lint`                      | `sesi lint.sesi`          | Audits the entire workspace for errors/warnings.      |
-| `npm run lint <file>`               | `sesi lint.sesi <file>`   | Audits a single file and prints directly to terminal. |
+| `npm run lint`                      | `sesi bin/lint.sesi`      | Audits the entire workspace for errors/warnings.      |
+| `npm run lint <file>`               | `sesi bin/lint.sesi <file>`| Audits a single file and prints directly to terminal. |
 | `npm run sesi <file>`               | `sesi <file>`             | Runs the Sesi script.                                 |
 | `npm run sesi:local <file>`         | `sesi -l <file>`          | Runs a script with safe-mode disabled.                |
 | `npm run sesi:dry <file>`           | `sesi -c <file>`          | Runs a dry run of the script.                         |
@@ -247,9 +266,11 @@ If you are working inside the Sesi repository, you can leverage native package m
 | `npm run sesi:parse <file>`         | `sesi -r <file>`          | Dumps the raw AST representation.                     |
 | `npm run sesi:encrypt <file>`       | `sesi -enc <file>`        | Encrypts a file (using env password fallback).        |
 | `npm run sesi:decrypt <file>`       | `sesi -dec <file>`        | Decrypts a file (using env password fallback).        |
-| `npm run repl`                      | `sesi --repl`             | Starts the interactive Sesi REPL.                     |
+| `npm run repl`                      | `sesi`                    | Starts the interactive Sesi REPL.                     |
 | `npm run sesira "<query>"`          | `sesi -h "<query>"`       | Consults the RAG-trained Sesira assistant.            |
-| `npm run example:all`               | `sesi examples.sesi`      | Runs all examples in the examples/ directory.         |
+| `npm run sesira "<query>" <file>`   | `sesi <file> -h "<query>" `| Consults the RAG-trained Sesira assistant with file context.|
+| `npm run sesira new "<query>"`      |  N/A                 | Consults the RAG-trained Sesira assistant with a no prior conversation context.|
+| `npm run examples`                  | `sesi examples.sesi`      | Runs all examples in the examples/ directory.         |
 
 ### Usage Example
 
@@ -261,7 +282,7 @@ npm run lint
 npm run lint bad-syntax-file.sesi
 
 # Evaluate inline code
-npm run sesi:eval "show 'Sesi running via npm!'"
+npm run sesi:eval 'show "Sesi running via npm!"'
 
 # Encrypt a private script using the .env password
 npm run sesi:encrypt "my-pipeline.sesi"

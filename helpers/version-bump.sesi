@@ -23,6 +23,16 @@ Usage:
 allow "safe" in as Safe
 allow "std/terminal" in with {color}
 
+/*
+  Checks if a given file is a valid file for version bumping.
+  Valid files are those with extensions `.js`, `.md`, or `.sesi`.
+
+  Parameters:
+  - fileName: The name of the file to check.
+  
+  Returns:
+  bool: true if the file is valid for version bumping, false otherwise.
+*/
 fn isFile(fileName) {
     let hasExt = includes(fileName, ".")
     let isBinJS = ends_with(fileName, ".js")
@@ -85,6 +95,16 @@ gettingStartedFiles:
 " color(gettingStartedFiles, "cyan")"
 "
 
+/**
+  Extracts the version string from a given file.
+  The file is expected to contain a line with the format `"version": "x.y.z"`.
+
+  Parameters:
+  - fileName: The name of the file to extract the version from.
+
+  Returns:
+  string: The extracted version string, or an empty string if not found.
+*/
 fn getVersionFromFile(fileName) {
     let fileContents = Safe.read(fileName)
     let lines = split(fileContents, "\n")
@@ -138,7 +158,19 @@ if getVersionFromFile(editorsPkgJSON) == v {
     show color("Swapped "+v+" to "+toVar+" in "+editorsPkgJSON, "green")"\n"
 }
 
+/**
+  Shows a message indicating that a file was successfully swapped during the version bump process.
+
+  Parameters:
+  - file: The name of the file that was swapped.
+*/
 fn swapTag(file) {show color("Swapped "+fromVar+" to "+toVar+" in "+file, "green")"\n"}
+/**
+  Shows a message indicating that a file was skipped during the version bump process.
+
+  Parameters:
+  - file: The name of the file that was skipped.
+*/
 fn skipTag(file) {show color("Skipping file:", "yellow")file}
 
 try {

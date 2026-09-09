@@ -14,10 +14,18 @@ allow "std/browser" in with {launch}
 show "🚀 Initializing Scrape & Generate Agent..."
 
 // Register model aliases
-set_alias("agent", "gemini-3.6-flash")
+set_alias("agent", "gemini-3.7-flash")
 set_alias("search", "gemini-3.5-flash-lite")
 
-// Tool to search Google using Sesi's model with search: true
+/**
+  Tool to perform a web search using Sesi's model with search: true.
+
+  Parameters:
+  - arg: A JSON string containing the search query, or a plain string with the query.
+
+  Returns:
+  A string containing key summaries and reputable article/news URLs from the search results.
+*/
 fn web_search(arg) -> string {
   let query = arg
   let parsed = null
@@ -30,19 +38,28 @@ fn web_search(arg) -> string {
       } catch(e) {}
     }
   }
-  if parsed != null && parsed["query"] != null {
-    query = parsed["query"]
+  if parsed != null && parsed.query != null {
+    query = parsed.query
   }
   show "🔍 Searching Google for:" query
   try {
-    let result = model("search") {temperature: 0.3, search: true} {"Search the web for the following query and return key summaries along with reputable article/news URLs: " query}
+    let result = model("search") {temperature: 0.3, search: true} {"
+    Search the web for the following query and return key summaries along with reputable article/news URLs: " query}
     return result
   } catch(e) {
     return "Search failed: " + e
   }
 }
 
-// Tool to browse and scrape text content from a web page
+/**
+  Tool to browse and scrape text content from a web page.
+
+  Parameters:
+  - arg: A JSON string containing the URL to scrape, or a plain string with the URL.
+
+  Returns:
+  A string containing the extracted text content from the web page, or an error message if scraping fails.
+*/
 fn browser_scrape(arg) -> string {
   let url = arg
   let parsed = null
@@ -55,14 +72,14 @@ fn browser_scrape(arg) -> string {
       } catch(e) {}
     }
   }
-  if parsed != null && parsed["url"] != null {
-    url = parsed["url"]
+  if parsed != null && parsed.url != null {
+    url = parsed.url
   }
   
   show "🌐 Browser navigating to:" url
   let browser = null
   try {
-    browser = launch({"headless": true})
+    browser = launch({headless: true})
     let page = browser.newPage()
     page.goto(url)
     page.wait_for_timeout(2000) // Wait for content load
@@ -86,7 +103,15 @@ fn browser_scrape(arg) -> string {
   }
 }
 
-// Tool to write the generated HTML/CSS webpage to disk
+/**
+  Tool to write the generated HTML/CSS webpage to disk.
+
+  Parameters:
+  - arg: A JSON string containing the filename and code/content, or a plain string with the filename.
+
+  Returns:
+  A string indicating success or failure of the write operation.
+*/
 fn write_webpage(arg) -> string {
   try {
     let parsed = null
@@ -98,26 +123,26 @@ fn write_webpage(arg) -> string {
     if parsed == null {
       return "Failed: Invalid argument format or type."
     }
-    let filename = parsed["filename"]
+    let filename = parsed.filename
     if filename == null {
-      filename = parsed["name"]
+      filename = parsed.name
     }
     if filename == null {
-      filename = parsed["script_name"]
+      filename = parsed.script_name
     }
     if filename == null {
-      filename = parsed["filepath"]
+      filename = parsed.filepath
     }
     if filename == null {
       return "Failed: Filename key missing."
     }
     
-    let code = parsed["code"]
+    let code = parsed.code
     if code == null {
-      code = parsed["content"]
+      code = parsed.content
     }
     if code == null {
-      code = parsed["html_content"]
+      code = parsed.html_content
     }
     if code == null {
       return "Failed: Code, content, or html_content key missing."
@@ -137,12 +162,12 @@ fn write_webpage(arg) -> string {
 // Create the agent
 let scraper_agent = Agent.create({
   "model": "agent",
-  "system": "You are a research and web development assistant.
+  system: "You are a research and web development assistant.
 Use 'web_search' to search for news and URLs.
 Once you find target URLs, use 'browser_scrape' to get page contents Do not include `/` at the end of the url.
 Finally, write the generated HTML/CSS page to disk using 'write_webpage'. Make sure to include a summary of your findings in your final answer.",
-  "temperature": 0.2,
-  "tools": {
+  temperature: 0.2,
+  tools: {
     "web_search": web_search,
     "browser_scrape": browser_scrape,
     "write_webpage": write_webpage

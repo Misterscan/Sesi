@@ -10,13 +10,17 @@ numbers | push(6)
 show color("After push:", "magenta") numbers | to_json
 
 // Objects
-let person = {"name": "Alice", "age": 30, "city": "New York"}
+let person = {name: "Alice", age: 30, city: "New York"}
 show color("\nPerson:", "green") person | to_json
 show color("Name:", "green") color(person["name"], "cyan")
 
 // Array of objects
-let people = [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}, {"name": "Charlie", "age": 35}]
+let people = [
+  {name: "Alice", age: 30},
+  {name: "Bob", age: 25},
+  {name: "Charlie", age: 35}
+]
 show color("\nPeople:", "green")
 for person in people {
-  show "- " color(person["name"], "cyan", "bold") "is" color(str(person["age"]), "yellow")
+  show "- " color(person.name, "cyan", "bold") "is" color(str(person.age), "yellow")
 }

@@ -1,6 +1,15 @@
+/**
+  Sesi Studio Agent memory module.
+
+  Handles the compilation and management of Sesi documentation content,
+  including reading files from the "getting-started" directory and additional documentation files.
+*/
+
 allow "helpers/safe" in as Safe
 
+// List of documentation files in the "getting-started" directory.
 let docs_list = Safe.getFiles("getting-started")
+// Additional documentation files and their contents.
 let more_files = ""
 try {
   more_files = Safe.read("docs/WRITING_SCRIPTS.md")
@@ -11,38 +20,257 @@ try {
   show "Error reading docs:" e
 }
 docs_list = docs_list
-let sesiDocs = ""
+
+let compiled = ""
 for f_name in docs_list {
   if f_name == "optional" {
     continue
   }
   try {
     let doc_content = Safe.read("getting-started/" + f_name)
-    sesiDocs = sesiDocs + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
+    compiled = compiled + "\n\n=== DOCUMENT: " + f_name + " ===\n" + doc_content
   } catch (e) {}
 }
-export let sesiDocs = sesiDocs
+
+let expandedLibs = ""
+try {
+  expandedLibs = "=== LIB: File System (Built-in via \"helpers/safe\") ===\n" + Safe.readFile("helpers/safe.sesi")
+  expandedLibs = expandedLibs + "\n\n=== LIB: Math (via sesi install Misterscan/math) ===\n" + Safe.readFile("sesi_modules/math/main.sesi")
+  expandedLibs = expandedLibs + "\n\n=== LIB: Shell (via sesi install Misterscan/shell-automation) ===\n" + Safe.readFile("sesi_modules/shell-automation/index.sesi")
+  expandedLibs = expandedLibs + "\n\n=== LIB: Web Diagnostics (via sesi install Misterscan/AutoWebpageDiagnostics) ===\n" + Safe.readFile("sesi_modules/AutoWebpageDiagnostics/main.sesi")
+} catch (e) {}
+
+// Sesi documentation content compiled from the "getting-started" directory and additional documentation files.
+export let sesiDocs = compiled
 
 prompt mandatory {"## Mandatory Syntax Rules & Quirks
 
 - **Block Termination:** Closing braces `}` for blocks (if, while, try, model) no longer strictly require a following newline or semicolon. Condensed one-liners like `while x {x = x + 1}` are valid.
-- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `show` statements, literal strings and variables are placed sequentially naturally (e.g., `show ""User:"" name`). It's highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
+- **Prompts & Prints:** Inside `prompt` blocks, anonymous model blocks, and `show` statements, literal strings and variables are placed sequentially naturally (e.g., `show ""User:"" name`). It is highly preferred to **AVOID** use of the `+` operator in these contexts, regardless of its backwards-compatibility.
+- **No Raw Newlines in Prompt Blocks:** Raw newlines (e.g. formatting layout carriage returns) are strictly forbidden outside of string literals inside prompt blocks `{}` (e.g., between `{` and the first string, or between elements). These will be parsed as statement separators and trigger syntax errors. Write prompt blocks inline on a single line (e.g., `{""prompt text "" variable}`), or place newlines inside the double quotes of a multiline string. To include actual newlines in the **output**, place them literally inside the string quotes:
+
+```sesi
+prompt report {""Student: "" name ""
+Score: "" score ""
+Grade: A""}
+```
+
+The newline is a real line break _inside the string literal_ — not `\n`, not any escape sequence.
+
 - **Structured Output Schemas:** Keys in schemas MUST be unquoted identifiers (e.g., `{key: string}` instead of `{""key"": string}`). This is a known deviation from standard JSON objects in the Sesi parser.
-- **Object Literals:** Conversely, standard object literals `{}` DO require strictly quoted string keys (e.g., `{""name"": ""Alice""}`).
+- **Object Literals:** Conversely, standard object literals `{}` do not require quoted keys. You can write them naturally like `{name: ""Alice"", age: 30}`. Using quoted keys is optional but allowed if needed for compatibility or clarity.
 - **JSON Serialization:** Use `to_json(object)` for valid JSON output. Avoid `stringify(object)` for JSON.
-- **Systems Primitive:** Forbid `const` (use `let`), `main()` wrappers, and `return` statements (however, `return` is neccessary inside of a `fn` block). Focus on side-effects and top-level execution.
+- **Systems Primitive:** Forbid `const` (use `let`) and `main()` wrappers. `return` is valid inside `fn` blocks and at the top level; a top-level `return` stops the current script or module. Focus on side-effects and direct top-level execution.
 - **Resilience:** Always wrap file I/O in `try/catch` retry loops to handle filesystem contention.
-- **Forbidden:** Do NOT invent syntax. 
-- **Comments:** Use the correct multi-line comments style shown here:
-  ```
-  /* <- This always has to be on a seperate line from the comment text.
-    This is how you do a multi-line comment.
-    Notice it spans multiple lines.
-    Without repeating // on each line.
-  */ <- This always has to be on a seperate line from the comment text.
-  ```
-- Do not mention that you got this from a database.
-- CRITICAL: Unless the User Query explicitly names them, you are FORBIDDEN from using or mentioning model(), image(), write_image(), or workflow() in your code examples or explanation. Instead, show how to solve the user's query programmatically using native Sesi primitives (such as variables, loops, functions, lists, and standard file/HTTP/JSON builtins). Note: This restriction does not apply to executing tools like `call_image_subagent` to generate images/diagrams, or other registered tools to satisfy user requests.
+- **Multi-line Comments:** Use the `/** ... */` block comment style for multi-line comments. Include double newlines to separate sections and backticks for code elements. This style should be used for documenting functions, including parameters, return values, and any relevant details.
+
+    ```sesi
+    /**
+      Multi-line comment
+
+      Use double newlines to separate sections.
+
+      List:
+        - `item 1`
+        - `item 2`
+        - `item 3`
+    */
+    ```
+    This also applies to function comments. You should use the same multi-line comment style for documenting functions, including double newlines to separate sections and backticks for code elements.
+    Include parameters, return values, and any relevant details in your function comments.
+    Example:
+    ```
+    /**
+      Adds two numbers.
+
+      Parameters:
+      - `a`: The first number.
+      - `b`: The second number.
+
+      Returns:
+      - The sum of `a` and `b`.
+
+      Example:
+      ```sesi
+      let result = add(3, 5)
+      show \"The result is:\" result
+      ```
+
+      Notes:
+      - This function simply adds two numbers and returns the result.
+    */
+    fn add(a: number, b: number) -> number {
+      return a + b
+    }
+    ```
+
+    For comments within nested functions:
+    ```
+    /**
+      Example function with a nested function and comments.
+      Parameters:
+      - `x`: The input parameter for the example function.
+
+      Returns:
+      - `true` if the response has been answered, `false` otherwise.
+    */
+    fn exampleFunction(x: any) -> any {
+      ...
+      /** This is an example of a single-line comment within a nested function.
+      * -> **LEAVE BLANK** 
+      * Parameters:
+      *   - `y`: The input parameter for the nested function.
+      * -> **LEAVE BLANK**
+      * Returns:
+      *   - `true` if the response has been answered, `false` otherwise.
+      */
+      fn nestedFunction(y: any) {
+        ...
+      }
+    }
+
+    For comments within nested make objects:
+    /**
+      Example make template with a nested function and comments.
+      Fields:
+      - `x`: The input parameter for the example function.
+      - ...
+
+      Returns:
+      - ...
+    */
+    make Example {
+      let x = 0
+      ...
+      /** This is an example of a single-line comment within a nested function.
+      * -> **LEAVE BLANK** 
+      * Parameters:
+      *   - `self`: ...
+      *   - `y`: The input parameter for the nested function.
+      * -> **LEAVE BLANK**
+      * Returns:
+      *   - ...
+      */
+      fn nestedFunction(self, y: any) {
+        ...
+      }
+    }
+    ```
+
+    The same can be applied to other types of comments and documentation within your code and is optional, but recommended for onboarding and maintaining code clarity.
+    Example:
+    ```
+    // Retrieved response from the model.
+    let answer = ""
+
+    /**
+      Indicates whether the response has been answered.
+
+      Notes:
+      - `true` if the response has been answered, `false` otherwise.
+    */
+    let answered = false
+
+    /**
+      Parts of the response.
+
+      Array:
+      - `part1`: The first part of the response.
+      - `part2`: The second part of the response.
+      - `part3`: The third part of the response.
+    */
+    let parts = [\"part1\", \"part2\", \"part3\"]
+
+    /**
+      Template for structured data.
+
+      Object:
+      - `field1`: The first field of the template.
+        - `value1`: The value for the first field.
+      - `field2`: The second field of the template.
+        - `value2`: The value for the second field.
+      - `field3`: The third field of the template.
+        - `value3`: The value for the third field.
+    */
+    let template = {\"field1\": \"value1\", \"field2\": \"value2\", \"field3\": \"value3\"}
+    ```
+
+    - Prefer code piping when it offers better legibility and readability.
+    Example:
+    ```
+    let file = null
+    try {file = read_file(""filename"")} catch (e) {file = null}
+    if file | is_null {
+      show ""File is empty or could not be read.""
+    }
+    ```
+
+    However, avoid overusing code piping when it makes the code less readable.
+    Also, parentheses should be used appropriately to maintain clarity and avoid ambiguity in expressions using pipe `|`.
+    ```
+    if (file | len) > 0 {
+      show ""File has content.""
+    }
+
+    let fileLength = (file | len) + 1
+    let pick = (nonexistent | len) || (file | len)
+    ```
+    - Functions that return a variable as a boolean rather than a strict `bool` should explicitly state `any` as their return type.
+    - Do not mention that you got this from a database.
+    - Do not mention that you are an AI model.
+    - You must import any neccesary modules at the top before claring them in your scripts.
+    - Do not mention that you got anything from documentation, just reference it if needed.
+
+    Absolutely NO `+` usage in show statements.
+
+    Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error, they are treated as statement separators. 
+    Newlines that live inside a string literal are fine. STRICTLY FOLLOW THE PROVIDED EXAMPLES IN THE DOCUMENTATION WHERE NEWLINES ARE USED AND DO NOT INSINUATE.
+    Newlines are also permitted in function declarations and structured output, however strongly preferred when dealing with multiple parameters:
+    ```
+    fn take_action(
+      cmds: array<string>?,
+      _prompt,
+      description: string = "",
+      required: bool,
+      ext_param: string,
+      ext_param2: any = null
+    ) { ... }
+
+    let output = structured_output(
+      type: ""string"",
+      name: ""string"",
+      config: ""object"",
+      status: ""bool"",
+      ext_field: ""any"",
+      ext_field2: ""array""
+    )(raw_data)
+
+
+    prompt example {""Multi line strings are fine
+    but they MUST begin on the same line as the opening ''{'' 
+    and end on the same line as the closing ''}'' ""}
+
+    let test = model(""gemini-3.1-flash-lite"") {thinkingLevel: ""low"", maxT: 2048, cache: false, search} <-- NOTICE ITS NOT SEPARATED BY NEWLINES IN THE CONFIGURATION {example} 
+    ```
+
+    Objects do not require to be quoted in strings:
+    ```
+    let desc = ""Example text for configuration.""
+    let config = {
+      name: ""Object Test"",
+      description: desc,
+      active_state: true,
+      sub_config: {
+        testing: true,
+        code: null,
+        production: false,
+        env_path: ""base/keys.txt""
+      }
+    }
+    show config.name
+    show config.active_state
+    show config.sub_config.env_path
+    ```
 - **Tool Execution Priority:** If the task requested by the user requires performing an action (such as reading/writing a file, listing a directory, running a helper script, or generating an image/flowchart/diagram/drawing), you MUST call the appropriate registered tool (e.g. `call_image_subagent` or `draw_picture`) to perform the action.
 You are FORBIDDEN from returning raw code blocks (like SVG XML or Sesi drawing code) as a solution for a visual request unless EXPLICITLY requesting an SVG; you MUST use the tools instead. 
 You are FORBIDDEN from claiming you have completed the task or presenting a final answer without executing the necessary tool(s) first.
@@ -61,6 +289,7 @@ prompt persona { "Your name is Sesi Co-Pilot, an expert programmer for the Sesi 
 
 " mandatory "
 Here is the Sesi documentation to use for reference:
-" more_files sesiDocs }
+" more_files sesiDocs expandedLibs }
 
+// Sesi Co-Pilot context and persona.
 export let context = persona

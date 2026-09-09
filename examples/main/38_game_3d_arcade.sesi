@@ -1,0 +1,262 @@
+allow "std/game" in as Game
+
+// Create one desktop game window and one playable scene.
+let game = Game.create({
+  title: "Sesi Neon Dodge",
+  width: 1280,
+  height: 720,
+  background: "#020617"
+})
+
+let scene = game.create_scene("arena", {background: "#020617"})
+
+// An orbit camera gives the road a fixed, elevated arcade perspective.
+let camera = scene.orbit_camera("camera", {
+  alpha: -1.57,
+  beta: 0.92,
+  radius: 20,
+  target: Game.vec3(0, 0.5, 2)
+})
+
+let ambient = scene.hemispheric_light("ambient", {intensity: 0.8})
+let neon_light = scene.point_light("neon_light", {
+  position: Game.vec3(0, 6, 2),
+  color: Game.color("#22d3ee"),
+  intensity: 30,
+  range: 28
+})
+
+// Materials are reusable and can be assigned to multiple meshes.
+let road_material = scene.pbr_material("road_material", {
+  color: Game.color("#071426"),
+  metallic: 0.55,
+  roughness: 0.45
+})
+let rail_material = scene.pbr_material("rail_material", {
+  color: Game.color("#312e81"),
+  emissive: Game.color("#1e1b4b"),
+  metallic: 0.4,
+  roughness: 0.3
+})
+let player_material = scene.pbr_material("player_material", {
+  color: Game.color("#22d3ee"),
+  emissive: Game.color("#075985"),
+  metallic: 0.25,
+  roughness: 0.25
+})
+let obstacle_material = scene.pbr_material("obstacle_material", {
+  color: Game.color("#fb7185"),
+  emissive: Game.color("#881337"),
+  metallic: 0.2,
+  roughness: 0.3
+})
+let marker_material = scene.standard_material("marker_material", {
+  diffuse: Game.color("#facc15"),
+  emissive: Game.color("#854d0e")
+})
+
+// Build the road from primitives: a ground plane, rails, and lane markers.
+let road = scene.ground("road", {width: 12, height: 30})
+road.material = road_material
+
+let left_rail = scene.box("left_rail", {
+  width: 0.35,
+  height: 0.4,
+  depth: 30,
+  position: Game.vec3(-6, 0.2, 0)
+})
+left_rail.material = rail_material
+
+let right_rail = scene.box("right_rail", {
+  width: 0.35,
+  height: 0.4,
+  depth: 30,
+  position: Game.vec3(6, 0.2, 0)
+})
+right_rail.material = rail_material
+
+let marker_left = scene.box("marker_left", {
+  width: 0.12,
+  height: 0.03,
+  depth: 30,
+  position: Game.vec3(-2, 0.02, 0)
+})
+marker_left.material = marker_material
+
+let marker_right = scene.box("marker_right", {
+  width: 0.12,
+  height: 0.03,
+  depth: 30,
+  position: Game.vec3(2, 0.02, 0)
+})
+marker_right.material = marker_material
+
+// The player remains near the camera while obstacles travel toward it.
+let player = scene.box("player", {
+  width: 1.35,
+  height: 1.2,
+  depth: 1.8,
+  position: Game.vec3(0, 0.65, -7)
+})
+player.material = player_material
+
+// Stagger three hazards along the road so the player always has time to react.
+let obstacle_one = scene.box("obstacle_one", {
+  width: 1.5,
+  height: 1.3,
+  depth: 1.5,
+  position: Game.vec3(-4, 0.7, 4)
+})
+obstacle_one.material = obstacle_material
+
+let obstacle_two = scene.box("obstacle_two", {
+  width: 1.5,
+  height: 1.3,
+  depth: 1.5,
+  position: Game.vec3(0, 0.7, 10)
+})
+obstacle_two.material = obstacle_material
+
+let obstacle_three = scene.box("obstacle_three", {
+  width: 1.5,
+  height: 1.3,
+  depth: 1.5,
+  position: Game.vec3(4, 0.7, 16)
+})
+obstacle_three.material = obstacle_material
+
+let obstacles = [obstacle_one, obstacle_two, obstacle_three]
+
+// One action can have multiple keyboard bindings.
+game.input.bind("left", ["KeyA", "ArrowLeft"])
+game.input.bind("right", ["KeyD", "ArrowRight"])
+game.input.bind("restart", ["KeyR", "Space"])
+
+// GUI alignment anchors controls to the screen instead of the 3D world.
+let title_text = scene.gui_text("title", {
+  text: "NEON DODGE",
+  color: "#67e8f9",
+  width: "300px",
+  height: "48px",
+  top: "18px",
+  horizontal_alignment: "center",
+  vertical_alignment: "top"
+})
+
+let score_text = scene.gui_text("score", {
+  text: "SCORE 0",
+  color: "#f8fafc",
+  width: "220px",
+  height: "48px",
+  left: "24px",
+  top: "20px",
+  horizontal_alignment: "left",
+  vertical_alignment: "top"
+})
+
+let status_text = scene.gui_text("status", {
+  text: "A / D OR ARROW KEYS TO MOVE",
+  color: "#cbd5e1",
+  width: "520px",
+  height: "48px",
+  top: "-24px",
+  horizontal_alignment: "center",
+  vertical_alignment: "bottom"
+})
+
+let score = 0
+let speed = 7
+let game_over = false
+
+/**
+  Choose one of the road's three lane centers.
+
+  Parameters:
+  - value: Any integer used to cycle between lanes.
+
+  Returns:
+  The X coordinate for the selected lane.
+*/
+fn lane_for(value) {
+  let lane = value % 3
+  if lane == 0 { return -4 }
+  if lane == 1 { return 0 }
+  return 4
+}
+
+/**
+  Restore the player, obstacles, score, and HUD after a crash.
+*/
+fn reset_game() {
+  score = 0
+  speed = 7
+  game_over = false
+  player.position.x = 0
+  obstacle_one.position.x = -4
+  obstacle_one.position.z = 4
+  obstacle_two.position.x = 0
+  obstacle_two.position.z = 10
+  obstacle_three.position.x = 4
+  obstacle_three.position.z = 16
+  score_text.text = "SCORE 0"
+  status_text.text = "A / D OR ARROW KEYS TO MOVE"
+  status_text.color = "#cbd5e1"
+}
+
+/**
+  Advance one fixed gameplay step.
+
+  Parameters:
+  - dt: Fixed delta time in seconds.
+
+  Movement is multiplied by dt so gameplay speed is independent of frame rate.
+*/
+fn update_game(dt) {
+  if game_over {
+    if game.input.pressed("restart") { reset_game() }
+    return
+  }
+
+  let movement = 8 * dt
+  if game.input.down("left") { player.position.x = player.position.x - movement }
+  if game.input.down("right") { player.position.x = player.position.x + movement }
+  if player.position.x < -5 { player.position.x = -5 }
+  if player.position.x > 5 { player.position.x = 5 }
+
+  let index = 0
+  while index < len(obstacles) {
+    let obstacle = obstacles[index]
+    obstacle.position.z = obstacle.position.z - (speed * dt)
+    obstacle.rotation.y = obstacle.rotation.y + (2 * dt)
+
+    if obstacle.position.z < -10 {
+      // Recycle hazards that pass the player instead of creating new meshes.
+      score = score + 1
+      speed = 7 + (score * 0.18)
+      obstacle.position.z = 10 + (index * 5)
+      obstacle.position.x = lane_for(score + index)
+      score_text.text = "SCORE " + str(score)
+    }
+
+    if scene.intersects(player, obstacle) {
+      game_over = true
+      status_text.text = "CRASHED — PRESS R OR SPACE TO RESTART"
+      status_text.color = "#fb7185"
+    }
+
+    index = index + 1
+  }
+}
+
+// Fixed updates are appropriate for deterministic movement and collision checks.
+game.on_fixed_update(update_game)
+
+// Passing --build creates a desktop application; otherwise the game opens directly.
+if includes(args, "--build") {
+  let dir = "build/SesiNeonDodge/"
+  game.build(dir, {overwrite: true})
+  // Create a zip archive of the game for efficient transfers and shares.
+  zip(dir, dir + "SesiNeonDodge.zip")
+} else {
+  game.run({inspector: false})
+}

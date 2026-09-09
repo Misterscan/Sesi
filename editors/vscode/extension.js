@@ -3,6 +3,18 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
+const SESI_MATH_CONSTANTS = ['E', 'LN10', 'LN2', 'LOG10E', 'LOG2E', 'PI', 'SQRT1_2', 'SQRT2'];
+const SESI_MATH_FUNCTION_SIGNATURES = {
+    abs: 'abs(x)', acos: 'acos(x)', acosh: 'acosh(x)', asin: 'asin(x)', asinh: 'asinh(x)',
+    atan: 'atan(x)', atanh: 'atanh(x)', atan2: 'atan2(y, x)', cbrt: 'cbrt(x)', ceil: 'ceil(x)',
+    clz32: 'clz32(x)', cos: 'cos(x)', cosh: 'cosh(x)', exp: 'exp(x)', expm1: 'expm1(x)',
+    floor: 'floor(x)', fround: 'fround(x)', hypot: 'hypot(...values)', imul: 'imul(x, y)', log: 'log(x)',
+    log1p: 'log1p(x)', log2: 'log2(x)', log10: 'log10(x)', max: 'max(...values)', min: 'min(...values)',
+    pow: 'pow(x, y)', random: 'random()', round: 'round(x)', sign: 'sign(x)', sin: 'sin(x)',
+    sinh: 'sinh(x)', sqrt: 'sqrt(x)', tan: 'tan(x)', tanh: 'tanh(x)', trunc: 'trunc(x)'
+};
+const SESI_MATH_FUNCTIONS = Object.keys(SESI_MATH_FUNCTION_SIGNATURES);
+
 function getModuleSpecifierAtPosition(document, position) {
     if (isPositionInComment(document, position)) return null;
     const lineText = stripComments(document.getText()).split('\n')[position.line] || '';
@@ -195,10 +207,10 @@ function resolveSesiModule(specifier, documentPath, workspaceRoot) {
     return null;
 }
 
-function getExportsFromSesiFile(filePath) {
+function getExportsFromSesiFile(filePath, sourceText = null) {
     const exports = [];
     try {
-        const content = fs.readFileSync(filePath, 'utf-8');
+        const content = typeof sourceText === 'string' ? sourceText : fs.readFileSync(filePath, 'utf-8');
         const exportFnRegex = /\bexport\s+(async\s+)?fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/g;
         const exportLetRegex = /\bexport\s+let\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
 
@@ -213,6 +225,149 @@ function getExportsFromSesiFile(filePath) {
         // Ignore
     }
     return exports;
+}
+
+function cleanDocumentationComment(commentText) {
+    const lines = commentText
+        .split(/\r?\n/)
+        .map(line => line.replace(/^\s*\*\s?/, '').replace(/\s+$/, ''));
+
+    while (lines.length > 0 && lines[0].trim() === '') lines.shift();
+    while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
+    if (lines.length === 0) return '';
+
+    const indents = lines
+        .filter(line => line.trim() !== '')
+        .map(line => (line.match(/^\s*/) || [''])[0].length);
+    const commonIndent = indents.length > 0 ? Math.min(...indents) : 0;
+    return lines.map(line => line.slice(commonIndent)).join('\n');
+}
+
+function getModuleDocumentation(text) {
+    if (typeof text !== 'string') return '';
+
+    const source = text.replace(/^\uFEFF/, '').replace(/^\s*/, '');
+    if (source.startsWith('/*')) {
+        const end = source.indexOf('*/', 2);
+        if (end < 0) return '';
+        return cleanDocumentationComment(source.slice(2, end));
+    }
+
+    if (!source.startsWith('//')) return '';
+    const commentLines = [];
+    for (const line of source.split(/\r?\n/)) {
+        const match = line.match(/^\s*\/\/\/?\s?(.*)$/);
+        if (!match) break;
+        commentLines.push(match[1]);
+    }
+    return cleanDocumentationComment(commentLines.join('\n'));
+}
+
+function readSesiModuleSource(filePath) {
+    const openDocuments = vscode.workspace && Array.isArray(vscode.workspace.textDocuments)
+        ? vscode.workspace.textDocuments
+        : [];
+    const openDocument = openDocuments.find(candidate => candidate.uri.fsPath === filePath);
+    if (openDocument) return openDocument.getText();
+
+    try {
+        return fs.readFileSync(filePath, 'utf8');
+    } catch (error) {
+        return null;
+    }
+}
+
+function appendLocalModuleHover(markdown, specifier, resolved) {
+    const sourceText = readSesiModuleSource(resolved.path);
+    const documentation = getModuleDocumentation(sourceText);
+
+    markdown.appendMarkdown(`### Module: \`${specifier}\`\n\n`);
+    if (documentation) {
+        markdown.appendText(documentation);
+        markdown.appendMarkdown('\n\n');
+    }
+    markdown.appendMarkdown(`*Type:* Local Sesi Module  \n`);
+    markdown.appendMarkdown(`*Path:* \`${resolved.path}\`  \n`);
+    markdown.appendMarkdown(`*Resolved in:* \`${resolved.searchDir}\`\n\n`);
+
+    const exportsList = getExportsFromSesiFile(resolved.path, sourceText);
+    if (exportsList.length > 0) {
+        markdown.appendMarkdown('**Exports:**\n');
+        for (const exp of exportsList) {
+            if (exp.type === 'function') {
+                markdown.appendMarkdown(`* \`${exp.isAsync ? 'async fn' : 'fn'} ${exp.name}(${exp.params})\`\n`);
+            } else {
+                markdown.appendMarkdown(`* \`let ${exp.name}\`\n`);
+            }
+        }
+    } else {
+        markdown.appendMarkdown('*No exports found in file.*');
+    }
+}
+
+function findExportDefinitionInText(text, exportName) {
+    const tokens = tokenize(text);
+    for (let i = 0; i < tokens.length; i++) {
+        if (tokens[i].type !== 'EXPORT') continue;
+
+        let cursor = i + 1;
+        if (tokens[cursor] && tokens[cursor].type === 'ASYNC') cursor++;
+        const declarationKeyword = tokens[cursor];
+        if (!declarationKeyword || !['FN', 'MAKE', 'LET'].includes(declarationKeyword.type)) continue;
+
+        const nameToken = tokens[cursor + 1];
+        if (!nameToken || nameToken.type !== 'IDENTIFIER' || nameToken.lexeme !== exportName) continue;
+
+        const declaration = {
+            token: nameToken,
+            type: declarationKeyword.type === 'LET' ? 'variable' : 'function',
+            readCount: 0
+        };
+        return {
+            token: nameToken,
+            declaration,
+            details: getDeclarationDetails(text, tokens, declaration)
+        };
+    }
+    return null;
+}
+
+function findMakeMemberDefinitionInText(text, makeName, memberName) {
+    const tokens = tokenize(text);
+    for (let i = 0; i < tokens.length - 1; i++) {
+        if (tokens[i].type !== 'MAKE' || tokens[i + 1].lexeme !== makeName) continue;
+
+        let openingBrace = i + 2;
+        while (openingBrace < tokens.length && tokens[openingBrace].lexeme !== '{') openingBrace++;
+        if (openingBrace >= tokens.length) return null;
+        const closingBrace = findMatchingToken(tokens, openingBrace, '{', '}');
+        if (closingBrace < 0) return null;
+
+        let depth = 1;
+        for (let cursor = openingBrace + 1; cursor < closingBrace; cursor++) {
+            const current = tokens[cursor];
+            if (current.lexeme === '{') {
+                depth++;
+                continue;
+            }
+            if (current.lexeme === '}') {
+                depth--;
+                continue;
+            }
+            if (depth !== 1 || current.type !== 'FN') continue;
+
+            const nameToken = tokens[cursor + 1];
+            if (!nameToken || nameToken.type !== 'IDENTIFIER' || nameToken.lexeme !== memberName) continue;
+            const declaration = { token: nameToken, type: 'function', readCount: 0 };
+            return {
+                token: nameToken,
+                declaration,
+                details: getDeclarationDetails(text, tokens, declaration),
+                makeName
+            };
+        }
+    }
+    return null;
 }
 
 function stripComments(text) {
@@ -318,7 +473,7 @@ function tokenize(text) {
     ]);
 
     const stripped = stripComments(text);
-    const tokenRegex = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b[a-zA-Z_][a-zA-Z0-9_]*\b|[{}[\](),;.:=+\-*/%&|!<>]/g;
+    const tokenRegex = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b\d+(?:\.\d+)?\b|\$[a-zA-Z_][a-zA-Z0-9_]*|\b[a-zA-Z_][a-zA-Z0-9_]*\b|->|[{}[\](),;.:?=+\-*/%&|!<>]/g;
     let match;
     const lineOffsets = [];
     
@@ -354,6 +509,8 @@ function tokenize(text) {
         let type = 'PUNCTUATION';
         if (lexeme.startsWith('"') || lexeme.startsWith("'")) {
             type = 'STRING';
+        } else if (lexeme.startsWith('$')) {
+            type = 'ENV_LOOKUP';
         } else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(lexeme)) {
             if (keywords.has(lexeme)) {
                 type = lexeme.toUpperCase();
@@ -367,12 +524,641 @@ function tokenize(text) {
         tokens.push({
             type,
             lexeme,
+            offset,
             line: pos.line,
             col: pos.col,
             length: lexeme.length
         });
     }
     return tokens;
+}
+
+/**
+ * Find Sesi string literals whose values are executed by python() or js().
+ *
+ * This deliberately performs a small, conservative data-flow pass instead of
+ * relying on variable names. It understands direct arguments, pipe calls,
+ * simple assignments, and aliases. When a value can flow to both runtimes it
+ * is left unclassified rather than applying misleading highlighting.
+ */
+function findEmbeddedCodeRanges(text) {
+    const tokens = [];
+    let i = 0;
+
+    while (i < text.length) {
+        const char = text[i];
+        if (/\s/.test(char)) {
+            i++;
+            continue;
+        }
+        if (char === '/' && text[i + 1] === '/') {
+            i += 2;
+            while (i < text.length && text[i] !== '\n') i++;
+            continue;
+        }
+        if (char === '/' && text[i + 1] === '*') {
+            i += 2;
+            while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++;
+            i = Math.min(text.length, i + 2);
+            continue;
+        }
+        if (char === '"' || char === "'") {
+            const quote = char;
+            const start = i++;
+            while (i < text.length) {
+                if (text[i] === '\\') {
+                    i += Math.min(2, text.length - i);
+                    continue;
+                }
+                if (text[i] === quote) {
+                    i++;
+                    break;
+                }
+                i++;
+            }
+            const end = i;
+            tokens.push({ type: 'string', value: text.slice(start, end), start, end, contentStart: start + 1, contentEnd: Math.max(start + 1, end - 1) });
+            continue;
+        }
+        if (/[A-Za-z_]/.test(char)) {
+            const start = i++;
+            while (i < text.length && /[A-Za-z0-9_]/.test(text[i])) i++;
+            tokens.push({ type: 'identifier', value: text.slice(start, i), start, end: i });
+            continue;
+        }
+        tokens.push({ type: 'punctuation', value: char, start: i, end: i + 1 });
+        i++;
+    }
+
+    const languagesByVariable = new Map();
+    const assignments = [];
+    const directRanges = [];
+    const addLanguage = (name, language) => {
+        if (!name) return false;
+        let languages = languagesByVariable.get(name);
+        if (!languages) {
+            languages = new Set();
+            languagesByVariable.set(name, languages);
+        }
+        const oldSize = languages.size;
+        languages.add(language);
+        return languages.size !== oldSize;
+    };
+    const addOperand = (token, language, direct = false) => {
+        if (!token) return;
+        if (token.type === 'string') directRanges.push({ token, language, direct });
+        else if (token.type === 'identifier') addLanguage(token.value, language);
+    };
+
+    for (let index = 0; index < tokens.length; index++) {
+        const token = tokens[index];
+        if (token.type === 'identifier' && (token.value === 'python' || token.value === 'js') && tokens[index + 1]?.value === '(') {
+            addOperand(tokens[index + 2], token.value === 'python' ? 'python' : 'javascript', true);
+        }
+        if (token.value === '|' && tokens[index + 1]?.type === 'identifier' && (tokens[index + 1].value === 'python' || tokens[index + 1].value === 'js')) {
+            addOperand(tokens[index - 1], tokens[index + 1].value === 'python' ? 'python' : 'javascript');
+        }
+
+        if (token.type !== 'identifier' || tokens[index + 1]?.value !== '=') continue;
+        const previous = tokens[index - 1];
+        if (previous?.value === '.') continue;
+        const rhs = tokens[index + 2];
+        if (rhs?.type === 'string' || rhs?.type === 'identifier') {
+            assignments.push({ name: token.value, value: rhs });
+        }
+    }
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const assignment of assignments) {
+            const languages = languagesByVariable.get(assignment.name);
+            if (!languages) continue;
+            if (assignment.value.type === 'identifier') {
+                for (const language of languages) changed = addLanguage(assignment.value.value, language) || changed;
+            }
+        }
+    }
+
+    const ranges = [...directRanges];
+    for (const assignment of assignments) {
+        if (assignment.value.type !== 'string') continue;
+        const languages = languagesByVariable.get(assignment.name);
+        if (languages?.size === 1) ranges.push({ token: assignment.value, language: [...languages][0] });
+    }
+
+    const seen = new Set();
+    return ranges
+        .filter(({ token, language }) => {
+            const key = `${token.contentStart}:${token.contentEnd}:${language}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .sort((left, right) => left.token.contentStart - right.token.contentStart)
+        .map(({ token, language, direct = false }) => ({
+            language,
+            direct,
+            start: token.contentStart,
+            end: token.contentEnd,
+            text: text.slice(token.contentStart, token.contentEnd)
+        }));
+}
+
+const EMBEDDED_TOKEN_KINDS = [
+    'Comment', 'String', 'Keyword', 'Storage', 'Number', 'Regexp',
+    'Operator', 'Type', 'Function', 'Variable', 'Class'
+];
+const EMBEDDED_SEMANTIC_TOKEN_TYPES = [
+    ...EMBEDDED_TOKEN_KINDS.map(kind => `embeddedJs${kind}`),
+    ...EMBEDDED_TOKEN_KINDS.map(kind => `embeddedPython${kind}`)
+];
+
+function embeddedSemanticTokenType(language, kind) {
+    const normalized = kind.charAt(0).toUpperCase() + kind.slice(1);
+    return `${language === 'javascript' ? 'embeddedJs' : 'embeddedPython'}${normalized}`;
+}
+
+function tokenizeEmbeddedCode(text, language) {
+    const javascriptKeywords = new Set([
+        'as', 'async', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
+        'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'from', 'function',
+        'get', 'if', 'import', 'in', 'instanceof', 'let', 'new', 'of', 'return', 'set', 'static',
+        'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
+        'true', 'false', 'null', 'undefined'
+    ]);
+    const pythonKeywords = new Set([
+        'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue', 'def', 'del', 'elif',
+        'else', 'except', 'False', 'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
+        'lambda', 'None', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'True', 'try', 'while',
+        'with', 'yield'
+    ]);
+    const javascriptStorageKeywords = new Set(['class', 'const', 'function', 'let', 'var']);
+    const typeNames = language === 'python'
+        ? new Set(['bool', 'bytes', 'dict', 'float', 'frozenset', 'int', 'list', 'object', 'set', 'str', 'tuple'])
+        : new Set(['Array', 'BigInt', 'Boolean', 'Date', 'Error', 'Map', 'Number', 'Object', 'Promise', 'RegExp', 'Set', 'String', 'Symbol']);
+    const keywords = language === 'python' ? pythonKeywords : javascriptKeywords;
+    const tokens = [];
+    let index = 0;
+    let blockComment = false;
+    let multilineQuote = null;
+
+    const push = (start, end, type) => {
+        if (end > start) tokens.push({ start, end, type });
+    };
+    const nextNonWhitespace = start => {
+        let cursor = start;
+        while (cursor < text.length && /\s/.test(text[cursor])) cursor++;
+        return text[cursor] || '';
+    };
+
+    while (index < text.length) {
+        const char = text[index];
+        if (/\s/.test(char)) {
+            index++;
+            continue;
+        }
+        if (blockComment) {
+            const start = index;
+            const end = text.indexOf('*/', index);
+            if (end < 0) {
+                push(start, text.length, 'comment');
+                break;
+            }
+            index = end + 2;
+            push(start, index, 'comment');
+            blockComment = false;
+            continue;
+        }
+        if (multilineQuote) {
+            const start = index;
+            const end = text.indexOf(multilineQuote, index);
+            if (end < 0) {
+                push(start, text.length, 'string');
+                break;
+            }
+            index = end + multilineQuote.length;
+            push(start, index, 'string');
+            multilineQuote = null;
+            continue;
+        }
+        if (language === 'javascript' && char === '/' && text[index + 1] === '*') {
+            const start = index;
+            index += 2;
+            const end = text.indexOf('*/', index);
+            if (end < 0) {
+                push(start, text.length, 'comment');
+                blockComment = true;
+                break;
+            }
+            index = end + 2;
+            push(start, index, 'comment');
+            continue;
+        }
+        if ((language === 'javascript' && char === '/' && text[index + 1] === '/') || (language === 'python' && char === '#')) {
+            const start = index;
+            while (index < text.length && text[index] !== '\n') index++;
+            push(start, index, 'comment');
+            continue;
+        }
+
+        const triple = language === 'python' && (text.startsWith("'''", index) || text.startsWith('"""', index));
+        const escapedSesiQuote = char === '\\' && text[index + 1] === '"';
+        if (triple || char === '"' || char === "'" || char === '`' || escapedSesiQuote) {
+            const start = index;
+            const quote = triple ? text.slice(index, index + 3) : (escapedSesiQuote ? '\\"' : char);
+            index += quote.length;
+            let closed = false;
+            while (index < text.length) {
+                if (!escapedSesiQuote && text[index] === '\\') {
+                    index += Math.min(2, text.length - index);
+                    continue;
+                }
+                if (text.startsWith(quote, index)) {
+                    index += quote.length;
+                    closed = true;
+                    break;
+                }
+                if (text[index] === '\n' && quote !== '`' && !triple) break;
+                index++;
+            }
+            push(start, index, 'string');
+            if (!closed && (quote === '`' || triple)) multilineQuote = quote;
+            continue;
+        }
+        if (/\d/.test(char)) {
+            const start = index++;
+            while (index < text.length && /[\dA-Fa-f_xXobO.eE+-]/.test(text[index])) index++;
+            push(start, index, 'number');
+            continue;
+        }
+        if (/[A-Za-z_$]/.test(char)) {
+            const start = index++;
+            while (index < text.length && /[A-Za-z0-9_$]/.test(text[index])) index++;
+            const word = text.slice(start, index);
+            let type = 'variable';
+            if (language === 'javascript' && javascriptStorageKeywords.has(word)) type = 'storage';
+            else if (keywords.has(word)) type = 'keyword';
+            else if (typeNames.has(word)) type = 'type';
+            else if (nextNonWhitespace(index) === '(') type = 'function';
+            let previous = start - 1;
+            while (previous >= 0 && /\s/.test(text[previous])) previous--;
+            const prefix = text.slice(Math.max(0, previous - 12), previous + 1);
+            if (/\bclass\s*$/.test(prefix)) type = 'class';
+            else if (/\b(def|function)\s*$/.test(prefix)) type = 'function';
+            push(start, index, type);
+            continue;
+        }
+        const start = index++;
+        while (index < text.length && /[+\-*\/%=&|!<>?:.,;()[\]{}]/.test(text[index])) index++;
+        push(start, index, 'operator');
+    }
+
+    return tokens;
+}
+
+function splitEmbeddedTokenAcrossLines(text, token) {
+    const parts = [];
+    let start = token.start;
+    while (start < token.end) {
+        const newline = text.indexOf('\n', start);
+        const end = newline >= 0 && newline < token.end ? newline : token.end;
+        if (end > start) parts.push({ start, end, type: token.type });
+        start = end + 1;
+    }
+    return parts;
+}
+
+function normalizeDeclarationText(text) {
+    return text.replace(/\s+/g, ' ').trim();
+}
+
+function findMatchingToken(tokens, startIndex, opening, closing) {
+    let depth = 0;
+    for (let i = startIndex; i < tokens.length; i++) {
+        if (tokens[i].lexeme === opening) depth++;
+        else if (tokens[i].lexeme === closing) {
+            depth--;
+            if (depth === 0) return i;
+        }
+    }
+    return -1;
+}
+
+function tokensToText(tokens, startIndex, endIndex) {
+    if (startIndex < 0 || endIndex < startIndex || !tokens[startIndex]) return '';
+
+    let result = '';
+    for (let i = startIndex; i <= endIndex && i < tokens.length; i++) {
+        const lexeme = tokens[i].lexeme;
+        if (!result) {
+            result = lexeme;
+        } else if ([',', ')', ']', '<', '>', '?'].includes(lexeme)) {
+            result += lexeme;
+        } else if (lexeme === ':') {
+            result += ': ';
+        } else if (['(', '[', '<', ':'].includes(tokens[i - 1].lexeme)) {
+            result += lexeme;
+        } else if (lexeme === '.') {
+            result += '.';
+        } else if (tokens[i - 1].lexeme === '.') {
+            result += lexeme;
+        } else {
+            result += ` ${lexeme}`;
+        }
+    }
+    return result;
+}
+
+function inferSimpleType(tokens, startIndex) {
+    const token = tokens[startIndex];
+    if (!token) return 'any';
+
+    if (token.type === 'STRING') return 'string';
+    if (token.type === 'NUMBER') return 'number';
+    if (token.type === 'TRUE' || token.type === 'FALSE') return 'bool';
+    if (token.type === 'NULL') return 'null';
+    if (token.lexeme === '[') return 'array<any>';
+    if (token.lexeme === '{') return 'object<any>';
+    if (token.type === 'PROMPT' || token.lexeme === 'input') return 'string';
+    if (token.type === 'IMAGE') return 'string';
+
+    return 'any';
+}
+
+function getLeadingDocumentation(text, declarationLine) {
+    const lines = text.split(/\r?\n/);
+    let line = declarationLine - 1;
+    if (line < 0) return '';
+
+    const lineCommentParts = [];
+    while (line >= 0 && /^\s*\/\//.test(lines[line])) {
+        lineCommentParts.unshift(lines[line].replace(/^\s*\/\/\/?\s?/, '').trim());
+        line--;
+    }
+    if (lineCommentParts.length > 0) return lineCommentParts.join('\n');
+
+    if (!/\*\/\s*$/.test(lines[line] || '')) return '';
+    const blockParts = [];
+    while (line >= 0) {
+        const current = lines[line];
+        blockParts.unshift(current);
+        if (/\/\*/.test(current)) break;
+        line--;
+    }
+    if (blockParts.length === 0 || !/\/\*/.test(blockParts[0])) return '';
+
+    return blockParts
+        .join('\n')
+        .replace(/^\s*\/\*\*?/, '')
+        .replace(/\*\/\s*$/, '')
+        .split('\n')
+        .map(part => part.replace(/^\s*\*\s?/, '').trimEnd())
+        .join('\n')
+        .trim();
+}
+
+function getDeclarationDetails(text, tokens, declaration) {
+    const tokenIndex = tokens.indexOf(declaration.token);
+    if (tokenIndex < 0) return null;
+
+    const line = declaration.token.line + 1;
+    const documentation = getLeadingDocumentation(text, declaration.token.line);
+
+    if (declaration.type === 'function') {
+        let keywordIndex = tokenIndex - 1;
+        if (!tokens[keywordIndex] || !['FN', 'MAKE'].includes(tokens[keywordIndex].type)) return null;
+        if (tokens[keywordIndex - 1] && tokens[keywordIndex - 1].type === 'ASYNC') keywordIndex--;
+
+        let signatureEnd = tokenIndex;
+        let openingParen = -1;
+        for (let i = tokenIndex + 1; i < tokens.length && tokens[i].lexeme !== '{'; i++) {
+            if (tokens[i].lexeme === '(') {
+                openingParen = i;
+                break;
+            }
+        }
+        if (openingParen >= 0) {
+            const closingParen = findMatchingToken(tokens, openingParen, '(', ')');
+            signatureEnd = closingParen >= 0 ? closingParen : signatureEnd;
+            let cursor = signatureEnd + 1;
+            if (tokens[cursor] && tokens[cursor].lexeme === '->') {
+                cursor++;
+                while (cursor < tokens.length && tokens[cursor].lexeme !== '{') cursor++;
+                signatureEnd = cursor - 1;
+            } else if (tokens[cursor] && tokens[cursor].lexeme === '-' && tokens[cursor + 1] && tokens[cursor + 1].lexeme === '>') {
+                cursor += 2;
+                while (cursor < tokens.length && tokens[cursor].lexeme !== '{') cursor++;
+                signatureEnd = cursor - 1;
+            }
+        }
+
+        const firstToken = tokens[keywordIndex];
+        const lastToken = tokens[signatureEnd];
+        const signature = firstToken && lastToken
+            ? normalizeDeclarationText(text.slice(firstToken.offset, lastToken.offset + lastToken.length))
+            : `${declaration.type} ${declaration.token.lexeme}`;
+        return { signature, documentation, line, type: declaration.type };
+    }
+
+    if (declaration.type === 'parameter') {
+        let endIndex = tokenIndex;
+        let nesting = 0;
+        for (let i = tokenIndex + 1; i < tokens.length; i++) {
+            const lexeme = tokens[i].lexeme;
+            if (['(', '[', '{', '<'].includes(lexeme)) nesting++;
+            else if ([')', ']', '}', '>'].includes(lexeme)) {
+                if (nesting === 0 && lexeme === ')') break;
+                nesting--;
+            }
+            if (nesting === 0 && lexeme === ',') break;
+            endIndex = i;
+        }
+        return {
+            signature: `(parameter) ${tokensToText(tokens, tokenIndex, endIndex)}`,
+            documentation: '',
+            line,
+            type: declaration.type
+        };
+    }
+
+    if (declaration.type === 'variable') {
+        const keyword = tokens[tokenIndex - 1];
+        let typeLabel = '';
+        let cursor = tokenIndex + 1;
+        if (tokens[cursor] && tokens[cursor].lexeme === ':') {
+            const typeStart = cursor + 1;
+            cursor = typeStart;
+            while (
+                cursor < tokens.length &&
+                tokens[cursor].line === declaration.token.line &&
+                tokens[cursor].lexeme !== '='
+            ) cursor++;
+            typeLabel = tokensToText(tokens, typeStart, cursor - 1);
+        } else {
+            while (cursor < tokens.length && tokens[cursor].line === declaration.token.line && tokens[cursor].lexeme !== '=') cursor++;
+            if (tokens[cursor] && tokens[cursor].lexeme === '=') {
+                typeLabel = inferSimpleType(tokens, cursor + 1);
+            }
+        }
+
+        const declarationKeyword = keyword && ['LET', 'PROMPT', 'MEMORY', 'STRUCTURED_OUTPUT'].includes(keyword.type)
+            ? keyword.lexeme
+            : 'let';
+        const signature = `${declarationKeyword} ${declaration.token.lexeme}${typeLabel ? `: ${typeLabel}` : ''}`;
+        return { signature, documentation, line, type: declaration.type };
+    }
+
+    const labels = {
+        loop_variable: 'loop variable',
+        catch_variable: 'catch variable',
+        import: 'import',
+        tool: 'tool'
+    };
+    const label = labels[declaration.type] || declaration.type;
+    return {
+        signature: `(${label}) ${declaration.token.lexeme}`,
+        documentation,
+        line,
+        type: declaration.type
+    };
+}
+
+function getImportBindingInfo(tokens, declaration) {
+    if (!declaration || declaration.type !== 'import' || !declaration.keywordToken) return null;
+
+    const keywordIndex = tokens.indexOf(declaration.keywordToken);
+    const bindingIndex = tokens.indexOf(declaration.token);
+    if (keywordIndex < 0 || bindingIndex < 0) return null;
+
+    let specifierToken = null;
+    if (declaration.keywordToken.type === 'ALLOW') {
+        specifierToken = tokens.slice(keywordIndex + 1, bindingIndex + 1).find(token => token.type === 'STRING') || null;
+    } else if (declaration.keywordToken.type === 'IMPORT') {
+        const fromIndex = tokens.findIndex((token, index) => index > keywordIndex && token.type === 'FROM');
+        if (fromIndex >= 0) specifierToken = tokens[fromIndex + 1] || null;
+    }
+    if (!specifierToken || specifierToken.type !== 'STRING') return null;
+
+    return {
+        specifier: specifierToken.lexeme.slice(1, -1),
+        bindingName: declaration.token.lexeme,
+        namespace: declaration.keywordToken.type === 'ALLOW' && tokens[bindingIndex - 1] && tokens[bindingIndex - 1].type === 'AS'
+    };
+}
+
+function getImportTargetAtToken(tokens, tokenScopes, token) {
+    const tokenIndex = tokens.indexOf(token);
+    if (tokenIndex < 0) return null;
+
+    const scope = tokenScopes.get(token);
+    if (!scope) return null;
+
+    if (
+        tokens[tokenIndex - 1] && tokens[tokenIndex - 1].lexeme === '.' &&
+        tokens[tokenIndex - 2] && tokens[tokenIndex - 2].type === 'IDENTIFIER'
+    ) {
+        const namespaceToken = tokens[tokenIndex - 2];
+        const declaration = scope.resolve(namespaceToken.lexeme);
+        const importInfo = getImportBindingInfo(tokens, declaration);
+        if (!importInfo || !importInfo.namespace) return null;
+        return {
+            ...importInfo,
+            exportName: token.lexeme,
+            declaration
+        };
+    }
+
+    const declaration = scope.resolve(token.lexeme);
+    const importInfo = getImportBindingInfo(tokens, declaration);
+    if (!importInfo || importInfo.namespace) return null;
+    return {
+        ...importInfo,
+        exportName: token.lexeme,
+        declaration
+    };
+}
+
+function getNamespaceImportAtToken(tokens, tokenScopes, token) {
+    if (!token || token.type !== 'IDENTIFIER') return null;
+
+    const scope = tokenScopes.get(token);
+    if (!scope) return null;
+
+    const declaration = scope.resolve(token.lexeme);
+    const importInfo = getImportBindingInfo(tokens, declaration);
+    if (!importInfo || !importInfo.namespace) return null;
+    return {
+        ...importInfo,
+        declaration
+    };
+}
+
+function getMakeMemberTargetAtToken(tokens, tokenScopes, memberToken) {
+    const memberIndex = tokens.indexOf(memberToken);
+    if (
+        memberIndex < 2 ||
+        tokens[memberIndex - 1].lexeme !== '.' ||
+        tokens[memberIndex - 2].type !== 'IDENTIFIER'
+    ) return null;
+
+    const instanceToken = tokens[memberIndex - 2];
+    const scope = tokenScopes.get(instanceToken) || tokenScopes.get(memberToken);
+    const instanceDeclaration = scope && scope.resolve(instanceToken.lexeme);
+    if (!instanceDeclaration || instanceDeclaration.type !== 'variable') return null;
+
+    const declarationIndex = tokens.indexOf(instanceDeclaration.token);
+    if (declarationIndex < 0) return null;
+    let equalsIndex = declarationIndex + 1;
+    while (equalsIndex < tokens.length && tokens[equalsIndex].lexeme !== '=') {
+        if (tokens[equalsIndex].type === 'NEWLINE') return null;
+        equalsIndex++;
+    }
+    if (equalsIndex >= tokens.length) return null;
+
+    let factoryIndex = equalsIndex + 1;
+    while (factoryIndex < tokens.length && ['NEWLINE', 'COMMENT'].includes(tokens[factoryIndex].type)) factoryIndex++;
+    const factoryToken = tokens[factoryIndex];
+    if (!factoryToken || factoryToken.type !== 'IDENTIFIER') return null;
+
+    // Namespace construction: let value = Module.Template(...)
+    if (tokens[factoryIndex + 1]?.lexeme === '.' && tokens[factoryIndex + 2]?.type === 'IDENTIFIER') {
+        const namespaceDeclaration = scope.resolve(factoryToken.lexeme);
+        const importInfo = getImportBindingInfo(tokens, namespaceDeclaration);
+        if (!importInfo || !importInfo.namespace) return null;
+        return {
+            instanceName: instanceToken.lexeme,
+            memberName: memberToken.lexeme,
+            makeName: tokens[factoryIndex + 2].lexeme,
+            specifier: importInfo.specifier,
+            local: false
+        };
+    }
+
+    const factoryDeclaration = scope.resolve(factoryToken.lexeme);
+    const importInfo = getImportBindingInfo(tokens, factoryDeclaration);
+    if (importInfo && !importInfo.namespace) {
+        return {
+            instanceName: instanceToken.lexeme,
+            memberName: memberToken.lexeme,
+            makeName: factoryToken.lexeme,
+            specifier: importInfo.specifier,
+            local: false
+        };
+    }
+
+    if (factoryDeclaration) {
+        const factoryDeclarationIndex = tokens.indexOf(factoryDeclaration.token);
+        if (factoryDeclarationIndex > 0 && tokens[factoryDeclarationIndex - 1].type === 'MAKE') {
+            return {
+                instanceName: instanceToken.lexeme,
+                memberName: memberToken.lexeme,
+                makeName: factoryToken.lexeme,
+                local: true
+            };
+        }
+    }
+    return null;
 }
 
 function findDeclarationsAndReferences(tokens) {
@@ -824,6 +1610,7 @@ function analyzeScope(tokens, decls, refs) {
                 currentScope.declare(d.name, {
                     token: d.token,
                     type: 'import',
+                    keywordToken: d.keywordToken,
                     readCount: 0
                 });
             }
@@ -861,25 +1648,28 @@ function analyzeScope(tokens, decls, refs) {
     const diagnostics = [];
     const builtinsSet = new Set([
         'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
-  'speech', 'from_speech', 'translate', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
+  'speech', 'from_speech', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
   'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call',
   'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split',
-  'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log',
+  'keys', 'values', 'array', ...SESI_MATH_CONSTANTS, ...SESI_MATH_FUNCTIONS,
   'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req',
   'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
   'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input',
-  'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
+    'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim', 'memory_config',
   'lazy', 'force', 'timeout', 'profile', 'profile_start', 'profile_end', 'profile_report',
   'string', 'number', 'bool', 'array', 'object', 'num', 'str', 'null', 'float', 'any',
   'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null',
   'length', 'starts_with', 'ends_with', 'index_of', 'repeat', 'includes', 'reverse', 'sort', 'unique', 'flatten',
   'play', 'beep', 'synth', 'save', 'sequence', 'mix', 'comp', 'render', 'sf2', 'chord', 'scale', 'transpose', 'duration', 'bar', 'midi',
+  'create', 'drum_kit', 'program', 'pad', 'sixteen_levels', 'note_repeat', 'swaing', 'chop', 'sample', 'vintage', 'effect', 'fx', 'song',
+  'render_wav', 'render_midi',
   'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw',
   'regex', 'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage',
   'gif', 'video', 'ffmpeg',
   'matrix_dot', 'matrix_transpose', 'matrix_add', 'matrix_sub', 'matrix_mul_elements',
-  'matrix_scale', 'matrix_sigmoid', 'matrix_dsigmoid', 'matrix_sum_rows', 'matrix_mse'
+  'matrix_scale', 'matrix_sigmoid', 'matrix_dsigmoid', 'matrix_sum_rows', 'matrix_mse',
+  'Game', 'VERSION', 'vec2', 'vec3', 'quat', 'create_scene', 'activate_scene', 'enable_physics'
     ]);
     
     for (const ref of refs) {
@@ -914,6 +1704,7 @@ function analyzeScope(tokens, decls, refs) {
                         decl.readCount === 0 &&
                         !decl.suppressUnused &&
                         decl.type !== 'catch_variable' &&
+                        decl.type !== 'tool' &&
                         name !== 'req' &&
                         !name.startsWith('_')
                     ) {
@@ -980,6 +1771,83 @@ function validateImports(document, workspaceRoot) {
 
 const documentScopesCache = new Map();
 
+function getDocumentScopeAnalysis(document) {
+    const key = document.uri.toString();
+    const cached = documentScopesCache.get(key);
+    if (cached && cached.version === document.version) return cached;
+
+    const text = document.getText();
+    const tokens = tokenize(text);
+    const { decls, refs } = findDeclarationsAndReferences(tokens);
+    const diagnostics = analyzeScope(tokens, decls, refs);
+    const analysis = {
+        version: document.version,
+        tokens,
+        tokenScopes: diagnostics.tokenScopes,
+        diagnostics
+    };
+    documentScopesCache.set(key, analysis);
+    return analysis;
+}
+
+function getIdentifierTokenAtPosition(tokens, position) {
+    return tokens.find(token => (
+        token.type === 'IDENTIFIER' &&
+        token.line === position.line &&
+        position.character >= token.col &&
+        position.character < token.col + token.length
+    ));
+}
+
+function resolveImportedSymbolAtPosition(document, position, workspaceRoot) {
+    const analysis = getDocumentScopeAnalysis(document);
+    const token = getIdentifierTokenAtPosition(analysis.tokens, position);
+    if (!token) return null;
+
+    const importTarget = getImportTargetAtToken(analysis.tokens, analysis.tokenScopes, token);
+    if (!importTarget) return null;
+
+    const resolvedModule = resolveSesiModule(importTarget.specifier, document.uri.fsPath, workspaceRoot);
+    if (!resolvedModule) {
+        return { ...importTarget, kind: 'unresolved-module' };
+    }
+    if (resolvedModule.type === 'builtin') {
+        return { ...importTarget, kind: 'builtin', resolvedModule };
+    }
+
+    const sourceText = readSesiModuleSource(resolvedModule.path);
+    if (sourceText === null) return { ...importTarget, kind: 'unreadable-module', resolvedModule };
+
+    const exportDefinition = findExportDefinitionInText(sourceText, importTarget.exportName);
+    return {
+        ...importTarget,
+        kind: exportDefinition ? 'local-export' : 'missing-export',
+        resolvedModule,
+        exportDefinition
+    };
+}
+
+function resolveMakeMemberAtPosition(document, position, workspaceRoot) {
+    const analysis = getDocumentScopeAnalysis(document);
+    const memberToken = getIdentifierTokenAtPosition(analysis.tokens, position);
+    if (!memberToken) return null;
+
+    const target = getMakeMemberTargetAtToken(analysis.tokens, analysis.tokenScopes, memberToken);
+    if (!target) return null;
+
+    if (target.local) {
+        const definition = findMakeMemberDefinitionInText(document.getText(), target.makeName, target.memberName);
+        return definition ? { ...target, kind: 'local-member', definition } : null;
+    }
+
+    const resolvedModule = resolveSesiModule(target.specifier, document.uri.fsPath, workspaceRoot);
+    if (!resolvedModule || resolvedModule.type !== 'local') return null;
+    const sourceText = readSesiModuleSource(resolvedModule.path);
+    if (sourceText === null) return null;
+    const definition = findMakeMemberDefinitionInText(sourceText, target.makeName, target.memberName);
+    return definition ? { ...target, kind: 'imported-member', definition, resolvedModule } : null;
+}
+
 function activate(context) {
     let workspaceRoot = '';
     const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -987,7 +1855,63 @@ function activate(context) {
         workspaceRoot = workspaceFolders[0].uri.fsPath;
     }
 
+    const embeddedLegend = new vscode.SemanticTokensLegend(EMBEDDED_SEMANTIC_TOKEN_TYPES, []);
+    const embeddedCodeProvider = vscode.languages.registerDocumentSemanticTokensProvider(
+        { language: 'sesi' },
+        {
+            provideDocumentSemanticTokens(document) {
+                const source = document.getText();
+                const builder = new vscode.SemanticTokensBuilder(embeddedLegend);
+                for (const embedded of findEmbeddedCodeRanges(source)) {
+                    // Direct calls are tokenized by the real VS Code TextMate grammar.
+                    // Semantic tokens are retained only for code reached through Sesi variables.
+                    if (embedded.direct) continue;
+                    const embeddedTokens = tokenizeEmbeddedCode(embedded.text, embedded.language);
+                    for (const token of embeddedTokens) {
+                        for (const part of splitEmbeddedTokenAcrossLines(embedded.text, token)) {
+                            const start = document.positionAt(embedded.start + part.start);
+                            const end = document.positionAt(embedded.start + part.end);
+                            if (start.line !== end.line || start.character === end.character) continue;
+                            builder.push(
+                                new vscode.Range(start, end),
+                                embeddedSemanticTokenType(embedded.language, part.type),
+                                []
+                            );
+                        }
+                    }
+                }
+                return builder.build();
+            }
+        },
+        embeddedLegend
+    );
+    context.subscriptions.push(embeddedCodeProvider);
+
     const docs = {
+        'Game': {
+            signature: 'allow "std/game" in as Game',
+            source: '3D Game Standard Library (std/game)',
+            description: 'Loads the optional left-handed Babylon.js/Electron 3D engine. +X is right, +Z is forward, and relative asset paths use the current working directory. Install @misterscan/sesi-game and run with sesi -l.',
+            example: 'allow "std/game" in as Game\nlet game = Game.create({title: "Arena"})'
+        },
+        'vec3': {
+            signature: 'Game.vec3(x = 0, y = 0, z = 0) -> vec3',
+            source: '3D Game Standard Library (std/game)',
+            description: 'Creates a live mutable three-component vector used for positions, rotations, scaling, directions, forces, and velocities.',
+            example: 'let position = Game.vec3(0, 2, -5)\nposition.y = 3'
+        },
+        'create_scene': {
+            signature: 'game.create_scene(name, options = null) -> scene',
+            source: '3D Game Standard Library (std/game)',
+            description: 'Creates a named left-handed Babylon scene and returns its live native handle.',
+            example: 'let scene = game.create_scene("main")\nlet cube = scene.box("cube")'
+        },
+        'enable_physics': {
+            signature: 'scene.enable_physics(options = null) -> scene',
+            source: '3D Game Standard Library (std/game)',
+            description: 'Enables the pinned Havok physics backend for a scene.',
+            example: 'scene.enable_physics({gravity: Game.vec3(0, -9.81, 0)})'
+        },
         'let': {
             signature: 'let identifier = value',
             source: 'Sesi Core Primitives',
@@ -1040,7 +1964,7 @@ function activate(context) {
             signature: 'start to end',
             source: 'Sesi Operators',
             description: 'Specifies a range boundary operator or transition sequence specifier in Sesi structures.',
-            example: '// Used in ranges or custom domain workflows'
+            example: 'for i = 0 to 5 {\n  show i\n}\n '
         },
         'return': {
             signature: 'return value',
@@ -1058,7 +1982,13 @@ function activate(context) {
             signature: 'catch (error) { ... }',
             source: 'Sesi Resilience',
             description: 'Handles exceptions thrown within the preceding `try` block, binding the error metadata to the specified identifier.',
-            example: 'try {\n  raise_error("Operation failed")\n} catch (e) {\n  show "Error type: " error_type(e)\n}'
+            example: 'try {\n  write_file("readonly.txt", "data")\n} catch (e) {\n  show e\n}'
+        },
+        'finally': {
+            signature: 'finally { ... }',
+            source: 'Sesi Resilience',
+            description: 'Defines a block of code that will always execute after a `try` block, regardless of whether an exception was thrown.',
+            example: 'try {\n  write_file("readonly.txt", "data")\n} catch (e) {\n  show e\n} finally {\n  show "Cleanup actions"\n}'
         },
         'break': {
             signature: 'break',
@@ -1082,7 +2012,7 @@ function activate(context) {
             signature: 'import { item } from "module"',
             source: 'Sesi Modules',
             description: 'Extracts specific functions or definitions from an external module file.',
-            example: 'import { exec } from "sys"'
+            example: 'import { now } from "std/time"'
         },
         'export': {
             signature: 'export let variable',
@@ -1124,25 +2054,25 @@ function activate(context) {
             signature: 'let dict: object',
             source: 'Sesi Types',
             description: 'An associative collection of key-value pairs. Standard object literals require quoted string keys in Sesi.',
-            example: 'let user = {"name": "Charlie", "role": "admin"}\nshow user["name"]'
+            example: 'let user = {name: "Charlie", role: "admin"}\nshow user.name'
         },
         'model': {
             signature: 'model("model-name") { ... }',
             source: 'Sesi AI',
             description: 'Reasoning model evaluation primitive. Calls a specified LLM configuration block to generate a reasoning response.',
-            example: 'model("gemini-3.1-flash-lite") {"Outline the systems architecture for a compiler pipeline."}'
+            example: 'model("gemini-3.7-flash") {"Outline the systems architecture for a compiler pipeline."}'
         },
         'image': {
             signature: 'image("prompt")',
             source: 'Sesi AI',
             description: 'Generates a synthetic image using advanced text-to-image models based on the prompt parameter.',
-            example: 'let graphic = image("A dark, technical isometric blueshow of a compiler lexer graph.")'
+            example: 'let graphic = image("gemini-3.1-flash-image") {ratio: "16:9", size: "1K"} {"A dark, technical isometric blueprint of a compiler lexer graph."}'
         },
         'memory': {
             signature: 'memory',
             source: 'Sesi Stateful Memory',
             description: 'Stateful conversation memory primitive that persists contextual thread arrays.',
-            example: '// Memory is injected directly inside your script workflows.'
+            example: 'memory conversation { "USER: Hello, how are you?" }\nshow conversation\nconversation = conversation + "USER: I am fine, thank you."\nshow conversation'
         },
         'set_alias': {
             signature: 'set_alias(alias, model)',
@@ -1151,16 +2081,16 @@ function activate(context) {
             example: 'set_alias("fast", "gemini-3.5-flash-lite")\nlet answer = model("fast") {"Summarize this paragraph."}'
         },
         'workflow': {
-            signature: 'workflow name { ... }',
+            signature: 'workflow(steps, initialContext)',
             source: 'Sesi AI',
             description: 'Chains sequential model executions, transformations, and processing scripts into a unified pipeline.',
-            example: 'workflow build_doc {\n  // Sequence steps here\n}'
+            example: 'let context = read_file("system_performance.txt")\nlet steps = [\n   {prompt: "Summarize the findings." },\n   {prompt: "Provide recommendations based on the analysis."},\n   {prompt: "Create a comprehensive report: " + context}\n]\nlet final = workflow(steps, "Analyze the system performance based on the following: " + context)\nshow final'
         },
         'structured_output': {
             signature: 'structured_output(schema)(expression)',
             source: 'Serialization Standard Library',
             description: 'Creates strongly typed, schema-validated structured data from the result of any Sesi expression.',
-            example: 'let rawJson = "{\\"projectName\\": \\"Sesi\\", \\"version\\": \\"1.6.5\\"}"\nlet parsed = structured_output({projectName: string, version: string})(rawJson)'
+            example: 'let rawJson = "{\\"projectName\\": \\"Sesi\\", \\"version\\": \\"1.9.0\\"}"\nlet parsed = structured_output({projectName: string, version: string})(rawJson)'
         },
         'prompt': {
             signature: 'prompt { ... }',
@@ -1169,10 +2099,10 @@ function activate(context) {
             example: 'let task = "audit logs"\nprompt {"Analyze the system performance regarding: " task}'
         },
         'define_tool': {
-            signature: 'define_tool("tool_name", schema) { ... }',
+            signature: 'define_tool("tool_name", function, description)',
             source: 'Sesi Tooling Integration',
             description: 'Declares a custom system tool schema. This makes standard Sesi functions or scripts discoverable as tool call actions for LLMs.',
-            example: 'define_tool("read_config", {file: string}) {\n  return read_file(file)\n}'
+            example: 'fn read_config(file: string) -> string {\n  return read_file(file)\n}\ndefine_tool("read", read_config, "Reads a configuration file from disk.")'
         },
         'list_tools': {
             signature: 'list_tools()',
@@ -1181,10 +2111,10 @@ function activate(context) {
             example: 'let tools = list_tools()\nshow tools'
         },
         'tool_call': {
-            signature: 'tool_call("tool_name", args_object)',
+            signature: 'tool_call(tool_name, tool_params)',
             source: 'Sesi Tooling Integration',
             description: 'Invokes a predefined custom tool dynamically by its name and passes the argument payload.',
-            example: 'let output = tool_call("read_config", {"file": "config.json"})'
+            example: 'let output = tool_call(read_config, "config.json")'
         },
         'multi_req': {
             signature: 'multi_req(functions_array)',
@@ -1196,7 +2126,7 @@ function activate(context) {
             signature: 'read_file(path, mode = "text")',
             source: 'System I/O Standard Library',
             description: 'Synchronously reads a file from disk. Use mode "text" for UTF-8 text (default) or mode "base64" to read binary files (such as images) as Base64.',
-            example: 'let source_code = read_file("main/playground.sesi")\nshow source_code\n\nlet image_b64 = read_file("output/banner.png", "base64")\nshow image_b64'
+            example: 'let source_code = read_file("main/playground.sesi")\nshow source_code\n\nlet image_b64 = read_file("output/banner.png", "base64")\nshow "Image size:" len(image_b64)'
         },
         'write_file': {
             signature: 'write_file(path, content)',
@@ -1214,19 +2144,19 @@ function activate(context) {
             signature: 'write_image(path, img_data)',
             source: 'System I/O Standard Library',
             description: 'Saves raw image canvas data or generated image model outputs directly to a file path as an image file (e.g. PNG).',
-            example: 'let banner = image("Sleek minimal blueshow logo")\nwrite_image("output/banner.png", banner)'
+            example: 'let banner = image("gemini-3.1-flash-image") {ratio: "16:9", size: "1K"} {"Sleek minimal blueprint logo"}\nwrite_image("output/banner.png", banner)'
         },
         'open': {
             signature: 'open(target, options = null)',
             source: 'Desktop Integration Standard Library',
             description: 'Opens an HTTP, HTTPS, FTP, file, or mailto URL, or an existing local file, with the operating system default application. Optional `browser`, `editor`, `viewer`, `image_viewer`, and `mode` settings can select an application. Disabled in safe mode; run the script with `-l` or `--local`.',
-            example: 'open("https://code-with-sesi.netlify.app")\nopen("reports/dashboard.html", {"mode": "browser", "browser": "Firefox"})'
+            example: 'open("https://code-with-sesi.netlify.app")\nopen("reports/dashboard.html", {mode: "browser", browser: "Firefox"})'
         },
         'open_file': {
             signature: 'open_file(path, options = null)',
             source: 'Desktop Integration Standard Library',
             description: 'Opens an existing local file with the operating system default application or a requested browser, editor, or viewer. The path is resolved through Sesi filesystem safety checks. Disabled in safe mode; run the script with `-l`, `--local`, or `SESI_SAFE_MODE` set to false.',
-            example: 'open_file("README.md", {"editor": "Visual Studio Code"})\nopen_file("favicon.png", {"viewer": "Preview"})'
+            example: 'open_file("README.md", {editor: "Visual Studio Code"})\nopen_file("favicon.png", {viewer: "Preview"})'
         },
         'list_dir': {
             signature: 'list_dir(path)',
@@ -1250,7 +2180,7 @@ function activate(context) {
             signature: 'make_dir(path)',
             source: 'System I/O Standard Library',
             description: 'Recursively creates nested directory paths on the local system storage.',
-            example: 'make_dir("main/tests/cache")'
+            example: 'let cacheDir = "main/tests/cache"\nif !exists(cacheDir) { make_dir(cacheDir) }'
         },
         'rename': {
             signature: 'rename(old_path, new_path)',
@@ -1280,7 +2210,7 @@ function activate(context) {
             signature: 'spawn(script_path)',
             source: 'Process Orchestration Standard Library',
             description: 'Asynchronously launches a separate, background Sesi script process concurrently.',
-            example: 'spawn("main/compile_service.sesi")'
+            example: 'let PID = spawn("main/compile_service.sesi")\n show "Spawned process ID:" PID'
         },
         'exec': {
             signature: 'exec(command_line)',
@@ -1316,7 +2246,7 @@ function activate(context) {
             signature: 'html(body, options)',
             source: 'HTML Document Standard Library',
             description: 'Wraps body markup in a complete HTML document string. Optional `options` may include `title`, `head`, and `lang`.',
-            example: 'let page = html("<main>Hello</main>", {"title": "Demo"})\nwrite_file("index.html", page)'
+            example: 'let page = html("<main>Hello</main>", {title: "Demo"})\nwrite_file("index.html", page)'
         },
         'web_get': {
             signature: 'web_get(url, headers = {})',
@@ -1328,7 +2258,7 @@ function activate(context) {
             signature: 'web_send(url, payload, headers = {})',
             source: 'HTTP Client Standard Library',
             description: 'Dispatches an HTTP POST request to the target web endpoint, optionally sending request headers with the payload.',
-            example: 'let status = web_send("https://hooks.slack.com/services/...", {"text": "Workflow completed!"})'
+            example: 'let status = web_send("https://hooks.slack.com/services/...", {text: "Workflow completed!"})'
         },
         'api': {
             signature: 'api(port, handler)',
@@ -1340,13 +2270,13 @@ function activate(context) {
             signature: 'to_json(value)',
             source: 'Serialization Standard Library',
             description: 'Converts a native Sesi value, array, or object into a standardized, valid JSON string.',
-            example: 'let payload = {"id": 101, "status": "active"}\nlet json_str = to_json(payload)\nshow json_str'
+            example: 'let payload = {id: 101, status: "active"}\nlet json_str = to_json(payload)\nshow json_str'
         },
         'from_json': {
             signature: 'from_json(json_str)',
             source: 'Serialization Standard Library',
             description: 'Parses a structured JSON string and converts it directly into native, indexable Sesi objects or collections.',
-            example: 'let raw = \'{"result": "success", "code": 200}\'\nlet obj = from_json(raw)\nshow obj["result"]'
+            example: 'let raw = \'{"result": "success", "code": 200}\'\nlet obj = from_json(raw)\nshow obj.result'
         },
         'encrypt': {
             signature: 'encrypt(content, password) -> string',
@@ -1372,12 +2302,6 @@ function activate(context) {
             description: 'Transcribes an audio file with nodejs-whisper by default, or with an optional Gemini model. Requires a downloaded model (`npx nodejs-whisper download base.en`).',
             example: 'let transcript = from_speech("meeting.wav", "en")\nshow transcript'
         },
-        'translate': {
-            signature: 'translate(text, to_language, from_language = "en", gemini_model = null) -> string',
-            source: 'Language Standard Library',
-            description: 'Translates text with the translate package by default, or with an optional Gemini model.',
-            example: 'let spanish = translate("Good morning", "es", "en")\nshow spanish'
-        },
         'encode': {
             signature: 'encode(value, mode = "text")',
             source: 'Encoding Standard Library (std/base64)',
@@ -1394,7 +2318,7 @@ function activate(context) {
             signature: 'time()',
             source: 'Utility Standard Library',
             description: 'Returns the current high-resolution system timestamp in epoch milliseconds.',
-            example: 'let start = time()\n// Run process...\nlet elapsed = time() - start\nshow "Completed in: " elapsed " ms"'
+            example: 'let start = time()\n// Run process...\nlet elapsed = (time() - start) / 1000\nshow "Completed in: " elapsed " s"'
         },
         'random': {
             signature: 'random()',
@@ -1484,7 +2408,7 @@ function activate(context) {
             signature: 'estimate_cost(model, input, output = 0, rates = null)',
             source: 'AI Utility Standard Library',
             description: 'Estimates paid-tier text-token cost in USD from counts or text.',
-            example: 'let cost = estimate_cost("gpt-5.6-terra", prompt, 500)\nshow cost["total_cost_usd"]'
+            example: 'let cost = estimate_cost("gpt-5.6-terra", promptText, 500)\nshow cost["total_cost_usd"]'
         },
         'model_usage': {
             signature: 'model_usage()',
@@ -1556,13 +2480,13 @@ function activate(context) {
             signature: 'keys(collection)',
             source: 'Array Standard Library',
             description: 'Get all keys of an object.',
-            example: 'let obj = { "name": "Alice", "age": 30 }\nkeys(obj)'
+            example: 'let obj = { name: "Alice", age: 30 }\nkeys(obj)'
         },
         'values': {
             signature: 'values(collection)',
             source: 'Array Standard Library',
             description: 'Get all values of an object.',
-            example: 'let obj = { "name": "Alice", "age": 30 }\nvalues(obj)'
+            example: 'let obj = { name: "Alice", age: 30 }\nvalues(obj)'
         },
         'len': {
             signature: 'len(collection)',
@@ -1586,7 +2510,7 @@ function activate(context) {
             signature: 'str(value)',
             source: 'Type Conversion Standard Library',
             description: 'Converts the given parameter value into its explicit text string format representation.',
-            example: 'let age_string = str(28)\nshow "User age is: " + age_string'
+            example: 'let age_string = str(28)\nshow "User age is: " age_string'
         },
         'num': {
             signature: 'num(value)',
@@ -1599,6 +2523,12 @@ function activate(context) {
             source: 'Type Conversion Standard Library',
             description: 'Parses or casts the given string, number, or boolean parameter value into a floating-point number.',
             example: 'let ratio = float("3.14159")\nshow ratio\nshow float(true)'
+        },
+        'floor': {
+            signature: 'floor(value)',
+            source: 'Global Math Function / Math Standard Library (std/math)',
+            description: 'Rounds a number down to the nearest integer. The bare floor() function is globally available without an import, and Math.floor() is available through std/math.',
+            example: 'show floor(3.9) // 3\nallow "std/math" in as Math\nshow Math.floor(3.9)'
         },
         'exp': {
             signature: 'exp(value)',
@@ -1622,7 +2552,7 @@ function activate(context) {
             signature: 'listen(port, handler_function)',
             source: 'Network Server Standard Library',
             description: 'Starts a native HTTP server on the specified port and calls the handler function for each incoming connection.',
-            example: 'async fn handle(req) {\n  return {"status": 200, "body": "OK"}\n}\nlet server = listen(8080, handle)'
+            example: 'async fn handle(req) {\n  return {status: 200, body: "OK"}\n}\nlet server = listen(8080, handle)'
         },
         'live': {
             signature: 'live(filePath, exportName = "handle")',
@@ -1640,19 +2570,19 @@ function activate(context) {
             signature: 'launch(options?)',
             source: 'Browser Standard Library (std/browser)',
             description: 'After importing `std/browser`, launches a Playwright browser instance. Options can configure settings such as headless mode.',
-            example: 'allow "std/browser" in with {launch}\nlet browser = launch({"headless": true})\nlet page = browser.newPage()\npage.goto("https://example.com")'
+            example: 'allow "std/browser" in with {launch}\nlet browser = launch({"headless": true})\nlet page = browser.newPage()\npage.goto("https://code-with-sesi.netlify.app")'
         },
         'sf2': {
             signature: 'sf2(path, options)',
             source: 'Audio Standard Library (std/audio)',
             description: 'After importing `std/audio`, creates an instrument function bound to a SoundFont (.sf2) file.',
-            example: 'allow "std/audio" in as Audio\nlet piano = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 0, "gain": 1.5})\nlet note = piano("C4", 500)'
+            example: 'allow "std/audio" in as Audio\nlet piano = Audio.sf2("GeneralUser-GS.sf2", {instrument: 0, gain: 1.5})\nlet note = piano("C4", 500)'
         },
         'mix': {
             signature: 'mix(path, tracks_array, type, options)',
             source: 'Audio Standard Library (std/audio)',
             description: 'After importing `std/audio`, saves a stereo WAV file by mixing multiple tracks together.',
-            example: 'allow "std/audio" in as Audio\nAudio.mix("song.wav", [bass_track, piano_track], "sine", {"saturate": 1.5})'
+            example: 'allow "std/audio" in as Audio\nAudio.mix("song.wav", [bass_track, piano_track], "sine", {saturate: 1.5})'
         },
         'synth': {
             signature: 'synth(freq_or_note, duration_ms, type, options)',
@@ -1694,7 +2624,7 @@ function activate(context) {
             signature: 'sequence(path, notes_array, type, options?)',
             source: 'Audio Standard Library (std/audio)',
             description: 'After importing `std/audio`, saves a multi-note sequence to a WAV file.',
-            example: 'allow "std/audio" in as Audio\nAudio.sequence("melody.wav", [{"note": "C4", "ms": 500}], "saw")'
+            example: 'allow "std/audio" in as Audio\nAudio.sequence("melody.wav", [{note: "C4", ms: 500}], "saw")'
         },
         'midi': {
             signature: 'midi(path, tracks)',
@@ -1706,7 +2636,7 @@ function activate(context) {
             signature: 'play(note, duration_ms, options?)',
             source: 'Audio Standard Library (std/audio)',
             description: 'After importing `std/audio`, plays a musical note through the system audio device.',
-            example: 'allow "std/audio" in as Audio\nAudio.play("E4", 500, {"attack": 50, "release": 200})'
+            example: 'allow "std/audio" in as Audio\nAudio.play("E4", 500, {attack: 50, release: 200})'
         },
         'beep': {
             signature: 'beep(freq, duration_ms)',
@@ -1732,6 +2662,36 @@ function activate(context) {
             description: 'After importing `std/audio`, batch-renders a complete multi-track arrangement through a SoundFont to a WAV file.',
             example: 'allow "std/audio" in as Audio\nAudio.render("font.sf2", [track1, track2], "master.wav")'
         },
+        'sixteen_levels': {
+            signature: 'sixteen_levels(pad, mode?, options?)',
+            source: 'Akai MPC Standard Library (std/mpc)',
+            description: 'Official Akai MPC 16 Levels mode. Spreads a pad sound across 16 pads by velocity, tune, filter, decay, or attack.',
+            example: 'allow "std/mpc" in as MPC\nlet bass_16 = MPC.sixteen_levels(pad1, "tune")'
+        },
+        'note_repeat': {
+            signature: 'note_repeat(pad, rate?, bars?, options?)',
+            source: 'Akai MPC Standard Library (std/mpc)',
+            description: 'Official Akai MPC Note Repeat function. Generates rhythmic repeats with swing and velocity ramps.',
+            example: 'allow "std/mpc" in as MPC\nlet rolls = MPC.note_repeat(3, "1/32", 1, {ramp: "crescendo"})'
+        },
+        'drum_kit': {
+            signature: 'drum_kit(nameOrPreset?)',
+            source: 'Akai MPC Standard Library (std/mpc)',
+            description: 'Creates a 16-pad Akai MPC drum program with tuning, levels, panning, envelopes, and choke groups.',
+            example: 'allow "std/mpc" in as MPC\nlet kit = MPC.drum_kit("boom_bap")'
+        },
+        'render_wav': {
+            signature: 'render_wav(target, path, options?)',
+            source: 'Akai MPC Standard Library (std/mpc)',
+            description: 'Renders an MPC sequence, song, or sample directly to a 16-bit 44.1kHz stereo WAV file.',
+            example: 'allow "std/mpc" in as MPC\nseq.render_wav("beat.wav")'
+        },
+        'render_midi': {
+            signature: 'render_midi(target, path)',
+            source: 'Akai MPC Standard Library (std/mpc)',
+            description: 'Exports an MPC sequence to a multi-track Standard MIDI File preserving Roger Linn swing timing.',
+            example: 'allow "std/mpc" in as MPC\nseq.render_midi("beat.mid")'
+        },
         'clear': {
             signature: 'clear()',
             source: 'Drawing Standard Library (std/draw)',
@@ -1753,8 +2713,74 @@ function activate(context) {
         'pixel': {
             signature: 'pixel(x, y, color)',
             source: 'Drawing Standard Library (std/draw)',
-            description: 'Sets one color value in the raster pixel buffer.',
+            description: 'Sets one color value in the raster pixel buffer at (x, y).',
             example: 'allow "std/draw" in as Draw\nDraw.pixel(4, 4, "#ff00aa")'
+        },
+        'pixel_rect': {
+            signature: 'pixel_rect(x, y, w, h, color, filled = true)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a raster rectangle in the pixel buffer.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_rect(0, 0, 16, 16, "#ff00aa")'
+        },
+        'pixel_circle': {
+            signature: 'pixel_circle(cx, cy, r, color, filled = true)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a raster circle in the pixel buffer.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_circle(10, 10, 5, "#00ffaa")'
+        },
+        'pixel_line': {
+            signature: 'pixel_line(x1, y1, x2, y2, color)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a raster line in the pixel buffer.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_line(0, 0, 20, 20, "#ffffff")'
+        },
+        'pixel_ellipse': {
+            signature: 'pixel_ellipse(cx, cy, rx, ry, color, filled = true)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a raster ellipse in the pixel buffer.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_ellipse(15, 15, 8, 4, "#ffff00")'
+        },
+        'pixel_polygon': {
+            signature: 'pixel_polygon(points, color, filled = true)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a raster polygon in the pixel buffer.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_polygon([[0,0],[10,0],[5,10]], "#ff00ff")'
+        },
+        'pixel_triangle': {
+            signature: 'pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled = true)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a raster triangle in the pixel buffer.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_triangle(2, 14, 8, 2, 14, 14, "#ff4d6d")'
+        },
+        'pixel_star': {
+            signature: 'pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled = true)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a raster star with configurable spike and radius counts in the pixel buffer.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_star(16, 16, 5, 14, 6, "#ffd166")'
+        },
+        'pixel_ring': {
+            signature: 'pixel_ring(cx, cy, radius, thickness, color)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a raster ring with the requested thickness in the pixel buffer.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_ring(16, 16, 12, 3, "#118ab2")'
+        },
+        'pixel_arc': {
+            signature: 'pixel_arc(cx, cy, radius, startAngle, endAngle, color)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a raster circular arc between two angles measured in degrees.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_arc(16, 16, 12, 0, 180, "#7209b7")'
+        },
+        'pixel_bezier': {
+            signature: 'pixel_bezier(x1, y1, cx, cy, x2, y2, color)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Draws a raster quadratic Bezier curve through one control point.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_bezier(2, 28, 16, 2, 30, 28, "#4cc9f0")'
+        },
+        'pixel_text': {
+            signature: 'pixel_text(x, y, text, color, scale = 1)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Rasterizes text into the pixel buffer with the built-in 5x7 bitmap font.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_text(2, 2, "PIXEL ART", "#f72585", 2)'
         },
         'pixel_grid': {
             signature: 'pixel_grid(grid, palette, scale = 1, x = 0, y = 0)',
@@ -1808,7 +2834,7 @@ function activate(context) {
             signature: 'gradient(type, id, stops, options = {})',
             source: 'Drawing Standard Library (std/draw)',
             description: 'Defines a linear or radial gradient in the SVG defs.',
-            example: 'allow "std/draw" in as Draw\nDraw.gradient("linear", "sky", [{"offset": "0%", "color": "blue"}, {"offset": "100%", "color": "black"}])'
+            example: 'allow "std/draw" in as Draw\nDraw.gradient("linear", "sky", [{offset: "0%", color: "blue"}, {offset: "100%", color: "black"}])'
         },
         'style': {
             signature: 'style(cssText)',
@@ -1832,7 +2858,7 @@ function activate(context) {
             signature: 'await expression',
             source: 'Sesi Control Flow',
             description: 'Suspends the execution of an enclosing async function until the target promise or async operation completes and returns its value.',
-            example: 'let logs = await fetchLogs()'
+            example: 'async fn fetchLogs() {\n  return db.collection("logs").find()\n}\nlet logs = await fetchLogs()'
         },
         'convert': {
             signature: 'convert(doc_or_media_or_audio) { output_type: ext } { expression }',
@@ -1844,31 +2870,31 @@ function activate(context) {
             signature: 'gif(input, output, options = null)',
             source: 'FFmpeg Media Standard Library',
             description: 'Creates an animated GIF from a video file or an array of image-frame paths.',
-            example: 'let output = gif(["frame1.png", "frame2.png"], "preview.gif", {"fps": 12, "width": 640})'
+            example: 'let output = gif(\n   ["frame1.png", "frame2.png"],\n   "preview.gif",\n    {fps: 12, width: 640}\n)'
         },
         'video': {
             signature: 'video(model) { config } { prompt } | video(input, output, options = null)',
             source: 'AI Generation / FFmpeg Media Standard Library',
             description: 'Generates video with Gemini Omni Flash or Veo, or creates/transcodes local media with FFmpeg.',
-            example: 'let localVid = video(frames, "build/preview.mp4", {\n  "fps": 30,\n  "width": 1280,\n  "height": 720,\n  "codec": "libx264",\n  "crf": 23,\n  "audio": "music.wav"\n})\nlet aiVid = video("veo-3.1-generate-preview") {duration: 8, ratio: "16:9"} {"A cinematic ocean shot"}'
+            example: 'let localVid = video(frames, "build/preview.mp4", {\n  fps: 30,\n  width: 1280,\n  height: 720,\n  codec: "libx264",\n  crf: 23,\n  audio: "music.wav"\n})\nlet aiVid = video("veo-3.1-generate-preview") {duration: 8, ratio: "16:9"} {"A cinematic ocean shot"}'
         },
         'ffmpeg': {
             signature: 'ffmpeg(args, options = null)',
             source: 'FFmpeg Media Standard Library',
             description: 'Runs FFmpeg with a structured argument array and returns its exit status and captured output.',
-            example: 'let info = ffmpeg(["-version"], {"throw_on_error": false})'
+            example: 'let info = ffmpeg(["-version"], {throw_on_error: false})'
         },
         'format': {
             signature: 'format(timestamp, options = {})',
             source: 'Time Standard Library (std/time)',
             description: 'After importing `std/time`, converts a Unix timestamp into a readable localized string.',
-            example: 'allow "std/time" in as Time\nlet formatted = Time.format(Time.now(), {"timeZone": "UTC", "dateStyle": "medium", "timeStyle": "short"})'
+            example: 'allow "std/time" in as Time\nlet formatted = Time.format(Time.now(), {timeZone: "UTC", dateStyle: "medium", timeStyle: "short"})'
         },
         'debug': {
             signature: 'debug(message)',
             source: 'Debug Standard Library',
-            description: 'Pause execution and launche an interactive debugger REPL in your shell terminal.',
-            example: 'let x = 10\nlet y = 20\ndebug()\nshow x + y'
+            description: 'Pause execution and launch an interactive debugger REPL in your shell terminal.',
+            example: 'let x = 10\nlet y = 20\ndebug()\nlet z = x + y\nshow z'
         },
         'allow': {
             signature: 'allow "module" in as LibName\nallow "module" in with { names }',
@@ -1880,7 +2906,7 @@ function activate(context) {
             signature: 'allow "module" in as LibName\nallow "module" in with { names }',
             source: 'Sesi Modules / Libs',
             description: 'Used in allow statements to designate the namespace identifier or function list to bind.',
-            example: 'allow "std/math" in as Math'
+            example: 'allow "std/math" in with { max, min }'
         },
         'to_upper': {
             signature: 'to_upper(string)',
@@ -1952,7 +2978,7 @@ function activate(context) {
             signature: 'retry(fn, options)',
             source: 'Fault Tolerance Standard Library',
             description: 'Executes the given function with automatic retry and exponential backoff configuration upon encountering an exception.',
-            example: 'fn dangerousAction() { ... }\nlet res = retry(dangerousAction, { "max_retries": 3 })'
+            example: 'fn dangerousAction() { ... }\nlet res = retry(dangerousAction, { max_retries: 3 })'
         },
         'lazy': {
             signature: 'lazy(fn, ...args)',
@@ -1993,26 +3019,26 @@ function activate(context) {
         'profile_report': {
             signature: 'profile_report(format = "object")',
             source: 'Profiler Standard Library',
-            description: 'Returns recorded profiler measurements sorted by total runtime. Pass "text" for a showable table.',
+            description: 'Returns recorded profiler measurements sorted by total runtime. Pass "text" for a printable table.',
             example: 'show profile_report("text")'
         },
         'name': {
             signature: 'name(func)',
             source: 'Function Introspection',
             description: 'Returns the name of a given function.',
-            example: 'show name(my_func)'
+            example: 'show name(read_file)'
         },
         'arity': {
             signature: 'arity(func)',
             source: 'Function Introspection',
             description: 'Returns the number of parameters a function expects.',
-            example: 'show arity(add)'
+            example: 'show arity(web_get)'
         },
         'is_function': {
             signature: 'is_function(value)',
             source: 'Function Introspection',
             description: 'Checks whether a value is a function.',
-            example: 'show is_function(my_func)'
+            example: 'show is_function(list_dir)'
         },
         'is_array': {
             signature: 'is_array(value)',
@@ -2024,7 +3050,7 @@ function activate(context) {
             signature: 'is_object(value)',
             source: 'Collection Checks',
             description: 'Checks whether a value is an object.',
-            example: 'show is_object({"a": 1})'
+            example: 'show is_object({a: 1})'
         },
         'is_string': {
             signature: 'is_string(value)',
@@ -2124,6 +3150,38 @@ function activate(context) {
         }
     };
 
+    const hoverProviderDocsBoundary = null;
+    // The boundary above keeps Sesi Studio's syntax-documentation extractor
+    // anchored before the generated math documentation below.
+
+    for (const constant of SESI_MATH_CONSTANTS) {
+        if (!docs[constant]) {
+            docs[constant] = {
+                signature: constant,
+                source: 'Math Standard Library (std/math)',
+                description: `Numeric constant exported by std/math as Math.${constant}.`,
+                example: `allow "std/math" in as Math\nshow Math.${constant}`
+            };
+        }
+    }
+    for (const [name, signature] of Object.entries(SESI_MATH_FUNCTION_SIGNATURES)) {
+        if (!docs[name]) {
+            const exampleArgs = name === 'random'
+                ? ''
+                : ['atan2', 'imul', 'pow'].includes(name)
+                    ? '1, 2'
+                    : ['hypot', 'max', 'min'].includes(name)
+                        ? '3, 4'
+                        : '1';
+            docs[name] = {
+                signature,
+                source: 'Math Standard Library (std/math)',
+                description: `JavaScript-compatible numeric function exported by std/math as Math.${name}.`,
+                example: `allow "std/math" in as Math\nshow Math.${name}(${exampleArgs})`
+            };
+        }
+    }
+
     const hoverProvider = vscode.languages.registerHoverProvider('sesi', {
         provideHover(document, position, token) {
             if (isPositionInComment(document, position)) return null;
@@ -2141,21 +3199,25 @@ function activate(context) {
 
                         const builtinExports = {
                             'std/math': [
-                                'PI (number)', 'E (number)',
-                                'sin(x)', 'cos(x)', 'tan(x)', 'sqrt(x)',
-                                'floor(x)', 'ceil(x)', 'abs(x)', 'pow(x, y)',
-                                'log(x)', 'exp(x)'
+                                ...SESI_MATH_CONSTANTS.map(name => `${name} (number)`),
+                                ...Object.values(SESI_MATH_FUNCTION_SIGNATURES)
                             ],
                             'std/time': [
                                 'now()', 'sleep(ms)', 'format(timestamp, options)'
                             ],
+                            'std/game': [
+                                'VERSION', 'create(config?)', 'vec2(x, y)', 'vec3(x, y, z)', 'quat(x, y, z, w)', 'color(r, g, b, a)',
+                                'game.assets.add(name, type, source, options?)', 'game.create_scene(name, options?)',
+                                'game.scene(name)', 'game.activate_scene(name)', 'game.on_start(fn)', 'game.on_update(fn)',
+                                'game.on_fixed_update(fn)', 'game.on_stop(fn)', 'game.run(options?)', 'game.build(path, options?)',
+                                'scene.box/sphere/plane/ground/cylinder(name, options?)', 'scene.load_model(name, asset, options?)',
+                                'scene.free_camera/orbit_camera/follow_camera(name, options?)',
+                                'scene.hemispheric_light/directional_light/point_light/spot_light(name, options?)',
+                                'scene.standard_material/pbr_material(name, options?)', 'scene.enable_physics(options?)',
+                                'scene.add_body(mesh, options)', 'scene.raycast(origin, direction, distance?)'
+                            ],
                             'std/base64': [
                                 'encode(value, mode?)', 'decode(base64_text, mode?)'
-                            ],
-                            'std/game': [
-                                'create(config)',
-                                '.add(entity)', '.rule(rule)', '.build(path)', '.run(options?)',
-                                'preview.url()', 'preview.stop()'
                             ],
                             'std/db': [
                                 'db_open(filename, password)', '.collection(name)', '.find(query)', '.insert(doc)', '.update(query, update)', '.delete(query)'
@@ -2178,6 +3240,12 @@ function activate(context) {
                             'std/draw': [
                                 'clear()', 'circle(x, y, r, fill, options?)', 'rect(x, y, w, h, fill, options?)',
                                 'pixel(x, y, color)', 'pixel_grid(grid, palette, scale?, x?, y?)',
+                                'pixel_rect(x, y, w, h, color, filled?)', 'pixel_circle(cx, cy, r, color, filled?)',
+                                'pixel_line(x1, y1, x2, y2, color)', 'pixel_ellipse(cx, cy, rx, ry, color, filled?)',
+                                'pixel_polygon(points, color, filled?)', 'pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled?)',
+                                'pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled?)',
+                                'pixel_ring(cx, cy, radius, thickness, color)', 'pixel_arc(cx, cy, radius, startAngle, endAngle, color)',
+                                'pixel_bezier(x1, y1, cx, cy, x2, y2, color)', 'pixel_text(x, y, text, color, scale?)',
                                 'line(x1, y1, x2, y2, color, options?)', 'text(x, y, text, size, color, options?)',
                                 'ellipse(cx, cy, rx, ry, fill, options?)', 'polygon(points, fill, options?)',
                                 'path(d, fill, options?)', 'gradient(type, id, stops, options?)',
@@ -2195,6 +3263,14 @@ function activate(context) {
                                 'create_app(config?)', '.get(path, schema?, handler)', '.post(path, schema?, handler)', 
                                 '.put(path, schema?, handler)', '.delete(path, schema?, handler)', '.use(middleware)', 
                                 '.openapi()', '.routes()', '.listen(port, options?)'
+                            ],
+                            'std/mpc': [
+                                'create(config?)', 'project(config?)', 'sequence(name, bars?, bpm?, timeSig?)',
+                                'drum_kit(nameOrPreset?)', 'program(name, type?, pads?)', 'pad(padNumber, sound?, options?)',
+                                'sixteen_levels(pad, mode?, options?)', 'note_repeat(pad, rate?, bars?, options?)',
+                                'swing(events, percent?, grid?)', 'chop(sample, slices?, options?)', 'slice(sample, slices?, options?)',
+                                'vintage(mode, sample)', 'effect(type, params)', 'fx(type, params)', 'sample(type_or_path, options?)',
+                                'song(steps, name?)', 'render_wav(target, path, options?)', 'render_midi(target, path)', 'play(target, options?)'
                             ]
                         };
 
@@ -2202,8 +3278,14 @@ function activate(context) {
                         if (moduleInfo.specifier === 'std/base64') {
                             markdown.appendMarkdown('**Description:** Base64 encoding/decoding for UTF-8 text and raw bytes (`mode = "text" | "bytes"`).\n\n');
                         }
+                        if (moduleInfo.specifier === 'std/mpc') {
+                            markdown.appendMarkdown('**Description:** Akai MPC track sequencing, Roger Linn swing, 16 Levels, Note Repeat, Choke Groups, AIR FX, and Vintage Mode audio/MIDI rendering.\n\n');
+                        }
                         if (moduleInfo.specifier === 'std/api') {
                             markdown.appendMarkdown('**Description:** FastAPI-style HTTP API framework with auto-generated Swagger UI docs at `/docs` and OpenAPI spec at `/openapi.json`.\n\n**Returns** an app object with methods:\n* `app.get(path, schema, handler)` — register a GET route\n* `app.post(path, schema, handler)` — register a POST route\n* `app.put / patch / delete` — register other HTTP methods\n* `app.use(middleware)` — add a request middleware\n* `app.openapi()` — return the OpenAPI spec as an object\n* `app.routes()` — list registered routes\n* `app.listen(port, options?)` — start server, returns server object\n\n**Schema fields:** `summary`, `description`, `tags`, `query`, `body`, `response`, `deprecated`\n\n**listen options:** `docs_path` (default `/docs`), `openapi_path` (default `/openapi.json`), `cors` (default true), `cors_origin`\n');
+                        }
+                        if (moduleInfo.specifier === 'std/game') {
+                            markdown.appendMarkdown('**Description:** Optional Babylon.js/Electron imperative 3D desktop engine. Install `@misterscan/sesi-game` and run with `sesi -l`.\n\n');
                         }
                         if (exportsList) {
                             markdown.appendMarkdown(`**Exports:**\n`);
@@ -2212,24 +3294,7 @@ function activate(context) {
                             }
                         }
                     } else {
-                        markdown.appendMarkdown(`### Module: \`${moduleInfo.specifier}\`\n\n`);
-                        markdown.appendMarkdown(`*Type:* Local Sesi Module  \n`);
-                        markdown.appendMarkdown(`*Path:* \`${resolved.path}\`  \n`);
-                        markdown.appendMarkdown(`*Resolved in:* \`${resolved.searchDir}\`\n\n`);
-
-                        const exportsList = getExportsFromSesiFile(resolved.path);
-                        if (exportsList && exportsList.length > 0) {
-                            markdown.appendMarkdown(`**Exports:**\n`);
-                            for (const exp of exportsList) {
-                                if (exp.type === 'function') {
-                                    markdown.appendMarkdown(`* \`${exp.isAsync ? 'async fn' : 'fn'} ${exp.name}(${exp.params})\`\n`);
-                                } else {
-                                    markdown.appendMarkdown(`* \`let ${exp.name}\`\n`);
-                                }
-                            }
-                        } else {
-                            markdown.appendMarkdown(`*No exports found in file.*`);
-                        }
+                        appendLocalModuleHover(markdown, moduleInfo.specifier, resolved);
                     }
                 } else {
                     markdown.appendMarkdown(`### Module: \`${moduleInfo.specifier}\`\n\n`);
@@ -2244,7 +3309,81 @@ function activate(context) {
             if (!range) return null;
 
             const word = document.getText(range);
-            const item = docs[word];
+
+            const makeMember = resolveMakeMemberAtPosition(document, position, workspaceRoot);
+            if (makeMember) {
+                const details = makeMember.definition.details;
+                const markdown = new vscode.MarkdownString();
+                markdown.isTrusted = true;
+                markdown.appendCodeblock(details.signature, 'sesi');
+                if (details.documentation) markdown.appendMarkdown(`${details.documentation}\n\n`);
+                markdown.appendMarkdown(`*Member of:* **${makeMember.makeName}**  \n`);
+                if (makeMember.specifier) markdown.appendMarkdown(`*Imported from:* **${makeMember.specifier}**  \n`);
+                markdown.appendMarkdown(`*Declared on line ${details.line}*`);
+                return new vscode.Hover(markdown, range);
+            }
+
+            const scopeAnalysis = getDocumentScopeAnalysis(document);
+            const identifierToken = getIdentifierTokenAtPosition(scopeAnalysis.tokens, position);
+            const namespaceImport = getNamespaceImportAtToken(
+                scopeAnalysis.tokens,
+                scopeAnalysis.tokenScopes,
+                identifierToken
+            );
+            if (namespaceImport) {
+                const resolvedModule = resolveSesiModule(namespaceImport.specifier, document.uri.fsPath, workspaceRoot);
+                if (resolvedModule && resolvedModule.type === 'local') {
+                    const markdown = new vscode.MarkdownString();
+                    markdown.isTrusted = true;
+                    markdown.supportHtml = true;
+                    appendLocalModuleHover(markdown, namespaceImport.specifier, resolvedModule);
+                    return new vscode.Hover(markdown, range);
+                }
+            }
+
+            const importedSymbol = resolveImportedSymbolAtPosition(document, position, workspaceRoot);
+            if (importedSymbol && importedSymbol.kind === 'local-export') {
+                const details = importedSymbol.exportDefinition.details;
+                const markdown = new vscode.MarkdownString();
+                markdown.isTrusted = true;
+                markdown.appendCodeblock(details.signature, 'sesi');
+                if (details.documentation) {
+                    markdown.appendMarkdown(`${details.documentation}\n\n`);
+                }
+                markdown.appendMarkdown(`*Imported from:* **${importedSymbol.specifier}**  \n`);
+                markdown.appendMarkdown(`*Declared on line ${details.line}*`);
+                return new vscode.Hover(markdown, range);
+            }
+            if (importedSymbol && importedSymbol.kind === 'missing-export') {
+                const markdown = new vscode.MarkdownString();
+                markdown.appendCodeblock(`(unresolved export) ${importedSymbol.exportName}`, 'sesi');
+                markdown.appendMarkdown(`No exported declaration named **${importedSymbol.exportName}** was found in **${importedSymbol.specifier}**.`);
+                return new vscode.Hover(markdown, range);
+            }
+
+            // Local symbols take precedence over built-ins so user declarations can
+            // intentionally shadow a built-in and still receive the correct hover.
+            const cache = getDocumentScopeAnalysis(document);
+            const localToken = getIdentifierTokenAtPosition(cache.tokens, position);
+            if (localToken && (!importedSymbol || importedSymbol.kind !== 'builtin')) {
+                const scope = cache.tokenScopes.get(localToken);
+                const declaration = scope && scope.resolve(localToken.lexeme);
+                if (declaration) {
+                    const details = getDeclarationDetails(document.getText(), cache.tokens, declaration);
+                    if (details) {
+                        const markdown = new vscode.MarkdownString();
+                        markdown.isTrusted = true;
+                        markdown.appendCodeblock(details.signature, 'sesi');
+                        if (details.documentation) {
+                            markdown.appendMarkdown(`${details.documentation}\n\n`);
+                        }
+                        markdown.appendMarkdown(`*Declared on line ${details.line}*`);
+                        return new vscode.Hover(markdown, range);
+                    }
+                }
+            }
+
+            const item = docs[importedSymbol && importedSymbol.kind === 'builtin' ? importedSymbol.exportName : word];
             if (item) {
                 const markdown = new vscode.MarkdownString();
                 markdown.isTrusted = true;
@@ -2263,46 +3402,6 @@ function activate(context) {
                 return new vscode.Hover(markdown);
             }
 
-            // Check local declarations
-            const cache = documentScopesCache.get(document.uri.toString());
-            if (cache) {
-                const { tokens, tokenScopes } = cache;
-                const line = position.line;
-                const char = position.character;
-                const tok = tokens.find(t => t.line === line && char >= t.col && char <= t.col + t.length);
-                if (tok && tok.type === 'IDENTIFIER') {
-                    const scope = tokenScopes.get(tok);
-                    if (scope) {
-                        const decl = scope.resolve(tok.lexeme);
-                        if (decl) {
-                            const markdown = new vscode.MarkdownString();
-                            markdown.isTrusted = true;
-                            
-                            let detail = '';
-                            if (decl.type === 'function') {
-                                detail = `fn ${tok.lexeme}`;
-                            } else if (decl.type === 'parameter') {
-                                detail = `(parameter) ${tok.lexeme}`;
-                            } else if (decl.type === 'variable') {
-                                detail = `let ${tok.lexeme}`;
-                            } else if (decl.type === 'loop_variable') {
-                                detail = `(loop variable) ${tok.lexeme}`;
-                            } else if (decl.type === 'catch_variable') {
-                                detail = `(catch variable) ${tok.lexeme}`;
-                            } else if (decl.type === 'import') {
-                                detail = `(import) ${tok.lexeme}`;
-                            } else if (decl.type === 'tool') {
-                                detail = `(tool) ${tok.lexeme}`;
-                            } else {
-                                detail = `${decl.type} ${tok.lexeme}`;
-                            }
-                            
-                            markdown.appendCodeblock(detail, 'sesi');
-                            return new vscode.Hover(markdown, range);
-                        }
-                    }
-                }
-            }
             return null;
         }
     });
@@ -2329,14 +3428,39 @@ function activate(context) {
                 );
             }
 
+            const importedSymbol = resolveImportedSymbolAtPosition(document, position, workspaceRoot);
+            if (importedSymbol && importedSymbol.kind === 'local-export') {
+                const definitionToken = importedSymbol.exportDefinition.token;
+                return new vscode.Location(
+                    vscode.Uri.file(importedSymbol.resolvedModule.path),
+                    new vscode.Range(
+                        new vscode.Position(definitionToken.line, definitionToken.col),
+                        new vscode.Position(definitionToken.line, definitionToken.col + definitionToken.length)
+                    )
+                );
+            }
+
+            const makeMember = resolveMakeMemberAtPosition(document, position, workspaceRoot);
+            if (makeMember) {
+                const definitionToken = makeMember.definition.token;
+                const definitionUri = makeMember.kind === 'imported-member'
+                    ? vscode.Uri.file(makeMember.resolvedModule.path)
+                    : document.uri;
+                return new vscode.Location(
+                    definitionUri,
+                    new vscode.Range(
+                        new vscode.Position(definitionToken.line, definitionToken.col),
+                        new vscode.Position(definitionToken.line, definitionToken.col + definitionToken.length)
+                    )
+                );
+            }
+
             // Check local declarations for Go to Definition
-            const cache = documentScopesCache.get(document.uri.toString());
+            const cache = getDocumentScopeAnalysis(document);
             if (cache) {
                 const { tokens, tokenScopes } = cache;
-                const line = position.line;
-                const char = position.character;
-                const tok = tokens.find(t => t.line === line && char >= t.col && char <= t.col + t.length);
-                if (tok && tok.type === 'IDENTIFIER') {
+                const tok = getIdentifierTokenAtPosition(tokens, position);
+                if (tok) {
                     const scope = tokenScopes.get(tok);
                     if (scope) {
                         const decl = scope.resolve(tok.lexeme);
@@ -2421,14 +3545,7 @@ function activate(context) {
         const diagnostics = validateImports(document, workspaceRoot);
 
         try {
-            const tokens = tokenize(text);
-            const { decls, refs } = findDeclarationsAndReferences(tokens);
-            const scopeDiagnostics = analyzeScope(tokens, decls, refs);
-            
-            documentScopesCache.set(document.uri.toString(), {
-                tokens,
-                tokenScopes: scopeDiagnostics.tokenScopes
-            });
+            const scopeDiagnostics = getDocumentScopeAnalysis(document).diagnostics;
             
             for (const d of scopeDiagnostics) {
                 const range = new vscode.Range(
@@ -2530,6 +3647,47 @@ function activate(context) {
     context.subscriptions.push(hoverProvider);
     context.subscriptions.push(definitionProvider);
     context.subscriptions.push(documentLinkProvider);
+    context.subscriptions.push(vscode.languages.registerCompletionItemProvider('sesi', {
+        provideCompletionItems(document, position) {
+            const prefix = document.lineAt(position.line).text.slice(0, position.character);
+            if (/\bMath\.$/.test(prefix)) {
+                return [
+                    ...SESI_MATH_CONSTANTS.map(name => {
+                        const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Constant);
+                        item.detail = 'std/math constant';
+                        return item;
+                    }),
+                    ...SESI_MATH_FUNCTIONS.map(name => {
+                        const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Method);
+                        item.detail = SESI_MATH_FUNCTION_SIGNATURES[name];
+                        return item;
+                    })
+                ];
+            }
+            if (/Game\.$/.test(prefix)) {
+                return ['VERSION', 'create', 'vec2', 'vec3', 'quat', 'color'].map(name => {
+                    const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Method);
+                    item.detail = 'std/game module export';
+                    return item;
+                });
+            }
+            if (/\bgame\.$/.test(prefix)) {
+                return ['assets', 'input', 'storage', 'active_scene', 'paused', 'create_scene', 'scene', 'activate_scene', 'on_start', 'on_update', 'on_fixed_update', 'on_stop', 'run', 'build'].map(name => {
+                    const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Method);
+                    item.detail = 'std/game game member';
+                    return item;
+                });
+            }
+            if (/\bscene\.$/.test(prefix)) {
+                return ['box', 'sphere', 'plane', 'ground', 'cylinder', 'load_model', 'free_camera', 'orbit_camera', 'follow_camera', 'hemispheric_light', 'directional_light', 'point_light', 'spot_light', 'standard_material', 'pbr_material', 'raycast', 'intersects', 'get', 'remove', 'enable_physics', 'add_body', 'animate', 'play_sound', 'gui_text', 'gui_image', 'gui_button', 'gui_panel', 'gui_stack'].map(name => {
+                    const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Method);
+                    item.detail = 'std/game scene member';
+                    return item;
+                });
+            }
+            return undefined;
+        }
+    }, '.'));
 
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument(document => {
@@ -2564,9 +3722,28 @@ module.exports = {
         stripComments,
         isPositionInComment,
         getModuleSpecifierAtPosition,
+        resolveSesiModule,
         validateImports,
         tokenize,
+        findEmbeddedCodeRanges,
+        tokenizeEmbeddedCode,
+        splitEmbeddedTokenAcrossLines,
+        embeddedSemanticTokenType,
+        getModuleDocumentation,
+        appendLocalModuleHover,
+        getLeadingDocumentation,
+        getDeclarationDetails,
+        findExportDefinitionInText,
+        getImportBindingInfo,
+        getImportTargetAtToken,
+        getNamespaceImportAtToken,
+        getMakeMemberTargetAtToken,
+        findMakeMemberDefinitionInText,
+        resolveMakeMemberAtPosition,
         findDeclarationsAndReferences,
-        analyzeScope
+        analyzeScope,
+        mathConstants: SESI_MATH_CONSTANTS,
+        mathFunctions: SESI_MATH_FUNCTIONS,
+        mathFunctionSignatures: SESI_MATH_FUNCTION_SIGNATURES
     }
 };

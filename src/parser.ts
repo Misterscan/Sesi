@@ -24,6 +24,7 @@ import {
   type MemoryStatement,
   type Literal,
   type Identifier,
+  type EnvLookupExpression,
   type BinaryOp,
   type UnaryOp,
   type LogicalOp,
@@ -139,28 +140,38 @@ export class Parser {
     this.consume('LEFT_PAREN', 'Expected ( after function name');
 
     const parameters: Parameter[] = [];
+    this.skipNewlines();
     if (!this.check('RIGHT_PAREN')) {
-      do {
+      while (!this.check('RIGHT_PAREN')) {
         const paramName = this.consume('IDENTIFIER', 'Expected parameter name').lexeme;
         let paramType: TypeAnnotation | undefined;
 
+        this.skipNewlines();
         if (this.match('COLON')) {
+          this.skipNewlines();
           paramType = this.typeAnnotation();
         }
 
+        this.skipNewlines();
         let defaultValue: Expression | undefined;
         if (this.match('EQUAL')) {
+          this.skipNewlines();
           defaultValue = this.assignment();
         }
 
         parameters.push({ name: paramName, type: paramType, defaultValue });
-      } while (this.match('COMMA'));
+        this.skipNewlines();
+        if (!this.match('COMMA')) break;
+        this.skipNewlines();
+      }
     }
 
     this.consume('RIGHT_PAREN', 'Expected ) after parameters');
 
+    this.skipNewlines();
     let returnType: TypeAnnotation | undefined;
     if (this.match('ARROW')) {
+      this.skipNewlines();
       returnType = this.typeAnnotation();
     }
 
@@ -570,14 +581,14 @@ export class Parser {
     let statement: FunctionStatement | LetStatement;
 
     if (this.match('FN')) {
-      statement = this.functionStatement(false);
+      statement = this.functionStatement(false, leadingComments);
     } else if (this.match('MAKE')) {
-      statement = this.makeStatement();
+      statement = this.makeStatement(leadingComments);
     } else if (this.match('ASYNC')) {
       this.consume('FN', 'Expected fn after async');
-      statement = this.functionStatement(true);
+      statement = this.functionStatement(true, leadingComments);
     } else if (this.match('LET')) {
-      statement = this.letStatement();
+      statement = this.letStatement(leadingComments);
     } else {
       throw new Error(`Expected function or variable declaration after export ${this.formatLocation(this.peek())}`);
     }
@@ -878,6 +889,30 @@ export class Parser {
           property,
           line: this.previous().line,
         };
+      } else if (this.match('QUESTION_DOT')) {
+        if (this.match('LEFT_PAREN')) {
+          expr = this.finishCall(expr);
+          (expr as import('./types').CallExpression).optional = true;
+        } else if (this.match('LEFT_BRACKET')) {
+          const index = this.expression();
+          this.consume('RIGHT_BRACKET', 'Expected ] after index');
+          expr = {
+            type: 'IndexExpression',
+            object: expr,
+            index,
+            line: this.previous().line,
+            optional: true,
+          };
+        } else {
+          const property = this.consume('IDENTIFIER', 'Expected property name').lexeme;
+          expr = {
+            type: 'MemberExpression',
+            object: expr,
+            property,
+            line: this.previous().line,
+            optional: true,
+          };
+        }
       } else {
         break;
       }
@@ -1091,7 +1126,23 @@ export class Parser {
       return this.toolCall();
     }
 
+    if (this.match('DOLLAR_IDENTIFIER')) {
+      return {
+        type: 'EnvLookupExpression',
+        variableName: this.previous().literal as string,
+        line: this.previous().line,
+      };
+    }
+
     if (this.match('IDENTIFIER')) {
+      if (this.previous().lexeme === 'any') {
+        return {
+          type: 'Literal',
+          value: null,
+          rawType: 'any',
+          line: this.previous().line,
+        };
+      }
       return {
         type: 'Identifier',
         name: this.previous().lexeme,
@@ -1139,7 +1190,9 @@ export class Parser {
     if (!this.check('RIGHT_BRACE')) {
       do {
         this.skipNewlines();
-        const key = this.consume('STRING', 'Expected string key').literal;
+        const key = this.match('STRING')
+          ? this.previous().literal
+          : this.consume('IDENTIFIER', 'Expected string or identifier key').lexeme;
         this.consume('COLON', 'Expected : after object key');
         const value = this.assignment();
         properties.push({ key: key as string, value });
@@ -1425,12 +1478,16 @@ export class Parser {
     this.consume('LEFT_BRACE', 'Expected { for schema');
 
     const schema: Record<string, TypeAnnotation> = {};
+    this.skipNewlines();
     if (!this.check('RIGHT_BRACE')) {
-      do {
+      while (!this.check('RIGHT_BRACE') && !this.isAtEnd()) {
         const key = this.consume('IDENTIFIER', 'Expected field name').lexeme;
         this.consume('COLON', 'Expected : after field name');
         schema[key] = this.typeAnnotation();
-      } while (this.match('COMMA'));
+        this.skipNewlines();
+        if (!this.match('COMMA')) break;
+        this.skipNewlines();
+      }
     }
 
     this.consume('RIGHT_BRACE', 'Expected } after schema');
@@ -1474,6 +1531,19 @@ export class Parser {
   }
 
   private typeAnnotation(): TypeAnnotation {
+    let left = this.parseSingleTypeAnnotation();
+    while (this.match('PIPE')) {
+      const right = this.parseSingleTypeAnnotation();
+      if (left.type === 'UnionType') {
+        left = { type: 'UnionType', types: [...left.types, right] };
+      } else {
+        left = { type: 'UnionType', types: [left, right] };
+      }
+    }
+    return left;
+  }
+
+  private parseSingleTypeAnnotation(): TypeAnnotation {
     if (this.check('IDENTIFIER')) {
       const name = this.advance().lexeme;
       switch (name) {
@@ -1534,27 +1604,31 @@ export class Parser {
           return type;
         }
 
-        case 'array':
+        case 'array': {
+          let type: TypeAnnotation = { type: 'ArrayType', elementType: { type: 'PrimitiveType', name: 'any' } };
           if (this.match('LESS')) {
             const elementType = this.typeAnnotation();
             this.consume('GREATER', 'Expected > in array type');
-            return {
-              type: 'ArrayType',
-              elementType,
-            };
+            type = { type: 'ArrayType', elementType };
           }
-          return { type: 'PrimitiveType', name: 'any' };
+          if (this.match('QUESTION')) {
+            type = { type: 'OptionalType', baseType: type };
+          }
+          return type;
+        }
 
-        case 'object':
+        case 'object': {
+          let type: TypeAnnotation = { type: 'ObjectType', valueType: { type: 'PrimitiveType', name: 'any' } };
           if (this.match('LESS')) {
             const valueType = this.typeAnnotation();
             this.consume('GREATER', 'Expected > in object type');
-            return {
-              type: 'ObjectType',
-              valueType,
-            };
+            type = { type: 'ObjectType', valueType };
           }
-          return { type: 'PrimitiveType', name: 'any' };
+          if (this.match('QUESTION')) {
+            type = { type: 'OptionalType', baseType: type };
+          }
+          return type;
+        }
 
         default:
           throw new Error(`Unknown type: ${name} ${this.formatLocation(this.previous())}`);

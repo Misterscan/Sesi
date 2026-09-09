@@ -12,7 +12,7 @@ let summary = "summary"
 let detailed = "detailed"
 
 summary | set_alias("gemini-3.5-flash-lite")
-detailed | set_alias("gemini-3.6-flash")
+detailed | set_alias("gemini-3.7-flash")
 
 show "=== Fast summary call ==="
 let quick = model(summary) {max_tokens: 100} {"Summarize the benefits of model aliases in two short bullet points."}
@@ -29,4 +29,4 @@ let steps = [
  ]
 
 let flow = workflow(steps, "Custom model naming is now available")
-show flow["final"]
+show flow.final

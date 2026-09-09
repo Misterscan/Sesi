@@ -16,8 +16,9 @@ All variables are declared with `let`. There is no `const`, `var`, or any other 
 let name = "Sesi"
 let retries: number = 3
 let title: string = "Welcome"
-let version = 1.8.6
+let version = 1.9.0
 let active = true
+let status = any   // can hold any type of value
 let missing        // declared but uninitialized — value is null
 ```
 
@@ -31,9 +32,14 @@ After declaration, a variable can be reassigned using `=` without repeating `let
 
 ```sesi
 let count = 0
+let status = any
+status = "active"   // reassigning a variable of type `any`
+status = 1         // reassigning a variable of type `any` to a number
+status = {active: true}   // reassigning a variable of type `any` to an object
 count = count + 1
 count = count + 1
 show count        // 2
+show status.active   // true
 ```
 
 Object fields and array elements can also be mutated directly:
@@ -43,9 +49,9 @@ let scores = [10, 20, 30]
 scores[0] = 99
 show scores       // [99, 20, 30]
 
-let user = {"name": "Ada", "role": "admin"}
-user["role"] = "developer"
-show user["name"] // Ada
+let user = {name: "Ada", role: "admin"}
+user.role = "developer"
+show user.name // Ada
 ```
 
 ---
@@ -60,12 +66,13 @@ Sesi infers the type of a variable from its assigned value. The primitive types 
 | `string` | `str` | `let msg = "hello"`            |
 | `bool`   | —     | `let ready = true`             |
 | `null`   | —     | `let empty = null`             |
+| `any`    | —     | `let value = any`              |
 
 Collection types are also supported:
 
 ```sesi
-let tags = ["sesi", "lang", "v2"]          // array
-let config = {"theme": "dark", "limit": 20} // object
+let tags = ["sesi", "lang", "v1.9.0"]          // array
+let config = {theme: "dark", limit: 20} // object
 ```
 
 ### Type Aliases
@@ -90,18 +97,37 @@ let tags: array<string> = ["sesi", "lang"]
 
 ### The `any` Type
 
-`any` accepts any value and bypasses type checking. Use it in function signatures when the argument type is genuinely variable:
+`any` accepts values of every type and bypasses type checking. It can be used as a type annotation or as a variable initializer.
 
 ```sesi
 fn display(value: any) { show value }
+
+let result: any = "pending"
+result = 200
+result = {complete: true}
+```
+
+Using `any` directly as an initializer creates an unrestricted variable with an initial runtime value of `null`:
+
+```sesi
+let status = any
+show status             // null
+status = "active"
+status = 1
+status = {active: true}
 ```
 
 ### Optional Types (`T?`)
 
-Append `?` to mark a parameter as optional (value may be `null`):
+Append `?` to mark a type annotation (parameter, return type, or variable) as optional (value may be `null`):
 
 ```sesi
-fn greet(name: str, title: str?) {
+fn find_user(id: number) -> object? {
+  if id == 1 { return {name: "Ada"} }
+  return null
+}
+
+fn greet(name: str, title: str? = null) {
   if title { show title name }
   else { show name }
 }
@@ -112,6 +138,7 @@ fn greet(name: str, title: str?) {
 A variable or parameter can hold one of several types:
 
 ```sesi
+let value: number | string = 42
 fn show(value: number | string) { show value }
 ```
 
@@ -172,11 +199,18 @@ show addBase(5)   // 205 — closes over the live binding
 
 ## Built-in Global Variables
 
-Sesi exposes one built-in global variable available in every script:
+Sesi exposes built-in globals and shorthands available in every script:
 
-| Variable | Type            | Description                                                                                     |
-| -------- | --------------- | ----------------------------------------------------------------------------------------------- |
-| `args`   | `array<string>` | Command-line arguments passed to the script (excludes runtime flags and the script path itself) |
+| Variable / Syntax | Type            | Description                                                                                     |
+| ----------------- | --------------- | ----------------------------------------------------------------------------------------------- |
+| `args`            | `array<string>` | Command-line arguments passed to the script (excludes runtime flags and the script path itself) |
+| `$VAR`            | `string \| null` | Environment variable lookup shorthand (e.g., `$USER`, `$PORT`, `$HOME`). Equivalent to `env("VAR")`. |
+
+```sesi
+// Access environment variables directly
+show $USER
+let port = $PORT || 8080
+```
 
 ```sesi
 // Run as: sesi myscript.sesi Alice 30
@@ -207,10 +241,11 @@ let count   = 3
 let title   = "Daily Report"
 let ready   = true
 let missing = null
+let flexible = any
 
 // Collections
 let scores  = [10, 20, 30]
-let profile = {"name": "Ada", "role": "developer"}
+let profile = {name: "Ada", role: "developer"}
 
 // Reassignment
 count = count + 1

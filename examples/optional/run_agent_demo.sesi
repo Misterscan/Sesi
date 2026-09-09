@@ -13,9 +13,9 @@ show "=== Part 1: Streaming Conversational Agent ==="
 
 let chat_agent = Agent.create({
   "model": "tutor",
-  "system": "You are a concise, helpful tutor. Keep responses under 20 words.",
-  "temperature": 0.3,
-  "stream": true
+  system: "You are a concise, helpful tutor. Keep responses under 20 words.",
+  temperature: 0.3,
+  stream: true
 })
 
 show "Prompting streaming agent: 'What is the speed of light?'"
@@ -30,9 +30,9 @@ show "
 // We can register native Sesi built-in functions directly as tools!
 let react_agent = Agent.create({
   "model": "developer",
-  "system": "You are a developer assistant. Use the read_file tool to read local files.",
-  "temperature": 0.3,
-  "tools": {
+  system: "You are a developer assistant. Use the read_file tool to read local files.",
+  temperature: 0.3,
+  tools: {
     "read_file": read_file
   }
 })
@@ -50,11 +50,21 @@ show "
 // Create an agent with no initial tools
 let admin_agent = Agent.create({
   "model": "tutor",
-  "system": "You are a calculator assistant.",
-  "temperature": 0
+  system: "You are a calculator assistant.",
+  temperature: 0
 })
 
 // Define a dynamic tool function
+
+/**
+  Dynamic tool to double a numeric value.
+
+  Parameters:
+  - args: A dictionary containing the number to be doubled. Accepts keys "value", "number", or "num".
+
+  Returns:
+  A string representing the doubled value.
+*/
 fn double_tool(args) {
   let val = args["value"]
   if val == null {

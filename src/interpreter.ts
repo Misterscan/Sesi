@@ -21,6 +21,7 @@ import {
   type MemoryStatement,
   type Literal,
   type Identifier,
+  type EnvLookupExpression,
   type BinaryOp,
   type UnaryOp,
   type LogicalOp,
@@ -44,6 +45,7 @@ import { getBuiltins, isTruthy, isEqual, stringify, compareValues, stripPrototyp
 import { aiRuntime } from './ai-runtime';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { execFileSync, execSync } from 'child_process';
 import { deflateSync } from 'zlib';
 import { convert as htmlToPlainText } from 'html-to-text';
@@ -54,7 +56,18 @@ import TurndownService from 'turndown';
 import sharp from 'sharp';
 import { estimateTokenCost } from './token-pricing';
 import { SesiProfiler, formatProfileReport } from './profiler';
+import { getRuntimeProperty, setRuntimeProperty } from './native-object';
 import { createGameModule } from './game';
+import { createMpcModule } from './mpc';
+import type { Chunk } from './chunk';
+import { documentationSummary, normalizeDocumentation } from './documentation';
+
+export interface BundledBytecodeModule {
+  id: string;
+  chunk: Chunk;
+  exports: string[];
+  runtimeExports?: Map<string, RuntimeValue>;
+}
 
 export class Interpreter {
   private globalEnv: Environment;
@@ -63,12 +76,15 @@ export class Interpreter {
   private memory: Map<string, string> = new Map();
   private modelAliases: Map<string, string> = new Map();
   private customTools: Map<string, { fn: RuntimeFunction; description?: string }> = new Map();
+  private customToolParent?: Interpreter;
   public modelUsageState: { lastModelUsage: RuntimeValue };
   private profiler: SesiProfiler;
   private deadlineAt?: number;
   private timeoutMs?: number;
   public exports: Map<string, RuntimeValue> = new Map();
   private scriptDir: string | undefined;
+  private bytecodeModules?: Map<string, BundledBytecodeModule>;
+  private bytecodeModuleId?: string;
 
   public safeMode: boolean = true;
   public allowLocalFs: boolean = false;
@@ -79,7 +95,7 @@ export class Interpreter {
   public raw: boolean = false;
   public args: string[] = [];
 
-  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; encrypt?: boolean; decrypt?: boolean; password?: string; raw?: boolean; args?: string[]; profile?: boolean; timeoutMs?: number; deadlineAt?: number; modelUsageState?: { lastModelUsage: RuntimeValue } }) {
+  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; encrypt?: boolean; decrypt?: boolean; password?: string; raw?: boolean; args?: string[]; profile?: boolean; timeoutMs?: number; deadlineAt?: number; modelUsageState?: { lastModelUsage: RuntimeValue }; bytecodeModules?: Map<string, BundledBytecodeModule>; bytecodeModuleId?: string }) {
     this.modelUsageState = options?.modelUsageState || { lastModelUsage: null };
     this.safeMode = options?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
     this.allowLocalFs = options?.allowLocalFs ?? (process.env.SESI_LOCAL_FS === 'true');
@@ -102,6 +118,8 @@ export class Interpreter {
     this.globalEnv = new Environment();
     this.currentEnv = this.globalEnv;
     this.scriptDir = scriptDir;
+    this.bytecodeModules = options?.bytecodeModules;
+    this.bytecodeModuleId = options?.bytecodeModuleId;
 
     // Add command-line arguments
     this.globalEnv.define('args', this.args);
@@ -139,6 +157,26 @@ export class Interpreter {
       pricing_source: estimate?.source ?? null,
       pricing_as_of: estimate?.asOf ?? null,
     };
+  }
+
+  public getScriptDirectory(): string | undefined {
+    return this.scriptDir;
+  }
+
+  public async invokeNativeCallback(
+    fn: RuntimeFunction,
+    args: RuntimeValue[],
+    synchronous: boolean = false,
+  ): Promise<RuntimeValue> {
+    if (synchronous && fn.isAsync) {
+      throw new SesiRuntimeError(
+        'AsyncCallbackError',
+        `Callback "${fn.name || '<anonymous>'}" must be synchronous for this event.`,
+      );
+    }
+    const ownerVm = fn.ownerVm as { invokeNativeCallback?: (callback: RuntimeFunction, values: RuntimeValue[], sync: boolean) => Promise<RuntimeValue> } | undefined;
+    if (ownerVm?.invokeNativeCallback) return ownerVm.invokeNativeCallback(fn, args, synchronous);
+    return this.callSesiFunction(fn, args);
   }
 
   public getLastModelUsage(): RuntimeValue {
@@ -319,6 +357,7 @@ export class Interpreter {
       throw new Error('Tool name cannot be empty');
     }
     this.customTools.set(toolName, { fn, description: description?.trim() || undefined });
+    this.customToolParent?.defineCustomTool(toolName, fn, description);
   }
 
   public getCustomTool(name: string): RuntimeFunction | null {
@@ -655,6 +694,7 @@ export class Interpreter {
       params: stmt.parameters,
       body: stmt.body,
       closure: this.currentEnv,
+      documentation: normalizeDocumentation(stmt.leadingComments),
       isAsync: stmt.isAsync,
     };
     this.currentEnv.define(stmt.name, fn);
@@ -816,6 +856,9 @@ export class Interpreter {
         case 'Identifier':
           return this.currentEnv.get((expr).name);
 
+        case 'EnvLookupExpression':
+          return process.env[(expr as import('./types').EnvLookupExpression).variableName] ?? null;
+
         case 'BinaryOp':
           return await this.evaluateBinaryOp(expr);
 
@@ -881,6 +924,12 @@ export class Interpreter {
 
     switch (expr.operator) {
       case '+':
+        if (Array.isArray(left) && Array.isArray(right)) {
+          return [...left, ...right];
+        }
+        if (Array.isArray(left)) {
+          return [...left, right];
+        }
         if (typeof left === 'string' || typeof right === 'string') {
           return stringify(left) + stringify(right);
         }
@@ -969,7 +1018,7 @@ export class Interpreter {
       if (Array.isArray(obj) && typeof index === 'number') {
         obj[index] = value;
       } else if (typeof obj === 'object' && obj !== null && typeof index === 'string') {
-        (obj as Record<string, any>)[index] = value;
+        setRuntimeProperty(obj, index, value);
       }
       return value;
     }
@@ -983,7 +1032,7 @@ export class Interpreter {
       }
 
       if (typeof obj === 'object' && obj !== null) {
-        (obj as any)[memberExpr.property] = value;
+        setRuntimeProperty(obj, memberExpr.property, value);
       }
       return value;
     }
@@ -993,6 +1042,9 @@ export class Interpreter {
 
   private async evaluateCall(expr: CallExpression): Promise<RuntimeValue> {
     const callee = await this.evaluateExpression(expr.callee);
+    if (expr.optional && (callee === null || callee === undefined)) {
+      return null;
+    }
 
     if (typeof callee !== 'object' || !callee || (callee as any).type !== 'function') {
       throw new Error(`Not a function: ${stringify(callee)}`);
@@ -1010,9 +1062,12 @@ export class Interpreter {
 
   private async evaluateMember(expr: MemberExpression): Promise<RuntimeValue> {
     const obj = await this.evaluateExpression(expr.object);
+    if (expr.optional && (obj === null || obj === undefined)) {
+      return null;
+    }
 
     if (typeof obj === 'object' && obj !== null) {
-      return (obj as any)[expr.property] ?? null;
+      return getRuntimeProperty(obj, expr.property);
     }
 
     return null;
@@ -1020,6 +1075,9 @@ export class Interpreter {
 
   private async evaluateIndex(expr: IndexExpression): Promise<RuntimeValue> {
     const obj = await this.evaluateExpression(expr.object);
+    if (expr.optional && (obj === null || obj === undefined)) {
+      return null;
+    }
     const index = await this.evaluateExpression(expr.index);
 
     if (Array.isArray(obj) && typeof index === 'number') {
@@ -1027,7 +1085,7 @@ export class Interpreter {
     }
 
     if (typeof obj === 'object' && obj !== null && typeof index === 'string') {
-      return (obj as any)[index] ?? null;
+      return getRuntimeProperty(obj, index);
     }
 
     return null;
@@ -1090,7 +1148,7 @@ export class Interpreter {
 
     let imagePaths: string[] | undefined;
     {
-      const raw = getConfig('images');
+      const raw = getConfig('images', 'imgs', 'imgRefs', 'img_refs');
       if (Array.isArray(raw)) {
         imagePaths = (raw as any[]).map(v => stringify(v));
       } else if (typeof raw === 'string' && raw.trim() !== '') {
@@ -1163,7 +1221,7 @@ export class Interpreter {
       }
       return null;
     };
-    const rawImages = pick('images', 'image');
+    const rawImages = pick('images', 'image', 'imgs', 'imgRefs', 'img_refs');
     const images = Array.isArray(rawImages)
       ? rawImages.map((value) => ensureSafePath(stringify(value), this))
       : typeof rawImages === 'string' && rawImages.trim() !== ''
@@ -1189,7 +1247,10 @@ export class Interpreter {
     });
   }
 
-  private async evaluateModelCall(expr: import('./types').ModelCallExpression): Promise<RuntimeValue> {
+  private async evaluateModelCall(
+    expr: import('./types').ModelCallExpression,
+    responseSchema?: Record<string, any>,
+  ): Promise<RuntimeValue> {
     const rawModelName = await this.evaluateExpression(expr.modelName);
     if (typeof rawModelName !== 'string' || rawModelName.trim() === '') {
       throw new Error('model() expects a model name string or string variable');
@@ -1217,7 +1278,7 @@ export class Interpreter {
     };
 
     let imagePaths: string[] | undefined;
-    const imageConfig = getConfig('images');
+    const imageConfig = getConfig('images', 'imgs', 'imgRefs', 'img_refs');
     if (imageConfig !== null) {
       const raw = imageConfig;
       if (Array.isArray(raw)) {
@@ -1273,7 +1334,7 @@ export class Interpreter {
 
     let tools: RuntimeValue = null;
     {
-      const raw = getConfig('tools', 'toolSchemas', 'tool_schemas');
+      const raw = getConfig('tools', 'toolSchemas', 'tool_schemas', 'tool_config');
       if (Array.isArray(raw) || raw === true) {
         tools = raw;
       }
@@ -1297,6 +1358,7 @@ export class Interpreter {
       topK: typeof topKRaw === 'number' ? topKRaw : undefined,
       topP: typeof topPRaw === 'number' ? topPRaw : undefined,
       systemPrompt: typeof systemPromptRaw === 'string' ? systemPromptRaw : undefined,
+      responseSchema,
       images: imagePaths,
       thinkingLevel,
       cache,
@@ -1305,16 +1367,45 @@ export class Interpreter {
     }, tools, maxToolCalls);
 
     this.recordModelUsage(resolvedModelName, response.usage, response.cached === true);
+    const responseMode = getConfig('response');
+    if (responseMode === 'full') {
+      const usage = response.usage;
+      const thinkingTokens = usage?.thinkingTokens ?? 0;
+      const billableOutputTokens = (usage?.outputTokens ?? 0) + thinkingTokens;
+      return {
+        text: response.text,
+        model: resolvedModelName,
+        finish_reason: response.finishReason ?? null,
+        cached: response.cached === true,
+        input_tokens: usage?.inputTokens ?? 0,
+        output_tokens: usage?.outputTokens ?? 0,
+        thinking_tokens: thinkingTokens,
+        billable_output_tokens: billableOutputTokens,
+        total_tokens: (usage?.inputTokens ?? 0) + billableOutputTokens,
+      };
+    }
     return response.text;
   }
 
   private async evaluateStructuredOutput(expr: StructuredOutputExpression): Promise<RuntimeValue> {
-    const inputVal = await this.evaluateExpression(expr.modelCall);
     const schemaObj: any = {};
 
     for (const [key, typeAnnotation] of Object.entries(expr.schema)) {
       schemaObj[key] = (typeAnnotation as any).name || 'string';
     }
+
+    const schemaTypes: Record<string, string> = { string: 'string', number: 'number', bool: 'boolean' };
+    const responseSchema = {
+      type: 'object',
+      properties: Object.fromEntries(Object.entries(schemaObj).map(([key, type]) => [key, {
+        type: schemaTypes[type as string] ?? 'string',
+      }])),
+      required: Object.keys(schemaObj),
+      additionalProperties: false,
+    };
+    const inputVal = expr.modelCall.type === 'ModelCallExpression'
+      ? await this.evaluateModelCall(expr.modelCall, responseSchema)
+      : await this.evaluateExpression(expr.modelCall);
 
     if (typeof inputVal === 'string') {
       const structured = await aiRuntime.parseStructuredOutput(inputVal, schemaObj);
@@ -1352,6 +1443,10 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
   public async callSesiFunction(fn: RuntimeFunction, args: RuntimeValue[]): Promise<RuntimeValue> {
     this.checkTimeout();
     if ((fn as any)._proto) {
+      const owner = (fn as any).ownerVm;
+      if (owner && typeof owner.invokeNativeCallback === 'function') {
+        return await owner.invokeNativeCallback(fn, args);
+      }
       const { VM } = require('./vm');
       const vm = new VM(this.scriptDir, {
         safeMode: this.safeMode,
@@ -1459,6 +1554,34 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
 
     if (source.startsWith('std/')) {
       moduleExports = this.loadStdModule(source);
+    } else if (this.bytecodeModules) {
+      const normalizedSource = source.replace(/\\/g, '/').replace(/^\.\//, '');
+      const parent = this.bytecodeModuleId ? path.posix.dirname(this.bytecodeModuleId) : '.';
+      const joined = path.posix.normalize(path.posix.join(parent, normalizedSource));
+      const candidates = [joined, `${joined}.sesi`, normalizedSource, `${normalizedSource}.sesi`];
+      const bundled = candidates.map(candidate => this.bytecodeModules!.get(candidate)).find(Boolean);
+      if (!bundled) throw new Error(`Bundled module not found: "${source}"`);
+      if (bundled.runtimeExports) return bundled.runtimeExports;
+      const { VM } = require('./vm');
+      const moduleDirectory = this.scriptDir
+        ? path.resolve(this.scriptDir, path.posix.dirname(bundled.id))
+        : process.cwd();
+      const moduleVm = new VM(moduleDirectory, {
+        safeMode: this.safeMode,
+        allowLocalFs: this.allowLocalFs,
+        allowedPaths: this.allowedPaths,
+        args: this.args,
+        modelUsageState: this.modelUsageState,
+        bytecodeModules: this.bytecodeModules,
+        bytecodeModuleId: bundled.id,
+      });
+      await moduleVm.run(bundled.chunk);
+      moduleExports = new Map<string, RuntimeValue>();
+      for (const exportName of bundled.exports) {
+        if (!moduleVm.hasGlobal(exportName)) throw new Error(`Bundled module "${bundled.id}" did not define export "${exportName}".`);
+        moduleExports.set(exportName, moduleVm.getGlobal(exportName));
+      }
+      bundled.runtimeExports = moduleExports;
     } else {
       const fs = require('fs');
       const resolvedPath = this.resolveModulePath(source);
@@ -1510,7 +1633,9 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         allowedPaths: this.allowedPaths,
         args: this.args,
         modelUsageState: this.modelUsageState,
+        bytecodeModules: this.bytecodeModules,
       });
+      subInterpreter.customToolParent = this;
       for (const [k, v] of this.modelAliases.entries()) {
         subInterpreter.setModelAlias(k, v);
       }
@@ -1591,9 +1716,15 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     let absoluteInputPath = '';
 
     try {
-      absoluteInputPath = ensureSafePath(fileInput, this, this.scriptDir ?? process.cwd());
+      absoluteInputPath = ensureSafePath(fileInput, this, this.scriptDir);
       if (fs.existsSync(absoluteInputPath) && fs.statSync(absoluteInputPath).isFile()) {
         isFilePath = true;
+      } else {
+        const cwdPath = ensureSafePath(fileInput, this, process.cwd());
+        if (fs.existsSync(cwdPath) && fs.statSync(cwdPath).isFile()) {
+          isFilePath = true;
+          absoluteInputPath = cwdPath;
+        }
       }
     } catch (e: any) {
       // Re-throw security violations with a clear message
@@ -1608,230 +1739,311 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     }
 
     if (!fileType) {
+      // Fallback 1: Infer extension from fileInput string if it looks like a file path or name
+      const rawExtMatch = fileInput.trim().split('?')[0].split('#')[0];
+      const rawExt = path.extname(rawExtMatch).slice(1).toLowerCase();
+      const knownExts = new Set([
+        'svg', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tiff', 'tif', 'avif',
+        'md', 'html', 'htm', 'json', 'csv', 'tsv', 'yaml', 'yml', 'txt', 'wav',
+        'mp3', 'ogg', 'flac', 'pdf'
+      ]);
+      if (rawExt && knownExts.has(rawExt)) {
+        fileType = rawExt;
+      }
+    }
+
+    if (!fileType) {
+      // Fallback 2: Content inspection if fileInput is inline content
+      const trimmed = fileInput.trim();
+      if (trimmed.startsWith('<svg') || trimmed.includes('<svg') || (trimmed.startsWith('<?xml') && trimmed.includes('<svg'))) {
+        fileType = 'svg';
+      } else if (trimmed.startsWith('<!DOCTYPE html') || trimmed.startsWith('<!doctype html') || trimmed.toLowerCase().startsWith('<html')) {
+        fileType = 'html';
+      } else if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        fileType = 'json';
+      } else if (trimmed.startsWith('# ') || trimmed.includes('\n# ')) {
+        fileType = 'md';
+      } else if (trimmed.includes(',') && trimmed.includes('\n')) {
+        fileType = 'csv';
+      } else if (trimmed.includes('\t') && trimmed.includes('\n')) {
+        fileType = 'tsv';
+      }
+    }
+
+    if (!fileType) {
       throw new Error(`Conversion file_type is missing or could not be determined.`);
     }
     if (!outputType) {
       throw new Error(`Conversion output_type is required.`);
     }
 
-    // Determine output file path if input is a file path
+    const looksLikeFilePath = isFilePath || (!fileInput.includes('\n') && !fileInput.trim().startsWith('<') && !fileInput.trim().startsWith('{') && !fileInput.trim().startsWith('['));
+
     let absoluteOutputPath = '';
     let relativeOutputPath = '';
-    if (isFilePath) {
-      const dir = path.dirname(absoluteInputPath);
-      const ext = path.extname(absoluteInputPath);
-      const name = path.basename(absoluteInputPath, ext);
-      absoluteOutputPath = path.join(dir, `${name}.${outputType}`);
-      relativeOutputPath = path.join(path.dirname(fileInput), `${name}.${outputType}`);
+
+    if (looksLikeFilePath) {
+      if (!absoluteInputPath) {
+        try {
+          absoluteInputPath = ensureSafePath(fileInput, this, this.scriptDir);
+        } catch {}
+      }
+      if (absoluteInputPath) {
+        const dir = path.dirname(absoluteInputPath);
+        const ext = path.extname(absoluteInputPath) || (fileType ? `.${fileType}` : '');
+        const name = path.basename(absoluteInputPath, ext);
+        absoluteOutputPath = path.join(dir, `${name}.${outputType}`);
+        relativeOutputPath = path.join(path.dirname(fileInput), `${name}.${outputType}`);
+      }
     }
 
-    const getCommandPath = (cmd: string): string => {
-      if (process.platform === 'win32') {
-        try {
-          const res = execSync(`where ${cmd}`, {
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'ignore'],
-          }).split(/\r?\n/)[0].trim();
-          if (res) return res;
-        } catch {}
-      } else {
-        try {
-          const res = execSync(`which ${cmd}`, {
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'ignore'],
-          }).trim();
-          if (res) return res;
-        } catch {}
-        if (process.platform === 'darwin') {
-          const fs = require('fs');
-          if (fs.existsSync(`/opt/homebrew/bin/${cmd}`)) return `/opt/homebrew/bin/${cmd}`;
-          if (fs.existsSync(`/usr/local/bin/${cmd}`)) return `/usr/local/bin/${cmd}`;
+    let tempInputFile: string | null = null;
+    const rasterTypes = new Set(['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff', 'tif', 'avif']);
+
+    if (!isFilePath && (conversionType === 'media' || conversionType === 'audio' || rasterTypes.has(outputType))) {
+      // If input is raw string content (e.g. inline SVG), write it to a temp file so CLI/rasterizers can process it
+      if (fileInput.trim().startsWith('<') || fileInput.includes('\n') || !looksLikeFilePath) {
+        const tempName = `sesi_input_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileType}`;
+        tempInputFile = path.join(os.tmpdir(), tempName);
+        fs.writeFileSync(tempInputFile, fileInput, 'utf8');
+        absoluteInputPath = tempInputFile;
+        if (!absoluteOutputPath) {
+          const outName = `output_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${outputType}`;
+          absoluteOutputPath = path.join(this.scriptDir || process.cwd(), outName);
+          relativeOutputPath = outName;
         }
       }
-      return cmd; // fallback
-    };
+    }
 
-    const hasCommand = (cmd: string): boolean => {
-      const p = getCommandPath(cmd);
-      if (p !== cmd) return true;
-      try {
-        const checkCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
-        execSync(checkCmd, { stdio: 'ignore' });
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
-    const isSafe = !this.safeMode;
-
-    if (conversionType === 'doc') {
-      // 1. Text/Document conversion
-      let content = '';
-      if (isFilePath) {
-        content = fs.readFileSync(absoluteInputPath, 'utf8');
-      } else {
-        content = fileInput;
-      }
-
-      // Check for native CLI pandoc if allowed and available
-      if (isSafe && hasCommand('pandoc') && isFilePath) {
-        try {
-          const pandocPath = getCommandPath('pandoc');
-          execSync(`"${pandocPath}" "${absoluteInputPath}" -o "${absoluteOutputPath}"`);
-          return relativeOutputPath;
-        } catch (e: any) {
-          // Fallback
+    try {
+      const getCommandPath = (cmd: string): string => {
+        if (process.platform === 'win32') {
+          try {
+            const res = execSync(`where ${cmd}`, {
+              encoding: 'utf8',
+              stdio: ['ignore', 'pipe', 'ignore'],
+            }).split(/\r?\n/)[0].trim();
+            if (res) return res;
+          } catch {}
+        } else {
+          try {
+            const res = execSync(`which ${cmd}`, {
+              encoding: 'utf8',
+              stdio: ['ignore', 'pipe', 'ignore'],
+            }).trim();
+            if (res) return res;
+          } catch {}
+          if (process.platform === 'darwin') {
+            const fs = require('fs');
+            if (fs.existsSync(`/opt/homebrew/bin/${cmd}`)) return `/opt/homebrew/bin/${cmd}`;
+            if (fs.existsSync(`/usr/local/bin/${cmd}`)) return `/usr/local/bin/${cmd}`;
+          }
         }
-      }
+        return cmd; // fallback
+      };
 
-      // Pure JS native fallback for common formats
-      let converted: string | null = null;
+      const hasCommand = (cmd: string): boolean => {
+        const p = getCommandPath(cmd);
+        if (p !== cmd) return true;
+        try {
+          const checkCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+          execSync(checkCmd, { stdio: 'ignore' });
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      const isSafe = !this.safeMode;
       const fType = fileType.trim();
       const oType = outputType.trim();
 
-      if (fType === 'md' && oType === 'html') {
-        converted = markdownToHtml(content);
-      } else if (fType === 'html' && oType === 'md') {
-        converted = htmlToMarkdown(content);
-      } else if (fType === 'html' && oType === 'txt') {
-        converted = htmlToText(content);
-      } else if (fType === 'svg' && oType === 'html') {
-        converted = svgToHtml(content);
-      } else if (fType === 'html' && oType === 'svg') {
-        converted = htmlToSvg(content);
-      } else if (fType === 'svg' && oType === 'txt') {
-        converted = xmlLikeToText(content);
-      } else if (fType === 'csv' && oType === 'json') {
-        converted = delimitedToJson(content, ',');
-      } else if (fType === 'tsv' && oType === 'json') {
-        converted = delimitedToJson(content, '\t');
-      } else if (fType === 'json' && oType === 'csv') {
-        converted = jsonToDelimited(content, ',');
-      } else if (fType === 'json' && oType === 'tsv') {
-        converted = jsonToDelimited(content, '\t');
-      } else if (fType === 'json' && (oType === 'yaml' || oType === 'yml')) {
-        converted = jsonToYaml(content);
-      } else if ((fType === 'yaml' || fType === 'yml') && oType === 'json') {
-        converted = yamlToJson(content);
-      }
-
-      if (converted === null) {
-        // Use Gemini for general doc conversions
-        const promptText = `Convert the following document content from ${fType} format to ${oType} format. Return ONLY the raw converted content. Do NOT include markdown code blocks (e.g. \`\`\`xml or \`\`\`json) or any explanations or extra characters.\n\nContent:\n${content}`;
-        try {
-          const response = await aiRuntime.callModel({
-            model: 'gemini-3.6-flash',
-            prompt: promptText
-          });
-          converted = response.text.trim();
-          // Strip leading/trailing code block markers if Gemini returned them
-          if (converted.startsWith('```')) {
-            const lines = converted.split('\n');
-            if (lines[0].startsWith('```') && lines[lines.length - 1] === '```') {
-              converted = lines.slice(1, -1).join('\n');
-            }
-          }
-        } catch (err: any) {
-          throw new Error(`Document conversion failed: AI converter unavailable and no local converter found. ${err.message}`);
-        }
-      }
-
-      if (isFilePath) {
-        fs.writeFileSync(absoluteOutputPath, converted, 'utf8');
-        return relativeOutputPath;
-      } else {
-        return converted;
-      }
-    }
-
-    if (conversionType === 'media' || conversionType === 'audio') {
-      if (!isFilePath) {
-        throw new Error(`Media/Audio conversion requires a file path input.`);
-      }
-
-      if (!isSafe) {
-        throw new Error(`Security Violation: Command line media conversion is disabled in safe mode.`);
-      }
-
-      if (conversionType === 'audio' || fileType === 'wav' || fileType === 'mp3' || fileType === 'ogg' || fileType === 'flac' || outputType === 'wav' || outputType === 'mp3' || outputType === 'ogg' || outputType === 'flac') {
-        if (!hasCommand('ffmpeg')) {
-          throw new Error(`ffmpeg CLI is required for audio/media conversion but was not found in PATH.`);
-        }
-        try {
-          const ffmpegPath = getCommandPath('ffmpeg');
-          execSync(`"${ffmpegPath}" -y -i "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
-          return relativeOutputPath;
-        } catch (e: any) {
-          throw new Error(`ffmpeg conversion failed: ${e.message}`);
-        }
-      } else {
-        // Image/Video media conversion
-        let convertedWithImageMagick = false;
+      // Special case: SVG to raster image conversion (or doc request with raster output)
+      if (fType === 'svg' && rasterTypes.has(oType)) {
         let lastError = '';
+        try {
+          await rasterizeSvgWithSharp(absoluteInputPath, absoluteOutputPath, oType);
+          return relativeOutputPath || absoluteOutputPath;
+        } catch (e: any) { lastError = e?.message || String(e); }
 
-        if (outputType === 'svg') {
-          try {
-            const svgContent = rasterImageFileToSvg(absoluteInputPath, fileType);
-            fs.writeFileSync(absoluteOutputPath, svgContent, 'utf8');
-            return relativeOutputPath;
-          } catch (e: any) {
-            lastError = e?.message || String(e);
-          }
-        }
-
-        if (fileType === 'svg' && (outputType === 'png' || outputType === 'jpg' || outputType === 'jpeg')) {
-          try {
-            await rasterizeSvgWithSharp(absoluteInputPath, absoluteOutputPath, outputType);
-            return relativeOutputPath;
-          } catch (e: any) {
-            lastError = e?.message || String(e);
-          }
-
-          try {
-            await rasterizeSvgWithPlaywright(absoluteInputPath, absoluteOutputPath, outputType);
-            return relativeOutputPath;
-          } catch (e: any) {
-            lastError = e?.message || String(e);
-          }
-        }
+        try {
+          await rasterizeSvgWithPlaywright(absoluteInputPath, absoluteOutputPath, oType);
+          return relativeOutputPath || absoluteOutputPath;
+        } catch (e: any) { lastError = e?.message || String(e); }
 
         if (hasCommand('magick')) {
           try {
             const magickPath = getCommandPath('magick');
             execSync(`"${magickPath}" "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'pipe' });
-            convertedWithImageMagick = true;
+            return relativeOutputPath || absoluteOutputPath;
           } catch (e: any) { lastError = e.stderr?.toString()?.trim() || e.message; }
         } else if (hasCommand('convert')) {
           try {
             const convertPath = getCommandPath('convert');
             execSync(`"${convertPath}" "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'pipe' });
-            convertedWithImageMagick = true;
+            return relativeOutputPath || absoluteOutputPath;
           } catch (e: any) { lastError = e.stderr?.toString()?.trim() || e.message; }
         }
 
-        if (convertedWithImageMagick) {
-          return relativeOutputPath;
-        }
-
-        // Check if ffmpeg can do it (e.g. for image sequences or videos)
         if (hasCommand('ffmpeg')) {
           try {
             const ffmpegPath = getCommandPath('ffmpeg');
-            // Static image output types need special flags when source is animated/multi-frame
-            const staticImageTypes = new Set(['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff', 'tif', 'avif']);
-            const extraFlags = staticImageTypes.has(outputType ?? '') ? '-frames:v 1 -update 1' : '';
-            execSync(`"${ffmpegPath}" -y -i "${absoluteInputPath}" ${extraFlags} "${absoluteOutputPath}"`.trim(), { stdio: 'pipe' });
-            return relativeOutputPath;
+            execSync(`"${ffmpegPath}" -y -i "${absoluteInputPath}" -frames:v 1 -update 1 "${absoluteOutputPath}"`, { stdio: 'pipe' });
+            return relativeOutputPath || absoluteOutputPath;
           } catch (e: any) { lastError = e.stderr?.toString()?.trim() || e.message; }
         }
 
-        const hint = lastError ? `\nReason: ${lastError}` : '';
-        throw new Error(`No image/media conversion tool (magick/convert or ffmpeg) found or execution failed.${hint}`);
+        throw new Error(`SVG rasterization failed. ${lastError ? `Reason: ${lastError}` : 'No rasterizer (Sharp, Playwright, ImageMagick, ffmpeg) succeeded.'}`);
+      }
+
+      if (conversionType === 'doc') {
+        // 1. Text/Document conversion
+        let content = '';
+        if (isFilePath && fs.existsSync(absoluteInputPath)) {
+          content = fs.readFileSync(absoluteInputPath, 'utf8');
+        } else {
+          content = fileInput;
+        }
+
+        // Check for native CLI pandoc if allowed and available
+        if (isSafe && hasCommand('pandoc') && isFilePath) {
+          try {
+            const pandocPath = getCommandPath('pandoc');
+            execSync(`"${pandocPath}" "${absoluteInputPath}" -o "${absoluteOutputPath}"`);
+            return relativeOutputPath;
+          } catch (e: any) {
+            // Fallback
+          }
+        }
+
+        // Pure JS native fallback for common formats
+        let converted: string | null = null;
+
+        if (fType === 'md' && oType === 'html') {
+          converted = markdownToHtml(content);
+        } else if (fType === 'html' && oType === 'md') {
+          converted = htmlToMarkdown(content);
+        } else if (fType === 'html' && oType === 'txt') {
+          converted = htmlToText(content);
+        } else if (fType === 'svg' && oType === 'html') {
+          converted = svgToHtml(content);
+        } else if (fType === 'html' && oType === 'svg') {
+          converted = htmlToSvg(content);
+        } else if (fType === 'svg' && oType === 'txt') {
+          converted = xmlLikeToText(content);
+        } else if (fType === 'csv' && oType === 'json') {
+          converted = delimitedToJson(content, ',');
+        } else if (fType === 'tsv' && oType === 'json') {
+          converted = delimitedToJson(content, '\t');
+        } else if (fType === 'json' && oType === 'csv') {
+          converted = jsonToDelimited(content, ',');
+        } else if (fType === 'json' && oType === 'tsv') {
+          converted = jsonToDelimited(content, '\t');
+        } else if (fType === 'json' && (oType === 'yaml' || oType === 'yml')) {
+          converted = jsonToYaml(content);
+        } else if ((fType === 'yaml' || fType === 'yml') && oType === 'json') {
+          converted = yamlToJson(content);
+        }
+
+        if (converted === null) {
+          // Use Gemini for general doc conversions
+          const promptText = `Convert the following document content from ${fType} format to ${oType} format. Return ONLY the raw converted content. Do NOT include markdown code blocks (e.g. \`\`\`xml or \`\`\`json) or any explanations or extra characters.\n\nContent:\n${content}`;
+          try {
+            const response = await aiRuntime.callModel({
+              model: 'gemini-3.6-flash',
+              prompt: promptText
+            });
+            converted = response.text.trim();
+            // Strip leading/trailing code block markers if Gemini returned them
+            if (converted.startsWith('```')) {
+              const lines = converted.split('\n');
+              if (lines[0].startsWith('```') && lines[lines.length - 1] === '```') {
+                converted = lines.slice(1, -1).join('\n');
+              }
+            }
+          } catch (err: any) {
+            throw new Error(`Document conversion failed: AI converter unavailable and no local converter found. ${err.message}`);
+          }
+        }
+
+        if (isFilePath || (absoluteOutputPath && tempInputFile)) {
+          fs.writeFileSync(absoluteOutputPath, converted, 'utf8');
+          return relativeOutputPath || absoluteOutputPath;
+        } else {
+          return converted;
+        }
+      }
+
+      if (conversionType === 'media' || conversionType === 'audio') {
+        if (!isSafe) {
+          throw new Error(`Security Violation: Command line media conversion is disabled in safe mode.`);
+        }
+
+        if (conversionType === 'audio' || fileType === 'wav' || fileType === 'mp3' || fileType === 'ogg' || fileType === 'flac' || outputType === 'wav' || outputType === 'mp3' || outputType === 'ogg' || outputType === 'flac') {
+          if (!hasCommand('ffmpeg')) {
+            throw new Error(`ffmpeg CLI is required for audio/media conversion but was not found in PATH.`);
+          }
+          try {
+            const ffmpegPath = getCommandPath('ffmpeg');
+            execSync(`"${ffmpegPath}" -y -i "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'ignore' });
+            return relativeOutputPath;
+          } catch (e: any) {
+            throw new Error(`ffmpeg conversion failed: ${e.message}`);
+          }
+        } else {
+          // Image/Video media conversion
+          let convertedWithImageMagick = false;
+          let lastError = '';
+
+          if (outputType === 'svg') {
+            try {
+              const svgContent = rasterImageFileToSvg(absoluteInputPath, fileType);
+              fs.writeFileSync(absoluteOutputPath, svgContent, 'utf8');
+              return relativeOutputPath;
+            } catch (e: any) {
+              lastError = e?.message || String(e);
+            }
+          }
+
+          if (hasCommand('magick')) {
+            try {
+              const magickPath = getCommandPath('magick');
+              execSync(`"${magickPath}" "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'pipe' });
+              convertedWithImageMagick = true;
+            } catch (e: any) { lastError = e.stderr?.toString()?.trim() || e.message; }
+          } else if (hasCommand('convert')) {
+            try {
+              const convertPath = getCommandPath('convert');
+              execSync(`"${convertPath}" "${absoluteInputPath}" "${absoluteOutputPath}"`, { stdio: 'pipe' });
+              convertedWithImageMagick = true;
+            } catch (e: any) { lastError = e.stderr?.toString()?.trim() || e.message; }
+          }
+
+          if (convertedWithImageMagick) {
+            return relativeOutputPath;
+          }
+
+          // Check if ffmpeg can do it
+          if (hasCommand('ffmpeg')) {
+            try {
+              const ffmpegPath = getCommandPath('ffmpeg');
+              const extraFlags = rasterTypes.has(outputType ?? '') ? '-frames:v 1 -update 1' : '';
+              execSync(`"${ffmpegPath}" -y -i "${absoluteInputPath}" ${extraFlags} "${absoluteOutputPath}"`.trim(), { stdio: 'pipe' });
+              return relativeOutputPath;
+            } catch (e: any) { lastError = e.stderr?.toString()?.trim() || e.message; }
+          }
+
+          const hint = lastError ? `\nReason: ${lastError}` : '';
+          throw new Error(`No image/media conversion tool (magick/convert or ffmpeg) found or execution failed.${hint}`);
+        }
+      }
+
+      throw new Error(`Unsupported conversion type: ${conversionType}`);
+    } finally {
+      if (tempInputFile && fs.existsSync(tempInputFile)) {
+        try { fs.unlinkSync(tempInputFile); } catch {}
       }
     }
-
-    throw new Error(`Unsupported conversion type: ${conversionType}`);
   }
 
   private async evaluateAwait(expr: import('./types').AwaitExpression): Promise<RuntimeValue> {
@@ -1846,26 +2058,49 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     const exports = new Map<string, RuntimeValue>();
     if (source === 'std/game') {
       return createGameModule(this);
+    } else if (source === 'std/mpc') {
+      return createMpcModule(this);
     } else if (source === 'std/math') {
-      exports.set('PI', Math.PI);
-      exports.set('E', Math.E);
-      
-      const mathFns = ['sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log', 'exp'];
+      const mathConstants: Record<string, number> = {
+        E: Math.E,
+        LN10: Math.LN10,
+        LN2: Math.LN2,
+        LOG10E: Math.LOG10E,
+        LOG2E: Math.LOG2E,
+        PI: Math.PI,
+        SQRT1_2: Math.SQRT1_2,
+        SQRT2: Math.SQRT2,
+      };
+      for (const [name, value] of Object.entries(mathConstants)) exports.set(name, value);
+
+      const unaryMathFns = [
+        'abs', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'clz32',
+        'cos', 'cosh', 'exp', 'expm1', 'floor', 'fround', 'log', 'log1p', 'log2', 'log10',
+        'round', 'sign', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc',
+      ];
+      const binaryMathFns = ['atan2', 'imul', 'pow'];
+      const variadicMathFns = ['hypot', 'max', 'min'];
+      const mathFns = [...unaryMathFns, ...binaryMathFns, ...variadicMathFns, 'random'];
+
       for (const name of mathFns) {
+        const params = name === 'random'
+          ? []
+          : binaryMathFns.includes(name)
+            ? [{ name: 'x' }, { name: 'y' }]
+            : variadicMathFns.includes(name)
+              ? [{ name: 'values' }]
+              : [{ name: 'x' }];
         exports.set(name, {
           type: 'function',
           name,
-          params: name === 'pow' ? [{ name: 'x' }, { name: 'y' }] : [{ name: 'x' }],
+          params,
           body: {} as any,
           closure: {} as any,
           isBuiltin: true,
           builtin: (...args: RuntimeValue[]): RuntimeValue => {
-            const x = typeof args[0] === 'number' ? args[0] : 0;
-            if (name === 'pow') {
-              const y = typeof args[1] === 'number' ? args[1] : 0;
-              return Math.pow(x, y);
-            }
-            return (Math as any)[name](x);
+            if (name === 'random') return Math.random();
+            const numericArgs = args.map(value => typeof value === 'number' ? value : 0);
+            return (Math as any)[name](...numericArgs);
           }
         });
       }
@@ -2421,6 +2656,9 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         closure: {} as any,
         isBuiltin: true,
         builtin: (filePath, freq, ms, type, options): RuntimeValue => {
+          // Packaged games receive registered assets from their manifest. Re-running
+          // build-time synthesis inside a read-only application bundle is a no-op.
+          if (process.env.SESI_GAME_PACKAGED === '1') return true;
           const f = typeof freq === 'number' ? freq : (typeof freq === 'string' ? getFrequency(freq) : 440);
           const m = typeof ms === 'number' ? ms : 500;
           const t = typeof type === 'string' ? type : 'sine';
@@ -2494,6 +2732,20 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
             const ms = typeof args[0] === 'number' ? args[0] : 50;
             const vol = typeof args[1] === 'number' ? args[1] : 1.0;
             return generateWav(10000, ms, 'hat', { vol }).toString('base64');
+        }
+      } as any);
+
+      exports.set('clap', {
+        type: 'function',
+        name: 'clap',
+        params: [{ name: 'ms', defaultValue: 150 }, { name: 'vol', defaultValue: 1.0 }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (...args: RuntimeValue[]): RuntimeValue => {
+            const ms = typeof args[0] === 'number' ? args[0] : 150;
+            const vol = typeof args[1] === 'number' ? args[1] : 1.0;
+            return generateWav(800, ms, 'clap', { vol }).toString('base64');
         }
       } as any);
 
@@ -2838,6 +3090,41 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           const globalOpts = (options && typeof options === 'object' ? options : {}) as any;
           const sampleRate = 44100;
 
+          // SoundFont note objects carry the patch, channel, and source path
+          // selected by Audio.sf2(). Render those tracks as MIDI through
+          // FluidSynth instead of silently treating them as oscillator notes.
+          const flattenedNotes = (tracksVal as any[]).flatMap(track => Array.isArray(track) ? track : [track]);
+          const soundFontNotes = flattenedNotes.filter(note => note && typeof note === 'object' && note.is_sf2 === true);
+          if (soundFontNotes.length > 0) {
+            const soundFontPaths = [...new Set(soundFontNotes.map(note => String(note.sf2_path)))];
+            if (soundFontPaths.length !== 1) {
+              throw new Error('Audio.mix supports one SoundFont file per render.');
+            }
+
+            const outputPath = ensureSafePath(stringify(filePath), this);
+            const midiPath = path.join(process.cwd(), `.tmp_sf2_mix_${Date.now()}.mid`);
+            fs.writeFileSync(midiPath, buildFullMidi(tracksVal as any[]));
+
+            let fluidSynthPath = 'fluidsynth';
+            const commonPaths = process.platform === 'win32' ? [
+              'C:\\Program Files\\fluidsynth\\bin\\fluidsynth.exe',
+              'C:\\Program Files (x86)\\fluidsynth\\bin\\fluidsynth.exe',
+            ] : ['/usr/local/bin/fluidsynth', '/usr/bin/fluidsynth', '/opt/homebrew/bin/fluidsynth'];
+            const installedPath = commonPaths.find(candidate => fs.existsSync(candidate));
+            if (installedPath) fluidSynthPath = `"${installedPath}"`;
+
+            const gain = typeof globalOpts.gain === 'number'
+              ? globalOpts.gain
+              : Math.max(...soundFontNotes.map(note => typeof note.gain === 'number' ? note.gain : 1.0));
+
+            try {
+              execSync(`${fluidSynthPath} -ni -g ${gain} -F "${outputPath}" -q "${soundFontPaths[0]}" "${midiPath}"`, { stdio: 'ignore' });
+              return true;
+            } finally {
+              if (fs.existsSync(midiPath)) fs.unlinkSync(midiPath);
+            }
+          }
+
           // Process all tracks
           const allTracksData = tracksVal.map(track => {
             // Track can be a single pre-rendered sample or an array of notes
@@ -3162,6 +3449,279 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           return null;
         }
       });
+      const drawPixel = (px: any, py: any, colorVal: RuntimeValue) => {
+        const pixelX = Math.floor(Number(px));
+        const pixelY = Math.floor(Number(py));
+        if (Number.isFinite(pixelX) && Number.isFinite(pixelY)) {
+          pixels.set(`${pixelX},${pixelY}`, parsePixelColor(colorVal));
+        }
+      };
+
+      const drawPixelRect = (x: any, y: any, w: any, h: any, colorVal: RuntimeValue, filled: boolean = true) => {
+        const startX = Math.floor(Number(x));
+        const startY = Math.floor(Number(y));
+        const width = Math.floor(Number(w));
+        const height = Math.floor(Number(h));
+        for (let iy = startY; iy < startY + height; iy++) {
+          for (let ix = startX; ix < startX + width; ix++) {
+            const isEdge = (ix === startX || ix === startX + width - 1 || iy === startY || iy === startY + height - 1);
+            if (filled || isEdge) {
+              drawPixel(ix, iy, colorVal);
+            }
+          }
+        }
+      };
+
+      const drawPixelCircle = (cx: any, cy: any, r: any, colorVal: RuntimeValue, filled: boolean = true) => {
+        const centerXV = Math.floor(Number(cx));
+        const centerYV = Math.floor(Number(cy));
+        const radius = Math.floor(Number(r));
+        const minX = centerXV - radius;
+        const maxX = centerXV + radius;
+        const minY = centerYV - radius;
+        const maxY = centerYV + radius;
+        const r2 = radius * radius;
+        const innerR2 = Math.max(0, radius - 1) * Math.max(0, radius - 1);
+
+        for (let py = minY; py <= maxY; py++) {
+          for (let px = minX; px <= maxX; px++) {
+            const dx = px - centerXV;
+            const dy = py - centerYV;
+            const distSq = dx * dx + dy * dy;
+            if (filled) {
+              if (distSq <= r2) drawPixel(px, py, colorVal);
+            } else {
+              if (distSq <= r2 && distSq >= innerR2) drawPixel(px, py, colorVal);
+            }
+          }
+        }
+      };
+
+      const drawPixelLine = (x1: any, y1: any, x2: any, y2: any, colorVal: RuntimeValue) => {
+        let x0 = Math.floor(Number(x1));
+        let y0 = Math.floor(Number(y1));
+        const xEnd = Math.floor(Number(x2));
+        const yEnd = Math.floor(Number(y2));
+
+        const dx = Math.abs(xEnd - x0);
+        const dy = Math.abs(yEnd - y0);
+        const sx = x0 < xEnd ? 1 : -1;
+        const sy = y0 < yEnd ? 1 : -1;
+        let err = dx - dy;
+
+        while (true) {
+          drawPixel(x0, y0, colorVal);
+          if (x0 === xEnd && y0 === yEnd) break;
+          const e2 = 2 * err;
+          if (e2 > -dy) {
+            err -= dy;
+            x0 += sx;
+          }
+          if (e2 < dx) {
+            err += dx;
+            y0 += sy;
+          }
+        }
+      };
+
+      const drawPixelEllipse = (cx: any, cy: any, rx: any, ry: any, colorVal: RuntimeValue, filled: boolean = true) => {
+        const centerXV = Math.floor(Number(cx));
+        const centerYV = Math.floor(Number(cy));
+        const radX = Math.floor(Number(rx));
+        const radY = Math.floor(Number(ry));
+        if (radX <= 0 || radY <= 0) return;
+
+        const minX = centerXV - radX;
+        const maxX = centerXV + radX;
+        const minY = centerYV - radY;
+        const maxY = centerYV + radY;
+
+        for (let py = minY; py <= maxY; py++) {
+          for (let px = minX; px <= maxX; px++) {
+            const dx = px - centerXV;
+            const dy = py - centerYV;
+            const norm = (dx * dx) / (radX * radX) + (dy * dy) / (radY * radY);
+            if (filled) {
+              if (norm <= 1.0) drawPixel(px, py, colorVal);
+            } else {
+              if (norm <= 1.0 && norm >= 0.75) drawPixel(px, py, colorVal);
+            }
+          }
+        }
+      };
+
+      const drawPixelPolygon = (pointsVal: any, colorVal: RuntimeValue, filled: boolean = true) => {
+        let pts: [number, number][] = [];
+        if (Array.isArray(pointsVal)) {
+          pts = pointsVal.map((p: any) => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [0, 0]);
+        } else if (typeof pointsVal === 'string') {
+          pts = pointsVal.trim().split(/\s+/).map(pair => {
+            const [px, py] = pair.split(',').map(Number);
+            return [(px || 0), (py || 0)] as [number, number];
+          });
+        }
+        if (pts.length < 2) return;
+        for (let i = 0; i < pts.length; i++) {
+          const p1 = pts[i];
+          const p2 = pts[(i + 1) % pts.length];
+          drawPixelLine(p1[0], p1[1], p2[0], p2[1], colorVal);
+        }
+        if (filled && pts.length >= 3) {
+          const minY = Math.min(...pts.map(p => Math.floor(p[1])));
+          const maxY = Math.max(...pts.map(p => Math.floor(p[1])));
+          for (let y = minY; y <= maxY; y++) {
+            const nodeX: number[] = [];
+            for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+              if ((pts[i][1] < y && pts[j][1] >= y) || (pts[j][1] < y && pts[i][1] >= y)) {
+                nodeX.push(pts[i][0] + (y - pts[i][1]) / (pts[j][1] - pts[i][1]) * (pts[j][0] - pts[i][0]));
+              }
+            }
+            nodeX.sort((a, b) => a - b);
+            for (let k = 0; k < nodeX.length; k += 2) {
+              if (k + 1 < nodeX.length) {
+                const startX = Math.ceil(nodeX[k]);
+                const endX = Math.floor(nodeX[k + 1]);
+                for (let x = startX; x <= endX; x++) {
+                  drawPixel(x, y, colorVal);
+                }
+              }
+            }
+          }
+        }
+      };
+
+      const drawPixelTriangle = (x1: any, y1: any, x2: any, y2: any, x3: any, y3: any, colorVal: RuntimeValue, filled: boolean = true) => {
+        drawPixelPolygon([[Number(x1), Number(y1)], [Number(x2), Number(y2)], [Number(x3), Number(y3)]], colorVal, filled);
+      };
+
+      const drawPixelStar = (cx: any, cy: any, spikesVal: any, outerRVal: any, innerRVal: any, colorVal: RuntimeValue, filled: boolean = true) => {
+        const centerXV = Number(cx);
+        const centerYV = Number(cy);
+        const spikes = Math.max(3, Math.floor(Number(spikesVal || 5)));
+        const outerR = Number(outerRVal || 10);
+        const innerR = Number(innerRVal || outerR / 2);
+        const pts: [number, number][] = [];
+        const step = Math.PI / spikes;
+
+        for (let i = 0; i < 2 * spikes; i++) {
+          const r = i % 2 === 0 ? outerR : innerR;
+          const angle = i * step - Math.PI / 2;
+          pts.push([centerXV + Math.cos(angle) * r, centerYV + Math.sin(angle) * r]);
+        }
+        drawPixelPolygon(pts, colorVal, filled);
+      };
+
+      const drawPixelRing = (cx: any, cy: any, radiusVal: any, thicknessVal: any, colorVal: RuntimeValue) => {
+        const centerXV = Math.floor(Number(cx));
+        const centerYV = Math.floor(Number(cy));
+        const radius = Math.floor(Number(radiusVal));
+        const thickness = Math.max(1, Math.floor(Number(thicknessVal || 1)));
+        const outer = radius;
+        const inner = Math.max(0, radius - thickness);
+        const minX = centerXV - outer;
+        const maxX = centerXV + outer;
+        const minY = centerYV - outer;
+        const maxY = centerYV + outer;
+
+        for (let py = minY; py <= maxY; py++) {
+          for (let px = minX; px <= maxX; px++) {
+            const dx = px - centerXV;
+            const dy = py - centerYV;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist <= outer && dist >= inner) {
+              drawPixel(px, py, colorVal);
+            }
+          }
+        }
+      };
+
+      const drawPixelArc = (cx: any, cy: any, radiusVal: any, startDegVal: any, endDegVal: any, colorVal: RuntimeValue) => {
+        const centerXV = Number(cx);
+        const centerYV = Number(cy);
+        const radius = Number(radiusVal);
+        let startAngle = (Number(startDegVal) * Math.PI) / 180;
+        let endAngle = (Number(endDegVal) * Math.PI) / 180;
+        if (endAngle < startAngle) endAngle += 2 * Math.PI;
+        const circumference = 2 * Math.PI * radius;
+        const steps = Math.max(12, Math.ceil(circumference));
+        for (let i = 0; i <= steps; i++) {
+          const angle = startAngle + (i / steps) * (endAngle - startAngle);
+          const px = Math.round(centerXV + Math.cos(angle) * radius);
+          const py = Math.round(centerYV + Math.sin(angle) * radius);
+          drawPixel(px, py, colorVal);
+        }
+      };
+
+      const drawPixelBezier = (x1: any, y1: any, cx: any, cy: any, x2: any, y2: any, colorVal: RuntimeValue) => {
+        const startX = Number(x1), startY = Number(y1);
+        const ctrlX = Number(cx), ctrlY = Number(cy);
+        const endX = Number(x2), endY = Number(y2);
+        const steps = Math.max(20, Math.ceil(Math.hypot(endX - startX, endY - startY) * 2));
+        let lastX = startX, lastY = startY;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const invT = 1 - t;
+          const currX = invT * invT * startX + 2 * invT * t * ctrlX + t * t * endX;
+          const currY = invT * invT * startY + 2 * invT * t * ctrlY + t * t * endY;
+          drawPixelLine(lastX, lastY, currX, currY, colorVal);
+          lastX = currX;
+          lastY = currY;
+        }
+      };
+
+      const drawPixelText = (x: any, y: any, textStr: any, colorVal: RuntimeValue, scaleVal: any = 1) => {
+        const startX = Math.floor(Number(x));
+        const startY = Math.floor(Number(y));
+        const scale = Math.max(1, Math.floor(Number(scaleVal || 1)));
+        const str = String(textStr);
+
+        const font5x7: Record<string, number[]> = {
+          'A': [0x0E,0x11,0x11,0x1F,0x11,0x11,0x11], 'B': [0x1E,0x11,0x11,0x1E,0x11,0x11,0x1E],
+          'C': [0x0E,0x11,0x10,0x10,0x10,0x11,0x0E], 'D': [0x1C,0x12,0x11,0x11,0x11,0x12,0x1C],
+          'E': [0x1F,0x10,0x10,0x1E,0x10,0x10,0x1F], 'F': [0x1F,0x10,0x10,0x1E,0x10,0x10,0x10],
+          'G': [0x0E,0x11,0x10,0x13,0x11,0x11,0x0F], 'H': [0x11,0x11,0x11,0x1F,0x11,0x11,0x11],
+          'I': [0x0E,0x04,0x04,0x04,0x04,0x04,0x0E], 'J': [0x07,0x02,0x02,0x02,0x02,0x12,0x0C],
+          'K': [0x11,0x12,0x14,0x18,0x14,0x12,0x11], 'L': [0x10,0x10,0x10,0x10,0x10,0x10,0x1F],
+          'M': [0x11,0x1B,0x15,0x11,0x11,0x11,0x11], 'N': [0x11,0x11,0x19,0x15,0x13,0x11,0x11],
+          'O': [0x0E,0x11,0x11,0x11,0x11,0x11,0x0E], 'P': [0x1E,0x11,0x11,0x1E,0x10,0x10,0x10],
+          'Q': [0x0E,0x11,0x11,0x11,0x15,0x12,0x0D], 'R': [0x1E,0x11,0x11,0x1E,0x14,0x12,0x11],
+          'S': [0x0E,0x11,0x10,0x0E,0x01,0x11,0x0E], 'T': [0x1F,0x04,0x04,0x04,0x04,0x04,0x04],
+          'U': [0x11,0x11,0x11,0x11,0x11,0x11,0x0E], 'V': [0x11,0x11,0x11,0x11,0x11,0x0A,0x04],
+          'W': [0x11,0x11,0x11,0x15,0x15,0x1B,0x11], 'X': [0x11,0x11,0x0A,0x04,0x0A,0x11,0x11],
+          'Y': [0x11,0x11,0x0A,0x04,0x04,0x04,0x04], 'Z': [0x1F,0x01,0x02,0x04,0x08,0x10,0x1F],
+          '0': [0x0E,0x11,0x13,0x15,0x19,0x11,0x0E], '1': [0x04,0x0C,0x04,0x04,0x04,0x04,0x0E],
+          '2': [0x0E,0x11,0x01,0x02,0x04,0x08,0x1F], '3': [0x0E,0x11,0x01,0x06,0x01,0x11,0x0E],
+          '4': [0x02,0x06,0x0A,0x12,0x1F,0x02,0x02], '5': [0x1F,0x10,0x1E,0x01,0x01,0x11,0x0E],
+          '6': [0x06,0x08,0x10,0x1E,0x11,0x11,0x0E], '7': [0x1F,0x01,0x02,0x04,0x08,0x08,0x08],
+          '8': [0x0E,0x11,0x11,0x0E,0x11,0x11,0x0E], '9': [0x0E,0x11,0x11,0x0F,0x01,0x02,0x0C],
+          ' ': [0,0,0,0,0,0,0], '-': [0,0,0,0x1F,0,0,0], '+': [0,0,0x04,0x0E,0x04,0,0],
+          '!': [0x04,0x04,0x04,0x04,0x04,0,0x04], '?': [0x0E,0x11,0x01,0x02,0x04,0,0x04],
+          '.': [0,0,0,0,0,0,0x04], ',': [0,0,0,0,0,0x04,0x08],
+          ':': [0,0x04,0,0,0x04,0,0], ';': [0,0x04,0,0,0x04,0x04,0x08],
+          '(': [0x02,0x04,0x08,0x08,0x08,0x04,0x02], ')': [0x08,0x04,0x02,0x02,0x02,0x04,0x08],
+          '@': [0x0E,0x11,0x17,0x15,0x17,0x10,0x0E], '#': [0x0A,0x0A,0x1F,0x0A,0x1F,0x0A,0x0A],
+          '_': [0,0,0,0,0,0,0x1F]
+        };
+
+        let charOffset = 0;
+        for (const ch of str.toUpperCase()) {
+          const glyph = font5x7[ch] || font5x7['?'];
+          for (let row = 0; row < 7; row++) {
+            const bits = glyph[row];
+            for (let col = 0; col < 5; col++) {
+              if ((bits & (1 << (4 - col))) !== 0) {
+                for (let sy = 0; sy < scale; sy++) {
+                  for (let sx = 0; sx < scale; sx++) {
+                    drawPixel(startX + (charOffset + col) * scale + sx, startY + row * scale + sy, colorVal);
+                  }
+                }
+              }
+            }
+          }
+          charOffset += 6;
+        }
+      };
+
       exports.set('pixel', {
         type: 'function',
         name: 'pixel',
@@ -3176,6 +3736,138 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
             throw new Error('pixel expects numeric x and y coordinates');
           }
           pixels.set(`${pixelX},${pixelY}`, parsePixelColor(color));
+          return null;
+        }
+      });
+      exports.set('pixel_rect', {
+        type: 'function',
+        name: 'pixel_rect',
+        params: [{ name: 'x' }, { name: 'y' }, { name: 'w' }, { name: 'h' }, { name: 'color' }, { name: 'filled', defaultValue: true as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (x, y, w, h, color, filled): RuntimeValue => {
+          drawPixelRect(x, y, w, h, color, filled !== false && filled !== 'false');
+          return null;
+        }
+      });
+      exports.set('pixel_circle', {
+        type: 'function',
+        name: 'pixel_circle',
+        params: [{ name: 'cx' }, { name: 'cy' }, { name: 'r' }, { name: 'color' }, { name: 'filled', defaultValue: true as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (cx, cy, r, color, filled): RuntimeValue => {
+          drawPixelCircle(cx, cy, r, color, filled !== false && filled !== 'false');
+          return null;
+        }
+      });
+      exports.set('pixel_line', {
+        type: 'function',
+        name: 'pixel_line',
+        params: [{ name: 'x1' }, { name: 'y1' }, { name: 'x2' }, { name: 'y2' }, { name: 'color' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (x1, y1, x2, y2, color): RuntimeValue => {
+          drawPixelLine(x1, y1, x2, y2, color);
+          return null;
+        }
+      });
+      exports.set('pixel_ellipse', {
+        type: 'function',
+        name: 'pixel_ellipse',
+        params: [{ name: 'cx' }, { name: 'cy' }, { name: 'rx' }, { name: 'ry' }, { name: 'color' }, { name: 'filled', defaultValue: true as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (cx, cy, rx, ry, color, filled): RuntimeValue => {
+          drawPixelEllipse(cx, cy, rx, ry, color, filled !== false && filled !== 'false');
+          return null;
+        }
+      });
+      exports.set('pixel_polygon', {
+        type: 'function',
+        name: 'pixel_polygon',
+        params: [{ name: 'points' }, { name: 'color' }, { name: 'filled', defaultValue: true as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (points, color, filled): RuntimeValue => {
+          drawPixelPolygon(points, color, filled !== false && filled !== 'false');
+          return null;
+        }
+      });
+      exports.set('pixel_triangle', {
+        type: 'function',
+        name: 'pixel_triangle',
+        params: [{ name: 'x1' }, { name: 'y1' }, { name: 'x2' }, { name: 'y2' }, { name: 'x3' }, { name: 'y3' }, { name: 'color' }, { name: 'filled', defaultValue: true as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (x1, y1, x2, y2, x3, y3, color, filled): RuntimeValue => {
+          drawPixelTriangle(x1, y1, x2, y2, x3, y3, color, filled !== false && filled !== 'false');
+          return null;
+        }
+      });
+      exports.set('pixel_star', {
+        type: 'function',
+        name: 'pixel_star',
+        params: [{ name: 'cx' }, { name: 'cy' }, { name: 'spikes' }, { name: 'outerRadius' }, { name: 'innerRadius' }, { name: 'color' }, { name: 'filled', defaultValue: true as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (cx, cy, spikes, outerRadius, innerRadius, color, filled): RuntimeValue => {
+          drawPixelStar(cx, cy, spikes, outerRadius, innerRadius, color, filled !== false && filled !== 'false');
+          return null;
+        }
+      });
+      exports.set('pixel_ring', {
+        type: 'function',
+        name: 'pixel_ring',
+        params: [{ name: 'cx' }, { name: 'cy' }, { name: 'radius' }, { name: 'thickness' }, { name: 'color' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (cx, cy, radius, thickness, color): RuntimeValue => {
+          drawPixelRing(cx, cy, radius, thickness, color);
+          return null;
+        }
+      });
+      exports.set('pixel_arc', {
+        type: 'function',
+        name: 'pixel_arc',
+        params: [{ name: 'cx' }, { name: 'cy' }, { name: 'radius' }, { name: 'startAngle' }, { name: 'endAngle' }, { name: 'color' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (cx, cy, radius, startAngle, endAngle, color): RuntimeValue => {
+          drawPixelArc(cx, cy, radius, startAngle, endAngle, color);
+          return null;
+        }
+      });
+      exports.set('pixel_bezier', {
+        type: 'function',
+        name: 'pixel_bezier',
+        params: [{ name: 'x1' }, { name: 'y1' }, { name: 'cx' }, { name: 'cy' }, { name: 'x2' }, { name: 'y2' }, { name: 'color' }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (x1, y1, cx, cy, x2, y2, color): RuntimeValue => {
+          drawPixelBezier(x1, y1, cx, cy, x2, y2, color);
+          return null;
+        }
+      });
+      exports.set('pixel_text', {
+        type: 'function',
+        name: 'pixel_text',
+        params: [{ name: 'x' }, { name: 'y' }, { name: 'text' }, { name: 'color' }, { name: 'scale', defaultValue: 1 as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (x, y, txt, color, scale): RuntimeValue => {
+          drawPixelText(x, y, txt, color, scale);
           return null;
         }
       });
@@ -3356,6 +4048,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         closure: {} as any,
         isBuiltin: true,
         builtin: (filePath, w, h): RuntimeValue => {
+          if (process.env.SESI_GAME_PACKAGED === '1') return true;
           const defsStr = defs.length > 0 ? `  <defs>\n  ${defs.join('\n  ')}\n  </defs>\n` : '';
           const svg = `<svg width="${w || 500}" height="${h || 500}" xmlns="http://www.w3.org/2000/svg">\n${defsStr}${elements.map(e => '  ' + e).join('\n')}\n</svg>`;
           const absPath = ensureSafePath(stringify(filePath), this);
@@ -3371,6 +4064,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         closure: {} as any,
         isBuiltin: true,
         builtin: (filePath, w, h, background): RuntimeValue => {
+          if (process.env.SESI_GAME_PACKAGED === '1') return true;
           const absPath = ensureSafePath(stringify(filePath), this);
           fs.writeFileSync(absPath, renderPng(w, h, background ?? 'transparent'));
           return true;
@@ -3870,7 +4564,16 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
 
         function registerRoute(method: string, routePath: string, schema: any, handler: RuntimeFunction): void {
           const fullPath = basePath + routePath;
-          routes.push({ method: method.toUpperCase(), path: fullPath, schema: schema || Object.create(null), handler, pathParams: extractPathParams(fullPath) });
+          const resolvedSchema: Record<string, any> = Object.create(null);
+          if (handler.documentation) {
+            const summary = documentationSummary(handler.documentation);
+            if (summary) resolvedSchema.summary = summary;
+            resolvedSchema.description = handler.documentation;
+          }
+          if (schema && typeof schema === 'object' && !Array.isArray(schema)) {
+            for (const [key, value] of Object.entries(schema)) resolvedSchema[key] = value;
+          }
+          routes.push({ method: method.toUpperCase(), path: fullPath, schema: resolvedSchema, handler, pathParams: extractPathParams(fullPath) });
         }
 
         function buildOpenAPI(): Record<string, any> {
@@ -3980,10 +4683,16 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         for (const httpMethod of ['get', 'post', 'put', 'delete', 'patch', 'options', 'head']) {
           const m = httpMethod;
           appObj[m] = makeBuiltinFn(m, ['path', 'schema', 'handler'], (...routeArgs: RuntimeValue[]): RuntimeValue => {
-            const [routePath, routeSchema, routeHandler] = routeArgs;
+            const routePath = routeArgs[0];
+            let routeSchema = routeArgs[1];
+            let routeHandler = routeArgs[2];
+            if (typeof routeSchema === 'object' && routeSchema && (routeSchema as any).type === 'function' && routeHandler == null) {
+              routeHandler = routeSchema;
+              routeSchema = null;
+            }
             if (typeof routePath !== 'string') throw new Error(`app.${m}() expects a path string`);
             if (typeof routeHandler !== 'object' || !routeHandler || (routeHandler as any).type !== 'function') {
-              throw new Error(`app.${m}() expects a handler function as third argument`);
+              throw new Error(`app.${m}() expects a handler function as the second or third argument`);
             }
             registerRoute(m, routePath, routeSchema, routeHandler as RuntimeFunction);
             return appObj;

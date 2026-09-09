@@ -3,36 +3,63 @@
     A lightweight test-runner framework for modular Sesi scripts.
     Includes beautiful custom color logs, assertion utilities, and final test suite counters.
 */
+allow "lib/ansi" in as TERM
 
-let green_tick = "✓ "
-let red_cross = "❌ "
+/**
+  Asserts if two values are equal and shows a colored PASS/FAIL message.
 
+  Parameters:
+  - actual: The actual value to be tested.
+  - expected: The expected value to compare against.
+  - testName: A descriptive name for the test case.
+
+  Returns:
+  true if the assertion passes, false otherwise.
+*/
 export fn assert_equals(actual, expected, testName: string) {
   if actual == expected {
-    show green_tick "PASS:" testName
+    TERM.success("PASS:" + testName)
     return true
   } else {
-    show red_cross "FAIL:" testName
-    show "  -> Expected:" expected
-    show "  -> Actual:" actual
+    TERM.error("FAIL:" + testName) 
+    TERM.info("  -> Expected:" expected)
+    TERM.info("  -> Actual:" actual)
     return false
   }
 }
 
+/**
+  Asserts if a value is not null and shows a colored PASS/FAIL message.
+
+  Parameters:
+  - val: The value to be tested.
+  - testName: A descriptive name for the test case.
+
+  Returns:
+  true if the assertion passes, false otherwise.
+*/
 export fn assert_not_null(val, testName: string) {
   if val == null {
-    show red_cross "FAIL:" testName "(Value is null)"
+    TERM.error("FAIL:" + testName + " (Value is null)")
     return false
   } else {
-    show green_tick "PASS:" testName
+    TERM.success("PASS:" + testName)
     return true
   }
 }
 
+/**
+  Runs a test suite and shows a colored summary.
+
+  Parameters:
+  - suiteName: The name of the test suite.
+  - results: An array of boolean test results.
+
+  Returns:
+  true if all tests pass, false otherwise.
+*/
 export fn run_test_suite(suiteName: string, results: array) {
-  show "========================================="
-  show "   TEST SUITE RUNNER:" suiteName
-  show "========================================="
+  TERM.header("   TEST SUITE RUNNER:" + suiteName)
   
   let passed = 0
   let failed = 0
@@ -45,17 +72,17 @@ export fn run_test_suite(suiteName: string, results: array) {
     }
   }
   
-  show "-----------------------------------------"
-  show "📊 Final Summary:"
-  show "   Passed:" passed
-  show "   Failed:" failed
+  TERM.divider("-", 40)
+  TERM.info("📊 Final Summary:")
+  TERM.info("   Passed:" passed)
+  TERM.info("   Failed:" failed)
   
   if failed == 0 {
-    show "🎉 ALL TESTS PASSED SUCCESSFULLY!"
+    TERM.success("ALL TESTS PASSED SUCCESSFULLY!")
   } else {
-    show "⚠️ SOME TESTS FAILED. PLEASE AUDIT SPECIFICATIONS."
+    TERM.warning("SOME TESTS FAILED. PLEASE AUDIT SPECIFICATIONS.")
   }
-  show "========================================="
+  TERM.divider("=", 40)
   
   if failed == 0 {
     return true
@@ -77,8 +104,8 @@ export fn test_runner() {
   register_tool("test_runner", test_runner, "Returns a map of all test runner tools")
 
   let _registry = list_tools()
-  show "📦 test-runner tool registry loaded —" str(len(_registry)) "tools available"
-  show to_json(tool_refs)
+  TERM.info("📦 test-runner tool registry loaded —" + str(len(_registry)) + " tools available")
+  TERM.info(to_json(tool_refs))
 }
 
 test_runner()

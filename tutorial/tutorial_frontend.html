@@ -670,7 +670,7 @@
         summary: "Meet Sesi’s statement-oriented syntax, run a program, and learn how values reach the terminal.",
         goals: [
           "Run a complete .sesi program",
-          "Use print with one or many values",
+          "Use show with one or many values",
           "Recognize newlines as statement boundaries"
         ],
         concepts: [
@@ -680,18 +680,18 @@
           },
           {
             title: "Printing is intentionally direct",
-            body: "Write <code>print</code> followed by values. Sesi inserts spaces between them: <code>print \"Score:\" 42</code>."
+            body: "Write <code>show</code> followed by values. Sesi inserts spaces between them: <code>show \"Score:\" 42</code>."
           }
         ],
-        challenge: "Change the second print statement so the program introduces Sesi and reports version 1.7.0 exactly as shown in Expected output.",
-        hint: "Pass three values to print: the label, the language name, and the version string.",
+        challenge: "Change the second show statement so the program introduces Sesi and reports version 1.9.0 exactly as shown in Expected output.",
+        hint: "Pass three values to show: the label, the language name, and the version string.",
         starter: String.raw`// Comments begin with two slashes.
-print "Hello from Sesi!"
-print "Language:" "Sesi" "version 1.0"`,
+show "Hello from Sesi!"
+show "Language:" "Sesi" "version 1.0"`,
         solution: String.raw`// Comments begin with two slashes.
-print "Hello from Sesi!"
-print "Language:" "Sesi" "version 1.7.0"`,
-        expected: "Hello from Sesi!\nLanguage: Sesi version 1.7.0"
+show "Hello from Sesi!"
+show "Language:" "Sesi" "version 1.9.0"`,
+        expected: "Hello from Sesi!\nLanguage: Sesi version 1.9.0"
       },
       {
         id: "values-variables",
@@ -726,17 +726,17 @@ let unit_price = 10
 let subtotal = 0
 let is_large = false
 
-print "Subtotal:" subtotal
-print "Large order?" is_large
-print "Subtotal type:" type(subtotal)`,
+show "Subtotal:" subtotal
+show "Large order?" is_large
+show "Subtotal type:" type(subtotal)`,
         solution: String.raw`let quantity = 4
 let unit_price = 12.5
 let subtotal = quantity * unit_price
 let is_large = subtotal > 40
 
-print "Subtotal:" subtotal
-print "Large order?" is_large
-print "Subtotal type:" type(subtotal)`,
+show "Subtotal:" subtotal
+show "Large order?" is_large
+show "Subtotal type:" type(subtotal)`,
         expected: "Subtotal: 50\nLarge order? true\nSubtotal type: number"
       },
       {
@@ -768,15 +768,15 @@ let normalized = raw_name
 let role = "engineer"
 
 prompt greeting {"Welcome, " normalized ". Role: " role}
-print greeting
-print "Uppercase:" to_upper(normalized)`,
+show greeting
+show "Uppercase:" to_upper(normalized)`,
         solution: String.raw`let raw_name = "  Ada  "
 let normalized = trim(raw_name)
 let role = "engineer"
 
 prompt greeting {"Welcome, " normalized ". Role: " role}
-print greeting
-print "Uppercase:" to_upper(normalized)`,
+show greeting
+show "Uppercase:" to_upper(normalized)`,
         expected: "Welcome, Ada. Role: engineer\nUppercase: ADA"
       },
       {
@@ -812,20 +812,20 @@ let project = {"name": "Sesi", "status": "draft"}
 
 // Add one stage and update one object field.
 
-print "Stages:" join(stages, " -> ")
-print "Project:" project["name"]
-print "Status:" project["status"]
-print "Stage count:" len(stages)`,
+show "Stages:" join(stages, " -> ")
+show "Project:" project["name"]
+show "Status:" project["status"]
+show "Stage count:" len(stages)`,
         solution: String.raw`let stages = ["lint", "build"]
 let project = {"name": "Sesi", "status": "draft"}
 
 push(stages, "test")
 project["status"] = "ready"
 
-print "Stages:" join(stages, " -> ")
-print "Project:" project["name"]
-print "Status:" project["status"]
-print "Stage count:" len(stages)`,
+show "Stages:" join(stages, " -> ")
+show "Project:" project["name"]
+show "Status:" project["status"]
+show "Stage count:" len(stages)`,
         expected: "Stages: lint -> build -> test\nProject: Sesi\nStatus: ready\nStage count: 3"
       },
       {
@@ -863,8 +863,8 @@ if score >= 90 {
   grade = "C"
 }
 
-print "Score:" score
-print "Grade:" grade`,
+show "Score:" score
+show "Grade:" grade`,
         solution: String.raw`let score = 86
 let grade = "?"
 
@@ -876,8 +876,8 @@ if score >= 90 {
   grade = "C"
 }
 
-print "Score:" score
-print "Grade:" grade`,
+show "Score:" score
+show "Grade:" grade`,
         expected: "Score: 86\nGrade: B"
       },
       {
@@ -915,7 +915,7 @@ for n in numbers {
   total = total + n
 }
 
-print "Odd total:" total`,
+show "Odd total:" total`,
         solution: String.raw`let numbers = [1, 2, 3, 4, 5]
 let total = 0
 
@@ -926,7 +926,7 @@ for n in numbers {
   total = total + n
 }
 
-print "Odd total:" total`,
+show "Odd total:" total`,
         expected: "Odd total: 9"
       },
       {
@@ -961,14 +961,14 @@ print "Odd total:" total`,
   return name
 }
 
-print format_label("Sesi")
-print format_label("Build", " complete")`,
+show format_label("Sesi")
+show format_label("Build", " complete")`,
         solution: String.raw`fn format_label(name: string, suffix: string = "!") -> string {
   return name + suffix
 }
 
-print format_label("Sesi")
-print format_label("Build", " complete")`,
+show format_label("Sesi")
+show format_label("Build", " complete")`,
         expected: "Sesi!\nBuild complete"
       },
       {
@@ -994,7 +994,7 @@ print format_label("Build", " complete")`,
           }
         ],
         challenge: "Filter to even numbers, double each remaining number, and reduce the result into 24.",
-        hint: "Use filter(numbers, is_even), then map(evens, double), then reduce(doubled, add, 0). Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | print).\n- Use standard syntax () for math, boolean logic (!, &&, ||), comparisons (==, !=), and inline checks.",
+        hint: "Use filter(numbers, is_even), then map(evens, double), then reduce(doubled, add, 0). Use | for data pipelines: arrays, strings, objects, or multi-step transformations (data | filter | map | show).\n- Use standard syntax () for math, boolean logic (!, &&, ||), comparisons (==, !=), and inline checks.",
         starter: String.raw`let numbers = [1, 2, 3, 4, 5, 6]
 
 fn is_even(n) { return n % 2 == 0 }
@@ -1005,9 +1005,9 @@ let evens = numbers
 let doubled = evens
 let total = 0
 
-print "Evens:" join(evens, ",")
-print "Doubled:" join(doubled, ",")
-print "Total:" total`,
+show "Evens:" join(evens, ",")
+show "Doubled:" join(doubled, ",")
+show "Total:" total`,
         solution: String.raw`let numbers = [1, 2, 3, 4, 5, 6]
 
 fn is_even(n) { return n % 2 == 0 }
@@ -1018,9 +1018,9 @@ let evens = filter(numbers, is_even)
 let doubled = map(evens, double)
 let total = reduce(doubled, add, 0)
 
-print "Evens:" join(evens, ",")
-print "Doubled:" join(doubled, ",")
-print "Total:" total`,
+show "Evens:" join(evens, ",")
+show "Doubled:" join(doubled, ",")
+show "Total:" total`,
         expected: "Evens: 2,4,6\nDoubled: 4,8,12\nTotal: 24"
       },
       {
@@ -1057,12 +1057,12 @@ try {
   if quantity < 0 {
     // Raise a structured error here.
   }
-  print "Quantity accepted"
+  show "Quantity accepted"
 } catch (err) {
-  print "Caught:" err["type"]
-  print "Field:" err["data"]["field"]
+  show "Caught:" err["type"]
+  show "Field:" err["data"]["field"]
 } finally {
-  print "Validation finished"
+  show "Validation finished"
 }`,
         solution: String.raw`let quantity = -2
 
@@ -1070,12 +1070,12 @@ try {
   if quantity < 0 {
     raise_error("ValidationError", "Quantity cannot be negative", {"field": "quantity"})
   }
-  print "Quantity accepted"
+  show "Quantity accepted"
 } catch (err) {
-  print "Caught:" err["type"]
-  print "Field:" err["data"]["field"]
+  show "Caught:" err["type"]
+  show "Field:" err["data"]["field"]
 } finally {
-  print "Validation finished"
+  show "Validation finished"
 }`,
         expected: "Caught: ValidationError\nField: quantity\nValidation finished"
       },
@@ -1113,10 +1113,10 @@ let settings = {"theme": "ocean", "font_size": 14}
 try {
   // Save and load settings here.
   let loaded = settings
-  print "Theme:" loaded["theme"]
-  print "Font size:" loaded["font_size"]
+  show "Theme:" loaded["theme"]
+  show "Font size:" loaded["font_size"]
 } catch (err) {
-  print "File error:" err
+  show "File error:" err
 } finally {
   // Remove the tutorial's temporary file here.
 }`,
@@ -1126,10 +1126,10 @@ let settings = {"theme": "ocean", "font_size": 14}
 try {
   write_file(path, to_json(settings))
   let loaded = from_json(read_file(path))
-  print "Theme:" loaded["theme"]
-  print "Font size:" loaded["font_size"]
+  show "Theme:" loaded["theme"]
+  show "Font size:" loaded["font_size"]
 } catch (err) {
-  print "File error:" err
+  show "File error:" err
 } finally {
   trash(path, true)
 }`,
@@ -1169,16 +1169,16 @@ let base = 3
 let exponent = 4
 let result = 0
 
-print "Result:" result
-print "PI is greater than 3?" Math.PI > 3`,
+show "Result:" result
+show "PI is greater than 3?" Math.PI > 3`,
         solution: String.raw`allow "std/math" in with Math
 
 let base = 3
 let exponent = 4
 let result = Math.pow(base, exponent)
 
-print "Result:" result
-print "PI is greater than 3?" Math.PI > 3`,
+show "Result:" result
+show "PI is greater than 3?" Math.PI > 3`,
         expected: "Result: 81\nPI is greater than 3? true"
       },
       {
@@ -1211,14 +1211,14 @@ print "PI is greater than 3?" Math.PI > 3`,
 
 let pending = build_greeting("Ada")
 let greeting = pending
-print greeting`,
+show greeting`,
         solution: String.raw`async fn build_greeting(name: string) -> string {
   return "Hello, " + name
 }
 
 let pending = build_greeting("Ada")
 let greeting = await pending
-print greeting`,
+show greeting`,
         expected: "Hello, Ada"
       },
       {
@@ -1248,14 +1248,14 @@ print greeting`,
         starter: String.raw`let raw = "{\"project\":\"Sesi\",\"tasks\":3,\"active\":true}"
 let record = structured_output({project: string, tasks: number})(raw)
 
-print "Project:" record["project"]
-print "Tasks:" record["tasks"]`,
+show "Project:" record["project"]
+show "Tasks:" record["tasks"]`,
         solution: String.raw`let raw = "{\"project\":\"Sesi\",\"tasks\":3,\"active\":true}"
 let record = structured_output({project: string, tasks: number, active: bool})(raw)
 
-print "Project:" record["project"]
-print "Tasks:" record["tasks"]
-print "Active:" record["active"]`,
+show "Project:" record["project"]
+show "Tasks:" record["tasks"]
+show "Active:" record["active"]`,
         expected: "Project: Sesi\nTasks: 3\nActive: true"
       },
       {
@@ -1291,20 +1291,20 @@ prompt request {"Explain in exactly two short sentences:" topic}
 
 try {
   let answer = model("gemini-3-flash-preview") {thinkingLevel: "low"} {request}
-  print answer
+  show answer
 } catch (err) {
-  print "Model call unavailable."
-  print "Configure GEMINI_API_KEY or continue without this optional step."
+  show "Model call unavailable."
+  show "Configure GEMINI_API_KEY or continue without this optional step."
 }`,
         solution: String.raw`let topic = "why small functions are easier to test"
 prompt request {"Explain in exactly two short sentences:" topic}
 
 try {
   let answer = model("gemini-3-flash-preview") {thinkingLevel: "low"} {request}
-  print answer
+  show answer
 } catch (err) {
-  print "Model call unavailable."
-  print "Configure GEMINI_API_KEY or continue without this optional step."
+  show "Model call unavailable."
+  show "Configure GEMINI_API_KEY or continue without this optional step."
 }`,
         expected: null
       },
@@ -1340,16 +1340,16 @@ try {
 
 // In a saved script, replace the fallback when an argument exists.
 
-print "Hello," name + "!"
-print "Argument count:" len(args)`,
+show "Hello," name "!"
+show "Argument count:" len(args)`,
         solution: String.raw`let name = "Developer"
 
 if len(args) > 0 {
   name = args[0]
 }
 
-print "Hello," name + "!"
-print "Argument count:" len(args)`,
+show "Hello," name "!"
+show "Argument count:" len(args)`,
         expected: "Hello, Developer!\nArgument count: 0"
       },
       {
@@ -1381,7 +1381,7 @@ print "Argument count:" len(args)`,
         challenge: "Complete status_label, count successful checks, and set ready only when every check passes.",
         hint: "Increment passed inside if check[\"ok\"]. Then compare passed == len(release[\"checks\"]).",
         starter: String.raw`let release = {
-  "version": "1.7.0",
+  "version": "1.9.0",
   "checks": [
     {"name": "lint", "ok": true},
     {"name": "tests", "ok": true},
@@ -1395,14 +1395,14 @@ fn status_label(ok: bool) -> string {
 
 let passed = 0
 for check in release["checks"] {
-  print check["name"] status_label(check["ok"])
+  show check["name"] status_label(check["ok"])
 }
 
 let ready = false
-print "Passed:" passed "/" len(release["checks"])
-print "Release" release["version"] "ready?" ready`,
+show "Passed:" passed "/" len(release["checks"])
+show "Release" release["version"] "ready?" ready`,
         solution: String.raw`let release = {
-  "version": "1.7.0",
+  "version": "1.9.0",
   "checks": [
     {"name": "lint", "ok": true},
     {"name": "tests", "ok": true},
@@ -1419,16 +1419,16 @@ fn status_label(ok: bool) -> string {
 
 let passed = 0
 for check in release["checks"] {
-  print check["name"] status_label(check["ok"])
+  show check["name"] status_label(check["ok"])
   if check["ok"] {
     passed = passed + 1
   }
 }
 
 let ready = passed == len(release["checks"])
-print "Passed:" passed "/" len(release["checks"])
-print "Release" release["version"] "ready?" ready`,
-        expected: "lint PASS\ntests PASS\ndocs PASS\nPassed: 3 / 3\nRelease 1.7.0 ready? true"
+show "Passed:" passed "/" len(release["checks"])
+show "Release" release["version"] "ready?" ready`,
+        expected: "lint PASS\ntests PASS\ndocs PASS\nPassed: 3 / 3\nRelease 1.9.0 ready? true"
       }
     ];
 

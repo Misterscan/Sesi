@@ -15,7 +15,7 @@ Use this mode to verify that a string matches a specific pattern, such as an ema
   - Must be between 3 and 16 characters
 */
 let username = "user_123"
-let isValid = regex("^[a-zA-Z0-9]{3,16}$", username, {"mode": "test"})
+let isValid = regex("^[a-zA-Z0-9]{3,16}$", username, {mode: "test"})
 
 if isValid {
   show "Username is valid"
@@ -37,7 +37,7 @@ let matches = regex("ID: (\\d+-[A-Z]+)", logLine)
 
 if matches {
   // The first match is at index 0
-  show "Extracted ID:" matches[0]["groups"][0]
+  show "Extracted ID:" matches[0].groups[0]
 }
 ```
 
@@ -50,7 +50,7 @@ Use this to clean up strings, remove unwanted characters, or mask sensitive info
   Cleaning up excessive whitespace
 */
 let messy = "This    is   a   messy   string"
-let clean = regex("\\s+", messy, {"mode": "replace", "flags": "g", "replacement": " "})
+let clean = regex("\\s+", messy, {mode: "replace", flags: "g", replacement: " "})
 
 show "Cleaned string:" clean
 ```
@@ -64,7 +64,7 @@ This is more powerful than the standard `split()` function because it allows you
   Splitting a string by commas, semicolons, or pipes
 */
 let data = "apple;banana,orange|grape"
-let items = regex("[;,|]", data, {"mode": "split"})
+let items = regex("[;,|]", data, {mode: "split"})
 
 show "Items found:" items
 ```
@@ -140,7 +140,7 @@ Use this to ensure input matches a specific format, like a phone number.
   ^\\d{3}-\\d{3}-\\d{4}$
 */
 let phone = "555-0199-1234"
-let isValid = regex("^\\d{3}-\\d{3}-\\d{4}$", phone, {"mode": "test"})
+let isValid = regex("^\\d{3}-\\d{3}-\\d{4}$", phone, {mode: "test"})
 
 if isValid {
   show "Phone number is valid"
@@ -161,10 +161,10 @@ let text = "The event is scheduled for 2026-12-25."
 let matches = regex("(\\d{4})-(\\d{2})-(\\d{2})", text)
 
 if matches {
-  // matches[0]["groups"] contains the captured parts
-  let year  = matches[0]["groups"][0]
-  let month = matches[0]["groups"][1]
-  let day   = matches[0]["groups"][2]
+  // matches[0].groups contains the captured parts
+  let year  = matches[0].groups[0]
+  let month = matches[0].groups[1]
+  let day   = matches[0].groups[2]
 
   show "Year:" year
   show "Month:" month
@@ -182,7 +182,7 @@ Use this to remove sensitive info or clean up text.
 */
 let email = "user@example.com"
 // Replace everything before the @ with ****
-let masked = regex("^[^@]+", email, {"mode": "replace", "replacement": "****"})
+let masked = regex("^[^@]+", email, {mode: "replace", replacement: "****"})
 
 show "Masked email:" masked // ****@example.com
 ```

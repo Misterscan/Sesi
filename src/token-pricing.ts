@@ -25,13 +25,38 @@ interface PricingRule {
   source: string;
 }
 
-const PRICING_AS_OF = '2026-07-27';
+const PRICING_AS_OF = '2026-09-02';
 const GEMINI_PRICING_SOURCE = 'https://ai.google.dev/gemini-api/docs/pricing';
 const OPENAI_PRICING_SOURCE = 'https://developers.openai.com/api/docs/pricing';
 
 // Standard, paid-tier text-token rates in USD per one million tokens.
 // Keep longer/more-specific model names before their family prefixes.
 const PRICING_RULES: PricingRule[] = [
+  {
+    models: ['gemini-3.1-flash-image-lite', 'gemini-3.1-flash-lite-image'],
+    standard: { inputPerMillion: 0.25, outputPerMillion: 30 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-3.1-flash-image'],
+    standard: { inputPerMillion: 0.5, outputPerMillion: 60 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-3-pro-image'],
+    standard: { inputPerMillion: 2, outputPerMillion: 120 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-2.5-flash-image'],
+    standard: { inputPerMillion: 0.3, outputPerMillion: 30 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-3.8-flash', 'gemini-3.7-flash'],
+    standard: { inputPerMillion: 0.75, outputPerMillion: 3.75 },
+    source: GEMINI_PRICING_SOURCE,
+  },
   {
     models: ['gemini-3.6-flash'],
     standard: { inputPerMillion: 1.5, outputPerMillion: 7.5 },
@@ -79,6 +104,26 @@ const PRICING_RULES: PricingRule[] = [
       rates: { inputPerMillion: 2.5, outputPerMillion: 15 },
     },
     source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gpt-image-2'],
+    standard: { inputPerMillion: 5, outputPerMillion: 30 },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
+    models: ['gpt-image-1.5', 'chatgpt-image-latest'],
+    standard: { inputPerMillion: 5, outputPerMillion: 32 },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
+    models: ['gpt-image-1-mini'],
+    standard: { inputPerMillion: 2, outputPerMillion: 8 },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
+    models: ['gpt-image-1'],
+    standard: { inputPerMillion: 5, outputPerMillion: 40 },
+    source: OPENAI_PRICING_SOURCE,
   },
   {
     models: ['gpt-5.6-sol', 'gpt-5.6'],

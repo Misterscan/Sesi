@@ -1,0 +1,277 @@
+allow "std/game" in as Game
+allow "std/draw" in as Draw
+allow "std/audio" in as Audio
+
+// Generate local art and sound, then register those files as game assets.
+make_dir("examples/main/assets")
+
+Draw.clear()
+Draw.pixel_grid([
+  "00111100",
+  "01100110",
+  "11000011",
+  "11011011",
+  "11011011",
+  "11000011",
+  "01100110",
+  "00111100"
+], {
+  "0": "transparent",
+  "1": "#22d3ee"
+}, 16)
+Draw.save_png("examples/main/assets/neon_bumper_icon.png", 128, 128, "#07111f")
+
+Audio.save("examples/main/assets/neon_collect.wav", "E6", 110, "sine", {attack: 5, release: 60})
+Audio.save("examples/main/assets/neon_win.wav", "C6", 500, "triangle", {attack: 15, release: 260})
+
+let game = Game.create({
+  title: "Sesi Neon Bumper",
+  width: 1280,
+  height: 720,
+  background: "#030712"
+})
+
+game.assets.add("icon", "texture", "examples/main/assets/neon_bumper_icon.png")
+game.assets.add("collect", "audio", "examples/main/assets/neon_collect.wav")
+game.assets.add("win", "audio", "examples/main/assets/neon_win.wav")
+
+let scene = game.create_scene("arena", {background: "#030712"})
+let camera = scene.orbit_camera("camera", {
+  alpha: -1.57,
+  beta: 0.55,
+  radius: 22,
+  target: Game.vec3(0, 0, 0)
+})
+
+let ambient = scene.hemispheric_light("ambient", {intensity: 0.85})
+let arena_light = scene.point_light("arena_light", {
+  position: Game.vec3(0, 7, 0),
+  color: Game.color("#a855f7"),
+  intensity: 26,
+  range: 25
+})
+
+let floor_material = scene.pbr_material("floor_material", {
+  color: Game.color("#111827"),
+  metallic: 0.55,
+  roughness: 0.45
+})
+let wall_material = scene.pbr_material("wall_material", {
+  color: Game.color("#312e81"),
+  emissive: Game.color("#1e1b4b"),
+  metallic: 0.35,
+  roughness: 0.35
+})
+let player_material = scene.pbr_material("player_material", {
+  color: Game.color("#22d3ee"),
+  emissive: Game.color("#155e75"),
+  metallic: 0.25,
+  roughness: 0.2
+})
+let target_material = scene.pbr_material("target_material", {
+  color: Game.color("#facc15"),
+  emissive: Game.color("#854d0e"),
+  metallic: 0.15,
+  roughness: 0.3
+})
+
+// Box colliders form a closed, top-down arena.
+let floor = scene.box("floor", {
+  width: 18, height: 0.4, depth: 14,
+  position: Game.vec3(0, -0.2, 0)
+})
+floor.material = floor_material
+
+let left_wall = scene.box("left_wall", {
+  width: 0.5, height: 2, depth: 14,
+  position: Game.vec3(-9, 1, 0)
+})
+left_wall.material = wall_material
+
+let right_wall = scene.box("right_wall", {
+  width: 0.5, height: 2, depth: 14,
+  position: Game.vec3(9, 1, 0)
+})
+right_wall.material = wall_material
+
+let back_wall = scene.box("back_wall", {
+  width: 18, height: 2, depth: 0.5,
+  position: Game.vec3(0, 1, 7)
+})
+back_wall.material = wall_material
+
+let front_wall = scene.box("front_wall", {
+  width: 18, height: 2, depth: 0.5,
+  position: Game.vec3(0, 1, -7)
+})
+front_wall.material = wall_material
+
+let player = scene.sphere("player", {
+  diameter: 1.6,
+  position: Game.vec3(0, 0.85, -4.5)
+})
+player.material = player_material
+
+let target_one = scene.box("target_one", {
+  width: 1.5, height: 1.5, depth: 1.5,
+  position: Game.vec3(-5, 0.8, 2.5)
+})
+target_one.material = target_material
+
+let target_two = scene.box("target_two", {
+  width: 1.5, height: 1.5, depth: 1.5,
+  position: Game.vec3(0, 0.8, 4)
+})
+target_two.material = target_material
+
+let target_three = scene.box("target_three", {
+  width: 1.5, height: 1.5, depth: 1.5,
+  position: Game.vec3(5, 0.8, 2.5)
+})
+target_three.material = target_material
+
+scene.enable_physics({gravity: Game.vec3(0, 0, 0)})
+scene.add_body(floor, {type: "static", shape: "box", friction: 0.8})
+scene.add_body(left_wall, {type: "static", shape: "box", restitution: 0.75})
+scene.add_body(right_wall, {type: "static", shape: "box", restitution: 0.75})
+scene.add_body(back_wall, {type: "static", shape: "box", restitution: 0.75})
+scene.add_body(front_wall, {type: "static", shape: "box", restitution: 0.75})
+scene.add_body(player, {type: "dynamic", shape: "sphere", mass: 1, friction: 0.2, restitution: 0.45})
+scene.add_body(target_one, {type: "dynamic", shape: "box", mass: 0.7, friction: 0.35, restitution: 0.55})
+scene.add_body(target_two, {type: "dynamic", shape: "box", mass: 0.7, friction: 0.35, restitution: 0.55})
+scene.add_body(target_three, {type: "dynamic", shape: "box", mass: 0.7, friction: 0.35, restitution: 0.55})
+
+game.input.bind("left", ["KeyA", "ArrowLeft"])
+game.input.bind("right", ["KeyD", "ArrowRight"])
+game.input.bind("forward", ["KeyW", "ArrowUp"])
+game.input.bind("back", ["KeyS", "ArrowDown"])
+
+let icon_image = scene.gui_image("icon_image", {
+  source: "icon",
+  width: "72px",
+  height: "72px",
+  left: "-24px",
+  top: "20px",
+  horizontal_alignment: "right",
+  vertical_alignment: "top"
+})
+
+let score = 0
+let target_one_active = true
+let target_two_active = true
+let target_three_active = true
+
+let score_text = scene.gui_text("score", {
+  text: "TARGETS 0 / 3",
+  color: "#f8fafc",
+  width: "280px",
+  height: "48px",
+  left: "24px",
+  top: "20px",
+  horizontal_alignment: "left",
+  vertical_alignment: "top"
+})
+
+let help_text = scene.gui_text("help", {
+  text: "WASD / ARROWS — BUMP ALL THREE TARGETS",
+  color: "#cbd5e1",
+  width: "560px",
+  height: "48px",
+  top: "-22px",
+  horizontal_alignment: "center",
+  vertical_alignment: "bottom"
+})
+
+/**
+  Disable a collected target, update the HUD, and play generated audio.
+
+  Parameters:
+  - target: The target object that was collected by the player.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  collect_target(target_one)
+  ```
+*/
+fn collect_target(target) {
+  target.visible = false
+  target.enabled = false
+  score = score + 1
+  score_text.text = "TARGETS " + str(score) + " / 3"
+  scene.play_sound("collect", {"volume": 0.8, "spatial": false})
+
+  if score == 3 {
+    help_text.text = "ARENA CLEARED!"
+    help_text.color = "#4ade80"
+    player.set_velocity(Game.vec3(0, 0, 0))
+    scene.play_sound("win", {"volume": 1, "spatial": false})
+  }
+}
+
+/**
+  Handle collision events from the player physics body.
+
+  Parameters:
+  - other: The object struck by the player.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  player.on_collision(player_collision)
+  ```
+*/
+fn player_collision(other) {
+  if other == null { return }
+
+  if other.name == "target_one" && target_one_active {
+    target_one_active = false
+    collect_target(target_one)
+  } else if other.name == "target_two" && target_two_active {
+    target_two_active = false
+    collect_target(target_two)
+  } else if other.name == "target_three" && target_three_active {
+    target_three_active = false
+    collect_target(target_three)
+  }
+}
+
+player.on_collision(player_collision)
+
+/**
+  Convert held input actions into a stable arcade velocity each fixed tick.
+
+  Parameters:
+  - _dt: Delta time elapsed since the last frame update.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  game.on_fixed_update(move_player)
+  ```
+*/
+fn move_player(_dt) {
+  if score == 3 { return }
+
+  let x = 0
+  let z = 0
+  if game.input.down("left") { x = x - 6 }
+  if game.input.down("right") { x = x + 6 }
+  if game.input.down("forward") { z = z + 6 }
+  if game.input.down("back") { z = z - 6 }
+  player.set_velocity(Game.vec3(x, 0, z))
+}
+
+game.on_fixed_update(move_player)
+
+if includes(args, "--build") {
+  game.build("build/SesiNeonBumper", {overwrite: true, icon: "icon"})
+} else {
+  game.run({icon: "icon"})
+}

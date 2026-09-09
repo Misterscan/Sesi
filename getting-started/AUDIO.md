@@ -1,6 +1,6 @@
 # Audio in Sesi
 
-Sesi includes two optional standard-library modules for working with sound: `std/audio` for synthesis and playback, and `std/theory` for music-theory helpers. Neither requires any external installation — just `allow` the module and go.
+Sesi includes three optional standard-library modules for working with sound: `std/audio` for synthesis and playback, `std/theory` for music-theory helpers, and `std/mpc` for Akai MPC-inspired track sequencing, Roger Linn swing, pad matrices, choke groups, AIR multi-mode effects, and vintage hardware converter modeling. None require external installation — just `allow` the module and go.
 
 ---
 
@@ -9,9 +9,10 @@ Sesi includes two optional standard-library modules for working with sound: `std
 ```
 allow "std/audio" in as <alias>
 allow "std/theory" in as <alias>
+allow "std/mpc" in as <alias>
 ```
 
-`allow` loads a module and binds it to any identifier you choose — the name after `with` is just a local namespace alias. These are all equally valid:
+`allow` loads a module and binds it to any identifier you choose — the name after `as` is just a local namespace alias. These are all equally valid:
 
 ```sesi
 allow "std/audio" in as Audio      // conventional
@@ -20,7 +21,7 @@ allow "std/audio" in as snd        // also fine
 allow "std/audio" in as a          // also fine
 ```
 
-The examples below use `Audio` and `Music` as readable conventions, but you are free to pick any name that fits your script.
+The examples below use `Audio`, `Music`, and `MPC` as readable conventions, but you are free to pick any name that fits your script.
 
 ---
 
@@ -92,7 +93,7 @@ Synthesize a tone and write it directly to a WAV file.
 allow "std/audio" in as Audio
 
 // Save a 2-second sine-wave A4 note with fade-in and fade-out
-Audio.save("tone.wav", "A4", 2000, "sine", {"attack": 50, "release": 500})
+Audio.save("tone.wav", "A4", 2000, "sine", {attack: 50, release: 500})
 ```
 
 ---
@@ -148,9 +149,9 @@ Save a multi-note sequence to a single WAV file. `notes_array` can be:
 allow "std/audio" in as Audio
 
 let song = [
-  {"note": "C4", "ms": 500, "vol": 0.8},
-  {"note": "E4", "ms": 500, "pan": -0.5},
-  {"note": "G4", "ms": 1000, "cutoff": 5000}
+  {note: "C4", ms: 500, vol: 0.8},
+  {note: "E4", ms: 500, pan: -0.5},
+  {note: "G4", ms: 1000, cutoff: 5000}
 ]
 
 Audio.sequence("song.wav", song, "triangle")
@@ -171,16 +172,16 @@ Mix several tracks into a single stereo WAV. `tracks_array` is an array of note 
 allow "std/audio" in as Audio
 
 let melody = [
-  {"note": "C4", "ms": 500},
-  {"note": "E4", "ms": 500},
-  {"note": "G4", "ms": 500}
+  {note: "C4", ms: 500},
+  {note: "E4", ms: 500},
+  {note: "G4", ms: 500}
 ]
 
 let bass = [
-  {"note": "C2", "ms": 1500, "vol": 0.7}
+  {note: "C2", ms: 1500, vol: 0.7}
 ]
 
-Audio.mix("mix.wav", [melody, bass], "sine", {"saturate": 1.2})
+Audio.mix("mix.wav", [melody, bass], "sine", {saturate: 1.2})
 show "Saved mix.wav"
 ```
 
@@ -205,8 +206,8 @@ Load a SoundFont (`.sf2`) file and return an **instrument function** bound to a 
 ```sesi
 allow "std/audio" in as Audio
 
-let piano      = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 0,  "gain": 1.5})
-let string_pad = Audio.sf2("GeneralUser-GS.sf2", {"instrument": 49})
+let piano      = Audio.sf2("GeneralUser-GS.sf2", {instrument: 0,  gain: 1.5})
+let string_pad = Audio.sf2("GeneralUser-GS.sf2", {instrument: 49})
 
 let lead = [piano("C4", 500), piano("E4", 500), piano("G4", 500)]
 let pad  = [string_pad("C3", 1500)]
@@ -253,8 +254,8 @@ You can also reference them by `type` field inside a sequence note object (the o
 
 ```sesi
 Audio.sequence("drums.wav", [
-  {"note": "C1", "ms": 300, "type": "kick"},
-  {"note": "C4", "ms": 200, "type": "snare"}
+  {note: "C1", ms: 300, type: "kick"},
+  {note: "C4", ms: 200, type: "snare"}
 ], "kick")
 ```
 
@@ -272,9 +273,9 @@ Saves one or more tracks (arrays of note objects/strings) directly as a standard
 allow "std/audio" in as Audio
 
 let track = [
-  {"note": "C4", "ms": 500},
-  {"note": "E4", "ms": 500},
-  {"note": "G4", "ms": 1000}
+  {note: "C4", ms: 500},
+  {note: "E4", ms: 500},
+  {note: "G4", ms: 1000}
 ]
 
 Audio.midi("song.mid", track)
@@ -402,7 +403,7 @@ fn chord_notes(notes, duration) {
   let out = []
   let i = 0
   while i < len(notes) {
-    push(out, {"note": notes[i], "ms": duration})
+    push(out, {note: notes[i], ms: duration})
     i = i + 1
   }
   return out
@@ -451,7 +452,7 @@ Audio.play("A4", 500)
 let b64 = Audio.synth("C4", 1000, "square")
 
 // Save a single tone
-Audio.save("tone.wav", "C4", 1000, "sine", {"attack": 30, "release": 200})
+Audio.save("tone.wav", "C4", 1000, "sine", {attack: 30, release: 200})
 
 // Load a WAV file into an audio_sample object
 let sample = Audio.load("loop.wav")
@@ -462,24 +463,257 @@ let k = Audio.kick(300, 1.0)
 let s = Audio.snare(200, 0.8)
 let h = Audio.hat(50, 0.6)
 write_file("kick.wav", k, "base64")
+write_file("snare.wav", s, "base64")
+write_file("hat.wav", h, "base64")
 
 // Save a sequence
-Audio.sequence("seq.wav", [{"note": "C4", "ms": 500}, {"note": "E4", "ms": 500}], "triangle")
+Audio.sequence("seq.wav", [{note: "C4", ms: 500}, {note: "E4", ms: 500}], "triangle")
 
 // Mix tracks
-Audio.mix("mix.wav", [[{"note": "C4", "ms": 500}], [{"note": "C2", "ms": 500}]], "sine")
+Audio.mix("mix.wav", [[{note: "C4", ms: 500}], [{note: "C2", ms: 500}]], "sine")
 
 // Export MIDI
-Audio.midi("song.mid", [{"note": "C4", "ms": 500}, {"note": "E4", "ms": 500}])
+Audio.midi("song.mid", [{note: "C4", ms: 500}, {note: "E4", ms: 500}])
 
 // SoundFont instrument
-let piano = Audio.sf2("font.sf2", {"instrument": 0})
+let piano = Audio.sf2("font.sf2", {instrument: 0})
 Audio.mix("song.wav", [[piano("C4", 500), piano("G4", 500)]], "sine")
 
 // Music theory
 let scale  = Music.scale("C4", "major")
 let chord  = Music.chord("A3", "m7")
 let moved  = Music.transpose(chord, 7)
+```
+
+---
+
+## std/mpc — Akai MPC Track Sequencing & Performance Controls
+
+`std/mpc` brings authentic Akai MPC (Music Production Center) workflow to Sesi: 16-pad matrix banks, the Roger Linn MPC swing algorithm (50%–75%), 16 Levels performance mode, Note Repeat with triplet divisions, voice Choke Groups, multi-track step sequencing, vintage converter modeling (`mpc60`, `mpc3000`, `sp1200`), AIR multi-mode insert effects, and broadcast-ready WAV and multi-track MIDI file export.
+
+```sesi
+allow "std/mpc" in as MPC
+```
+
+---
+
+### Create an MPC Sequence — `MPC.sequence`
+
+```
+MPC.sequence(name, bars?, bpm?, time_sig?) -> sequence
+```
+
+Creates a sequence container with tracks, tempo, bar count, and swing settings.
+
+```sesi
+allow "std/mpc" in as MPC
+
+let seq = MPC.sequence("Boom Bap Groove", 2, 92, "4/4")
+seq.set_swing(58)         // 58% classic Roger Linn MPC swing
+seq.set_vintage("mpc60")  // 12-bit punchy vintage converter emulation
+```
+
+---
+
+### Setup a 16-Pad Drum Kit — `MPC.drum_kit`
+
+```
+MPC.drum_kit(nameOrPreset?) -> drum_kit
+```
+
+Creates an Akai MPC 16-pad drum program. Pads support levels, panning, semitone tuning, fine tuning (cents), envelopes, and choke groups.
+
+```sesi
+allow "std/mpc" in as MPC
+
+let kit = MPC.drum_kit("MPC3000 Drums")
+
+// Configure pads
+kit.set_pad(1, {sound: "kick", tune: -1, level: 1.0})
+kit.set_pad(2, {sound: "rimshot", level: 0.85})
+kit.set_pad(3, {sound: "snare", tune: 1, level: 0.95})
+kit.set_pad(4, {sound: "clap", level: 0.8})
+
+// Choke group: closed hat (Pad 5) and open hat (Pad 7) share mute_group 1
+kit.set_pad(5, {sound: "hat", mute_group: 1, level: 0.75})
+kit.set_pad(7, {sound: "open_hat", mute_group: 1, level: 0.85})
+
+// 808 sub bass
+kit.set_pad(13, {sound: "808", tune: -2, level: 0.9})
+```
+
+---
+
+### Step Sequencing & Track Patterns — `track.pattern`
+
+Add tracks to a sequence and program rhythmic patterns using step notation:
+- `'x'`: normal hit (velocity 100)
+- `'X'`: full accent (velocity 127)
+- `'-'`: ghost note (velocity 45)
+- `'1'-'9'`: stepped velocity from 10% to 90%
+- `'.'`: rest
+
+```sesi
+allow "std/mpc" in as MPC
+
+let seq = MPC.sequence("Dope Beat", 2, 90, "4/4")
+let kit = MPC.drum_kit("Boom Bap")
+
+let drums = seq.add_track("Drums", "drum", kit)
+drums.pattern(1, "x...x...x...x...") // Kick drum
+drums.pattern(3, "....x.......x...") // Snare on beats 2 and 4
+drums.pattern(5, "x.x.x.x.x.x.x.x.") // 16th hats with 58% swing
+drums.pattern(7, "..x.......x.....") // Open hats (choked by closed hats)
+```
+
+For a more visual grid, use bracketed cells. Each cell uses the selected
+`resolution`; rows are read left-to-right, then top-to-bottom.
+
+For an eight-column grid that reads as `1 & 2 & 3 & 4 &`, set
+`"resolution": "1/8"`. This is one clear 4/4 bar at 130 BPM, with one kick
+on every quarter-note beat:
+
+```sesi
+let four_on_floor = "
+[X][ ][x][ ][x][ ][x][ ]
+"
+let quantization = {resolution: "1/8"}
+drums.pattern(1, four_on_floor, quantization)
+```
+
+The four hits map to internal 16th-note steps `0`, `4`, `8`, and `12`:
+
+```text
+Visual grid: [X] [ ] [x] [ ] [x] [ ] [x] [ ]
+Musical time:  1   &   2   &   3   &   4   &
+Kick timing:   X       x       x       x
+```
+
+The default `"resolution": "1/16"` remains useful for a 16-column bar, where
+each cell is one sixteenth note.
+
+Visual grid cells use the same trigger notation as compact patterns:
+
+| Cell | Meaning |
+| --- | --- |
+| `[x]` | Normal hit at the pattern velocity |
+| `[X]` | Full accent, velocity `127` |
+| `[-]` | Ghost hit, velocity `45` |
+| `[1]` to `[9]` | Stepped velocity from 10% to 90% |
+| `[ ]` | Empty step / rest |
+
+Use `start_step` to place a visible grid later in a longer arrangement. Since
+there are 16 internal steps per 4/4 bar, `start_step: 64` begins the grid at
+bar 5:
+
+```sesi
+drums.pattern(1, four_on_floor, {
+  start_step: 64,
+  resolution: "1/8",
+  velocity: 112
+})
+```
+
+---
+
+### 16 Levels Mode — `MPC.sixteen_levels`
+
+```
+MPC.sixteen_levels(pad, mode?, options?) -> array<pad_config>
+```
+
+The official Akai MPC **16 Levels** button spreads a pad sound across all 16 pads:
+- `"velocity"`: 16 stepped velocity gradations from 8 to 127
+- `"tune"`: Chromatic tuning across 16 semitones (-12 to +3 semitones or custom base)
+- `"filter"`: Stepped lowpass cutoff frequencies from 200 Hz to 18,000 Hz
+- `"decay"`: Stepped decay times from 30 ms to 1,200 ms
+- `"attack"`: Stepped attack envelope from 0 ms to 500 ms
+
+```sesi
+allow "std/mpc" in as MPC
+
+let kit = MPC.drum_kit("Sample Kit")
+let sub = kit.get_pad(13)
+
+// Chromatic bassline across 16 pads
+let chromatic_pads = MPC.sixteen_levels(sub, "tune")
+```
+
+---
+
+### Note Repeat — `MPC.note_repeat`
+
+```
+MPC.note_repeat(pad, rate?, bars?, options?) -> array<event>
+```
+
+Quantized rhythmic repeats across `"1/4"`, `"1/8"`, `"1/16"`, `"1/32"`, `"1/64"`, and triplet divisions (`"1/4T"`, `"1/8T"`, `"1/16T"`, `"1/32T"`), with velocity ramps (`"crescendo"`, `"decrescendo"`) and accents.
+
+```sesi
+allow "std/mpc" in as MPC
+
+// 1 bar of 1/32 hi-hat roll with crescendo
+let rolls = MPC.note_repeat(5, "1/32", 1, {ramp: "crescendo", accent: 4})
+```
+
+---
+
+### Sample Slicing ("Chop Shop") — `MPC.chop`
+
+```
+MPC.chop(sampleOrPath, slices?, options?) -> drum_kit
+```
+
+Slices an audio sample or WAV file into equal regions or transients, automatically mapping each slice to Pads 1..16 with voice Choke Group 1 enabled so slices cut each other off.
+
+```sesi
+allow "std/mpc" in as MPC
+
+let chops = MPC.chop("vinyl_sample.wav", 16)
+let chop1 = chops.get_pad(1)
+```
+
+---
+
+### AIR Multi-Mode Effects & Vintage Converters
+
+Apply insert effects on tracks or master bus:
+- **`"filter"`**: cutoff, resonance, type (`"lowpass"`, `"highpass"`, `"bandpass"`), drive
+- **`"delay"`**: time_ms or sync division (`"1/8"`, `"1/16"`), feedback, ping_pong, damp, mix
+- **`"reverb"`**: room decay, damp, mix
+- **`"compressor"`**: threshold, ratio, attack, release, makeup gain
+- **`"lofi"`**: bit depth, downsampling rate, drive, mix
+- **`"eq"`**: low, mid, high dB gain
+- **Vintage modeling**: `"mpc60"`, `"mpc3000"`, `"sp1200"`
+
+```sesi
+allow "std/mpc" in as MPC
+
+let seq = MPC.sequence("Filtered Beat", 2, 90, "4/4")
+seq.add_effect("compressor", {threshold: -14, ratio: 4, makeup: 2})
+seq.add_effect("delay", {sync: "1/8", feedback: 0.35, mix: 0.25, ping_pong: true})
+```
+
+---
+
+### Exporting Audio and MIDI
+
+```sesi
+allow "std/mpc" in as MPC
+
+let seq = MPC.sequence("Master Project", 2, 92, "4/4")
+// ... configure tracks ...
+
+// Render 16-bit 44.1kHz Stereo WAV
+seq.render_wav("beat.wav")
+
+// Export Type 1 Standard MIDI File with Roger Linn swing preserved
+seq.render_midi("beat.mid")
+
+// Or render directly in-memory
+let sample = seq.render_wav("memory")
+show "Rendered sample count:" len(sample.samples)
+MPC.play(sample)
 ```
 
 ---

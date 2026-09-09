@@ -9,24 +9,31 @@ allow "std/time" in with {now, format}
 allow "timestamp" in as Stamp
 allow "math" in as Math
 
-/* 
-  ==================================================
-  💬 1. CHOOSE YOUR ADVANCED TECHNICAL QUERY HERE!
-  (Test it with custom phrases containing our keywords!) 
-*/
-let archiveDir = "chatbot/archive/"; archiveDir | make_dir
+let archiveDir = "chatbot/archive/"; if !exists(archiveDir) { archiveDir | make_dir }
 let queryText = ""
 let fileContext = ""
 let logFile = "chatbot/sesira.log"
 
+/**
+  Writes a log entry to the log file with a timestamp, sender, and message.
+
+  Parameters:
+  - sender: The sender of the message (e.g., "USER" or "SESI").
+  - msg: The message content to be logged.
+
+  Returns:
+  - status: A string indicating the result of the log operation.
+  - The status will be "Log entry written successfully." if the log operation was successful, otherwise it will indicate an error.
+*/
 fn writeLog(sender, msg) {
   let status = "Error writing to log file."
   let wrote = false
 
   if (msg | length) > 5000 {
     let lines = msg | split("\n")
-    let truncatedLines = lines | trunc(250)
-    msg = truncatedLines | join("\n") + "\n... [TRUNCATED]"
+    let truncatedLines = lines | slice(0, 350)
+    truncatedLines = truncatedLines | join("\n")
+    msg = truncatedLines + "...\n<truncated>"
   }
 
   let timestamp = "in_ms" | Stamp.localTime
@@ -44,14 +51,20 @@ fn writeLog(sender, msg) {
     wrote = logFile | Safe.writeFile(logEntry)
   }
 
-  if sender == "USER" {show "User Query Logged:" msg
-  } else if sender == "SESI" {continue
-  }
+  if sender == "USER" { show "User Query Logged:" msg
+  } else if sender == "SESI" { continue }
   if wrote { status = "Log entry written successfully." }
 
   return status
 }
 
+/**
+  Clears the log file by archiving the current log and writing an empty string to the log file.
+
+  Returns:
+  - status: A boolean indicating whether the log was successfully cleared.
+  - The status will be true if the log was cleared successfully, otherwise false.
+*/
 fn clearLog() {
   let archiveBase = logFile | swap("chatbot/", "") | swap(".log", "")
   let archivePath = archiveDir + archiveBase + "-" + Stamp.formattedTime() + ".log"
@@ -71,6 +84,13 @@ fn clearLog() {
   return true
 }
 
+/**
+  Retrieves the conversation history from the log file.
+
+  Returns:
+  - history: A string containing the conversation history.
+  - If the log file is too large, only the last 10000 lines are retained and the log is cleared.
+*/
 fn getHistory() {
   let history = ""
   try {history = logFile | Safe.readFile("text")} catch (e) {}
@@ -129,18 +149,35 @@ if (args | length) > 1 && (args[0] == "new-chat" || args[0] == "new") {
 show "Loading Sesira..."
 "SESI" | writeLog("Loading Sesira...")
 
-// Sigmoid math activation
+/**
+  Sigmoid activation function for neural network neurons.
+
+  Parameters:
+  - x: The input value to the activation function.
+
+  Returns:
+  - The output of the sigmoid function applied to the input x.
+*/
 fn activate(x) {
   return Math.sigmoid(x)
 }
 
-// Sigmoid derivative for backpropagation
+/**
+  Sigmoid derivative function for backpropagation in neural networks.
+
+  Parameters:
+  - y: The output value from the sigmoid activation function.
+
+  Returns:
+  - The derivative of the sigmoid function with respect to the input that produced y.
+*/
 fn derivative(y) {
   return Math.dsigmoid(y)
 }
 
 /* 
   Current Sesi Bag-of-Words Vocabulary Vectorizer
+
   Must stay identical to the trainer vocabulary so saved weights remain compatible.
 */
 let vocabulary = [
@@ -156,6 +193,15 @@ let vocabulary = [
   "sin", "cos", "tan", "sqrt", "floor", "ceil", "abs", "pow", "log", "now", "sleep", "format", "parse", "stringify", "encode", "decode", "clear", "cursor", "color"
 ]
 
+/**
+  Converts a given text into a vector representation based on the predefined vocabulary.
+
+  Parameters:
+  - text: The input text to be vectorized.
+
+  Returns:
+  - vec: An array representing the vectorized form of the input text, where each element corresponds to a word in the vocabulary.
+*/
 fn vectorize(text) {
   let vec = []
   let k = 0
@@ -285,41 +331,229 @@ try {
     - Do NOT invent syntax. 
     - Use the correct style for multi-line comments in your scripts and examples only:
     ```
-    /*
-      Multi-line
-      Comment
+    /**
+      Multi-line comment
 
-        Use indentation to show structure.
+      Use double newlines to separate sections.
 
       List:
-        - item 1
-        - item 2
-        - item 3
+        - `item 1`
+        - `item 2`
+        - `item 3`
     */
-    ``` 
+    ```
+    This also applies to function comments. You should use the same multi-line comment style for documenting functions, including double newlines to separate sections and backticks for code elements.
+    Include parameters, return values, and any relevant details in your function comments.
+    Example:
+    ```
+    /**
+      Adds two numbers.
+
+      Parameters:
+      - `a`: The first number.
+      - `b`: The second number.
+
+      Returns:
+      - The sum of `a` and `b`.
+
+      Example:
+      ```sesi
+      let result = add(3, 5)
+      show \"The result is:\" result
+      ```
+
+      Notes:
+      - This function simply adds two numbers and returns the result.
+    */
+    fn add(a: number, b: number) -> number {
+      return a + b
+    }
+    ```
+
+    For comments within nested functions:
+    ```
+    /**
+      Example function with a nested function and comments.
+      Parameters:
+      - `x`: The input parameter for the example function.
+
+      Returns:
+      - `true` if the response has been answered, `false` otherwise.
+    */
+    fn exampleFunction(x: any) -> any {
+      ...
+      /** This is an example of a single-line comment within a nested function.
+      * -> **LEAVE BLANK** 
+      * Parameters:
+      *   - `y`: The input parameter for the nested function.
+      * -> **LEAVE BLANK**
+      * Returns:
+      *   - `true` if the response has been answered, `false` otherwise.
+      */
+      fn nestedFunction(y: any) {
+        ...
+      }
+    }
+
+    For comments within nested make objects:
+    /**
+      Example make template with a nested function and comments.
+      Fields:
+      - `x`: The input parameter for the example function.
+      - ...
+
+      Returns:
+      - ...
+    */
+    make Example {
+      let x = 0
+      ...
+      /** This is an example of a single-line comment within a nested function.
+      * -> **LEAVE BLANK** 
+      * Parameters:
+      *   - `self`: ...
+      *   - `y`: The input parameter for the nested function.
+      * -> **LEAVE BLANK**
+      * Returns:
+      *   - ...
+      */
+      fn nestedFunction(self, y: any) {
+        ...
+      }
+    }
+    ```
+
+    The same can be applied to other types of comments and documentation within your code and is optional, but recommended for onboarding and maintaining code clarity.
+    Example:
+    ```
+    // Retrieved response from the model.
+    let answer = ""
+
+    /**
+      Indicates whether the response has been answered.
+
+      Notes:
+      - `true` if the response has been answered, `false` otherwise.
+    */
+    let answered = false
+
+    /**
+      Parts of the response.
+
+      Array:
+      - `part1`: The first part of the response.
+      - `part2`: The second part of the response.
+      - `part3`: The third part of the response.
+    */
+    let parts = [\"part1\", \"part2\", \"part3\"]
+
+    /**
+      Template for structured data.
+
+      Object:
+      - `field1`: The first field of the template.
+        - `value1`: The value for the first field.
+      - `field2`: The second field of the template.
+        - `value2`: The value for the second field.
+      - `field3`: The third field of the template.
+        - `value3`: The value for the third field.
+    */
+    let template = {\"field1\": \"value1\", \"field2\": \"value2\", \"field3\": \"value3\"}
+    ```
+
+    - Prefer code piping when it offers better legibility and readability.
+    Example:
+    ```
+    let file = null
+    try {file = read_file(""filename"")} catch (e) {file = null}
+    if file | is_null {
+      show ""File is empty or could not be read.""
+    }
+    ```
+
+    However, avoid overusing code piping when it makes the code less readable.
+    Also, parentheses should be used appropriately to maintain clarity and avoid ambiguity in expressions using pipe `|`.
+    ```
+    if (file | len) > 0 {
+      show ""File has content.""
+    }
+
+    let fileLength = (file | len) + 1
+    let pick = (nonexistent | len) || (file | len)
+    ```
+    - Functions that return a variable as a boolean rather than a strict `bool` should explicitly state `any` as their return type.
     - Do not mention that you got this from a database.
     - Do not mention that you are an AI model.
+    - You must import any neccesary modules at the top before claring them in your scripts.
     - Do not mention that you got anything from documentation, just reference it if needed.
 
     Absolutely NO `+` usage in show statements.
 
     Raw newlines **between elements** (outside of a string literal) inside `{ }` are a syntax error, they are treated as statement separators. 
-    Newlines that live inside a string literal are fine.
-
+    Newlines that live inside a string literal are fine. STRICTLY FOLLOW THE PROVIDED EXAMPLES IN THE DOCUMENTATION WHERE NEWLINES ARE USED AND DO NOT INSINUATE.
+    Newlines are also permitted in function declarations and structured output, however strongly preferred when dealing with multiple parameters:
     ```
+    fn take_action(
+      cmds: array<string>?,
+      _prompt,
+      description: string = "",
+      required: bool,
+      ext_param: string,
+      ext_param2: any = null
+    ) { ... }
+
+    let output = structured_output(
+      type: ""string"",
+      name: ""string"",
+      config: ""object"",
+      status: ""bool"",
+      ext_field: ""any"",
+      ext_field2: ""array""
+    )(raw_data)
+
+
     prompt example {""Multi line strings are fine
     but they MUST begin on the same line as the opening '{' 
     and end on the same line as the closing '}' ""}
+
+    let test = model(""gemini-3.1-flash-lite"") {thinkingLevel: ""low"", maxT: 2048, cache: false, search} <-- NOTICE ITS NOT SEPARATED BY NEWLINES IN THE CONFIGURATION {example} 
+    let correct_multiline = model(""gemini-3.1-flash-lite"") {thinkingLevel: ""low"", maxT: 2048, cache: false, search} {"" <-- THE NEWLINE DOESNT NOT START UNTIL AFTER THE FIRST `'` OR `""`
+    Multi line strings are fine
+    but they MUST begin on the same line as the opening '{' 
+    and end on the same line as the closing '}'
+    ""} <-- CLOSING BRACE MUST BE ON THE SAME LINE AS EITHER THE LAST `'`, `""`, OR VARIABLE
     ```
-    
+
+    Objects do not require to be quoted in strings:
+    ```
+    let desc = ""Example text for configuration.""
+    let config = {
+      name: ""Object Test"",
+      description: desc,
+      active_state: true,
+      sub_config: {
+        testing: true,
+        code: null,
+        production: false,
+        env_path: ""base/keys.txt""
+      }
+    }
+    show config.name
+    show config.active_state
+    show config.sub_config.env_path
+    ```
+
     Matched Context from Sesi DB:
     Summary: " rec["summary"] "
     Key Rules: " rec["key_rules"]}
 
-    prompt ragPrompt {"User Query: "queryText"
+    prompt ragPrompt {"<USER>
+    "queryText"
+    </USER>
     
-    Active File Context:
-    "fileContext}
+    <ACTIVE_FILE_CONTEXT>
+    "fileContext"
+    </ACTIVE_FILE_CONTEXT>"}
 
     prompt persona {"Your name is Sesira. Do not mention your name for no reason, only if the user asks. 
     - You are an expert in Sesi and very efficient at coding. 
@@ -328,12 +562,12 @@ try {
     let sys = persona + instructions
     let generated_response = ""
 
-    if !("OPENAI_API_KEY" | shell.env_get | is_null){
+    if !($OPENAI_API_KEY | is_null){
       try {
-        generated_response = model("gpt-5.6-luna") {system: sys, thinkingLevel: "medium", max_tokens: 4096} {ragPrompt}
-      } catch (e) {generated_response = model("gemini-3.5-flash-lite") {system: sys, thinkingLevel: "medium", max_tokens: 4096} {ragPrompt}}
+        generated_response = model("gpt-5.6-terra") {system: sys, thinkingLevel: "medium", maxT: 4096} {ragPrompt}
+      } catch (e) {generated_response = model("gemini-3.7-flash") {system: sys, thinkingLevel: "medium", maxT: 4096} {ragPrompt}}
     } else {
-      generated_response = model("gemini-3.5-flash-lite") {system: sys, thinkingLevel: "medium", max_tokens: 4096} {ragPrompt}
+      generated_response = model("gemini-3.7-flash") {system: sys, thinkingLevel: "medium", maxT: 4096} {ragPrompt}
     }
     
     let helpResponse = false
@@ -348,5 +582,5 @@ try {
     } catch (e) {
       "SESI" | writeLog("Failed to write " + responseFile + ": " + e)
     }
-    show "Sesira has provided a response to your question:\n"generated_response"\n\nYour answer has also been saved at '" responseFile "'."
+    show "Sesira has provided a response to your question:\n"generated_response"\n\nYour answer has also been saved at '"responseFile"'."
   }

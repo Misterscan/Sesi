@@ -18,8 +18,9 @@ try {
     show "Error: " err
 }
 
-/* OPTIONAL: Search the web with model()
-COMMENTED OUT BECAUSE AI WILL FORCE THEMSELVES TO RUN IT
+/* 
+    OPTIONAL: Search the web with model()
 
 let response = model("gemini-3.1-flash-lite") {search, max_tokens: 1000} {"What is the weather in Tokyo?"}
-show response */
+show response
+*/

@@ -78,4 +78,24 @@ assert.deepEqual(
   []
 );
 
+const dynamicallyUsedToolsSource = `
+fn getProfiles() {
+  return []
+}
+
+fn renderImage(promptText) {
+  return promptText
+}
+
+define_tool("get_profiles", getProfiles, "Get profiles")
+define_tool("render_image", renderImage, "Render an image")
+let answer = model("gemini-test") {tools: list_tools()} {"Use every available tool."}
+show answer
+`;
+
+assert.deepEqual(
+  runDryRunSemanticChecks(dynamicallyUsedToolsSource),
+  []
+);
+
 console.log('Dry-run semantic checker tests passed.');

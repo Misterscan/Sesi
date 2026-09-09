@@ -4,6 +4,15 @@
 */
 allow "helpers/safe" in as safe
 
+/**
+  Lists the descriptions of available tools.
+
+  Parameters:
+  - `tools`: A dictionary of available tools where the key is the tool name and the value is its description.
+
+  Returns:
+  A string containing the descriptions of all available tools, formatted as a list.
+*/
 fn list_tools_description(tools) {
   let desc = ""
   for name in keys(tools) {
@@ -13,6 +22,22 @@ fn list_tools_description(tools) {
   return desc
 }
 
+/**
+  Calls the specified model with the given parameters.
+
+  Parameters:
+  - `model_name`: The name of the model to call.
+  - `temp`: The temperature setting for the model.
+  - `thinking`: The thinking level for the model.
+  - `search_flag`: A boolean indicating whether search is enabled.
+  - `stream_val`: The stream value for the model.
+  - `cache_flag`: A boolean indicating whether caching is enabled.
+  - `max_tokens_val`: The maximum number of tokens for the model.
+  - `prompt_val`: The prompt to provide to the model.
+
+  Returns:
+  The response from the model as a string.
+*/
 fn call_model_helper(model_name: string, temp: number, thinking: string, search_flag: bool, stream_val: any, cache_flag: bool, max_tokens_val: any, prompt_val: string) -> string {
   if model_name == "agent" {
     return model("agent") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
@@ -59,6 +84,15 @@ fn call_model_helper(model_name: string, temp: number, thinking: string, search_
   return model("gemini-3.5-flash-lite") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
 }
 
+/**
+  Creates a new AI agent with the specified configuration.
+
+  Parameters:
+  - `config`: A dictionary containing the configuration for the agent, including model, system prompt, temperature, thinking level, search, stream, cache, max tokens, and tools.
+
+  Returns:
+  A dictionary representing the newly created agent.
+*/
 export fn create(config) {
   let model_name = "gemini-3.6-flash"
   if config["model"] != null {
@@ -119,6 +153,15 @@ export fn create(config) {
   }
 }
 
+/**
+  Retrieves the conversation history of the agent as a formatted string.
+
+  Parameters:
+  - `agent`: The AI agent whose history is to be retrieved.
+
+  Returns:
+  A string representing the formatted conversation history of the agent.
+*/
 export fn get_history_string(agent) {
   let h_str = ""
   let history = agent["history"]
@@ -137,6 +180,17 @@ export fn get_history_string(agent) {
   return h_str
 }
 
+/**
+  Handles a chat interaction with the AI agent.
+
+  Parameters:
+  - `agent`: The AI agent to interact with.
+  - `message`: The user's message to send to the agent.
+  - `speech_enabled`: A boolean indicating whether speech output is enabled.
+
+  Returns:
+  The agent's response as a string.
+*/
 export fn chat(agent, message, speech_enabled) {
   let tools = agent["tools"]
   let res = ""
@@ -190,6 +244,18 @@ Assistant:"
   return resp
 }
 
+/**
+  Runs the agent in a ReAct loop to solve a task step-by-step.
+
+  Parameters:
+  - `agent`: The AI agent to run.
+  - `task`: The task description for the agent to solve.
+  - `max_steps`: The maximum number of steps the agent is allowed to take.
+  - `speech_enabled`: A boolean indicating whether speech output is enabled.
+
+  Returns:
+  The final result of the agent's reasoning as a string.
+*/
 export fn run_react(agent, task, max_steps, speech_enabled) {
   let steps_taken = 0
   let react_history = ""
@@ -234,11 +300,18 @@ Next Step JSON:"}
           raise_error("RuntimeError", err_txt, null)
         }
       }
-      let step = structured_output({thought: string, tool_name: string, tool_args_json: string, finished: bool, final_answer: string})(step_text)
+      let step = structured_output({
+        thought: string,
+        tool_name: string,
+        tool_args_json: string,
+        finished: bool,
+        final_answer: string
+        })(step_text)
 
       if step == null || len(keys(step)) == 0 {
         show "Error: Agent returned invalid step format"
         error_count = error_count + 1
+        // Stream the error message to the user if streaming is enabled.
         let stream_fn = agent["stream"]
         if stream_fn != null {
           try {
@@ -255,6 +328,7 @@ Observation: Invalid JSON format.
         }
       } else {
         show "💭 Thought:" step["thought"]
+        // Stream the agent's thought to the user if streaming is enabled.
         let stream_fn = agent["stream"]
         if stream_fn != null {
           try {
@@ -362,10 +436,29 @@ Observation: " + obs + "
   return final_res
 }
 
+/**
+  Clears the conversation history of the specified agent.
+
+  Parameters:
+  - `agent`: The AI agent whose history is to be cleared.
+
+  Returns:
+  None.
+*/
 export fn clear_history(agent) {
   agent["history"] = []
 }
 
+/**
+  Runs the AI agent with the given message and returns the response.
+
+  Parameters:
+  - `agent`: The AI agent to run.
+  - `message`: The user's message to send to the agent.
+
+  Returns:
+  The agent's response as a string.
+*/
 export fn run(agent, message) {
   let sys = agent["system"]
   let prompt_text = "System: " + sys + "
@@ -374,6 +467,15 @@ Assistant:"
   return call_model_helper(agent["model"], agent["temperature"], agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
 }
 
+/**
+  Creates a deep clone of the specified AI agent, including its history and tools.
+
+  Parameters:
+  - `agent`: The AI agent to clone.
+
+  Returns:
+  A new AI agent object that is a deep copy of the original agent.
+*/
 export fn clone(agent) {
   let cloned_history = []
   for turn in agent["history"] {
@@ -400,6 +502,16 @@ export fn clone(agent) {
   }
 }
 
+/**
+  Saves the state of the AI agent to a specified file path in JSON format.
+
+  Parameters:
+  - `agent`: The AI agent to save.
+  - `path`: The file path where the agent's state should be saved.
+
+  Returns:
+  `true` if the agent was successfully saved, `false` otherwise.
+*/
 export fn save(agent, path) {
   let data = {
     "model": agent["model"],
@@ -419,6 +531,16 @@ export fn save(agent, path) {
   }
 }
 
+/**
+  Loads the state of the AI agent from a specified file path in JSON format.
+
+  Parameters:
+  - `agent`: The AI agent to load the state into.
+  - `path`: The file path from which to load the agent's state.
+
+  Returns:
+  `true` if the agent was successfully loaded, `false` otherwise.
+*/
 export fn load(agent, path) {
   let content = ""
   try {
@@ -445,6 +567,16 @@ export fn load(agent, path) {
   return true
 }
 
+/**
+  Retrieves the last response from the AI agent's history.
+
+  Parameters:
+  - `agent`: The AI agent whose last response is to be retrieved.
+  - `speech_enabled`: A boolean indicating whether speech output is enabled.
+
+  Returns:
+  The last response from the agent as a string, or `null` if there is no response.
+*/
 export fn get_last_response(agent, speech_enabled) {
   let history = agent["history"]
   let length = len(history)
@@ -465,17 +597,48 @@ export fn get_last_response(agent, speech_enabled) {
   return null
 }
 
+/**
+  Adds a message to the AI agent's conversation history.
+
+  Parameters:
+  - `agent`: The AI agent to which the message should be added.
+  - `role`: The role of the message sender (e.g., "user" or "assistant").
+  - `text`: The content of the message.
+
+  Returns:
+  None.
+*/
 export fn add_message(agent, role, text) {
   push(agent["history"], {
     "role": role,
     "text": text
   })
 }
+/**
+  Adds a tool to the AI agent's set of available tools.
 
+  Parameters:
+  - `agent`: The AI agent to which the tool should be added.
+  - `name`: The name of the tool.
+  - `tool_fn`: The function representing the tool's behavior.
+
+  Returns:
+  None.
+*/
 export fn add_tool(agent, name, tool_fn) {
   agent["tools"][name] = tool_fn
 }
 
+/**
+  Removes a tool from the AI agent's set of available tools.
+
+  Parameters:
+  - `agent`: The AI agent from which the tool should be removed.
+  - `name`: The name of the tool to remove.
+
+  Returns:
+  None.
+*/
 export fn remove_tool(agent, name) {
   let new_tools = {}
   let old_tools = agent["tools"]

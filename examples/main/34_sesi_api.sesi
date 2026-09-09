@@ -14,24 +14,62 @@
   Usage:
     sesi examples/main/34_sesi_api.sesi -l
 */
+
 allow "std/api" in as API
 
 // In-memory store (no file dependency so example is self-contained)
 let store = []
 let nextId = 1
 
+/**
+  List all users.
+
+  Parameters:
+  - `req`: The HTTP request object.
+  
+  Returns:
+  An object containing the HTTP status and response body.
+*/
 fn listUsers(req) {
-  return {"status": 200, "body": {"users": store, "total": len(store)}}
+  return {
+    status: 200,
+    body: {
+      users: store,
+      total: len(store)
+    }
+  }
 }
 
+/**
+  Create a new user.
+
+  Parameters:
+  - `req`: The HTTP request object.
+
+  Returns:
+  An object containing the HTTP status and response body.
+*/
 fn createUser(req) {
   let data = req.body | from_json
-  let user = {"id": str(nextId), "name": data.name, "email": data.email}
+  let user = {
+    id: str(nextId),
+    name: data.name,
+    email: data.email
+  }
   nextId = nextId + 1
   store | push(user)
-  return {"status": 201, "body": user}
+  return {status: 201, body: user}
 }
 
+/**
+  Get a user by ID.
+
+  Parameters:
+  - `req`: The HTTP request object.
+
+  Returns:
+  An object containing the HTTP status and response body.
+*/
 fn getUser(req) {
   let userId = req.params.id
   let found = null
@@ -41,11 +79,20 @@ fn getUser(req) {
     }
   }
   if found == null {
-    return {"status": 404, "body": {"detail": "User not found"}}
+    return {status: 404, body: {detail: "User not found"}}
   }
-  return {"status": 200, "body": found}
+  return {status: 200, body: found}
 }
 
+/**
+  Delete a user by ID.
+
+  Parameters:
+  - `req`: The HTTP request object.
+
+  Returns:
+  An object containing the HTTP status and response body.
+*/
 fn deleteUser(req) {
   let userId = req.params.id
   let kept = []
@@ -55,47 +102,56 @@ fn deleteUser(req) {
     }
   }
   store = kept
-  return {"status": 204, "body": null}
+  return {status: 204, body: null}
 }
 
+/**
+  Health check endpoint.
+
+  Parameters:
+  - `req`: The HTTP request object.
+
+  Returns:
+  An object containing the HTTP status and response body.
+*/
 fn healthCheck(req) {
-  return {"status": 200, "body": {"status": "ok"}}
+  return {status: 200, body: {status: "ok"}}
 }
 
 let app = ({
-  "title": "Users API",
-  "version": "1.0.0",
-  "description": "A simple user management API built with Sesi"
+  title: "Users API",
+  version: "1.0.0",
+  description: "A simple user management API built with Sesi"
 }) | API.create_app
 
 "/users" | app.get({
-  "summary": "List users",
-  "tags": ["Users"],
-  "response": {"users": "array", "total": "number"}
+  summary: "List users",
+  tags: ["Users"],
+  response: {users: "array", total: "number"}
 }, listUsers)
 
 "/users" | app.post({
-  "summary": "Create user",
-  "tags": ["Users"],
-  "body": {"name": "string", "email": "string"},
-  "response": {"id": "string", "name": "string", "email": "string"}
+  summary: "Create user",
+  tags: ["Users"],
+  body: {name: "string", email: "string"},
+  response: {id: "string", name: "string", email: "string"}
 }, createUser)
 
 "/users/{id}" | app.get({
-  "summary": "Get user",
-  "tags": ["Users"],
-  "response": {"id": "string", "name": "string", "email": "string"}
+  summary: "Get user",
+  tags: ["Users"],
+  response: {id: "string", name: "string", email: "string"}
 }, getUser)
 
 "/users/{id}" | app.delete({
-  "summary": "Delete user",
-  "tags": ["Users"]
+  summary: "Delete user",
+  tags: ["Users"]
 }, deleteUser)
 
 "/health" | app.get({
-  "summary": "Health check",
-  "tags": ["System"],
-  "response": {"status": "string"}
+  summary: "Health check",
+  tags: ["System"],
+  response: {status: "string"}
 }, healthCheck)
 
 let server = 8080 | app.listen
@@ -108,7 +164,7 @@ try {
 }
 
 try {
-  let created = "http://localhost:8080/users" | web_send({"name": "Alice", "email": "alice@example.com"})
+  let created = "http://localhost:8080/users" | web_send({name: "Alice", email: "alice@example.com"})
   show "POST /users:   " created
 } catch (error) {
   show "Create user failed:" error
@@ -139,7 +195,7 @@ try {
 
 // 422 on missing required field
 try {
-  let badReq = "http://localhost:8080/users" | web_send({"name": "Bob"})
+  let badReq = "http://localhost:8080/users" | web_send({name: "Bob"})
   show "Missing email: " badReq
 } catch (error) {
   show "Missing email request failed:" error

@@ -110,7 +110,7 @@ function tokenize(text: string): ScopeToken[] {
     'export', 'to', 'allow', 'as', 'with', 'convert', 'memory', 'structured_output', 'tool_call',
   ]);
   const stripped = stripComments(text);
-  const tokenRegex = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b[a-zA-Z_][a-zA-Z0-9_]*\b|[{}[\](),;.:=+\-*/%&|!<>]/g;
+  const tokenRegex = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\$[a-zA-Z_][a-zA-Z0-9_]*|\b[a-zA-Z_][a-zA-Z0-9_]*\b|[{}[\](),;.:=+\-*/%&|!<>]/g;
   const lineOffsets: number[] = [];
   let currentOffset = 0;
   for (const line of text.split('\n')) {
@@ -133,6 +133,7 @@ function tokenize(text: string): ScopeToken[] {
     }
     let type = 'PUNCTUATION';
     if (lexeme.startsWith('"') || lexeme.startsWith("'")) type = 'STRING';
+    else if (lexeme.startsWith('$')) type = 'ENV_LOOKUP';
     else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(lexeme)) type = keywords.has(lexeme) ? lexeme.toUpperCase() : 'IDENTIFIER';
     else if (/^[0-9]+(\.[0-9]+)?$/.test(lexeme)) type = 'NUMBER';
     tokens.push({ type, lexeme, line, col: match.index - lineOffsets[line], length: lexeme.length });
@@ -362,7 +363,7 @@ function shouldPushScope(index: number, tokens: ScopeToken[]): boolean {
 }
 
 const BUILTINS = new Set([
-  'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt', 'speech', 'from_speech', 'translate', 'len',
+  'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt', 'speech', 'from_speech', 'len',
   'read_file', 'write_file', 'append_file', 'write_image', 'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call', 'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env',
   'range', 'push', 'append', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs',
@@ -467,7 +468,7 @@ export function runDryRunSemanticChecks(source: string): DryRunDiagnostic[] {
   const collectUnused = (scope: DryScope): void => {
     if (scope !== root && !scope.isMakeScope) {
       for (const [name, binding] of scope.variables) {
-        if (binding.readCount === 0 && !binding.suppressUnused && binding.type !== 'catch_variable' && name !== 'req' && !name.startsWith('_')) {
+        if (binding.readCount === 0 && !binding.suppressUnused && binding.type !== 'catch_variable' && binding.type !== 'tool' && name !== 'req' && !name.startsWith('_')) {
           diagnostics.push({
             severity: 'warning', code: 'unused-symbol',
             line: binding.token.line + 1, column: binding.token.col + 1,

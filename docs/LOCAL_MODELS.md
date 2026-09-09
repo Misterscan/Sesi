@@ -83,14 +83,14 @@ their tokenizer chat template supports tool use:
 
 ```sesi
 let tools = [{
-  "type": "function",
-  "function": {
-    "name": "lookup_weather",
-    "description": "Get weather by city",
-    "parameters": {
-      "type": "object",
-      "properties": {"city": {"type": "string"}},
-      "required": ["city"]
+  type: "function",
+  function: {
+    name: "lookup_weather",
+    description: "Get weather by city",
+    parameters: {
+      type: "object",
+      properties: {city: {type: "string"}},
+      required: ["city"]
     }
   }
 }]

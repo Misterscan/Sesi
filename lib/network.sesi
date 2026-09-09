@@ -1,0 +1,537 @@
+/**
+  Network functions for making HTTP requests and handling web content.
+
+ These functions provide convenient ways to perform HTTP GET and POST requests, handle JSON data, and interact with web pages, including fetching and saving page content and extracting CSS.
+
+ Use these functions to simplify network operations and web content handling in your applications.
+*/
+
+/**
+  Perform an HTTP GET request to a URL and return its response body.
+
+  This function wraps the built-in `web_get` function and converts request
+  failures into an empty string, making it suitable for callers that prefer
+  checking a return value instead of handling an exception.
+
+  Parameters:
+  - `url`: The complete URL to request, including the protocol when required.
+
+  Returns:
+  - The HTTP response body as a string.
+  - `null` when the request fails.
+
+  Example:
+  ```sesi
+  let page = get("https://example.com")
+  if page == null {
+    show "The request failed"
+  } else {
+    show "Received" len(page) "characters"
+  }
+  ```
+
+  Notes:
+  - The request is performed synchronously.
+  - HTTP errors and network failures are printed and converted to `null`.
+  - Use `getWithHeaders` when custom request headers are required.
+*/
+export fn get(url: string) -> any {
+    try {
+        return web_get(url)
+    } catch (e) {
+        show e.message
+        return null
+    }
+}
+
+/**
+  Check whether a host responds to an HTTP request.
+
+  The function constructs an HTTP URL from the supplied host and attempts to
+  retrieve it with `get`. A successful response is treated as evidence that
+  the host is reachable.
+
+  Parameters:
+  - `host`: The hostname or host address to check, without the protocol prefix.
+
+  Returns:
+  - `true` if the request produces a non-null response.
+  - `false` if the request fails or produces a null response.
+
+  Example:
+  ```sesi
+  let reachable = ping("example.com")
+  if reachable {
+    show "Host is reachable"
+  } else {
+    show "Host is unavailable"
+  }
+  ```
+
+  Notes:
+  - The function uses the `http://` protocol.
+  - Include only the host and optional port in the argument.
+  - The function considers a host reachable only if the response is non-null and non-empty.
+*/
+export fn ping(host: string) -> bool {
+    let response = get("http://" + host)
+    return response != null && response != ""
+}
+
+/**
+  Perform an HTTP GET request and parse the response as JSON.
+
+  This function retrieves the response body with `get` and converts valid JSON
+  text into a native Sesi value using `from_json`.
+
+  Parameters:
+  - `url`: The complete URL to request.
+
+  Returns:
+  - The parsed JSON value, which may be an object, array, string, number,
+    boolean, or null.
+  - `null` if the request fails.
+
+  Example:
+  ```sesi
+  let user = getJSON("https://jsonplaceholder.typicode.com/users/1")
+  if user != null {
+    show "User:" user["name"]
+  }
+  ```
+
+  Notes:
+  - If the response is not valid JSON, the function prints the error message and returns `null`.
+  - The function uses the default headers supplied by `get`.
+*/
+export fn getJSON(url: string) -> any {
+    let response = get(url)
+    if response == null {
+        show "Failed to reach:" url
+        return response
+    }
+    try {
+        return from_json(response)
+    } catch (e) {
+        show e.message
+        return null
+    }
+}
+
+/**
+  Perform an HTTP GET request with custom headers and parse the response as JSON.
+
+  This function sends a request with caller-provided headers, then parses the
+  response body into a native Sesi value.
+
+  Parameters:
+  - `url`: The complete URL to request.
+  - `headers`: An object containing HTTP header names and values.
+
+  Returns:
+  - The parsed JSON value.
+  - `null` if the request fails or the response is not valid JSON.
+
+  Example:
+  ```sesi
+  let headers = {"Authorization": "Bearer token"}
+  let data = getJSONWithHeaders("https://api.example.com/profile", headers)
+  if data != null {
+    show data
+  }
+  ```
+
+  Notes:
+  - The headers are passed to the underlying web request.
+  - The returned value may be any JSON-compatible Sesi value.
+  - Request and parsing failures are printed and converted to `null`.
+*/
+export fn getJSONWithHeaders(url: string, headers: object) -> any {
+    let response = web_get(url, headers)
+    if response == null {
+        show "Failed to reach:" url
+        return response
+    }
+    try {
+        return from_json(response)
+    } catch (e) {
+        show e.message
+        return null
+    }
+}
+
+/**
+  Perform an HTTP GET request with custom headers.
+
+  This function retrieves a URL while supplying caller-defined HTTP headers.
+  Request failures are converted to an empty string.
+
+  Parameters:
+  - `url`: The complete URL to request.
+  - `headers`: An object containing HTTP header names and values.
+
+  Returns:
+  - The HTTP response body as a string, or `null` if the request fails.
+
+  Example:
+  ```sesi
+  let headers = {
+    "Accept": "text/plain",
+    "X-Client": "Sesi"
+  }
+  let response = getWithHeaders("https://example.com/data", headers)
+  show response
+  ```
+
+  Notes:
+  - The request is synchronous.
+  - Use `getJSONWithHeaders` when the response should be parsed as JSON.
+  - Request failures are printed and converted to `null`.
+*/
+export fn getWithHeaders(url: string, headers: object) -> any {
+    try {
+        return web_get(url, headers)
+    } catch (e) {
+        show "Failed to reach:" url ":" e.message
+        return null
+    }
+}
+
+/**
+  Perform an HTTP POST request with a payload.
+
+  This function sends the supplied payload to a URL using the built-in
+  `web_send` function. Request failures are converted to an empty string.
+
+  Parameters:
+  - `url`: The complete destination URL.
+  - `payload`: The request body, normally represented as an object or
+    JSON-compatible value.
+
+  Returns:
+  - The HTTP response body as a string, or `null` if the request fails.
+
+  Example:
+  ```sesi
+  let payload = {
+    "title": "New item",
+    "enabled": true
+  }
+  let response = send("https://api.example.com/items", payload)
+  show response
+  ```
+
+  Notes:
+  - The payload is automatically serialized to JSON before sending.
+  - Request failures are printed and converted to `null`.
+  - Use `sendWithHeaders` to provide content-type or authorization headers.
+*/
+export fn send(url: string, payload: object) -> any {
+    try {
+        return web_send(url, to_json(payload))
+    } catch (e) {
+        show "Failed to reach:" url ":" e.message
+        return null
+    }
+}
+
+/**
+  Perform an HTTP POST request with a payload and custom headers.
+
+  This function sends data to a URL and includes caller-provided HTTP headers.
+
+  Parameters:
+  - `url`: The complete destination URL.
+  - `payload`: The request body to send.
+  - `headers`: An object containing HTTP header names and values.
+
+  Returns:
+  - The HTTP response body as a string, or `null` if the request fails.
+
+  Example:
+  ```sesi
+  let payload = {"name": "Ada"}
+  let headers = {"Content-Type": "application/json"}
+  let response = sendWithHeaders(
+    "https://api.example.com/users",
+    payload,
+    headers
+  )
+  show response
+  ```
+
+  Notes:
+  - Header formatting and payload encoding are handled by the underlying
+    web request implementation.
+  - Use `sendJSONWithHeaders` when the response should be parsed as JSON.
+*/
+export fn sendWithHeaders(url: string, payload: object, headers: object) -> any {
+    try {
+        return web_send(url, to_json(payload), headers)
+    } catch (e) {
+        show "Failed to reach:" url ":" e.message
+        return null
+    }
+}
+
+/**
+  Perform an HTTP POST request and parse the response as JSON.
+
+  This function sends a payload with `send` and converts a valid JSON response
+  into a native Sesi value.
+
+  Parameters:
+  - `url`: The destination URL.
+  - `payload`: The request body to send.
+
+  Returns:
+  - The parsed JSON response.
+  - `null` if the request fails or the response is invalid JSON.
+
+  Example:
+  ```sesi
+  let payload = {"title": "Sesi"}
+  let result = sendJSON("https://api.example.com/items", payload)
+  if result != null {
+    show "Created item:" result
+  }
+  ```
+
+  Notes:
+  - The returned value may be an object, array, primitive, or null.
+  - Parsing errors are logged with a message but do not raise an exception.
+*/
+export fn sendJSON(url: string, payload: object) -> any {
+    let response = send(url, to_json(payload))
+    if response == null {
+        return response
+    }
+    try {
+        return from_json(response)
+    } catch (e) {
+        show "Failed to parse JSON:" e.message
+        return null
+    }
+}
+
+/**
+  Perform an HTTP POST request with custom headers and parse the response as JSON.
+
+  This function sends a payload with caller-provided headers and parses a valid
+  JSON response into a native Sesi value.
+
+  Parameters:
+  - `url`: The destination URL.
+  - `payload`: The request body to send.
+  - `headers`: An object containing HTTP header names and values.
+
+  Returns:
+  - The parsed JSON response.
+  - `null` if the request fails or the response is not valid JSON.
+
+  Example:
+  ```sesi
+  let payload = {"query": "sesi"}
+  let headers = {"Content-Type": "application/json"}
+  let result = sendJSONWithHeaders(
+    "https://api.example.com/search",
+    payload,
+    headers
+  )
+  show result
+  ```
+
+  Notes:
+  - This function combines `sendWithHeaders` with `from_json`.
+  - Invalid or empty responses are represented by `null`.
+  - Parsing errors are logged with a message but do not raise an exception.
+*/
+export fn sendJSONWithHeaders(url: string, payload: object, headers: object) -> any {
+    let response = sendWithHeaders(url, to_json(payload), headers)
+    if response == null {
+        return response
+    }
+    try {
+        return from_json(response)
+    } catch (e) {
+        show "Failed to parse JSON:" e.message
+        return null
+    }
+}
+
+/**
+  Retrieve the contents of a web page.
+
+  This function requests the specified page over HTTPS and returns its body.
+  If the supplied URL already contains a protocol, it is used as-is without modification.
+
+  Parameters:
+  - `url`: The page host or URL to retrieve.
+
+  Returns:
+  - The page contents as a string.
+
+  Example:
+  ```sesi
+  let contents = read("example.com")
+  show "Page length:" len(contents)
+  ```
+
+  Notes:
+  - Network failures raise a typed `NetworkError`.
+  - Failure messages include both the typed error and the underlying exception message.
+*/
+fn read(url: string) -> any {
+    let contents = ""
+    // Error to be raised if the page cannot be retrieved.
+    let error: str = error_type("NetworkError", "Page not found. Make sure the URL is correct.")
+
+    try {
+        if url | starts_with("http://") || url | starts_with("https://") {
+            contents = web_get(url)
+        } else {
+            contents = web_get("https://" + url)
+        }
+        return contents
+    } catch (e) {
+        return raise_error(error) + e.message
+    }
+}
+
+/**
+  Save web page contents to a local file.
+
+  This function retrieves a page with `read` and writes the returned contents
+  to the specified local path.
+
+  Parameters:
+  - `url`: The host or URL of the page to retrieve.
+  - `path`: The local destination path for the page contents.
+
+  Returns:
+  - `true` when the page is successfully written.
+  - `false` when retrieval or saving fails.
+
+  Example:
+  ```sesi
+  let saved = save("example.com", "downloads/example.html")
+  if saved {
+    show "Page saved"
+  }
+  ```
+
+  Notes:
+  - Retrieval failures produce a `NetworkError`.
+  - File-writing failures produce a `SaveError`.
+  - Failure messages include both the typed error and the underlying exception message.
+  - The function automatically creates the destination directory if it does not exist.
+*/
+fn save(url: string, path: string) -> bool {
+    let contents = read(url)
+    // Error message for network when the page cannot be retrieved.
+    let error: str = error_type("NetworkError", "Page not found. Make sure the URL is correct.")
+    // Error message for save failure when the page cannot be saved to the specified path.
+    let saveError: str = error_type("SaveError", "Failed to save the page. Make sure the path is correct.")
+
+    // Extract the directory path from the full file path to ensure the destination directory exists.
+    let dir = path | split("/") | slice(0, -1) | join("/")
+
+    if contents == error {
+        show contents.message
+        return false
+    } else {
+        try {
+            make_dir(dir)
+            write_file(path, contents)
+        } catch (e) {
+            show raise_error(saveError) "\n" e.message
+            return false
+        }
+
+        return true
+    }
+}
+
+/**
+  Extract external and inline CSS from a web page.
+
+  This function retrieves a page, finds linked stylesheet elements and inline
+  style blocks, downloads external stylesheets, and combines all discovered
+  CSS into one string.
+
+  Parameters:
+  - `url`: The page URL or host whose CSS should be extracted.
+
+  Returns:
+  - A string containing all extracted inline and external CSS blocks,
+    separated by blank lines.
+
+  Example:
+  ```sesi
+  let css = getCssFromPage("https://example.com")
+  write_file("page.css", css)
+  show "Extracted CSS:" len(css) "characters"
+  ```
+
+  Notes:
+  - If the URL lacks `http://` or `https://`, `https://` is added.
+  - Both `<style>` elements and stylesheet `<link>` elements are supported.
+  - Relative stylesheet URLs are resolved against the page URL.
+  - A typed `CSSNotFound` error is raised when no CSS is found.
+  - Network failures while loading the page or linked stylesheets may affect
+    the extracted result.
+  - The returned CSS is not minified or otherwise transformed.
+*/
+fn getCssFromPage(url: string) -> any {
+    // Error to be raised if no CSS is found on the page.
+    let error: str = error_type("CSSNotFound", "CSS not found. Make sure the page contains CSS.")
+    // Helper function to extract the href link from a CSS link tag.
+    //
+    // Parameters:
+    // - `css`: The CSS link tag as a string.
+    // Returns the href link from the CSS link tag.
+    fn getLinkFromCss(css: string) -> string {
+        let link = regex("href=[\"']([^\"']+)[\"']", css, { "mode": "match" })
+        return link[0].match
+    }
+
+    // Ensure the page URL starts with "http://" or "https://". If not, prepend "https://".
+    let pageUrl = url
+    if !(pageUrl | starts_with("http://")) && !(pageUrl | starts_with("https://")) {
+        pageUrl = "https://" + pageUrl
+    }
+    // Retrieve the contents of the web page at the specified URL.
+    let contents = get(pageUrl)
+    if contents == "" {
+        return raise_error(error)
+    }
+
+    // All stylesheet link tags in the page.
+    let stylesheetTags = regex("<link(?=[^>]*\\brel\\s*=\\s*[\"'][^\"']*\\bstylesheet\\b[^\"']*[\"'])[^>]*>", contents, { "mode": "match", "flags": "gi" })
+    // All inline style blocks in the page.
+    let inlineStyles = regex("<style[^>]*>([\\s\\S]*?)</style>", contents, { "mode": "match", "flags": "gi" })
+    // Array to store all extracted CSS blocks.
+    let cssBlocks = []
+
+    for style in inlineStyles {
+        if style["captures"][0] != null {
+            push(cssBlocks, style["captures"][0])
+        }
+    }
+
+    for tag in stylesheetTags {
+        let link = getLinkFromCss(tag["match"])
+        let href = link | swap("href=", "") | swap("\"", "") | swap("'", "")
+        let stylesheetUrl = trim(js("console.log(new URL(" + to_json(href) + ", " + to_json(pageUrl) + ").href)"))
+        let stylesheet = get(stylesheetUrl)
+        if stylesheet != "" {
+            push(cssBlocks, stylesheet)
+        }
+    }
+
+    if (cssBlocks | len) == 0 {
+        return raise_error(error)
+    }
+
+    return join(cssBlocks, "\n\n")
+}

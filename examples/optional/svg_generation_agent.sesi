@@ -18,7 +18,15 @@ show "🚀 Initializing SVG Generator Agent..."
 // Register model aliases
 set_alias("agent", "gemini-3.5-flash-lite")
 
-// Helper function to extract a file path/name from various argument forms
+/**
+  Helper function to extract a file path/name from various argument forms.
+
+  Parameters:
+  - arg: A JSON string containing the file path/name, or a plain string with the file path/name.
+
+  Returns:
+  The extracted file path/name as a string, or null if not found.
+*/
 fn get_filepath_from_args(arg) {
   let parsed = null
   if type(arg) == "object" {
@@ -59,15 +67,23 @@ fn get_filepath_from_args(arg) {
   return null
 }
 
-// Helper function to extract content from various argument forms
+/**
+  Helper function to extract content from various argument forms.
+
+  Parameters:
+  - parsed: A JSON object containing the content.
+
+  Returns:
+  The extracted content as a string, or null if not found.
+*/
 fn get_content_from_args(parsed) {
   if parsed == null { return null }
-  let content = parsed["content"]
-  if content == null { content = parsed["code"] }
-  if content == null { content = parsed["markdown"] }
-  if content == null { content = parsed["html_content"] }
-  if content == null { content = parsed["text"] }
-  if content == null { content = parsed["body"] }
+  let content = parsed.content
+  if content == null { content = parsed.code }
+  if content == null { content = parsed.markdown }
+  if content == null { content = parsed.html_content }
+  if content == null { content = parsed.text }
+  if content == null { content = parsed.body }
   
   if content == null {
     let all_keys = keys(parsed)
@@ -81,7 +97,15 @@ fn get_content_from_args(parsed) {
   return content
 }
 
-// Tool to write Sesi script content to disk
+/**
+  Tool to write Sesi script content to disk.
+
+  Parameters:
+  - arg: A JSON string containing the filename and content, or a plain string with the filename.
+
+  Returns:
+  A string indicating success or failure of the write operation.
+*/
 fn write_sesi_script(arg) -> string {
   try {
     let parsed = null
@@ -108,7 +132,15 @@ fn write_sesi_script(arg) -> string {
   }
 }
 
-// Tool to execute a Sesi script
+/**
+  Tool to execute a Sesi script.
+
+  Parameters:
+  - arg: A JSON string containing the filename, or a plain string with the filename.
+
+  Returns:
+  A string indicating the success or failure of the script execution, along with output or error details.
+*/
 fn execute_sesi_script(arg) -> string {
   let filename = get_filepath_from_args(arg)
   if filename == null {
@@ -123,7 +155,15 @@ fn execute_sesi_script(arg) -> string {
   }
 }
 
-// Tool to verify SVG in browser
+/**
+  Tool to verify an SVG file in the browser.
+
+  Parameters:
+  - arg: A JSON string containing the SVG filename, or a plain string with the filename.
+
+  Returns:
+  A string indicating whether the SVG loaded successfully or if there were syntax/parsing errors, along with a screenshot path if applicable.
+*/
 fn verify_svg_file(arg) -> string {
   let filename = get_filepath_from_args(arg)
   if filename == null {
@@ -137,7 +177,7 @@ fn verify_svg_file(arg) -> string {
   
   let browser = null
   try {
-    browser = launch({"headless": true})
+    browser = launch({headless: true})
     let page = browser.newPage()
     page.goto(file_url)
     page.wait_for_timeout(1500) // Allow render time
@@ -165,7 +205,15 @@ fn verify_svg_file(arg) -> string {
   }
 }
 
-// Tool to write the markdown workflow report
+/**
+  Tool to write the markdown workflow report to disk.
+
+  Parameters:
+  - arg: A JSON string containing the filename and content, or a plain string with the filename.
+
+  Returns:
+  A string indicating success or failure of the write operation.
+*/
 fn write_report(arg) -> string {
   try {
     let parsed = null
@@ -192,7 +240,15 @@ fn write_report(arg) -> string {
   }
 }
 
-// Tool to read a file safely
+/**
+  Tool to read a file safely.
+
+  Parameters:
+  - arg: A JSON string containing the filename, or a plain string with the filename.
+
+  Returns:
+  The content of the file as a string, or an error message if reading fails.
+*/
 fn safeRead(arg) -> string {
   let filename = get_filepath_from_args(arg)
   if filename == null { return "Failed: 'filename' key is missing." }
@@ -208,14 +264,14 @@ fn safeRead(arg) -> string {
 // Create agent configuration
 let svg_agent = Agent.create({
   "model": "agent",
-  "cache": true,
-  "system": "You are an expert developer and designer specializing in the Sesi programming language and standard vector graphics.
+  cache: true,
+  system: "You are an expert developer and designer specializing in the Sesi programming language and standard vector graphics.
 Your task is to write a Sesi script using Sesi's native 'std/draw' graphics library to draw a beautiful vector graphic and save it to disk.
 
 ### 🛑 CRITICAL INSTRUCTION:
 Do NOT guess Sesi syntax or standard library functions.
 You MUST use the 'read_file' tool to read the documentation files:
-- 'getting-started/SVG.md' to check the exact Sesi 'std/draw' graphics module syntax and signatures (e.g. Draw.rect, Draw.circle, Draw.save_svg).
+- 'getting-started/SVG-AND-PIXELS.md' to check the exact Sesi 'std/draw' graphics module syntax and signatures (e.g. Draw.rect, Draw.circle, Draw.save_svg).
 - 'docs/WRITING_SCRIPTS.md' to check Sesi language syntax (no const, C-like loops, etc.).
 Follow the documentation exactly to write valid Sesi code!
 
@@ -227,8 +283,8 @@ Follow the documentation exactly to write valid Sesi code!
 5. If there are syntax or execution errors, read the error message carefully, read the docs to identify the mistake, rewrite/fix your Sesi script, and run it again.
 6. Once verified, generate the markdown report summarizing your workflow using 'write_report'.
 In the markdown report, embed the screenshot using markdown: ![Rendered SVG](design_screenshot.png).",
-  "temperature": 0.2,
-  "tools": {
+  temperature: 0.2,
+  tools: {
     "read_file": safeRead,
     "write_sesi_script": write_sesi_script,
     "execute_sesi_script": execute_sesi_script,

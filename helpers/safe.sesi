@@ -1,10 +1,30 @@
-/*
-    Safe File Access
-   Resilient file operations wrapped in try-catch blocks with retry logic to prevent crashes.
+/**
+  Safe File Access
+  Resilient file operations wrapped in try-catch blocks with retry logic to prevent crashes.
+
+  This module provides safe and resilient file operations, including reading, writing, and checking file existence, with built-in retry logic to handle transient errors gracefully.
 */
+
 allow "std/time" in as Time
 
-// Get the file extension from a given path
+/**
+  Extracts the lowercase file extension from a path.
+
+  Parameters:
+  - path: File or directory path to inspect.
+
+  Returns:
+  - The extension without its leading dot, or a descriptive message when no extension is available.
+
+  Example:
+  ```sesi
+  let extension = getExtension("photo.JPG")
+  show extension
+  ```
+
+  Notes:
+  - Compound extensions such as `tar.gz` are preserved.
+*/
 export fn getExtension(path: str) -> str {
   try {
     let ext = get_ext(path)
@@ -17,32 +37,136 @@ export fn getExtension(path: str) -> str {
   }
 }
 
-// Compatibility for versatility
+/**
+  Extracts a file extension using the `getExtension` implementation.
+
+  Parameters:
+  - path: File path to inspect.
+
+  Returns:
+  - The lowercase extension or a descriptive result when it cannot be determined.
+
+  Example:
+  ```sesi
+  let extension = getExt("archive.tar.gz")
+  show extension
+  ```
+*/
 export fn getExt(path: str) -> str {
   return getExtension(path)
 }
 
+/**
+  Provides a descriptive alias for `getExtension`.
+
+  Parameters:
+  - path: File path to inspect.
+
+  Returns:
+  - The lowercase file extension or a descriptive result when unavailable.
+
+  Example:
+  ```sesi
+  show getFileExtension("document.pdf")
+  ```
+*/
 export fn getFileExtension(path: str) -> str {
   return getExtension(path)
 }
 
+/**
+  Provides an alternative name for retrieving a file extension.
+
+  Parameters:
+  - path: File path to inspect.
+
+  Returns:
+  - The lowercase extension without a leading dot.
+
+  Example:
+  ```sesi
+  let extension = getFileExt("image.png")
+  show extension
+  ```
+*/
 export fn getFileExt(path: str) -> str {
   return getExtension(path)
 }
 
+/**
+  Determines the file type from the extension in a path.
+
+  Parameters:
+  - path: File path whose extension should be identified.
+
+  Returns:
+  - The lowercase extension or a descriptive message when no extension exists.
+
+  Example:
+  ```sesi
+  show getFileType("report.csv")
+  ```
+*/
 export fn getFileType(path: str) -> str {
   return getExtension(path)
 }
 
+/**
+  Provides a short alias for `getExtension`.
+
+  Parameters:
+  - path: File path to inspect.
+
+  Returns:
+  - The lowercase file extension or a descriptive result when unavailable.
+
+  Example:
+  ```sesi
+  show extension("video.mp4")
+  ```
+*/
 export fn extension(path: str) -> str {
   return getExtension(path)
 }
 
+/**
+  Provides a concise alias for retrieving a file extension.
+
+  Parameters:
+  - path: File path to inspect.
+
+  Returns:
+  - The lowercase file extension or a descriptive result when unavailable.
+
+  Example:
+  ```sesi
+  show ext("backup.tar.gz")
+  ```
+*/
 export fn ext(path: str) -> str {
   return getExtension(path)
 }
 
-// Resilience Helper: Safe file read with retry logic
+/**
+  Reads a file with retry handling for transient failures.
+
+  Parameters:
+  - path: Path of the file to read.
+  - mode: Read mode, normally `"text"` or `"base64"`.
+
+  Returns:
+  - The file contents as a string, or an empty string after all attempts fail.
+
+  Example:
+  ```sesi
+  let content = readFile("notes.txt")
+  show content
+  ```
+
+  Notes:
+  - The operation is attempted up to three times.
+  - A short delay is inserted between failed attempts.
+*/
 export fn readFile(path: string, mode: string = "text") -> string {
   let result = ""
   let success = false
@@ -62,15 +186,59 @@ export fn readFile(path: string, mode: string = "text") -> string {
   return result
 }
 
-// Compatibiltity for versatility
+/**
+  Reads a file through the resilient `readFile` implementation.
+
+  Parameters:
+  - path: Path of the file to read.
+
+  Returns:
+  - The file contents as text, or an empty string if reading fails.
+
+  Example:
+  ```sesi
+  show read("README.md")
+  ```
+*/
 export fn read(path: string) -> string {
   return readFile(path)
 }
 
+/**
+  Retrieves file contents using the safe read operation.
+
+  Parameters:
+  - path: Path of the file to read.
+
+  Returns:
+  - The file contents as text, or an empty string if reading fails.
+
+  Example:
+  ```sesi
+  let content = getContent("config.txt")
+  show content
+  ```
+*/
 export fn getContent(path: string) -> string {
   return readFile(path)
 }
 
+/**
+  Reads a file with an optional content mode.
+
+  Parameters:
+  - path: Path of the file to read.
+  - mode: Read mode, such as `"text"` or `"base64"`.
+
+  Returns:
+  - The file contents as a string, or an empty string after failed attempts.
+
+  Example:
+  ```sesi
+  let encoded = contents("logo.png", "base64")
+  show len(encoded)
+  ```
+*/
 export fn contents(path: string, mode: string = "text") -> string {
   if mode == "" || is_null(mode) {
     mode = "text"
@@ -78,6 +246,21 @@ export fn contents(path: string, mode: string = "text") -> string {
   return readFile(path, mode)
 }
 
+/**
+  Views file contents using resilient file reading.
+
+  Parameters:
+  - path: Path of the file to read.
+  - mode: Read mode, such as `"text"` or `"base64"`.
+
+  Returns:
+  - The file contents as a string.
+
+  Example:
+  ```sesi
+  show view("data.txt")
+  ```
+*/
 export fn view(path: string, mode: string = "text") -> string {
   if mode == "" || is_null(mode) {
     mode = "text"
@@ -85,20 +268,81 @@ export fn view(path: string, mode: string = "text") -> string {
   return readFile(path, mode)
 }
 
+/**
+  Reads a file using the default text mode.
+
+  Parameters:
+  - path: Path of the file to read.
+
+  Returns:
+  - The file contents as text, or an empty string if reading fails.
+
+  Example:
+  ```sesi
+  let document = viewFile("document.md")
+  show document
+  ```
+*/
 export fn viewFile(path: string) -> string {
   return readFile(path)
 }
 
+/**
+  Reads a media file as Base64 data.
+
+  Parameters:
+  - path: Path of the media file to read.
+
+  Returns:
+  - Base64-encoded file contents.
+
+  Example:
+  ```sesi
+  let img = viewMedia("photo.png")
+  write_file("photo-copy.png", img, "base64")
+  ```
+
+  Notes:
+  - This function is intended for binary media files.
+*/
 export fn viewMedia(path: string) -> string {
   return readFile(path, "base64")
 }
 
-// Get contents from a file as a string but with the filename prepended (more useful for LLMs)
+/**
+  Reads a file and prepends its filename to the content.
+
+  Parameters:
+  - path: Path of the file to read.
+
+  Returns:
+  - A string containing the filename and file contents.
+
+  Example:
+  ```sesi
+  let promptText = fromFile("notes.txt")
+  show promptText
+  ```
+*/
 export fn fromFile(path: string) -> string {
   return "Filename: " + path + "\nContent: " + read(path)
 }
 
-// Get contents of multiple files as an array of strings (with filenames prepended)
+/**
+  Reads multiple files and labels each result with its filename.
+
+  Parameters:
+  - paths: Array of file paths to read.
+
+  Returns:
+  - An array of labeled content strings in the same order as `paths`.
+
+  Example:
+  ```sesi
+  let documents = fromFiles(["a.txt", "b.txt"])
+  for document in documents { show document }
+  ```
+*/
 export fn fromFiles(paths: array) -> array<string> {
   let contents = []
   for path in paths {
@@ -107,29 +351,117 @@ export fn fromFiles(paths: array) -> array<string> {
   return contents
 }
 
-// Checks if a file exists and returns true if it does, false otherwise.
+/**
+  Checks whether a file exists.
+
+  Parameters:
+  - path: File path to check.
+
+  Returns:
+  - `true` when the file exists; otherwise `false`.
+
+  Example:
+  ```sesi
+  if fileExists("config.json") { show "Configuration found" }
+  ```
+*/
 export fn fileExists(path: string) -> bool {
   return exists(path)
 }
 
-// Compatibiltity for versatility
+/**
+  Checks whether a file or path exists using `fileExists`.
+
+  Parameters:
+  - path: Path to verify.
+
+  Returns:
+  - `true` when the path exists; otherwise `false`.
+
+  Example:
+  ```sesi
+  show pathExists("README.md")
+  ```
+*/
 export fn pathExists(path: string) -> bool {
   return fileExists(path)
 }
 
+/**
+  Verifies that a file exists.
+
+  Parameters:
+  - path: File path to verify.
+
+  Returns:
+  - `true` when the file exists; otherwise `false`.
+
+  Example:
+  ```sesi
+  if verifyFile("input.txt") { show "Ready to read" }
+  ```
+*/
 export fn verifyFile(path: string) -> bool {
   return fileExists(path)
 }
 
+/**
+  Verifies that a path exists using the path-oriented alias.
+
+  Parameters:
+  - path: Path to verify.
+
+  Returns:
+  - `true` when the path exists; otherwise `false`.
+
+  Example:
+  ```sesi
+  show verifyPath("assets")
+  ```
+*/
 export fn verifyPath(path: string) -> bool {
   return pathExists(path)
 }
 
+/**
+  Provides a short alias for checking file existence.
+
+  Parameters:
+  - path: Path to check.
+
+  Returns:
+  - `true` if the path exists; otherwise `false`.
+
+  Example:
+  ```sesi
+  if verify("data.json") { show "Data available" }
+  ```
+*/
 export fn verify(path: string) -> bool {
   return fileExists(path)
 }
 
-// Resilience Helper: Safe file write with retry logic
+/**
+  Writes text or Base64 content with retry handling.
+
+  Parameters:
+  - path: Destination file path.
+  - content: Text or Base64 content to write.
+  - mode: Write mode, normally `"text"` or `"base64"`.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  let result = writeFile("output.txt", "Hello, Sesi!")
+  show result
+  ```
+
+  Notes:
+  - Common media extensions automatically select Base64 mode.
+  - The operation is attempted up to three times.
+*/
 export fn writeFile(path: string, content: string, mode: string = "text") -> string {
   let success = false
   let attempts = 0
@@ -157,11 +489,46 @@ export fn writeFile(path: string, content: string, mode: string = "text") -> str
   }
 }
 
-// Compatibiltity for versatility
+/**
+  Writes a file through the resilient `writeFile` implementation.
+
+  Parameters:
+  - path: Destination file path.
+  - content: Content to write.
+  - mode: Encoding mode for the write operation.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  show write("result.txt", "Completed")
+  ```
+*/
 export fn write(path: string, content: string, mode: string = "text") -> any {
   return writeFile(path, content, mode)
 }
 
+/**
+  Writes content to a file, creating it when necessary.
+
+  Parameters:
+  - path: Destination file path.
+  - content: Content to write.
+  - mode: Write mode, such as `"text"` or `"base64"`.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  let result = overwrite("settings.json", to_json({"ready": true}))
+  show result
+  ```
+
+  Notes:
+  - Despite the name, the function creates the file when it does not exist.
+*/
 export fn overwrite(path: string, content: string, mode: string = "text") -> any {
   if fileExists(path) {
     return writeFile(path, content, mode)
@@ -171,10 +538,43 @@ export fn overwrite(path: string, content: string, mode: string = "text") -> any
   }
 }
 
+/**
+  Creates a file or replaces its contents.
+
+  Parameters:
+  - path: Destination file path.
+  - content: Initial content.
+  - mode: Write mode.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  show makeFile("empty.txt")
+  ```
+*/
 export fn makeFile(path: string, content: string = "", mode: string = "text") -> any {
   return writeFile(path, content, mode)
 }
 
+/**
+  Creates a file only when it does not already exist.
+
+  Parameters:
+  - path: Destination file path.
+  - content: Initial content.
+  - mode: Write mode.
+
+  Returns:
+  - `false` when the file already exists; otherwise the write result.
+
+  Example:
+  ```sesi
+  let created = newFile("new.txt", "Initial content")
+  show created
+  ```
+*/
 export fn newFile(path: string, content: string = "", mode: string = "text") -> any {
   if fileExists(path) {
     show "File already exists at" path "."
@@ -183,6 +583,22 @@ export fn newFile(path: string, content: string = "", mode: string = "text") -> 
   return writeFile(path, content, mode)
 }
 
+/**
+  Creates a file only when it is absent.
+
+  Parameters:
+  - path: Destination file path.
+  - content: Initial content.
+  - mode: Write mode.
+
+  Returns:
+  - `false` if the file exists; otherwise a write result.
+
+  Example:
+  ```sesi
+  show makeNewFile("draft.md", "# Draft")
+  ```
+*/
 export fn makeNewFile(path: string, content: string = "", mode: string = "text") -> any {
   if fileExists(path) {
     show "File already exists at" path "."
@@ -191,6 +607,22 @@ export fn makeNewFile(path: string, content: string = "", mode: string = "text")
   return writeFile(path, content, mode)
 }
 
+/**
+  Creates a file without modifying an existing file.
+
+  Parameters:
+  - path: Destination file path.
+  - content: Initial content.
+  - mode: Write mode.
+
+  Returns:
+  - `false` when the file exists; otherwise the write result.
+
+  Example:
+  ```sesi
+  createFile("log.txt", "Started")
+  ```
+*/
 export fn createFile(path: string, content: string = "", mode: string = "text") -> any {
   if fileExists(path) {
     show "File already exists at" path "."
@@ -199,6 +631,22 @@ export fn createFile(path: string, content: string = "", mode: string = "text") 
   return writeFile(path, content, mode)
 }
 
+/**
+  Provides a short alias for creating a new file.
+
+  Parameters:
+  - path: Destination file path.
+  - content: Initial content.
+  - mode: Write mode.
+
+  Returns:
+  - `false` if the file exists; otherwise the write result.
+
+  Example:
+  ```sesi
+  new("sample.txt", "Sample")
+  ```
+*/
 export fn new(path: string, content: string = "", mode: string = "text") -> any {
   if fileExists(path) {
     show "File already exists at" path "."
@@ -207,7 +655,25 @@ export fn new(path: string, content: string = "", mode: string = "text") -> any 
   return writeFile(path, content, mode)
 }
 
-// Similar to overwrite but more optimized
+/**
+  Replaces an existing file by moving it to trash before writing.
+
+  Parameters:
+  - path: Destination file path.
+  - content: New file content.
+  - mode: Write mode.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  show freshFile("cache.txt", "Regenerated")
+  ```
+
+  Notes:
+  - Existing files are permanently removed through `trash(path, true)`.
+*/
 export fn freshFile(path: string, content: string = "", mode: string = "text") -> any {
   if fileExists(path) {
     try {
@@ -219,12 +685,42 @@ export fn freshFile(path: string, content: string = "", mode: string = "text") -
   return writeFile(path, content, mode)
 }
 
-// Compatibiltity for versatility
+/**
+  Provides a short alias for `freshFile`.
+
+  Parameters:
+  - path: Destination file path.
+  - content: New file content.
+  - mode: Write mode.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  fresh("output.txt", "Replacement")
+  ```
+*/
 export fn fresh(path: string, content: string = "", mode: string = "text") -> any {
   return freshFile(path, content, mode)
 }
 
-// Resilience Helper: Safe file write with retry logic
+/**
+  Writes Base64 image data with retry handling.
+
+  Parameters:
+  - path: Destination image path.
+  - content: Base64-encoded image content.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  let img = read_file("source.png", "base64")
+  show writeImage("copy.png", img)
+  ```
+*/
 export fn writeImage(path: string, content: string) -> string {
   let success = false
   let attempts = 0
@@ -244,24 +740,97 @@ export fn writeImage(path: string, content: string) -> string {
   }
 }
 
-// Compatibiltity for versatility
+/**
+  Creates a new Base64 media file.
+
+  Parameters:
+  - path: Destination media path.
+  - content: Base64-encoded media content.
+
+  Returns:
+  - The result of the file creation operation.
+
+  Example:
+  ```sesi
+  saveMedia("audio.wav", audioData)
+  ```
+*/
 export fn saveMedia(path: string, content: string) -> any {
   return new(path, content, "base64")
 }
 
+/**
+  Saves Base64 image data using `writeImage`.
+
+  Parameters:
+  - path: Destination image path.
+  - content: Base64-encoded image data.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  saveImage("avatar.png", imageData)
+  ```
+*/
 export fn saveImage(path: string, content: string) -> any {
   return writeImage(path, content)
 }
 
+/**
+  Provides a shortened alias for saving an image.
+
+  Parameters:
+  - path: Destination image path.
+  - content: Base64-encoded image data.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  saveImg("thumbnail.jpg", imageData)
+  ```
+*/
 export fn saveImg(path: string, content: string) -> any {
   return writeImage(path, content)
 }
 
+/**
+  Provides a capitalization-compatible image-saving alias.
+
+  Parameters:
+  - path: Destination image path.
+  - content: Base64-encoded image data.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  saveIMG("banner.png", imageData)
+  ```
+*/
 export fn saveIMG(path: string, content: string) -> any {
   return writeImage(path, content)
 }
 
-// Resilience Helper: Safe file append with retry logic
+/**
+  Appends text to a file with retry handling.
+
+  Parameters:
+  - path: File to append to.
+  - content: Text to append.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  show appendFile("activity.log", "Task completed\n")
+  ```
+*/
 export fn appendFile(path: string, content: string) -> string {
   let success = false
   let attempts = 0
@@ -281,24 +850,97 @@ export fn appendFile(path: string, content: string) -> string {
   }
 }
 
-// Compatibiltity for versatility
+/**
+  Appends content using the `appendFile` implementation.
+
+  Parameters:
+  - path: File to update.
+  - content: Text to append.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  addContent("notes.txt", "New note\n")
+  ```
+*/
 export fn addContent(path: string, content: string) -> any {
   return appendFile(path, content)
 }
 
+/**
+  Appends content to the bottom of a file.
+
+  Parameters:
+  - path: File to update.
+  - content: Text to append.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  addToBottom("log.txt", "Finished\n")
+  ```
+*/
 export fn addToBottom(path: string, content: string) -> any {
   return appendFile(path, content)
 }
 
+/**
+  Appends content to a file.
+
+  Parameters:
+  - path: File to update.
+  - content: Text to append.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  addToFile("report.txt", "Summary\n")
+  ```
+*/
 export fn addToFile(path: string, content: string) -> any {
   return appendFile(path, content)
 }
 
+/**
+  Provides a concise alias for appending content.
+
+  Parameters:
+  - path: File to update.
+  - content: Text to append.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  addTo("output.txt", "Additional line\n")
+  ```
+*/
 export fn addTo(path: string, content: string) -> any {
   return appendFile(path, content)
 }
 
-// Resilience Helper: Safe file move with retry logic
+/**
+  Moves or renames a path with retry handling.
+
+  Parameters:
+  - path: Current file or directory path.
+  - dest: Destination path.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  show moveFile("old.txt", "new.txt")
+  ```
+*/
 export fn moveFile(path: string, dest: string) -> string {
   let success = false
   let attempts = 0
@@ -318,32 +960,137 @@ export fn moveFile(path: string, dest: string) -> string {
   }
 }
 
-// Compatibiltity for versatility
+/**
+  Moves a path to a new destination.
+
+  Parameters:
+  - path: Current path.
+  - dest: Destination path.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  relocate("source.txt", "archive/source.txt")
+  ```
+*/
 export fn relocate(path: string, dest: string) -> any {
   return moveFile(path, dest)
 }
 
+/**
+  Renames or moves a path using descriptive naming.
+
+  Parameters:
+  - path: Current path.
+  - newName: New filename or destination path.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  changeName("draft.txt", "final.txt")
+  ```
+*/
 export fn changeName(path: string, newName: string) -> any {
   return moveFile(path, newName)
 }
 
+/**
+  Renames or moves a path to a new name.
+
+  Parameters:
+  - path: Current path.
+  - newName: Replacement name or destination path.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  changeTo("old.log", "new.log")
+  ```
+*/
 export fn changeTo(path: string, newName: string) -> any {
   return moveFile(path, newName)
 }
 
+/**
+  Moves a path to a destination.
+
+  Parameters:
+  - path: Current path.
+  - dest: Destination path.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  moveTo("input.csv", "processed/input.csv")
+  ```
+*/
 export fn moveTo(path: string, dest: string) -> any {
   return moveFile(path, dest)
 }
 
+/**
+  Provides a short alias for moving a path.
+
+  Parameters:
+  - path: Current path.
+  - dest: Destination path.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  move("a.txt", "b.txt")
+  ```
+*/
 export fn move(path: string, dest: string) -> any {
   return moveFile(path, dest)
 }
 
+/**
+  Moves a path to a destination using an alternate alias.
+
+  Parameters:
+  - path: Current path.
+  - dest: Destination path.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  relocateTo("file.txt", "backup/file.txt")
+  ```
+*/
 export fn relocateTo(path: string, dest: string) -> any {
   return moveFile(path, dest)
 }
 
-// Resilience Helper: Safe file delete with retry logic
+/**
+  Permanently removes a file or directory with retry handling.
+
+  Parameters:
+  - path: File or directory to remove.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  show remove("temporary.txt")
+  ```
+
+  Notes:
+  - Removal uses `trash(path, true)` and is permanent.
+*/
 export fn remove(path: string) -> string {
   let success = false
   let attempts = 0
@@ -363,44 +1110,185 @@ export fn remove(path: string) -> string {
   }
 }
 
-// Compatibiltity for versatility
+/**
+  Deletes a file or directory.
+
+  Parameters:
+  - path: Path to delete.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  delete("old-data.json")
+  ```
+*/
 export fn delete(path: string) -> any {
   return remove(path)
 }
 
+/**
+  Deletes a file.
+
+  Parameters:
+  - path: File path to delete.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  deleteFile("unused.txt")
+  ```
+*/
 export fn deleteFile(path: string) -> any {
   return remove(path)
 }
 
+/**
+  Deletes a directory and its contents.
+
+  Parameters:
+  - path: Directory path to delete.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  deleteDir("temporary")
+  ```
+*/
 export fn deleteDir(path: string) -> any {
   return remove(path)
 }
 
+/**
+  Permanently removes a path using an emphatic alias.
+
+  Parameters:
+  - path: File or directory to remove.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  nuke("cache")
+  ```
+*/
 export fn nuke(path: string) -> any {
   return remove(path)
 }
 
+/**
+  Deletes a file permanently.
+
+  Parameters:
+  - path: File path to remove.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  trashFile("obsolete.txt")
+  ```
+*/
 export fn trashFile(path: string) -> any {
   return remove(path)
 }
 
+/**
+  Deletes a directory permanently.
+
+  Parameters:
+  - path: Directory path to remove.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  trashDir("old-build")
+  ```
+*/
 export fn trashDir(path: string) -> any {
   return remove(path)
 }
 
+/**
+  Disposes of a file or directory.
+
+  Parameters:
+  - path: Path to remove.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  dispose("temporary.dat")
+  ```
+*/
 export fn dispose(path: string) -> any {
   return remove(path)
 }
 
+/**
+  Disposes of a directory.
+
+  Parameters:
+  - path: Directory path to remove.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  disposeDir("scratch")
+  ```
+*/
 export fn disposeDir(path: string) -> any {
   return remove(path)
 }
 
+/**
+  Purges a file or directory.
+
+  Parameters:
+  - path: Path to remove.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  purge("generated")
+  ```
+*/
 export fn purge(path: string) -> any {
   return remove(path)
 }
 
-// Resilience Helper: Safe archiving with retry logic
+/**
+  Archives a file into the `.backup` directory.
+
+  Parameters:
+  - path: File path to archive.
+
+  Returns:
+  - A success or failure message containing the generated backup path.
+
+  Example:
+  ```sesi
+  show archiveFile("report.txt")
+  ```
+
+  Notes:
+  - The archive name includes the original path and a timestamp.
+*/
 export fn archiveFile(path: string) -> string {
   let success = false
   let attempts = 0
@@ -421,19 +1309,74 @@ export fn archiveFile(path: string) -> string {
   }
 }
 
-// Compatibiltity for versatility
+/**
+  Archives a file using the `archiveFile` implementation.
+
+  Parameters:
+  - path: File path to back up.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  backupFile("important.txt")
+  ```
+*/
 export fn backupFile(path: string) -> any {
   return archiveFile(path)
 }
 
+/**
+  Provides a short alias for backing up a file.
+
+  Parameters:
+  - path: File path to back up.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  backup("config.json")
+  ```
+*/
 export fn backup(path: string) -> any {
   return archiveFile(path)
 }
 
+/**
+  Archives a file for later recycling or recovery.
+
+  Parameters:
+  - path: File path to archive.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  recycleFile("draft.md")
+  ```
+*/
 export fn recycleFile(path: string) -> any {
   return archiveFile(path)
 }
 
+/**
+  Archives a directory recursively.
+
+  Parameters:
+  - path: Directory path to archive.
+
+  Returns:
+  - A success or failure message containing the generated backup path.
+
+  Example:
+  ```sesi
+  show archiveDir("project")
+  ```
+*/
 export fn archiveDir(path: string) -> string {
   let success = false
   let attempts = 0
@@ -454,19 +1397,75 @@ export fn archiveDir(path: string) -> string {
   }
 }
 
+/**
+  Archives a directory using the `archiveDir` implementation.
+
+  Parameters:
+  - path: Directory path to back up.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  backupDir("assets")
+  ```
+*/
 export fn backupDir(path: string) -> any {
   return archiveDir(path)
 }
 
+/**
+  Archives a directory for recovery.
+
+  Parameters:
+  - path: Directory path to archive.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  recycleDir("old-assets")
+  ```
+*/
 export fn recycleDir(path: string) -> any {
   return archiveDir(path)
 }
 
+/**
+  Provides a short alias for archiving a directory.
+
+  Parameters:
+  - path: Directory path to archive.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  recycle("build")
+  ```
+*/
 export fn recycle(path: string) -> any {
   return archiveDir(path)
 }
 
-// Resilience Helper: Safe directory listing with retry logic
+/**
+  Lists directory contents with retry handling.
+
+  Parameters:
+  - path: Directory path to list.
+
+  Returns:
+  - An array of directory entries, or an empty array after all attempts fail.
+
+  Example:
+  ```sesi
+  let entries = listDir(".")
+  for entry in entries { show entry }
+  ```
+*/
 export fn listDir(path: string) -> array<string> {
   let success = false
   let attempts = 0
@@ -481,46 +1480,168 @@ export fn listDir(path: string) -> array<string> {
   return []
 }
 
-// Compatibiltity for versatility
+/**
+  Gets directory contents.
+
+  Parameters:
+  - path: Directory path to list.
+
+  Returns:
+  - An array of directory entries.
+
+  Example:
+  ```sesi
+  show getDir("docs")
+  ```
+*/
 export fn getDir(path: string) -> array<string> {
   return listDir(path)
 }
 
+/**
+  Gets files and entries in a directory.
+
+  Parameters:
+  - path: Directory path to inspect.
+
+  Returns:
+  - An array of directory entries.
+
+  Example:
+  ```sesi
+  let files = getFiles("src")
+  show files
+  ```
+*/
 export fn getFiles(path: string) -> array<string> {
   return listDir(path)
 }
 
+/**
+  Gets all items in a directory.
+
+  Parameters:
+  - path: Directory path to inspect.
+
+  Returns:
+  - An array of directory entries.
+
+  Example:
+  ```sesi
+  show getItems("assets")
+  ```
+*/
 export fn getItems(path: string) -> array<string> {
   return listDir(path)
 }
 
+/**
+  Provides a short alias for listing a directory.
+
+  Parameters:
+  - path: Directory path to inspect.
+
+  Returns:
+  - An array of directory entries.
+
+  Example:
+  ```sesi
+  for item in list(".") { show item }
+  ```
+*/
 export fn list(path: string) -> array<string> {
   return listDir(path)
 }
 
+/**
+  Lists files and entries in a directory.
+
+  Parameters:
+  - path: Directory path to inspect.
+
+  Returns:
+  - An array of directory entries.
+
+  Example:
+  ```sesi
+  show listFiles("reports")
+  ```
+*/
 export fn listFiles(path: string) -> array<string> {
   return listDir(path)
 }
 
-// Check if a directory exists and return true if it does, false otherwise.
+/**
+  Checks whether a directory exists.
+
+  Parameters:
+  - path: Directory path to check.
+
+  Returns:
+  - `true` when the directory exists; otherwise `false`.
+
+  Example:
+  ```sesi
+  if dirExists("reports") { show "Reports directory exists" }
+  ```
+*/
 export fn dirExists(path: string) -> bool {
-  try {
-    listDir(path)
-    return true
-  } catch (err) {
-    return false
-  }
+  return verifyPath(path)
 }
 
-// Compatibiltity for versatility
+/**
+  Checks whether a folder exists.
+
+  Parameters:
+  - path: Folder path to check.
+
+  Returns:
+  - `true` when the folder can be listed; otherwise `false`.
+
+  Example:
+  ```sesi
+  show folderExists("assets")
+  ```
+*/
 export fn folderExists(path: string) -> any {
   return dirExists(path)
 }
 
+/**
+  Checks whether a directory exists.
+
+  Parameters:
+  - path: Directory path to check.
+
+  Returns:
+  - `true` when the directory exists and is accessible; otherwise `false`.
+
+  Example:
+  ```sesi
+  show directoryExists("data")
+  ```
+*/
 export fn directoryExists(path: string) -> any {
   return dirExists(path)
 }
 
+/**
+  Determines whether a path refers to a folder.
+
+  Parameters:
+  - path: Path to inspect.
+
+  Returns:
+  - `true` for an accessible directory; otherwise `false`.
+
+  Example:
+  ```sesi
+  if isFolder("documents") { show "Folder detected" }
+  ```
+
+  Notes:
+  - Missing paths and paths that cannot be read return `false`.
+*/
 export fn isFolder(path: string) -> bool {
   // If it's a file, return false. If it's a directory, return true. If it doesn't exist, return false.
   try {
@@ -531,7 +1652,23 @@ export fn isFolder(path: string) -> bool {
   return dirExists(path)
 }
 
-// Simply try/catch wrapper for make_dir
+/**
+  Creates a directory safely.
+
+  Parameters:
+  - path: Directory path to create.
+
+  Returns:
+  - A success message or a string representation of the caught error.
+
+  Example:
+  ```sesi
+  show makeDir("reports/2026")
+  ```
+
+  Notes:
+  - Parent directories are created recursively by the underlying builtin.
+*/
 export fn makeDir(path: string) -> any {
   try {
     make_dir(path)
@@ -541,27 +1678,100 @@ export fn makeDir(path: string) -> any {
   }
 }
 
-// Compatibiltity for versatility
+/**
+  Creates a directory using an alternate name.
+
+  Parameters:
+  - path: Directory path to create.
+
+  Returns:
+  - A success message or an error description.
+
+  Example:
+  ```sesi
+  newDir("cache")
+  ```
+*/
 export fn newDir(path: string) -> any {
   return makeDir(path)
 }
 
+/**
+  Creates a folder.
+
+  Parameters:
+  - path: Folder path to create.
+
+  Returns:
+  - A success message or an error description.
+
+  Example:
+  ```sesi
+  newFolder("uploads")
+  ```
+*/
 export fn newFolder(path: string) -> any {
   return makeDir(path)
 }
 
-export fn makeFolder(path: string) -> any {
+/**
+  Provides an alternate name for creating a folder.export fn makeFolder(path: string) -> any {
   return makeDir(path)
 }
 
+/**
+  Creates a new folder recursively.
+
+  Parameters:
+  - path: Folder path to create.
+
+  Returns:
+  - A success message or an error description.
+
+  Example:
+  ```sesi
+  makeNewFolder("temporary/files")
+  ```
+*/
 export fn makeNewFolder(path: string) -> any {
   return makeDir(path)
 }
 
+/**
+  Creates a folder using a descriptive alias.
+
+  Parameters:
+  - path: Folder path to create.
+
+  Returns:
+  - A success message or an error description.
+
+  Example:
+  ```sesi
+  createFolder("backups")
+  ```
+*/
 export fn createFolder(path: string) -> any {
   return makeDir(path)
 }
 
+/**
+  Checks whether a directory contains no entries.
+
+  Parameters:
+  - path: Directory path to inspect.
+
+  Returns:
+  - `true` when the directory is empty; otherwise `false`.
+
+  Example:
+  ```sesi
+  if emptyDirCheck("staging") { show "Staging is empty" }
+  ```
+
+  Notes:
+  - Failed directory access is reported as `false`.
+*/
 export fn emptyDirCheck(path: string) -> bool {
   let attempts = 0
   while attempts < 3 {
@@ -575,15 +1785,59 @@ export fn emptyDirCheck(path: string) -> bool {
   return false
 }
 
-// Compatibiltity for versatility
+/**
+  Checks whether a directory is empty.
+
+  Parameters:
+  - path: Directory path to inspect.
+
+  Returns:
+  - `true` when empty; otherwise `false`.
+
+  Example:
+  ```sesi
+  show isEmpty("cache")
+  ```
+*/
 export fn isEmpty(path: string) -> any {
   return emptyDirCheck(path)
 }
 
+/**
+  Provides a directory-specific alias for checking emptiness.
+
+  Parameters:
+  - path: Directory path to inspect.
+
+  Returns:
+  - `true` when empty; otherwise `false`.
+
+  Example:
+  ```sesi
+  if isEmptyDir("temporary") { show "No files found" }
+  ```
+*/
 export fn isEmptyDir(path: string) -> any {
   return emptyDirCheck(path)
 }
 
+/**
+  Removes and recreates a directory.
+
+  Parameters:
+  - path: Directory path to clear.
+
+  Returns:
+  - A message confirming that the directory was cleared or describing failure.
+
+  Example:
+  ```sesi
+  show clearDir("build")
+  ```
+
+  Notes:
+  - Existing contents are permanently removed.
+*/
 export fn clearDir(path: string) -> string {
   remove(path)
   make_dir(path)
@@ -595,32 +1849,134 @@ export fn clearDir(path: string) -> string {
   }
 }
 
-// Compatibiltity for versatility
+/**
+  Clears a directory using an alternate name.
+
+  Parameters:
+  - path: Directory path to clear.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  empty("cache")
+  ```
+*/
 export fn empty(path: string) -> string {
   return clearDir(path)
 }
 
+/**
+  Wipes and recreates a directory.
+
+  Parameters:
+  - path: Directory path to clear.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  wipe("temporary")
+  ```
+*/
 export fn wipe(path: string) -> string {
   return clearDir(path)
 }
 
+/**
+  Cleans the contents of a directory.
+
+  Parameters:
+  - path: Directory path to clear.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  clean("generated")
+  ```
+*/
 export fn clean(path: string) -> string {
   return clearDir(path)
 }
 
+/**
+  Permanently clears a directory.
+
+  Parameters:
+  - path: Directory path to clear.
+
+  Returns:
+  - A success or failure message.
+
+  Example:
+  ```sesi
+  nukeDir("build")
+  ```
+*/
 export fn nukeDir(path: string) -> string {
   return clearDir(path)
 }
 
-// Write to specific file formats
+/**
+  Writes content to a `.txt` file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: Text content to write.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  txt("readme", "Plain text documentation")
+  ```
+*/
 export fn txt(filename: string, content: string) -> any {
   return write(filename + ".txt", content)
 }
 
+/**
+  Writes content to a Markdown file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: Markdown content to write.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  md("guide", "# Sesi Guide")
+  ```
+*/
 export fn md(filename: string, content: string) -> any {
   return write(filename + ".md", content)
 }
 
+/**
+  Serializes content when necessary and writes a `.json` file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: JSON text or a Sesi value to serialize.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  json("config", {"enabled": true, "retries": 3})
+  ```
+
+  Notes:
+  - Strings containing braces are treated as already serialized JSON.
+*/
 export fn json(filename: string, content: any) -> any {
   if is_string(content) && contains(content, "{") && contains(content, "}") {
     return write(filename + ".json", content)
@@ -629,22 +1985,106 @@ export fn json(filename: string, content: any) -> any {
   }
 }
 
+/**
+  Writes content to a `.yaml` file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: YAML-compatible content.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  yaml("settings", "enabled: true")
+  ```
+*/
 export fn yaml(filename: string, content: any) -> any {
   return write(filename + ".yaml", content)
 }
 
+/**
+  Appends a line of content to a `.log` file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: Log message to append.
+
+  Returns:
+  - The result of the append operation.
+
+  Example:
+  ```sesi
+  log("application", "Server started")
+  ```
+*/
 export fn log(filename: string, content: string) -> any {
   return addTo(filename + ".log", "\n" + content)
 }
 
+/**
+  Writes content to a `.csv` file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: CSV content to write.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  csv("users", "name,role\nAda,admin")
+  ```
+*/
 export fn csv(filename: string, content: any) -> any {
   return write(filename + ".csv", content)
 }
 
+/**
+  Writes content to a `.tsv` file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: TSV content to write.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  tsv("scores", "name\tscore\nAda\t98")
+  ```
+*/
 export fn tsv(filename: string, content: any) -> any {
   return write(filename + ".tsv", content)
 }
 
+/**
+  Builds and optionally saves a complete HTML document.
+
+  Parameters:
+  - title: Page title and default output filename source.
+  - content: Markup placed inside the document body.
+  - head: Additional markup inserted into the head.
+  - css: Empty string, a stylesheet filename, or CSS content.
+  - language: HTML language attribute, defaulting to `"en"`.
+  - save: Whether to save the generated page; when `false`, returns the HTML string.
+
+  Returns:
+  - The saved-file result when `save` is `true`, otherwise the generated HTML string.
+
+  Example:
+  ```sesi
+  let page = HTML("Welcome", "<h1>Hello</h1>", "", "", "en", false)
+  write_file("welcome.html", page)
+  ```
+
+  Notes:
+  - CSS content is written to `style.css` and linked into the page.
+  - When saving, the title is converted into a lowercase underscore-separated filename.
+*/
 export fn HTML(title: string, content: string, head: string, css: any = "", language: string = "en", save: bool = true) -> any {
   if css == "" || is_null(css) {
     css = ""
@@ -677,27 +2117,130 @@ export fn HTML(title: string, content: string, head: string, css: any = "", lang
   }
 }
 
-// For quick web pages
+/**
+  Writes quick web content to an `.html` file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: HTML content to write.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  web("index", "<h1>Home</h1>")
+  ```
+*/
 export fn web(filename: string, content: any) -> any {
   return write(filename + ".html", content)
 }
 
+/**
+  Writes SVG content to a `.svg` file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: SVG markup to write.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  svg("icon", "<svg></svg>")
+  ```
+*/
 export fn svg(filename: string, content: string) -> any {
   return write(filename + ".svg", content)
 }
 
+/**
+  Writes CSS content to a `.css` file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: CSS content to write.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  css("styles", "body { color: red; }")
+  ```
+*/
 export fn css(filename: string, content: string) -> any {
   return write(filename + ".css", content)
 }
 
+/**
+  Writes a temporary text file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: Text content to write.
+  - ext: Extension to use for the temporary file.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  tempFile("report", "Temporary report", "txt")
+  ```
+
+  Notes:
+  - The resulting temporary file will be named as `<filename>_temp.<ext>`.
+*/
 export fn tempFile(filename: string, content: string, ext: string) {
   return write(filename + "_temp." + ext, content)
 }
 
+/**
+  Writes a temporary Base64-encoded media file.
+
+  Parameters:
+  - filename: Base filename without its extension.
+  - content: Base64-encoded media data.
+  - ext: Media extension to use.
+
+  Returns:
+  - The result of the write operation.
+
+  Example:
+  ```sesi
+  tempMedia("preview", imageData, "png")
+  ```
+
+  Notes:
+  - The resulting temporary media file will be named as `<filename>_temp.<ext>`.
+  - The content is expected to be Base64-encoded.
+*/
 export fn tempMedia(filename: string, content: string, ext: string) {
   return write(filename + "_temp." + ext, content, "base64")
 }
 
+/**
+  Creates a temporary folder and scaffolds empty files inside it.
+
+  Parameters:
+  - name: Name of the temporary subfolder under `temp/`.
+  - files: Array of relative filenames to create.
+
+  Returns:
+  - `true` when all files are created successfully; otherwise `false`.
+
+  Example:
+  ```sesi
+  let created = tempFolder("demo", ["input.txt", "output.txt"])
+  show created
+  ```
+
+  Notes:
+  - The resulting directory is `temp/<name>/`.
+  - File paths should be relative names rather than absolute paths.
+*/
 export fn tempFolder(name: string, files: array<string>) -> bool {
   let dir = "temp/" + name + "/"
   createFolder(dir)

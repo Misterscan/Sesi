@@ -69,12 +69,12 @@ show Math.multiply(2, 5) // 10
 
 Sesi ships with built-in standard library modules:
 
-| Module     | Namespace | Description         |
-| ---------- | --------- | ------------------- |
-| `std/math` | `Math`    | Math operations     |
-| `std/time` | `Time`    | Time/date functions |
-| `std/db`   | —         | Database access     |
-| [`std/game`](GAME.md) | `Game` | Data-driven 2D Canvas games, HTML export, and local preview |
+| Module     | Namespace | Description                                      |
+| ---------- | --------- | ------------------------------------------------ |
+| `std/math` | `Math`    | Math operations                                  |
+| `std/time` | `Time`    | Time/date functions                              |
+| `std/db`   | —         | Database access                                  |
+| `std/game` | `Game`    | Optional Babylon-powered 3D desktop game engine  |
 ... and more!
 
 ```sesi
@@ -83,9 +83,15 @@ allow "std/time" in as Time
 allow "std/game" in as Game
 
 show Math.PI
+show Math.atan2(1, 0)
+show Math.min(8, 3, 5)
+show Math.floor(3.9) // floor is globally available too
 show Time.now()
-let game = Game.create({"width": 640, "height": 360})
 ```
+
+`std/math` provides the complete stable JavaScript `Math` surface supported by Node.js 20+.
+
+`std/game` requires `npm install @misterscan/sesi-game` and local mode (`sesi -l`). Its complete API is in [GAME.md](GAME.md).
 
 ---
 
@@ -188,7 +194,7 @@ $env:SESI_PATH = "C:\MyLibs\shared;C:\Projects\common"
 ```sesi
 // Export
 export fn greet(name) { show "Hello," name }
-export let VERSION = "1.8.6"
+export let VERSION = "1.9.0"
 
 // import (named)
 import { greet, VERSION } from "mymodule"
@@ -197,13 +203,12 @@ import { greet, VERSION } from "mymodule"
 allow "mymodule" in with { greet, VERSION }
 
 // allow (namespace)
-allow "mymodule" in with Mod
+allow "mymodule" in as Mod
 Mod.greet("Ada")
 
 // Standard library
 allow "std/math" in as Math
 allow "std/time" in as Time
-allow "std/game" in as Game
 ```
 
 ---

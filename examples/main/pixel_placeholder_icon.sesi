@@ -10,15 +10,15 @@ allow "helpers/safe" in as Safe
 let palette = {
     ".": "#202957",
     "/": "#344a88",
-    "F": "#56d9e9",
-    "H": "#a7f3ff",
-    "I": "#111a38",
-    "s": "#ffe6a3",
-    "S": "#ffd166",
-    "R": "#5966c2",
-    "M": "#6fe7c8",
-    "N": "#e8fbff",
-    "G": "#0b1230"
+    F: "#56d9e9",
+    H: "#a7f3ff",
+    I: "#111a38",
+    s: "#ffe6a3",
+    S: "#ffd166",
+    R: "#5966c2",
+    M: "#6fe7c8",
+    N: "#e8fbff",
+    G: "#0b1230"
 }
 
 let icon_grid = [

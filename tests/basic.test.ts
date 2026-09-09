@@ -116,6 +116,20 @@ async function main() {
     console.log('✓ Parse let statement');
   }
 
+  const anyParser = new Parser(new Lexer('let status = any').scanTokens());
+  const anyProgram = anyParser.parse();
+  const anyStatement = anyProgram.statements[0];
+  if (
+    anyParser.errors.length > 0 ||
+    anyStatement.type !== 'LetStatement' ||
+    anyStatement.value?.type !== 'Literal' ||
+    anyStatement.value.rawType !== 'any' ||
+    anyStatement.value.value !== null
+  ) {
+    throw new Error('any must be valid as a variable initializer');
+  }
+  console.log('✓ Parse any initializer');
+
   const source2 = 'fn add(a, b) { return a + b }';
   const parser2 = new Parser(new Lexer(source2).scanTokens());
   const program2 = parser2.parse();
@@ -221,6 +235,24 @@ async function main() {
   await runTest('Short-circuit OR', 'if true || false { }');
   await runTest('Member access', 'let obj = { "x": { "y": 1 } }\nlet val = obj["x"]["y"]');
   await runTest('Default parameters', 'fn greet(name = "World") { show name }');
+  await runTest(
+    'Multiline typed function parameters',
+    `fn renderImage(
+  name: string,
+  techSpecs: string,
+  year: number,
+  description: string,
+  promptText: string,
+  ratio: string = "1:1",
+  creativity: number = 50,
+  filename: string = "generated_by_retrorender",
+  ext: string = "png"
+) -> string {
+  return name + ":" + ratio + ":" + filename + "." + ext
+}
+let rendered = renderImage("Remix", "strict", 2026, "description", "portrait")
+if rendered != "Remix:1:1:generated_by_retrorender.png" { raise_error("AssertionError", "multiline function parameters failed") }`,
+  );
   await runTest('Custom tool definitions','fn summarize(x) { return "ok:" + x }\ndefine_tool("summarizer", summarize, "Summarize text")\nlet out = tool_call(summarizer)("hello")\nif out != "ok:hello" { let e = missing_var }');
   await runTest('List custom tools','fn analyze(x) { return x }\ndefine_tool("analyzer", analyze)\nlet tools = list_tools()\nif len(tools) < 1 { let e = missing_var }');
   await runTest('Return with value', 'fn test() { return 42 }');
@@ -421,8 +453,22 @@ async function main() {
     assert('config.search is present', expr.config?.search !== undefined);
   } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
 
+  // 8. structured_output() with multiline fields
+  console.log('\n8. structured_output() — multiline schema');
+  try {
+    const expr = parseFirstExpr(`structured_output({
+      title: string,
+      priority: number,
+      complete: bool,
+    })("{\\"title\\":\\"Task\\",\\"priority\\":1,\\"complete\\":false}")`) as any;
+    assert('type is StructuredOutputExpression', expr.type === 'StructuredOutputExpression');
+    assert('multiline schema includes title', expr.schema?.title?.name === 'string');
+    assert('multiline schema includes priority', expr.schema?.priority?.name === 'number');
+    assert('multiline schema includes complete', expr.schema?.complete?.name === 'bool');
+  } catch (e: any) { console.error('  ✗ Parse threw:', e.message); failed++; }
+
   // 8. video() AI generation form
-  console.log('\n8. video() — AI generation syntax');
+  console.log('\n9. video() — AI generation syntax');
   try {
     const expr = parseFirstExpr(`video("veo-3.1-generate-preview") {images: "first.png", ratio: "16:9", duration: 8} {"Animate this scene"}`) as VideoCallExpression;
     assert('type is VideoCallExpression', expr.type === 'VideoCallExpression');

@@ -1,0 +1,13 @@
+allow "std/game" in as Game
+
+let game = Game.create({
+  "title": "Sesi Game Smoke",
+  "width": 480,
+  "height": 320,
+  "background": "#08111f"
+})
+let scene = game.create_scene("smoke")
+let camera = scene.orbit_camera("camera", {"radius": 8})
+let light = scene.hemispheric_light("light", {"intensity": 0.8})
+let cube = scene.box("cube", {"position": Game.vec3(0, 0, 0)})
+game.run({"auto_close_ms": 350})

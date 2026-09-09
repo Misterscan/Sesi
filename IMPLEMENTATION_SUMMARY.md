@@ -21,6 +21,7 @@
 | SDK       | @google/genai                                    | Official, well-maintained, async-first                              |
 | Parser    | Recursive descent                                | Simple, readable, extensible                                        |
 | Execution | Bytecode VM (`vm.ts`) + Compiler (`compiler.ts`) | Fast OpCode dispatch; tree-walking interpreter retained as fallback |
+| 3D Games | Babylon.js 9.22.1 + Havok 1.3.14 + Electron 43.4.1 | Optional imperative desktop engine kept outside core |
 | Testing   | Typescript                                       | Standard Node.js test framework                                     |
 
 ### Why a bytecode VM?
@@ -36,6 +37,10 @@
 - **Flexibility**: Easy to add new constructs
 - **Error recovery**: Can synchronize after errors
 - **No dependencies**: No external parser generators
+
+## Optional 3D desktop engine ✅
+
+`std/game` resolves the separate `@misterscan/sesi-game` workspace/package. It uses left-handed scenes (`+X` right, `+Z` forward) and resolves development assets from the same working-directory root as generated files. A shared native-object protocol gives the interpreter and VM identical guarded property access, nested mutable vectors, stable identity and method binding, safe enumeration, and disposed/read-only/cross-scene diagnostics. Literal module-graph preflight executes game scripts once inside an isolated Electron preload. Desktop builds bundle transitive bytecode and registered assets without `.sesi` source.
 
 ## 🌟 Language Features
 
@@ -97,7 +102,7 @@ prompt greeting {"Hello, "name"!"}
 **Structured Output**
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.8.6\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.9.0\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -141,7 +146,7 @@ let result = tool_call(functionName)(model(gemini-3.5-flash-lite) {"Your prompt 
 
 fn calculateTax(amount: number, rate: number) -> number {return amount * rate}
 define_tool("calculateTax", calculateTax, "Calculate tax")
-let answer = model("gemini-3.6-flash") {tools: list_tools(), max_tool_calls: 4} {"What is 8% tax on $125?"}
+let answer = model("gemini-3.8-flash") {tools: list_tools(), max_tool_calls: 4} {"What is 8% tax on $125?"}
 ```
 
 Registered tools are converted to provider schemas automatically. Model-selected calls are dispatched with named arguments, their results are returned to the model, and the cycle continues until final text is produced or the configured call limit is reached.
@@ -234,12 +239,13 @@ Memory bindings automatically summarize older content after an update crosses th
 ### Math
 
 - `exp(x)` - Exponential function
+- `floor(value)` - Round down globally without importing `std/math`
 
 ### Standard Library Modules
 
 Sesi supports importing standard utility library modules natively at runtime:
 
-- **`std/math`**: Constants `PI`, `E`, and functions `sin`, `cos`, `tan`, `sqrt`, `floor`, `ceil`, `abs`, `pow`, `log`, `exp`
+- **`std/math`**: Complete stable JavaScript `Math` surface supported by Node.js 20+, including all constants plus trigonometric, logarithmic, rounding, integer, power, min/max, and random functions. `floor(value)` is also globally available.
 - **`std/time`**: `now()`, `sleep(ms)`, and `format(timestamp, options)` for timezone/locale formatting
 - **`std/audio`**: `play`, `beep`, `synth`, `save`, `sequence`, `mix` for sound synthesis. Upgraded to a professional DSP backend with **Stereo Panning**, **ADSR Envelopes**, **Low-Pass Filtering**, **Soft-Clipping**, physical modeling drums (`kick`, `snare`, `hat`, `clap`), and `sf2` (High-speed FluidSynth batch-rendering for SoundFonts).
 - **`std/theory`**: `chord(root, type)`, `scale(root, type)`, `transpose(notes, steps)`, `duration(minutes, seconds)`, and `bar(bars, bpm, beatsPerBar?)` for algorithmic composition, timing conversions, and harmonic logic.
@@ -250,7 +256,6 @@ Sesi supports importing standard utility library modules natively at runtime:
   - `collection.find(query?)`
   - `collection.update(query, update_obj)`
   - `collection.delete(query)`
-- **`std/game`**: Data-driven 2D Canvas games with declarative entities, input, velocity, bounds, AABB collisions, score rules, standalone HTML export, and a localhost preview handle.
 
 ## 📊 Implementation Statistics
 
@@ -421,7 +426,6 @@ npm test
 | main/34_sesi_api.sesi | Sesi API and Swagger UI server setup |
 | main/35_speech_language.sesi | Speech and language helpers |
 | main/36_regex_media.sesi | Regex and media processing |
-| main/37_game_engine.sesi | Data-driven 2D Canvas game export |
 | optional/37_ai_video_generation.sesi | AI video generation workflow |
 
 ## 🔮 Future Directions

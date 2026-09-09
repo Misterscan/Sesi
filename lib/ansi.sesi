@@ -1,0 +1,723 @@
+/**
+  Terminal Formatting Convenience Wrappers
+  ========================================
+
+  Provides clean, semantic helpers for ANSI terminal output,
+  styled logs, banners, and notices using std/terminal.
+
+ Features:
+  - Semantic log wrappers (success, error, warning, info)
+  - Dynamic headers with automated borders
+  - Framed box notices for important alerts
+*/
+
+allow "std/terminal" in as Term
+
+/**
+  Remove the current terminal line.
+
+  Erases the contents of the line where the cursor is currently positioned.
+  This is useful for refreshing status messages, replacing prompts, or cleaning
+  up temporary terminal output.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  show "Temporary status"
+  rm_line()
+  show "Updated status"
+  ```
+
+  Notes:
+  - Uses the terminal line-erasing operation from `std/terminal`.
+  - The function performs an immediate terminal side effect.
+*/
+export fn rm_line() {
+  Term.eraseLine()
+}
+
+/**
+  Reset the terminal display.
+
+  Erases the entire terminal screen using the default screen-clearing behavior.
+  This is useful when starting a fresh interactive view or resetting a terminal
+  user interface.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  reset()
+  show "Terminal reset complete"
+  ```
+
+  Notes:
+  - Uses `Term.eraseScreen()` with its default mode.
+  - This clears the display but does not terminate the running script.
+*/
+export fn reset() {
+  Term.eraseScreen()
+}
+
+/**
+  Print a successful operation message.
+
+  Displays a success indicator followed by the supplied message. The complete
+  message is rendered in green with a bold style.
+
+  Parameters:
+  - `msg`: The success message to display.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  success("Configuration loaded successfully")
+  ```
+
+  Notes:
+  - The output is prefixed with `✔`.
+  - The function writes directly to standard output through `show`.
+*/
+export fn success(msg: string) {
+  let text = "✔ " + msg
+  show text | Term.color("green") | Term.style("bold")
+}
+
+/**
+  Print a successful operation message with a background.
+
+  Displays a success indicator followed by the supplied message. The message is
+  rendered with black bold text on a green background for high visibility.
+
+  Parameters:
+  - `msg`: The success message to display.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  success_bg("Deployment completed")
+  ```
+
+  Notes:
+  - The output is prefixed with `✔`.
+  - The function applies black foreground color, bold styling, and a green background.
+*/
+export fn success_bg(msg: string) {
+  let text = "✔ " + msg
+  show text | Term.color("black") | Term.style("bold") | Term.background("green")
+}
+
+/**
+  Print an error message.
+
+  Displays an error indicator followed by the supplied message. The complete
+  message is rendered in red with a bold style.
+
+  Parameters:
+  - `msg`: The error message to display.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  error("Unable to connect to the service")
+  ```
+
+  Notes:
+  - The output is prefixed with `✖`.
+  - This function only formats and displays the message; it does not raise an error.
+*/
+export fn error(msg: string) {
+  let text = "✖ " + msg
+  show text | Term.color("red") | Term.style("bold")
+}
+
+/**
+  Print an error message with a background.
+
+  Displays an error indicator followed by the supplied message. The message is
+  rendered with black bold text on a red background.
+
+  Parameters:
+  - `msg`: The error message to display.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  error_bg("Database migration failed")
+  ```
+
+  Notes:
+  - The output is prefixed with `✖`.
+  - The function applies black foreground color, bold styling, and a red background.
+*/
+export fn error_bg(msg: string) {
+  let text = "✖ " + msg
+  show text | Term.color("black") | Term.style("bold") | Term.background("red")
+}
+
+/**
+  Print a warning message.
+
+  Displays a warning indicator followed by the supplied message. The complete
+  message is rendered in yellow with a bold style.
+
+  Parameters:
+  - `msg`: The warning message to display.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  warning("The configuration uses default values")
+  ```
+
+  Notes:
+  - The output is prefixed with `⚠️`.
+  - This function is intended for non-fatal conditions that require attention.
+*/
+export fn warning(msg: string) {
+  let text = "⚠️ " + msg
+  show text | Term.color("yellow") | Term.style("bold")
+}
+
+/**
+  Print a warning message with a background.
+
+  Displays a warning indicator followed by the supplied message. The message is
+  rendered with black bold text on a yellow background.
+
+  Parameters:
+  - `msg`: The warning message to display.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  warning_bg("This action cannot be undone")
+  ```
+
+  Notes:
+  - The output is prefixed with `⚠`.
+  - The function applies black foreground color, bold styling, and a yellow background.
+*/
+export fn warning_bg(msg: string) {
+  let text = "⚠ " + msg
+  show text | Term.color("black") | Term.style("bold") | Term.background("yellow")
+}
+
+/**
+  Print an informational message.
+
+  Displays an information indicator followed by the supplied message. The
+  complete message is rendered in cyan with a bold style.
+
+  Parameters:
+  - `msg`: The informational message to display.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  info("Listening for incoming requests")
+  ```
+
+  Notes:
+  - The output is prefixed with `ℹ️`.
+  - This function is intended for general status and progress information.
+*/
+export fn info(msg: string) {
+  let text = "ℹ️  " + msg
+  show text | Term.color("cyan") | Term.style("bold")
+}
+
+/**
+  Print an informational message with a background.
+
+  Displays an information indicator followed by the supplied message. The
+  message is rendered with black bold text on a cyan background.
+
+  Parameters:
+  - `msg`: The informational message to display.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  info_bg("Interactive mode enabled")
+  ```
+
+  Notes:
+  - The output is prefixed with `ℹ`.
+  - The function applies black foreground color, bold styling, and a cyan background.
+*/
+export fn info_bg(msg: string) {
+  let text = "ℹ  " + msg
+  show text | Term.color("black") | Term.style("bold") | Term.background("cyan")
+}
+
+/**
+  Display a prominent section header.
+
+  Clears the terminal and prints a three-line header consisting of a blue
+  divider, a bold white title, and a second blue divider.
+
+  Parameters:
+  - `title`: The title text to display between the divider bars.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  header("Build Results")
+  ```
+
+  Notes:
+  - The terminal is cleared before the header is rendered.
+  - The divider uses a fixed width of 48 characters.
+  - The title is prefixed with two spaces.
+*/
+export fn header(title: string) {
+  Term.clear()
+  // Define the top and bottom divider bars for the header.
+  let bar = "════════════════════════════════════════════════"
+  show bar | Term.color("brightBlue")
+  show "  " + title | Term.color("brightWhite") | Term.style("bold")
+  show bar | Term.color("brightBlue")
+}
+
+/**
+  Print a framed message box.
+
+  Renders a message inside a Unicode box with two spaces of padding on both
+  sides. The top and bottom borders use magenta, while the message row uses
+  bright magenta.
+
+  Parameters:
+  - `msg`: The message to display inside the box.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  box("Important: review the generated report")
+  ```
+
+  Notes:
+  - The inner width is calculated from the message length plus four padding spaces.
+  - The function is intended for alerts, callouts, and highlighted notices.
+  - Very long messages produce correspondingly wide boxes.
+*/
+export fn box(msg: string) {
+  let padding = 2
+  let innerWidth = len(msg) + padding * 2
+  let spaces = repeat(" ", padding)
+  let border = "┌" + repeat("─", innerWidth) + "┐"
+  let bottom = "└" + repeat("─", innerWidth) + "┘"
+  show border | Term.color("magenta")
+  show "│" + spaces + msg + spaces + "│" | Term.color("brightMagenta")
+  show bottom | Term.color("magenta")
+}
+
+/**
+  Print an inline labeled badge.
+
+  Displays a bracketed label followed by a message. The label is styled with the
+  requested color and bold formatting, while the message is displayed normally.
+
+  Parameters:
+  - `label`: The short label to place inside square brackets.
+  - `msg`: The message to display after the label.
+  - `colorName`: The terminal color used for the label. Defaults to `"blue"`.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  badge("READY", "Application started","green")
+  ```
+
+  Notes:
+  - The label is rendered in the form `[label]`.
+  - `colorName` should be a color supported by `std/terminal`.
+  - The message is passed to `show` as a separate value, so terminal spacing is preserved.
+*/
+export fn badge(label: string, msg: string, colorName: string = "blue") {
+  // Display the label in the specified color and bold style.
+  prompt labelPrompt {"["label"]"}
+  show labelPrompt | Term.color(colorName) | Term.style("bold") msg
+}
+
+/**
+  Print a styled key-value pair.
+
+  Displays a key followed by a colon and its associated value. The key and colon
+  are rendered in dim gray, while the value is rendered in white.
+
+  Parameters:
+  - `key`: The name or label of the value.
+  - `val`: The value to display as text.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  key_value("Environment", "Production")
+  ```
+
+  Notes:
+  - Both parameters are strings.
+  - The key is formatted before the value so each portion can use independent styling.
+*/
+export fn key_value(key: string, val: string) {
+  // Display the key in dim gray and the value in white.
+  prompt keyPrompt {key | Term.color("gray") | Term.style("dim")":"}
+  prompt valPrompt {val | Term.color("white")}
+  show keyPrompt valPrompt
+}
+
+/**
+  Print a customizable divider line.
+
+  Displays a repeated character as a dim-looking terminal divider using the
+  bright black color.
+
+  Parameters:
+  - `char`: The character or string to repeat. Defaults to `"─"`.
+  - `count`: The number of repetitions. Defaults to `46`.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  divider("─", 60)
+  divider()
+  ```
+
+  Notes:
+  - `repeat` is used to construct the line.
+  - If `char` contains multiple characters, the resulting line length may exceed `count`.
+*/
+export fn divider(char: string = "─", count: number = 46) {
+  // Construct the divider line by repeating the specified character.
+  let line = repeat(char, count)
+  show line | Term.color("brightBlack")
+}
+
+/**
+  Print a formatted table header row.
+
+  Builds a padded table header from column values and their widths, separates
+  columns with vertical bars, and renders the completed row in bold bright cyan.
+
+  Parameters:
+  - `cols`: An array containing the header values in display order.
+  - `colWidths`: An array containing the corresponding width for each column.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  table_header(["ID", "Name"], [6, 20])
+  ```
+
+  Notes:
+  - This is an internal helper and is not exported.
+  - `cols` and `colWidths` should have the same number of elements.
+  - Each width must be large enough to contain the value and its surrounding padding.
+  - A cyan divider is printed below the header.
+*/
+fn table_header(cols: array, colWidths: array) {
+  // Construct and display a table header row with each column padded and separated by `│`.
+  let paddedCols = []
+  for i = 0 to len(cols) {
+    let col = cols[i]
+    let colWidth = colWidths[i]
+    push(paddedCols, "  " + str(col) + repeat(" ", colWidth - len(str(col)) - 4) + "  ")
+  }
+  let rowStr = join(paddedCols, "│")
+  show "│" + rowStr + "│" | Term.color("brightCyan") | Term.style("bold")
+  let totalWidth = len("│" + rowStr + "│")
+  divider(Term.color("-", "brightCyan"), totalWidth)
+}
+
+/**
+  Print a formatted table data row.
+
+  Builds a padded table row from column values and their widths, separates
+  columns with vertical bars, and renders the completed row in cyan.
+
+  Parameters:
+  - `cols`: An array containing the row values in display order.
+  - `colWidths`: An array containing the corresponding width for each column.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  table_row(["01", "Complete"], [6, 20])
+  ```
+
+  Notes:
+  - This is an internal helper and is not exported.
+  - `cols` and `colWidths` should have the same number of elements.
+  - Each width must be large enough to contain the value and its surrounding padding.
+  - Values are converted to strings before padding.
+*/
+fn table_row(cols: array, colWidths: array) {
+  // Construct and display a table row with each column padded and separated by `│`.
+  let paddedCols = []
+  for i = 0 to len(cols) {
+    let col = cols[i]
+    let colWidth = colWidths[i]
+    push(paddedCols, "  " + str(col) + repeat(" ", colWidth - len(str(col)) - 4) + "  ")
+  }
+  let rowStr = join(paddedCols, "│")
+  show "│" + rowStr + "│" | Term.color("cyan")
+}
+
+/**
+  Print a complete formatted table.
+
+  Renders a table with a cyan divider, a bright cyan bold header row, one cyan
+  row for each supplied record, and a closing cyan divider.
+
+  Parameters:
+  - `headers`: An array of column heading values.
+  - `rows`: An array of row arrays. Each row should contain values matching the header order.
+  - `colWidths`: An array of column widths corresponding to `headers` and each row.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  table(
+    ["ID", "Status"],
+    [["01", "Ready"], ["02", "Running"]],
+    [6, 16]
+  )
+  ```
+
+  Notes:
+  - Each row should contain the same number of values as `headers`.
+  - `colWidths` should contain one width per column.
+  - The function calculates the outer divider width from the supplied column widths.
+  - This function delegates row formatting to `table_header` and `table_row`.
+*/
+export fn table(headers: array, rows: array, colWidths: array) {
+  let totalWidth = 1
+  for w in colWidths {
+    totalWidth = totalWidth + w
+  }
+
+  divider(Term.color("-", "brightCyan"), totalWidth + len(colWidths) + 1)
+  table_header(headers, colWidths)
+  for row in rows {
+    table_row(row, colWidths)
+  }
+  divider(Term.color("-", "brightCyan"), totalWidth + len(colWidths) + 1)
+}
+
+/**
+  Prompt the user for input inside a highlighted message box.
+
+  Displays the supplied prompt inside a formatted box, removes surrounding
+  whitespace from the prompt, and waits for the user to enter a response.
+
+  Parameters:
+  - `msg`: The prompt message to display before reading input.
+
+  Returns:
+  - The user's input as a string.
+
+  Example:
+  ```sesi
+  let answer = ask("Enter your project name:")
+  show "Project:" answer
+  ```
+
+  Notes:
+  - The prompt is passed through `trim` before it is displayed.
+  - The returned value comes from the built-in `input()` function.
+  - The function blocks until the user presses Enter.
+*/
+export fn ask(msg: string) {
+  box(msg | trim)
+  return input()
+}
+
+/**
+  Determine a safe logical terminal width.
+
+  Reads the terminal dimensions and normalizes the available column count to a
+  practical range for rendering terminal interfaces.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The terminal width as a number between 40 and 96 columns.
+
+  Example:
+  ```sesi
+  let width = screen_width()
+  show "Rendering width:" width
+  ```
+
+  Notes:
+  - Unknown or unavailable terminal sizes default to 80 columns.
+  - Widths below 40 are raised to 40.
+  - Widths above 96 are reduced to 96.
+  - This function is an internal helper and is not exported.
+*/
+fn screen_width() {
+  let dimensions = Term.size()
+  let width = dimensions.columns
+  if width <= 0 { width = 80 }
+  if width > 96 { width = 96 }
+  if width < 40 { width = 40 }
+  return width
+}
+
+/**
+  Center-align a message within a terminal width.
+
+  Calculates leading whitespace so that the supplied message is approximately
+  centered within the requested logical width, then prints the result.
+
+  Parameters:
+  - `msg`: The message to center and display.
+  - `width`: The target logical width. Defaults to the value returned by `screen_width()`.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  center("Build complete", 60)
+  center("Default-width message")
+  ```
+
+  Notes:
+  - The function prints the message rather than returning a formatted string.
+  - Centering is based on the message length and leading spaces.
+  - The default width is clamped by `screen_width()`.
+*/
+export fn center(msg: string, width: number = screen_width()) {
+  let padding = (width - len(msg)) / 2
+  let spaces = repeat(" ", padding)
+  show spaces msg
+}
+
+/**
+  Print a blank line.
+
+  Writes an empty line to standard output to create vertical spacing between
+  terminal messages or interface sections.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  success("Step complete")
+  newline()
+  info("Starting the next step")
+  ```
+
+  Notes:
+  - The function is a convenience wrapper around `show ""`.
+  - It is exported for use by scripts that import this terminal utility module.
+*/
+export fn newline() -> string {
+  show ""
+}
+
+/**
+  Run the terminal wrapper demonstration suite.
+
+  Exercises the module's terminal reset, headers, semantic messages, message
+  boxes, badges, key-value output, dividers, tables, user prompts, and centered
+  text in one interactive sequence.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  run_all_tests()
+  ```
+
+  Notes:
+  - This is an internal test helper and is not exported.
+  - The function clears the terminal before rendering the test suite.
+  - It waits for user input through `ask` before displaying the final centered message.
+  - It is invoked automatically when the script receives `"test"` as its first command-line argument.
+*/
+fn run_all_tests() {
+  reset()
+  header("ANSI Terminal Wrapper Test Suite")
+  newline()
+  success("Success message standard test passed.")
+  success_bg("Success message background test passed.")
+  newline()
+  error("Error message standard test passed.")
+  error_bg("Error message background test passed.")
+  newline()
+  warning("Warning message standard test passed.")
+  warning_bg("Warning message background test passed.")
+  newline()
+  info("Info message standard test passed.")
+  info_bg("Info message background test passed.")
+  newline()
+  box("Critical system warning: All modules operational.")
+  newline()
+  badge("TEST", "Badge component verified", "green")
+  key_value("Environment", "Production-Ready")
+  divider('~', 46)
+  table(
+    ["ID", "Module", "Coverage"],
+    [["01", "Logging API", "100%"], ["02", "Tables API", "100%"]],
+    [5, 15, 15]
+  )
+  ask("Press Enter to end:")
+  center("--- End of Test Suite ---", 35)
+}
+
+if args[0] == "test" {
+  run_all_tests()
+}

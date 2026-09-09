@@ -1,6 +1,14 @@
+/**
+  Sesi Studio Agent tools module.
+
+  Provides utility functions for executing commands, managing the WebSocket client,
+  handling user permissions, and generating random passphrases.
+*/
+
 allow "helpers/safe" in as Safe
 allow "shell-automation" in with {run_command}
 
+// Sesi Studio Root Path
 export let SESI_ROOT = ""
 
 SESI_ROOT = run_command("cd")
@@ -13,18 +21,30 @@ if SESI_ROOT == "" {
   } catch (e) {}
 }
 
+// Requested Project Root Override
 let requested_project_root = env("SESI_STUDIO_PROJECT_ROOT")
 if requested_project_root != null && requested_project_root != "" {
   SESI_ROOT = requested_project_root
 }
 
+// Final Project Root Assignment
 export let PROJECT_ROOT = SESI_ROOT
 
+// Determine if the environment is Windows-based
 export let IS_WINDOWS = false
 if len(split(SESI_ROOT, "\\")) > 1 || len(split(SESI_ROOT, ":")) > 1 {
   IS_WINDOWS = true
 }
 
+/**
+  Execute a Node.js command in the current environment.
+
+Parameters:
+ - `args`: The arguments to pass to the Node.js command.
+
+Returns:
+ The result of the executed command.
+*/
 export fn exec_node(args) {
   if IS_WINDOWS {
     try {
@@ -45,6 +65,15 @@ export fn exec_node(args) {
   }
 }
 
+/**
+  Execute a command in the context of the project root.
+
+Parameters:
+ - `cmd`: The command to execute.
+
+Returns:
+ The result of the executed command.
+*/
 export fn exec_in_project(cmd) {
   if PROJECT_ROOT != "" && PROJECT_ROOT != "." {
 
@@ -60,17 +89,30 @@ export fn exec_in_project(cmd) {
   return run_command(cmd)
 }
 
+// Get the current WebSocket client.
 export let current_ws_client = null
 let permission_error = ""
+
+// Set the current WebSocket client.
 export fn set_ws_client(client) {
   current_ws_client = client
 }
 
+// Clear the current WebSocket client.
 export fn clear_ws_client() {
   current_ws_client = null
   current_confirm_response = "pending"
 }
 
+/**
+  Request user confirmation via the WebSocket client.
+
+Parameters:
+ - `prompt_msg`: The message to display in the confirmation dialog.
+
+Returns:
+ `true` if the confirmation request was successfully sent, `false` otherwise.
+*/
 export fn request_confirmation(prompt_msg) {
   if current_ws_client == null {
     permission_error = "The Studio WebSocket is disconnected, so no permission dialog can be shown."
@@ -87,22 +129,35 @@ export fn request_confirmation(prompt_msg) {
   }
 }
 
+// Get the last permission error message.
 export fn last_permission_error() {
   return permission_error
 }
 
+// Receive the user's confirmation response.
 export fn receive_confirmation(response) {
   current_confirm_response = response
 }
 
+// Get the current confirmation response.
 export fn confirmation_response() {
   return current_confirm_response
 }
 
+// Reset the confirmation response to pending.
 export fn reset_confirmation() {
   current_confirm_response = "pending"
 }
 
+/**
+  Send a chunk of data to the agent via the WebSocket client.
+
+Parameters:
+ - `chunk`: The data chunk to send.
+
+Returns:
+ `true` if the chunk was successfully sent, `false` otherwise.
+*/
 export fn send_agent_chunk(chunk) {
   if current_ws_client != null {
     try {
@@ -113,13 +168,25 @@ export fn send_agent_chunk(chunk) {
   return false
 }
 
+/**
+  Handle incoming agent data chunks.
+
+Parameters:
+ - `chunk`: The data chunk received from the agent.
+
+Returns:
+ The result of sending the chunk via `send_agent_chunk`.
+*/
 export fn on_agent_chunk(chunk) {
   return send_agent_chunk(chunk)
 }
 export let current_confirm_response = "pending"
 
 // Passphrase generation and retrieval
-let pass = ""
+
+// Generated passphrase for the agent.
+let password = ""
+// Generate a random passphrase if none exists.
 fn randomPass() {
   let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
   let count = 0
@@ -128,16 +195,17 @@ fn randomPass() {
     let rand_val = random() * chars_len
     let parts = split(str(rand_val), ".")
     let idx = num(parts[0])
-    pass = pass + slice(chars, idx, idx + 1)
+    password = password + slice(chars, idx, idx + 1)
     count = count + 1
   }
-  Safe.writeFile("sesi-studio/.sesi_studio_password.txt", pass)
-  return pass
+  Safe.writeFile("sesi-studio/.sesi_studio_password.txt", password)
+  return password
 }
 
-pass = Safe.readFile("sesi-studio/.sesi_studio_password.txt")
-if pass == null || pass == "" || pass == "nullnullnullnullnullnullnullnullnullnullnullnullnullnullnullnull" {
-  pass = randomPass()
+password = Safe.readFile("sesi-studio/.sesi_studio_password.txt")
+if password == null || password == "" || password == "nullnullnullnullnullnullnullnullnullnullnullnullnullnullnullnull" {
+  password = randomPass()
 }
 
-export let pass = pass
+// Generated passphrase for Sesi Studio.
+export let pass = password

@@ -183,4 +183,4 @@ When used inside `model()` or `image()` config blocks, `images` is resolved at r
 | -------- | --------------------------- | ------------------------------------------------------------------- |
 | `images` | `string` or `array<string>` | One or more local file paths. Resolved relative to `process.cwd()`. |
 
-> **Note:** Multimodal input requires a vision-capable model (e.g. `gemini-3-flash-preview`, `gemini-3.1-flash-lite`, `gemini-3.5-flash-lite`, `gemini-3.1-pro-preview`, `gemini-3.5-flash`, `gemini-3.6-flash`). Image-generation models that accept reference images are listed in their respective model documentation.
+> **Note:** Multimodal input requires a vision-capable model (e.g. `gemini-3-flash-preview`, `gemini-3.1-flash-lite`, `gemini-3.5-flash-lite`, `gemini-3.1-pro-preview`, `gemini-3.5-flash`, `gemini-3.6-flash`, `gemini-3.7-flash`, `gemini-3.8-flash`). Image-generation models that accept reference images are listed in their respective model documentation.

@@ -1,0 +1,276 @@
+allow "std/time" in as Time
+
+/**
+  Extracts documentation blocks and signatures from a Sesi source string.
+
+  Parameters:
+  - `source`: The raw string content of a `.sesi` file.
+
+  Returns:
+  - An array of objects containing parsed declarations and metadata.
+*/
+fn parseDeclarations(source: string) -> array {
+  let entries = []
+  let lines = source | split("\n")
+  let currentDoc = []
+  let insideDoc = false
+
+  for line in lines {
+    let trimmed = line | trim
+
+    // Capture docstring start / content / end
+    if trimmed | starts_with("/**") {
+      insideDoc = true
+      currentDoc = []
+      continue
+    }
+
+    if insideDoc {
+      if trimmed | ends_with("*/") {
+        insideDoc = false
+        continue
+      }
+      // Strip leading asterisks
+      let cleanLine = trimmed
+      if cleanLine | starts_with("*") {
+        cleanLine = (cleanLine | slice(1)) | trim
+      }
+      push(currentDoc, cleanLine)
+      continue
+    }
+
+    // Match function declarations: (export)? (async)? fn name(params) -> returnType
+    if (trimmed | starts_with("fn ")) || (trimmed | starts_with("export fn ")) || (trimmed | starts_with("async fn ")) || (trimmed | starts_with("export async fn ")) {
+      let docText = currentDoc | join("\n")
+      currentDoc = []
+
+      let isExport = trimmed | starts_with("export ")
+      let cleanSig = trimmed
+      if isExport {
+        cleanSig = (cleanSig | slice(7)) | trim
+      }
+
+      // Extract up to the opening brace
+      let sigParts = cleanSig | split("{")
+      let signature = (sigParts[0]) | trim
+
+      push(entries, {
+        "kind": "function",
+        "signature": signature,
+        "exported": isExport,
+        "description": docText
+      })
+      continue
+    }
+
+    // Match object templates: (export)? make Name
+    if (trimmed | starts_with("make ")) || (trimmed | starts_with("export make ")) {
+      let docText = currentDoc | join("\n")
+      currentDoc = []
+
+      let isExport = trimmed | starts_with("export ")
+      let templateName = trimmed | swap("export ", "") | swap("make ", "") | split("{")
+
+      push(entries, {
+        "kind": "template",
+        "name": (templateName[0]) | trim,
+        "exported": isExport,
+        "description": docText
+      })
+      continue
+    }
+
+    // Reset stray doc comments if no matching declaration immediately follows
+    if (trimmed | len) > 0 && !(trimmed | starts_with("//")) {
+      currentDoc = []
+    }
+  }
+
+  return entries
+}
+
+/**
+  Formats parsed declaration entries into structured Markdown text.
+
+  Parameters:
+  - `filePath`: The relative path of the source file.
+  - `entries`: Array of parsed declaration objects.
+
+  Returns:
+  - Formatted Markdown documentation as a string.
+*/
+fn formatMarkdown(filePath: string, entries: array) -> string {
+  let docDate = Time.format(Time.now(), {"dateStyle": "medium"})
+
+  prompt header {"# Module Documentation: `" filePath "`
+
+> Auto-generated on " docDate " by Sesi Auto-Doc
+
+---
+
+## Declarations Summary
+
+"}
+
+  let fnSection = "### Functions\n\n"
+  let tmplSection = "### Object Templates (`make`)\n\n"
+  let hasFunctions = false
+  let hasTemplates = false
+
+  for item in entries {
+    if item["kind"] == "function" {
+      hasFunctions = true
+      let exportBadge = ""
+      if item["exported"] {
+        exportBadge = "`export` "
+      }
+
+      prompt fnBlock {"#### " exportBadge "`" item["signature"] "`
+
+" (item["description"] || "_No documentation provided._") "
+
+---
+
+"}
+      fnSection = fnSection + fnBlock
+    } else if item["kind"] == "template" {
+      hasTemplates = true
+      let exportBadge = ""
+      if item["exported"] {
+        exportBadge = "`export` "
+      }
+
+      prompt tmplBlock {"#### " exportBadge "Template `" item["name"] "`
+
+" (item["description"] || "_No documentation provided._") "
+
+---
+
+"}
+      tmplSection = tmplSection + tmplBlock
+    }
+  }
+
+  let finalMarkdown = header
+  if hasTemplates {
+    finalMarkdown = finalMarkdown + tmplSection
+  }
+  if hasFunctions {
+    finalMarkdown = finalMarkdown + fnSection
+  }
+
+  if !hasFunctions && !hasTemplates {
+    finalMarkdown = finalMarkdown + "\n_No public functions or templates found in this file._\n"
+  }
+
+  return finalMarkdown
+}
+
+/**
+  Generates a Markdown documentation file for a target `.sesi` script.
+
+  Parameters:
+  - `filePath`: The path to the `.sesi` source file.
+  - `outputMarkdownPath`: Optional destination path for the markdown file. If omitted, defaults to `<filename>.md`.
+
+  Returns:
+  - `true` if documentation was successfully generated and written, `false` otherwise.
+
+  Example:
+  ```sesi
+  let ok = documentFile("src/math_helpers.sesi", "docs/math_helpers.md")
+  if ok {
+    show "Documentation created successfully."
+  }
+  ```
+*/
+fn documentFile(filePath: string, outputMarkdownPath: string? = null) -> bool {
+  show "📄 Processing source file:" filePath
+
+  let source = null
+  try {
+    source = read_file(filePath)
+  } catch (err) {
+    show "❌ Failed to read source file:" filePath
+    return false
+  }
+
+  let entries = parseDeclarations(source)
+  let markdown = formatMarkdown(filePath, entries)
+
+  let destPath = outputMarkdownPath
+  if destPath | is_null {
+    let cleanName = filePath | swap(".sesi", "")
+    destPath = cleanName + "_docs.md"
+  }
+
+  try {
+    write_file(destPath, markdown)
+    show "✅ Documentation written to:" destPath
+    return true
+  } catch (err) {
+    show "❌ Failed to write documentation file:" destPath
+    return false
+  }
+}
+
+/**
+  Batch documents all `.sesi` files within a specified directory.
+
+  Parameters:
+  - `dirPath`: Directory path containing Sesi files.
+  - `outputDir`: Directory where generated Markdown files will be saved.
+
+  Returns:
+  - The number of documented files.
+*/
+fn documentDirectory(dirPath: string, outputDir: string) -> number {
+  let files = null
+  try {
+    files = list_dir(dirPath)
+  } catch (err) {
+    show "❌ Could not list directory:" dirPath
+    return 0
+  }
+
+  try {
+    make_dir(outputDir)
+  } catch (err) {}
+
+  let count = 0
+  for file in files {
+    if file | ends_with(".sesi") {
+      let sourcePath = dirPath + "/" + file
+      let targetPath = outputDir + "/" + (file | swap(".sesi", ".md"))
+      if documentFile(sourcePath, targetPath) {
+        count = count + 1
+      }
+    }
+  }
+
+  show "✨ Batch generation complete. Total files documented:" count
+  return count
+}
+
+// -------------------------------------------------------------
+// Execution Entrypoint
+// -------------------------------------------------------------
+
+if (args | len) > 0 {
+  let target = args[0]
+  if target | ends_with(".sesi") {
+    let out = null
+    if (args | len) > 1 {
+      out = args[1]
+    }
+    documentFile(target, out)
+  } else {
+    let outDir = target + "/docs"
+    if (args | len) > 1 {
+      outDir = args[1]
+    }
+    documentDirectory(target, outDir)
+  }
+} else {
+  show "Usage: sesi autodoc.sesi <file.sesi | directory> [output_path]"
+}

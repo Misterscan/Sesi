@@ -6,39 +6,48 @@
 */
 
 let siteData = {
-  "title": "Sesi Language",
-  "tagline": "Elegant, general-purpose systems development.",
-  "description": "A lightweight, secure programming language built from the ground up for developer ergonomics and concurrency.",
-  "features": [
+  title: "Sesi Language",
+  tagline: "Elegant, general-purpose systems development.",
+  description: "A lightweight, secure programming language built from the ground up for developer ergonomics and concurrency.",
+  features: [
     {
-      "title": "Asynchronous Core",
-      "desc": "Built-in async/await primitives backed by isolated, secure execution pools."
+      title: "Asynchronous Core",
+      desc: "Built-in async/await primitives backed by isolated, secure execution pools."
     },
     {
-      "title": "Strict Security Sandboxing",
-      "desc": "Fine-grained, customizable controls over network, file systems, and system execution."
+      title: "Strict Security Sandboxing",
+      desc: "Fine-grained, customizable controls over network, file systems, and system execution."
     },
     {
-      "title": "Zero External Dependencies",
-      "desc": "Compiler, interpreter, linter, and runtime self-contained in a compact framework."
+      title: "Zero External Dependencies",
+      desc: "Compiler, interpreter, linter, and runtime self-contained in a compact framework."
     }
   ],
-  "stats": [
+  stats: [
     {
-      "label": "Language Version",
-      "value": "v1.8.6"
+      label: "Language Version",
+      value: "v1.9.0"
     },
     {
-      "label": "Test Coverage",
-      "value": "100%"
+      label: "Test Coverage",
+      value: "100%"
     },
     {
-      "label": "Startup Latency",
-      "value": "0.1ms"
+      label: "Startup Latency",
+      value: "0.1ms"
     }
   ]
 }
 
+/**
+  Render the features section of the webpage.
+
+  Parameters:
+  - features: An array of feature objects, each containing a "title" and "desc" field.
+
+  Returns:
+  A string containing the HTML representation of the features section.
+*/
 fn renderFeatures(features) {
   let html = ""
   let i = 0
@@ -56,6 +65,15 @@ fn renderFeatures(features) {
   return html
 }
 
+/**
+  Render the stats section of the webpage.
+
+  Parameters:
+  - stats: An array of stat objects, each containing a "label" and "value" field.
+
+  Returns:
+  A string containing the HTML representation of the stats section.
+*/
 fn renderStats(stats) {
   let html = ""
   let i = 0
@@ -73,6 +91,10 @@ fn renderStats(stats) {
   return html
 }
 
+/**
+  Handle incoming HTTP requests and return appropriate responses.
+  Supports the root path ("/") and returns the main webpage.
+*/
 async fn handleRequest(req) {
   show "Request path is:" req.path "with method:" req.method
   
@@ -263,35 +285,35 @@ async fn handleRequest(req) {
       <p>&copy; 2026 Sesi Project. Running on native Sesi HTTP Server.</p>
     </div>
   </footer>" | html({
-    "title": siteData.title,
-    "head": "<link rel='preconnect' href='https://fonts.googleapis.com'>
+    title: siteData.title,
+    head: "<link rel='preconnect' href='https://fonts.googleapis.com'>
   <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
   <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap' rel='stylesheet'>
   " + css
     })
 
     return {
-      "status": 200,
-      "headers": {
+      status: 200,
+      headers: {
         "Content-Type": "text/html"
       },
-      "body": html
+      body: html
     }
   }
   
   if req.path == "/api/json" {
     return {
-      "status": 200,
-      "body": siteData
+      status: 200,
+      body: siteData
     }
   }
   
   return {
-    "status": 404,
-    "headers": {
+    status: 404,
+    headers: {
       "Content-Type": "text/plain"
     },
-    "body": "Not Found"
+    body: "Not Found"
   }
 }
 

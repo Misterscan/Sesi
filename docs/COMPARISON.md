@@ -63,8 +63,8 @@ for feedback in rawFeedback {
   processingLog = processingLog + "Processing:" + feedback
   let analysis = structured_output({sentiment: string, category: string, isUrgent: bool, summary: string})
   (model("gemini-3.5-flash-lite") {"Analyze the customer feedback. Category should be Billing, UI, or Technical. Feedback:" feedback})
-  show "Result for:" analysis["summary"]
-  if analysis["isUrgent"] {
+  show "Result for:" analysis.summary
+  if analysis.isUrgent {
     let resolution = tool_call(escalateTicket)(model("gemini-3.5-flash-lite") {"Call escalateTicket for customer '1234' with an exact reason based on:" feedback})
   processingLog = processingLog + "Urgent action taken:" + resolution} else {processingLog = processingLog + "Logged routinely."}
 }
