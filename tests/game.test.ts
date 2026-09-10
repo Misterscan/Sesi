@@ -11,6 +11,7 @@ import { Compiler } from '../src/compiler';
 import { Interpreter, type BundledBytecodeModule } from '../src/interpreter';
 import { VM } from '../src/vm';
 import { runSesiBytecodeBundle } from '../src/index';
+import { resolveGameHostCoreRoot } from '../src/game';
 import type { RuntimeFunction } from '../src/types';
 
 const root = path.resolve(__dirname, '..');
@@ -371,6 +372,23 @@ function testIncompatibleAddonDiagnostic() {
   }
 }
 
+function testPackagedGameHostUsesFilesystemCore() {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-game-core-root-'));
+  try {
+    const project = path.join(temporary, 'examples', 'main');
+    fs.mkdirSync(path.join(temporary, 'dist'), { recursive: true });
+    fs.mkdirSync(project, { recursive: true });
+    fs.writeFileSync(path.join(temporary, 'package.json'), JSON.stringify({ name: '@misterscan/sesi' }));
+    fs.writeFileSync(path.join(temporary, 'dist', 'index.js'), 'module.exports = {}');
+
+    const resolved = resolveGameHostCoreRoot(project, 'C:\\snapshot\\Sesi', true);
+    assert.equal(resolved, temporary);
+    assert.equal(resolved.includes('snapshot'), false);
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   await testVmNamespaceAndNativeObjects();
   await testTreeNamedBindingsAndSceneFacade();
@@ -383,6 +401,7 @@ async function main() {
   await testRemoteAssetPackagingGuards();
   testMissingAddonDiagnostic();
   testIncompatibleAddonDiagnostic();
+  testPackagedGameHostUsesFilesystemCore();
   console.log('✓ std/game native objects, modules, callbacks, security, and bytecode bundle tests');
 }
 

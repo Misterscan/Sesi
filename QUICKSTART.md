@@ -582,6 +582,8 @@ sesi examples/main/34_sesi_api.sesi
 sesi examples/main/35_speech_language.sesi
 sesi examples/main/36_regex_media.sesi
 sesi examples/optional/37_ai_video_generation.sesi
+sesi examples/main/38_game_3d_arcade.sesi
+sesi examples/main/39_game_load_assets.sesi
 ```
 
 ## Common Patterns

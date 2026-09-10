@@ -1515,15 +1515,16 @@ with the purpose to:
         " pass1 "
 
         Return only the complete code for the website without any additional explanations or comments."} | cleanAIResponse
+        write_file(dir + "pass_2.html", review)
         try {
             eval = model("gpt-5.6-luna") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse
         } catch (e) {
             TERM.warning(e.message)
             TERM.warning("Retrying with a more capable model...")
-            eval = model("gemini-3.5-flash-lite") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse
+            eval = model("gemini-3.5-flash-lite") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse | from_json
         }
         if eval.broken != "" || eval.semantic != "" || eval.accessibility != "" || eval.responsive != "" || eval.js != "" || eval.requirements != "" {
-            TERM.warn("Detected errors, patching before final delivery...")
+            TERM.warning("Detected errors, patching before final delivery...")
             prompt defectFixer {"You are a professional and organized software developer. You are tasked with fixing the following defects in this HTML code. Preserve semantics, accessibility, word usage/text, and responsive design. Do not redesign the website."}
             prompt fixedInput {"Bugs to patch:
             " to_json(eval) "

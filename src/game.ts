@@ -41,6 +41,87 @@ function addonInstallError(detail?: string): SesiRuntimeError {
   );
 }
 
+function isCorePackageRoot(candidate: string): boolean {
+  const manifestPath = path.join(candidate, 'package.json');
+  const entryPath = path.join(candidate, 'dist', 'index.js');
+  if (!fs.existsSync(manifestPath) || !fs.existsSync(entryPath)) return false;
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { name?: string };
+    return manifest.name === '@misterscan/sesi';
+  } catch {
+    return false;
+  }
+}
+
+function packageRootFor(resolvedEntry: string): string | undefined {
+  let cursor = path.dirname(path.resolve(resolvedEntry));
+  while (cursor !== path.dirname(cursor)) {
+    if (isCorePackageRoot(cursor)) return cursor;
+    cursor = path.dirname(cursor);
+  }
+  return undefined;
+}
+
+function findCorePackageAncestor(start: string): string | undefined {
+  let cursor = path.resolve(start);
+  if (fs.existsSync(cursor) && !fs.statSync(cursor).isDirectory()) cursor = path.dirname(cursor);
+  while (cursor !== path.dirname(cursor)) {
+    if (isCorePackageRoot(cursor)) return cursor;
+    cursor = path.dirname(cursor);
+  }
+  return undefined;
+}
+
+/**
+ * Resolve a real filesystem copy of the Sesi core for the Electron game host.
+ * A pkg executable's __dirname points into its private snapshot, which child
+ * processes such as Electron cannot read.
+ */
+export function resolveGameHostCoreRoot(
+  projectRoot: string,
+  bundledCoreRoot = path.resolve(__dirname, '..'),
+  packaged = Boolean((process as any).pkg),
+): string {
+  const override = process.env.SESI_GAME_CORE_PATH;
+  if (override) {
+    const resolvedOverride = path.resolve(override);
+    if (isCorePackageRoot(resolvedOverride)) return resolvedOverride;
+    throw new SesiRuntimeError(
+      'GameHostError',
+      `SESI_GAME_CORE_PATH does not point to an installed @misterscan/sesi package: ${resolvedOverride}`,
+    );
+  }
+
+  const projectManifest = path.join(projectRoot, 'package.json');
+  const localRequire = createRequire(fs.existsSync(projectManifest) ? projectManifest : path.join(projectRoot, '__sesi_core__.js'));
+  try {
+    const installed = packageRootFor(localRequire.resolve('@misterscan/sesi'));
+    if (installed) return installed;
+  } catch {
+    // A source checkout can provide the core directly instead of through node_modules.
+  }
+
+  const projectCheckout = findCorePackageAncestor(projectRoot);
+  if (projectCheckout) return projectCheckout;
+  const workingCheckout = findCorePackageAncestor(process.cwd());
+  if (workingCheckout) return workingCheckout;
+
+  const executableDirectory = path.dirname(process.execPath);
+  for (const candidate of [
+    executableDirectory,
+    path.join(executableDirectory, 'runtime'),
+    path.join(executableDirectory, 'node_modules', '@misterscan', 'sesi'),
+  ]) {
+    if (isCorePackageRoot(candidate)) return candidate;
+  }
+
+  if (!packaged && isCorePackageRoot(bundledCoreRoot)) return bundledCoreRoot;
+  throw new SesiRuntimeError(
+    'GameHostError',
+    'The Electron game host needs a filesystem-installed Sesi core; the standalone executable snapshot cannot be loaded by Electron. Install @misterscan/sesi in this project or set SESI_GAME_CORE_PATH to its package directory.',
+  );
+}
+
 function loadAddon(projectRoot: string): GameAddon {
   if (process.env.SESI_GAME_DISABLE_ADDON === '1') throw addonInstallError();
   const projectManifest = path.join(projectRoot, 'package.json');
@@ -80,13 +161,14 @@ export async function launchGameFileHost(options: {
   debug?: boolean;
   bytecodeBundle?: string;
 }): Promise<void> {
-  const addon = loadAddon(path.dirname(path.resolve(options.entry)));
+  const projectRoot = path.dirname(path.resolve(options.entry));
+  const addon = loadAddon(projectRoot);
   if (typeof addon.launchGameHost !== 'function') {
     throw addonInstallError('package does not provide the Electron host launcher');
   }
   await addon.launchGameHost({
     ...options,
-    coreRoot: path.resolve(__dirname, '..'),
+    coreRoot: resolveGameHostCoreRoot(projectRoot),
   });
 }
 

@@ -2,7 +2,7 @@ allow "std/draw" in as Draw
 
 // Draw every character supported by Draw.pixel_text() at a large enough
 // scale to inspect the individual 5x7 bitmap cells.
-let output = "temp/dev/pixel-text-characters.png"
+let output = "temp/dev/pixel-text-characters.png"; make_dir("temp/dev/")
 let foreground = "#f8fafc"
 
 Draw.clear()

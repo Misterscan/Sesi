@@ -13,6 +13,7 @@
     "dist",
     "bin",
     "docs",
+    "lib",
     "examples/main",
     "examples/optional",
     "sesi-db",
@@ -98,6 +99,7 @@
     "@dotenvx/dotenvx-ops": "0.56.1",
     "@google/genai": "2.21.0",
     "@huggingface/transformers": "4.2.0",
+    "@vscode/vsce": "^3.9.2",
     "adm-zip": "0.6.0",
     "blessed": "^0.1.81",
     "html-to-text": "10.0.1",
@@ -110,8 +112,7 @@
     "playwright": "1.63.0",
     "turndown": "7.2.4",
     "whisper-cli": "^1.4.1",
-    "ws": "8.21.3",
-    "@vscode/vsce": "^3.9.2"
+    "ws": "8.21.3"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
@@ -142,6 +143,8 @@
     "onnxruntime-node@1.29.0": true,
     "protobufjs@7.6.5": true,
     "sharp@0.35.4": true,
-    "smart-whisper@0.8.1": true
+    "smart-whisper@0.8.1": true,
+    "@vscode/vsce-sign@2.1.0": true,
+    "keytar@7.9.0": true
   }
 }

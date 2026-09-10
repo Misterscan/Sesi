@@ -12,7 +12,7 @@
 */
 
 allow "std/audio" in as Audio
-allow "std/mpc" in as MPC
+allow "lib/mpc" in as MPC
 
 let soundfont = "sf2/GeneralUser-GS.sf2"
 let dir = "songs/"; if !exists(dir) { make_dir(dir) }
