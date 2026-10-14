@@ -31,7 +31,7 @@ show "=== 3. Built-in JSON Conversion ==="
 // "std/json" has been deprecated in favor of built-in to_json and from_json functions.
 let original = {
     project: "Sesi Language",
-    version: "1.9.0",
+    version: "1.9.1",
     features: ["modules", "http", "parallel"]
 }
 let json_str = to_json(original)

@@ -12,7 +12,7 @@ let summary = "summary"
 let detailed = "detailed"
 
 summary | set_alias("gemini-3.5-flash-lite")
-detailed | set_alias("gemini-3.7-flash")
+detailed | set_alias("gemini-3.8-flash")
 
 show "=== Fast summary call ==="
 let quick = model(summary) {max_tokens: 100} {"Summarize the benefits of model aliases in two short bullet points."}

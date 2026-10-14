@@ -1,0 +1,691 @@
+/*
+  Client Utilities
+  Provides functions to interact with various web APIs and handle HTTP requests.
+*/
+/**
+  The root API endpoint URL for GitHub REST API requests.
+
+  Notes:
+  - Used as the base URL for fetching user profiles, repositories, and creating issues.
+
+  Output:
+  - The standard base URL string for GitHub API (`"https://api.github.com"`).
+*/
+let github_base = "https://api.github.com"
+/**
+  The root API endpoint URL for JSONPlaceholder mock posts service.
+
+  Notes:
+  - Used as the base URL for querying and creating mock blog posts.
+
+  Output:
+  - The standard base URL string for JSONPlaceholder (`"https://jsonplaceholder.typicode.com"`).
+*/
+let posts_base = "https://jsonplaceholder.typicode.com"
+/**
+  The root API endpoint URL for Open-Meteo weather forecast queries.
+
+  Notes:
+  - Used as the base URL for fetching real-time and daily weather forecast data.
+
+  Output:
+  - The standard base URL string for Open-Meteo weather API (`"https://api.open-meteo.com/v1/forecast"`).
+*/
+let weather_base = "https://api.open-meteo.com/v1/forecast"
+/**
+  The root API endpoint URL for Open-Meteo air quality queries.
+
+  Notes:
+  - Used as the base URL for retrieving air quality metrics like US AQI, PM2.5, and PM10.
+
+  Output:
+  - The standard base URL string for Open-Meteo air quality API (`"https://air-quality-api.open-meteo.com/v1/air-quality"`).
+*/
+let air_quality_base = "https://air-quality-api.open-meteo.com/v1/air-quality"
+/**
+  Performs an HTTP GET request to the specified URL and parses the response body as JSON.
+
+  Parameters:
+  - `url`: The target endpoint URL string to fetch.
+  - `_headers`: An object containing request headers to send with the GET request.
+
+  Returns:
+  - An object with `{ok: true, data: object|array}` on successful fetch and parse, or `{ok: false, error: string}` if a network or parsing error occurs.
+
+  Example:
+  ```sesi
+  let res = get_json("https://api.github.com/users/octocat", {Accept: "application/vnd.github+json"})
+  if res.ok {
+    show res.data.name
+  } else {
+    show "Failed:" res.error
+  }
+  ```
+
+  Notes:
+  - Catches runtime exceptions from `web_get` and `from_json` to prevent unhandled script crashes.
+*/
+fn get_json(url: string, _headers: object) {
+  try { return {ok: true, data: from_json(web_get(url, _headers))} }
+  catch (err) { return {ok: false, error: str(err)} }
+}
+/**
+  Sends an HTTP POST request with a serialized JSON payload to the specified URL and parses the response.
+
+  Parameters:
+  - `url`: The target endpoint URL string.
+  - `payload`: The object data to serialize and send in the request body.
+  - `headers`: An object containing custom headers to include in the request.
+
+  Returns:
+  - An object with `{ok: true, data: object|array}` on successful response, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let payload = {title: "Bug report", body: "Found an issue"}
+  let res = send_json("https://api.github.com/repos/owner/repo/issues", payload, {Authorization: "Bearer token"})
+  if res.ok {
+    show "Created issue #" res.data.number
+  }
+  ```
+
+  Notes:
+  - Automatically sets or overrides the `Content-Type` header to `"application/json"`.
+  - Serializes `payload` using the built-in `to_json()` function.
+*/
+fn send_json(url: string, payload: object, headers: object) {
+  headers["Content-Type"] = "application/json"
+  try { return {ok: true, data: from_json(web_send(url, to_json(payload), headers))} }
+  catch (err) { return {ok: false, error: str(err)} }
+}
+/**
+  Constructs standard HTTP headers for GitHub REST API requests.
+
+  Parameters:
+  - `token`: An optional GitHub Personal Access Token or OAuth Bearer token string.
+
+  Returns:
+  - A headers object containing the required GitHub `Accept` header, and optionally the `Authorization` header if `token` is provided.
+
+  Example:
+  ```sesi
+  let authHeaders = github_headers("ghp_exampleToken123")
+  let publicHeaders = github_headers(null)
+  ```
+
+  Notes:
+  - Default `Accept` header is set to `"application/vnd.github+json"`.
+  - If `token` evaluates to falsy or `null`, no `Authorization` field is attached.
+*/
+fn github_headers(token: string?) {
+  let headers = {Accept: "application/vnd.github+json"}
+  if token { headers.Authorization = "Bearer " + token }
+  return headers
+}
+/**
+  Retrieves public user profile information from GitHub for a given username.
+
+  Parameters:
+  - `username`: The GitHub username whose profile is to be fetched.
+  - `token`: An optional personal access token string for authenticated requests with higher rate limits.
+
+  Returns:
+  - An object containing `{ok: true, data: object}` representing the GitHub user object, or `{ok: false, error: string}` on error.
+
+  Example:
+  ```sesi
+  let user = github_user("octocat")
+  if user.ok {
+    show "User login:" user.data.login
+    show "Public Repos:" user.data.public_repos
+  }
+  ```
+
+  Notes:
+  - Unauthenticated requests are subject to standard GitHub IP rate limits (typically 60 requests per hour).
+*/
+export fn github_user(username: string, token: string? = null) { return get_json(github_base + "/users/" + username, github_headers(token)) }
+/**
+  Builds the base REST API endpoint URL for a specific GitHub repository.
+
+  Parameters:
+  - `owner`: The repository owner or organization account name.
+  - `repo`: The name of the target repository.
+
+  Returns:
+  - The formatted endpoint URL string (`"https://api.github.com/repos/{owner}/{repo}"`).
+
+  Example:
+  ```sesi
+  let endpoint = github_repo_url("torvalds", "linux")
+  show endpoint
+  ```
+
+  Notes:
+  - Used as an internal URL construction helper across GitHub repository endpoints.
+*/
+fn github_repo_url(owner: string, repo: string) { return github_base + "/repos/" + owner + "/" + repo }
+/**
+  Retrieves public repositories for a specific GitHub user.
+
+  Parameters:
+  - `username`: The GitHub username whose repositories are being queried.
+  - `token`: An optional personal access token string to authenticate the request.
+
+  Returns:
+  - An object containing `{ok: true, data: array<object>}` with the list of repositories, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = github_repos("torvalds")
+  if res.ok {
+    for repo in res.data {
+      show repo.name "—" repo.stargazers_count "stars"
+    }
+  }
+  ```
+
+  Notes:
+  - Returns the first page of repositories (default GitHub pagination behavior).
+*/
+export fn github_repos(username: string, token: string? = null) { return get_json(github_base + "/users/" + username + "/repos", github_headers(token)) }
+/**
+  Retrieves a paginated list of public repositories for a GitHub user.
+
+  Parameters:
+  - `username`: The GitHub username whose repositories are queried.
+  - `page`: The 1-based page number to fetch (defaults to `1`).
+  - `per_page`: The number of items to return per page, between 1 and 100 (defaults to `30`).
+  - `token`: An optional personal access token string for authentication.
+
+  Returns:
+  - An object with `{ok: true, data: array<object>}` containing repository objects, or `{ok: false, error: string}` on failure or validation error.
+
+  Example:
+  ```sesi
+  let res = github_repos_page("torvalds", 2, 10)
+  if res.ok {
+    for repo in res.data {
+      show repo.name
+    }
+  }
+  ```
+
+  Notes:
+  - Returns a validation error if `page < 1` or `per_page` is not within `1` to `100`.
+*/
+export fn github_repos_page(username: string, page: number = 1, per_page: number = 30, token: string? = null) {
+  if page < 1 || per_page < 1 || per_page > 100 { return {ok: false, error: "page must be at least 1 and per_page must be between 1 and 100"} }
+  return get_json(github_base + "/users/" + username + "/repos?page=" + str(page) +"&per_page=" + str(per_page), github_headers(token))
+}
+/**
+  Retrieves repository metadata for a specific GitHub repository.
+
+  Parameters:
+  - `owner`: The repository owner or organization account name.
+  - `repo`: The name of the repository.
+  - `token`: An optional personal access token string for authentication.
+
+  Returns:
+  - An object with `{ok: true, data: object}` containing repository metadata (e.g. `description`, `stars`, `forks`), or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = github_repo("facebook", "react")
+  if res.ok {
+    show "Stars:" res.data.stargazers_count
+  }
+  ```
+
+  Notes:
+  - Useful for checking repository visibility, primary language, star counts, and open issues count.
+*/
+export fn github_repo(owner: string, repo: string,  token: string? = null) { return get_json(github_repo_url(owner, repo), github_headers(token)) }
+/**
+  Retrieves the list of contributors for a specified GitHub repository.
+
+  Parameters:
+  - `owner`: The repository owner or organization name.
+  - `repo`: The name of the repository.
+  - `token`: An optional personal access token string for authentication.
+
+  Returns:
+  - An object with `{ok: true, data: array<object>}` containing contributor user objects and contribution counts, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = github_contributors("torvalds", "linux")
+  if res.ok {
+    for contributor in res.data {
+      show contributor.login ":" contributor.contributions "commits"
+    }
+  }
+  ```
+
+  Notes:
+  - Returns contributors ordered by the number of commits in descending order.
+*/
+export fn github_contributors(owner: string, repo: string, token: string? = null) { return get_json(github_repo_url(owner, repo) + "/contributors", github_headers(token)) }
+/**
+  Retrieves issues associated with a specific GitHub repository.
+
+  Parameters:
+  - `owner`: The repository owner or organization name.
+  - `repo`: The name of the repository.
+  - `token`: An optional personal access token string for authentication.
+
+  Returns:
+  - An object with `{ok: true, data: array<object>}` containing issue objects, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = github_issues("rust-lang", "rust")
+  if res.ok {
+    for issue in res.data {
+      show "#" issue.number "—" issue.title
+    }
+  }
+  ```
+
+  Notes:
+  - The GitHub API includes open pull requests in the issues list response.
+*/
+export fn github_issues(owner: string, repo: string, token: string? = null) { return get_json(github_repo_url(owner, repo) + "/issues", github_headers(token) ) }
+/**
+  Creates a new issue in a GitHub repository using an authenticated request.
+
+  Parameters:
+  - `owner`: The GitHub organization or account name owning the repository.
+  - `repo`: The target repository name.
+  - `title`: The title of the new issue.
+  - `body`: The markdown body text / description of the issue.
+  - `token`: A GitHub personal access token with repository write permissions.
+
+  Returns:
+  - An object with `{ok: true, data: object}` containing the created issue data (e.g. `html_url`, `number`), or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = github_create_issue("owner", "repo", "Fix memory leak", "Detailed report here...", $GITHUB_TOKEN)
+  if res.ok {
+    show "Issue created at:" res.data.html_url
+  } else {
+    show "Error creating issue:" res.error
+  }
+  ```
+
+  Notes:
+  - The token must have appropriate scopes (`repo` or `public_repo`) to create issues in target repositories.
+*/
+export fn github_create_issue(owner: string, repo: string, title: string, body: string, token: string) {
+  if !token { return {ok: false, error: "A GitHub token is required"} }
+  return send_json(github_repo_url(owner, repo) + "/issues", {title: title, body: body}, github_headers(token) )
+}
+/**
+  Fetches the complete list of mock posts from JSONPlaceholder.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - An object containing `{ok: true, data: array<object>}` representing the collection of posts, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_list()
+  if res.ok {
+    show "Total posts received:" len(res.data)
+  }
+  ```
+
+  Notes:
+  - Performs an unauthenticated GET request against `/posts`.
+*/
+export fn posts_list() { return get_json(posts_base + "/posts", {}) }
+/**
+  Retrieves a single mock post by its numerical identifier from JSONPlaceholder.
+
+  Parameters:
+  - `id`: The unique numeric identifier of the post.
+
+  Returns:
+  - An object containing `{ok: true, data: object}` with the post fields (`userId`, `id`, `title`, `body`), or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_get(1)
+  if res.ok {
+    show "Title:" res.data.title
+    show "Body:" res.data.body
+  }
+  ```
+
+  Notes:
+  - Converts `id` to string format for path parameter concatenation.
+*/
+export fn posts_get(id: number) { return get_json(posts_base + "/posts/" + str(id), {}) }
+/**
+  Creates a new mock post on JSONPlaceholder.
+
+  Parameters:
+  - `title`: The title string for the new post.
+  - `body`: The content or body string of the post.
+  - `user_id`: The numeric ID of the user authoring the post.
+
+  Returns:
+  - An object containing `{ok: true, data: object}` representing the newly created post with its simulated assigned `id`, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_create("Hello World", "This is a new test post.", 1)
+  if res.ok {
+    show "Created mock post with ID:" res.data.id
+  }
+  ```
+
+  Notes:
+  - JSONPlaceholder simulates the creation and returns the created object with an `id` (usually `101`), without persisting it to a real database.
+*/
+export fn posts_create(title: string, body: string, user_id: number) { return send_json(posts_base + "/posts", {title: title, body: body, userId: user_id}, {}) }
+/**
+  Retrieves all mock posts authored by a specific user ID from JSONPlaceholder.
+
+  Parameters:
+  - `user_id`: The unique numerical identifier of the author.
+
+  Returns:
+  - An object containing `{ok: true, data: array<object>}` representing all posts matching the user ID, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_by_user(1)
+  if res.ok {
+    for post in res.data {
+      show post.id ":" post.title
+    }
+  }
+  ```
+
+  Notes:
+  - Queries `/posts?userId={user_id}`.
+*/
+export fn posts_by_user(user_id: number) { return get_json(posts_base + "/posts?userId=" + str(user_id), {}) }
+/**
+  Retrieves all comments associated with a specific mock post from JSONPlaceholder.
+
+  Parameters:
+  - `post_id`: The unique numerical identifier of the post.
+
+  Returns:
+  - An object containing `{ok: true, data: array<object>}` with comment objects (`postId`, `id`, `name`, `email`, `body`), or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_comments(1)
+  if res.ok {
+    for comment in res.data {
+      show comment.email "said:" comment.body
+    }
+  }
+  ```
+
+  Notes:
+  - Queries `/posts/{post_id}/comments`.
+*/
+export fn posts_comments(post_id: number) { return get_json(posts_base + "/posts/" + str(post_id) + "/comments", {}) }
+/**
+  Creates a simulated comment on a mock post via JSONPlaceholder.
+
+  Parameters:
+  - `post_id`: The numeric identifier of the post being commented on.
+  - `name`: The title or headline name of the comment.
+  - `email`: The email address of the commenter.
+  - `body`: The message content of the comment.
+
+  Returns:
+  - An object containing `{ok: true, data: object}` representing the created comment object with its generated `id`, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_add_comment(1, "Great post", "reader@example.com", "Thanks for sharing!")
+  if res.ok {
+    show "Comment created with ID:" res.data.id
+  }
+  ```
+
+  Notes:
+  - JSONPlaceholder simulates the comment creation and returns a generated mock identifier.
+*/
+export fn posts_add_comment(post_id: number, name: string, email: string, body: string) { return send_json(posts_base + "/comments", {postId: post_id, name: name, email: email, body: body}, {}) }
+/**
+  Retrieves the full list of mock users from JSONPlaceholder.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - An object containing `{ok: true, data: array<object>}` representing all user accounts, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_users()
+  if res.ok {
+    for user in res.data {
+      show user.name "(" user.email ")"
+    }
+  }
+  ```
+
+  Notes:
+  - Each user object includes nested `address` and `company` records.
+*/
+export fn posts_users() { return get_json(posts_base + "/users", {}) }
+/**
+  Retrieves a single mock user profile by ID from JSONPlaceholder.
+
+  Parameters:
+  - `id`: The unique numerical identifier of the user.
+
+  Returns:
+  - An object containing `{ok: true, data: object}` representing user profile details, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_user(1)
+  if res.ok {
+    show "Username:" res.data.username
+    show "City:" res.data.address.city
+  }
+  ```
+
+  Notes:
+  - Returns user contact info, address details, and company affiliation.
+*/
+export fn posts_user(id: number) { return get_json(posts_base + "/users/" + str(id), {}) }
+/**
+  Retrieves all todo items assigned to a specific user from JSONPlaceholder.
+
+  Parameters:
+  - `user_id`: The unique numeric identifier of the user.
+
+  Returns:
+  - An object containing `{ok: true, data: array<object>}` with the user's todo items, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_user_todos(1)
+  if res.ok {
+    for item in res.data {
+      show item.title "— Completed:" item.completed
+    }
+  }
+  ```
+
+  Notes:
+  - Queries `/users/{user_id}/todos`.
+*/
+export fn posts_user_todos(user_id: number) { return get_json(posts_base + "/users/" + str(user_id) + "/todos", {}) }
+/**
+  Retrieves a single mock todo item by its identifier from JSONPlaceholder.
+
+  Parameters:
+  - `id`: The unique numerical identifier of the todo item.
+
+  Returns:
+  - An object containing `{ok: true, data: object}` with todo fields (`userId`, `id`, `title`, `completed`), or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_todo(1)
+  if res.ok {
+    show "Task:" res.data.title "Done:" res.data.completed
+  }
+  ```
+
+  Notes:
+  - Queries `/todos/{id}`.
+*/
+export fn posts_todo(id: number) { return get_json(posts_base + "/todos/" + str(id), {}) }
+/**
+  Retrieves photo albums from JSONPlaceholder, optionally filtered by user ID.
+
+  Parameters:
+  - `user_id`: The unique numerical identifier of the user authoring the albums.
+
+  Returns:
+  - An object containing `{ok: true, data: array<object>}` with album records (`userId`, `id`, `title`), or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_albums(1)
+  if res.ok {
+    for album in res.data {
+      show "Album:" album.title
+    }
+  }
+  ```
+
+  Notes:
+  - Queries `/albums?userId={user_id}`.
+*/
+export fn posts_albums(user_id: number) { return get_json(posts_base + "/albums?userId=" + str(user_id), {}) }
+/**
+  Retrieves all photo records belonging to a specific album from JSONPlaceholder.
+
+  Parameters:
+  - `album_id`: The unique numerical identifier of the album.
+
+  Returns:
+  - An object containing `{ok: true, data: array<object>}` with photo items (`albumId`, `id`, `title`, `url`, `thumbnailUrl`), or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = posts_album_photos(1)
+  if res.ok {
+    for photo in res.data {
+      show photo.title "->" photo.thumbnailUrl
+    }
+  }
+  ```
+
+  Notes:
+  - Queries `/albums/{album_id}/photos`.
+*/
+export fn posts_album_photos(album_id: number) { return get_json(posts_base + "/albums/" + str(album_id) + "/photos", {}) }
+/**
+  Validates geographic latitude and longitude values within standard spherical coordinate ranges.
+
+  Parameters:
+  - `latitude`: The latitude coordinate in decimal degrees.
+  - `longitude`: The longitude coordinate in decimal degrees.
+
+  Returns:
+  - A boolean value `true` if `latitude` is between -90 and 90 and `longitude` is between -180 and 180; otherwise `false`.
+
+  Example:
+  ```sesi
+  let isValid = valid_coordinates(37.7749, -122.4194)
+  show isValid
+  ```
+
+  Notes:
+  - Internal boundary validation check used before calling weather and air quality APIs.
+*/
+fn valid_coordinates(latitude: number, longitude: number) { return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180 }
+/**
+  Fetches current weather observations for a specific geographic coordinate from Open-Meteo.
+
+  Parameters:
+  - `latitude`: Geographic latitude in decimal degrees (-90.0 to 90.0).
+  - `longitude`: Geographic longitude in decimal degrees (-180.0 to 180.0).
+
+  Returns:
+  - An object with `{ok: true, data: object}` containing temperature, relative humidity, precipitation, and weather code measurements, or `{ok: false, error: string}` on failure.
+
+  Example:
+  ```sesi
+  let res = weather_current(52.52, 13.41)
+  if res.ok {
+    show "Temp:" res.data.current.temperature_2m "°C"
+  }
+  ```
+
+  Notes:
+  - Automatically handles timezone alignment (`timezone=auto`).
+*/
+export fn weather_current(latitude: number, longitude: number) {
+  if !valid_coordinates(latitude, longitude) { return {ok: false, error: "Invalid latitude or longitude"} }
+  return get_json(weather_base + "?latitude=" + str(latitude) + "&longitude=" + str(longitude) + "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code&timezone=auto", {})
+}
+/**
+  Fetches daily weather forecasts for a geographic coordinate from Open-Meteo over a given number of days.
+
+  Parameters:
+  - `latitude`: Geographic latitude in decimal degrees (-90.0 to 90.0).
+  - `longitude`: Geographic longitude in decimal degrees (-180.0 to 180.0).
+  - `days`: The number of forecast days to return, between 1 and 16 (defaults to `7`).
+
+  Returns:
+  - An object with `{ok: true, data: object}` containing daily forecast arrays for maximum/minimum temperatures, precipitation sums, and weather codes, or `{ok: false, error: string}` on error.
+
+  Example:
+  ```sesi
+  let res = weather_daily(40.7128, -74.0060, 5)
+  if res.ok {
+    show "Max temps for upcoming days:" res.data.daily.temperature_2m_max
+  }
+  ```
+
+  Notes:
+  - Returns an error if `days` is outside the allowed range of `1` to `16`.
+*/
+export fn weather_daily(latitude: number, longitude: number, days: number = 7) {
+  if !valid_coordinates(latitude, longitude) { return {ok: false, error: "Invalid latitude or longitude"} }
+  if days < 1 || days > 16 { return {ok: false, error: "days must be between 1 and 16"} }
+  return get_json(weather_base + "?latitude=" + str(latitude) + "&longitude=" + str(longitude) + "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=" + str(days), {})
+}
+/**
+  Fetches current air quality index and pollutant measurements for a geographic coordinate from Open-Meteo.
+
+  Parameters:
+  - `latitude`: Geographic latitude in decimal degrees (-90.0 to 90.0).
+  - `longitude`: Geographic longitude in decimal degrees (-180.0 to 180.0).
+
+  Returns:
+  - An object with `{ok: true, data: object}` containing US AQI, PM2.5, and PM10 pollutant metrics, or `{ok: false, error: string}` on invalid coordinates or request failure.
+
+  Example:
+  ```sesi
+  let res = air_quality_current(34.0522, -118.2437)
+  if res.ok {
+    show "US AQI:" res.data.current.us_aqi
+  }
+  ```
+
+  Notes:
+  - Validates coordinate bounds using `valid_coordinates` prior to issuing the API request.
+*/
+export fn air_quality_current(latitude: number, longitude: number) {
+  if !valid_coordinates(latitude, longitude) { return {ok: false, error: "Invalid latitude or longitude"} }
+  return get_json(air_quality_base + "?latitude=" + str(latitude) + "&longitude=" + str(longitude) + "&current=us_aqi,pm2_5,pm10&timezone=auto", {})
+}

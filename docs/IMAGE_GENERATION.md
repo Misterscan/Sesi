@@ -84,6 +84,7 @@ When configuring the `image` call (specifically for models like `gemini-3.1-flas
 
 - `ratio`: The aspect ratio of the image (e.g., `"1:1"`, `"16:9"`, `"9:16"`).
 - `size`: Dimensional sizing constraints (Must be `"512"`, `"1K"`, `"2K"`, or `"4K"`).
+- `audio`: Audio context supplied as a local path, an audio data URL, or `{data, mimeType}` Base64 audio.
 - `temperature`: _Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — controls variance.
 
 GPT image models are also supported through the same `image()` primitive. When you pass a model such as `gpt-image-2`, Sesi routes the call through OpenAI's image generation API and uses `ratio` to choose an OpenAI-compatible output size.
@@ -94,6 +95,27 @@ write_image("gpt-generated-logo.png", logo)
 ```
 
 <img src="gpt-generated-logo.png" alt="GPT Generated Logo" style="width:340px;">
+
+## Passing Audio to Image Models
+
+Both Gemini and OpenAI image models accept Sesi's `audio` image configuration. This is separate from reference images: `audio` supplies sound or spoken context that can influence the generated image.
+
+```sesi
+let geminiCover = image("gemini-3.1-flash-image") {audio: "voice-note.wav", ratio: "1:1"} {"Create cover art from the mood and subject of the recording."}
+write_image("output/gemini-audio-cover.png", geminiCover)
+
+let openaiCover = image("gpt-image-2") {audio: "voice-note.wav", ratio: "1:1"} {"Create cover art from the mood and subject of the recording."}
+write_image("output/openai-audio-cover.png", openaiCover)
+```
+
+Base64 audio is supported too:
+
+```sesi
+let wav = read_file("voice-note.wav", "base64")
+let cover = image("gemini-3.1-flash-image") {audio: {data: wav, mimeType: "audio/wav"}} {"Turn this recording into a cinematic poster."}
+```
+
+Gemini receives the audio as inline multimodal input. For OpenAI image generation, Sesi currently transcribes WAV or MP3 input with OpenAI and adds that transcript to the image prompt before calling the Images API. An audio-capable model and valid provider credentials are required.
 
 ## File I/O Integration: `write_image`
 
@@ -124,6 +146,14 @@ image("model-name") {images: pathExpr} {prompt}
 
 ```sesi
 let caption = model("gemini-3-flash-preview") {images: "shots/frame_01.jpg"} {"Describe what is happening in this photograph in one paragraph."}
+
+show caption
+```
+
+GPT vision-capable models use the same syntax. Sesi sends local files as base64 data URLs through OpenAI's Responses API:
+
+```sesi
+let caption = model("gpt-5.6-sol") {images: "shots/frame_01.jpg"} {"Describe what is happening in this photograph in one paragraph."}
 
 show caption
 ```
@@ -162,6 +192,16 @@ write_image("output/elevation.png", render)
 show "Render saved."
 ```
 
+GPT image models support the same reference-image syntax. Sesi sends these requests through OpenAI's image edits endpoint:
+
+```sesi
+let render = image("gpt-image-2") {images: ["references/product.png", "references/style.webp"], ratio: "16:9"} {"Keep the product design and render it using the lighting and palette of the style reference."}
+
+write_image("output/gpt-reference-render.png", render)
+```
+
+GPT image references may be PNG, JPEG, or WebP files, with up to 16 images per request and each file smaller than 50MB.
+
 ### Pipeline: Batch Description from a Directory
 
 ```sesi
@@ -177,10 +217,11 @@ for f in files {
 
 ### Config Reference
 
-When used inside `model()` or `image()` config blocks, `images` is resolved at runtime — it is **not** a static string key passed to the Gemini SDK. All other config keys (`thinkingLevel`, `max_tokens`, `ratio`, `size`, etc.) work alongside it normally.
+When used inside `model()` or `image()` config blocks, `images` and `audio` are resolved at runtime — they are **not** static string keys passed unchanged to a provider SDK. Other config keys (`thinkingLevel`, `max_tokens`, `ratio`, `size`, etc.) work alongside them normally.
 
 | Key      | Accepted Value              | Notes                                                               |
 | -------- | --------------------------- | ------------------------------------------------------------------- |
-| `images` | `string` or `array<string>` | One or more local file paths. Resolved relative to `process.cwd()`. |
+| `images` | `string` or `array<string>` | One or more local file paths. GPT models also accept image data URLs and HTTP(S) URLs. Local paths are resolved relative to `process.cwd()`. |
+| `audio`  | `string` or `object`        | Local audio path, `data:audio/...;base64,...` URL, or `{data, mimeType}`. Supported by both Gemini and OpenAI image routes. |
 
-> **Note:** Multimodal input requires a vision-capable model (e.g. `gemini-3-flash-preview`, `gemini-3.1-flash-lite`, `gemini-3.5-flash-lite`, `gemini-3.1-pro-preview`, `gemini-3.5-flash`, `gemini-3.6-flash`, `gemini-3.7-flash`, `gemini-3.8-flash`). Image-generation models that accept reference images are listed in their respective model documentation.
+> **Note:** Multimodal input requires a vision-capable Gemini or GPT model. Image-generation models that accept reference images are listed in their respective model documentation.

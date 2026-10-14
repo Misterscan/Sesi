@@ -315,6 +315,7 @@ try {
             expandedLibs = expandedLibs + "\n\n=== LOCAL LIB: " + lib + " ===\n" + Safe.readFile(libDir + lib)
         }
       }
+      expandedLibs = expandedLibs + "\n\n== SESI MODULE: math" + Safe.readFile("sesi_modules/math/main.sesi") 
     } catch (e) {}
 
     prompt instructions {"
@@ -560,10 +561,10 @@ try {
 
     if !($OPENAI_API_KEY | is_null){
       try {
-        generated_response = model("gpt-5.6-terra") {system: sys, thinkingLevel: "medium", maxT: 5120} {ragPrompt}
-      } catch (e) {generated_response = model("gemini-3.7-flash") {system: sys, thinkingLevel: "medium", maxT: 5120} {ragPrompt}}
+        generated_response = model("gpt-6.1-sol") {system: sys, thinkingLevel: "medium", maxT: 10000} {ragPrompt}
+      } catch (e) {generated_response = model("gemini-3.6-flash") {system: sys, thinkingLevel: "medium", maxT: 10000} {ragPrompt}}
     } else {
-      generated_response = model("gemini-3.7-flash") {system: sys, thinkingLevel: "medium", maxT: 5120} {ragPrompt}
+      generated_response = model("gemini-3.6-flash") {system: sys, thinkingLevel: "medium", maxT: 5120} {ragPrompt}
     }
     
     let helpResponse = false

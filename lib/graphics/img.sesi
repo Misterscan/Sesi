@@ -1,0 +1,303 @@
+/*
+  Image Utilities
+  Provides functions to process and manipulate image files using Python Pillow (PIL).
+*/
+/**
+  Processes an image file by delegating image manipulation operations to an inline Python Pillow (PIL) pipeline.
+  Supported actions include metadata inspection, resizing, cropping, rotating, and optimizing.
+
+  Parameters:
+  - `action`: The operation to perform (`"inspect"`, `"resize"`, `"crop"`, `"rotate"`, or `"optimize"`).
+  - `input_path`: Path to the source image file to process.
+  - `output_path`: Optional destination path for the resulting image file. Required for all actions other than `"inspect"`.
+  - `options`: Optional object containing action-specific configurations (such as dimensions, quality, coordinates, or modes).
+
+  Returns:
+  - An object containing metadata about the inspected or processed image, including `path`, `format`, `width`, `height`, `mode`, and `bytes`.
+
+  Example:
+  ```sesi
+  let details = process("inspect", "photo.png")
+  show details.width details.height
+  ```
+
+  Notes:
+  - Requires Python 3 with the Pillow library installed in the environment.
+  - Automatically handles EXIF rotation and transparent PNG to JPEG white-background conversion.
+  - Throws an error when running in Sesi Safe Mode due to the `python` built-in requirement.
+*/
+export fn process(action: string, input_path: string, output_path: string? = null, options: object = null) -> object {
+  let code = "
+import json
+import os
+from PIL import Image, ImageOps
+
+request = json.loads(os.environ['SESI_ARGS'])
+action = request['action']
+source = request['input_path']
+destination = request['output_path']
+options = request['options']
+
+with Image.open(source) as opened:
+    if action == 'inspect':
+        result = {
+            'path': source,
+            'format': opened.format,
+            'width': opened.width,
+            'height': opened.height,
+            'mode': opened.mode,
+            'frames': getattr(opened, 'n_frames', 1),
+            'animated': getattr(opened, 'is_animated', False),
+            'orientation': opened.getexif().get(274, 1),
+            'bytes': os.path.getsize(source)
+        }
+    else:
+        if not destination:
+            raise ValueError('An output path is required')
+
+        image = ImageOps.exif_transpose(opened)
+        image.load()
+        resampling = Image.Resampling.LANCZOS
+
+        if action == 'resize':
+            width = int(options['width'])
+            height = int(options['height'])
+            if width < 1 or height < 1:
+                raise ValueError('Resize dimensions must be positive')
+            mode = options.get('mode', 'contain')
+            if mode == 'contain':
+                image = ImageOps.contain(image, (width, height), method=resampling)
+            elif mode == 'cover':
+                image = ImageOps.fit(image, (width, height), method=resampling)
+            elif mode == 'stretch':
+                image = image.resize((width, height), resample=resampling)
+            else:
+                raise ValueError('Resize mode must be contain, cover, or stretch')
+
+        elif action == 'crop':
+            x = int(options['x'])
+            y = int(options['y'])
+            width = int(options['width'])
+            height = int(options['height'])
+            if x < 0 or y < 0 or width < 1 or height < 1:
+                raise ValueError('Crop coordinates and dimensions are invalid')
+            if x + width > image.width or y + height > image.height:
+                raise ValueError('Crop rectangle extends beyond the image')
+            image = image.crop((x, y, x + width, y + height))
+
+        elif action == 'rotate':
+            image = image.rotate(
+                float(options['degrees']),
+                resample=Image.Resampling.BICUBIC,
+                expand=bool(options.get('expand', True))
+            )
+
+        elif action == 'optimize':
+            max_width = options.get('max_width')
+            max_height = options.get('max_height')
+            if max_width is not None or max_height is not None:
+                width = int(max_width) if max_width is not None else image.width
+                height = int(max_height) if max_height is not None else image.height
+                if width < 1 or height < 1:
+                    raise ValueError('Maximum dimensions must be positive')
+                image = ImageOps.contain(image, (width, height), method=resampling)
+
+        else:
+            raise ValueError('Unknown image action: ' + action)
+
+        extension = os.path.splitext(destination)[1].lower()
+        formats = {
+            '.jpg': 'JPEG',
+            '.jpeg': 'JPEG',
+            '.png': 'PNG',
+            '.webp': 'WEBP',
+            '.tif': 'TIFF',
+            '.tiff': 'TIFF'
+        }
+        if extension not in formats:
+            raise ValueError('Unsupported output image extension: ' + extension)
+
+        output_format = formats[extension]
+        quality = int(options.get('quality', 85))
+        if quality < 1 or quality > 100:
+            raise ValueError('Quality must be between 1 and 100')
+
+        if output_format == 'JPEG':
+            if image.mode in ('RGBA', 'LA') or 'transparency' in image.info:
+                rgba = image.convert('RGBA')
+                background = Image.new('RGB', rgba.size, (255, 255, 255))
+                background.paste(rgba, mask=rgba.getchannel('A'))
+                image = background
+            else:
+                image = image.convert('RGB')
+            save_options = {'quality': quality, 'optimize': True}
+        elif output_format == 'WEBP':
+            save_options = {'quality': quality, 'method': 6}
+        elif output_format == 'PNG':
+            save_options = {'optimize': True}
+        else:
+            save_options = {}
+
+        image.save(destination, format=output_format, **save_options)
+        result = {
+            'path': destination,
+            'format': output_format,
+            'width': image.width,
+            'height': image.height,
+            'mode': image.mode,
+            'bytes': os.path.getsize(destination)
+        }
+
+print(json.dumps(result))
+"
+  let output = python(code, {
+    action: action,
+    input_path: input_path,
+    output_path: output_path,
+    options: options
+  })
+  return from_json(output)
+}
+/**
+  Inspects an image file to retrieve its format, dimensions, color mode, orientation, animation frame details, and file size in bytes without modifying it.
+
+  Parameters:
+  - `input_path`: Path to the image file to inspect.
+
+  Returns:
+  - An object containing image properties: `path`, `format`, `width`, `height`, `mode`, `frames`, `animated`, `orientation`, and `bytes`.
+
+  Example:
+  ```sesi
+  let info = inspect("assets/banner.png")
+  show "Image dimensions:" info.width "x" info.height
+  show "Total size in bytes:" info.bytes
+  ```
+
+  Notes:
+  - Does not create or require an output file.
+  - Handles various image formats supported by Pillow including JPEG, PNG, WEBP, and TIFF.
+*/
+export fn inspect(input_path: string) -> object { return process("inspect", input_path) }
+/**
+  Resizes an image to specified dimensions using Lanczos resampling and writes the result to the destination path.
+
+  Parameters:
+  - `input_path`: Path to the source image file.
+  - `output_path`: Path where the resized image will be saved.
+  - `width`: Target width in pixels (must be >= 1).
+  - `height`: Target height in pixels (must be >= 1).
+  - `mode`: Resizing strategy. Accepts `"contain"` (preserves aspect ratio within bounding box), `"cover"` (crops to fill box), or `"stretch"` (distorts to exact size). Defaults to `"contain"`.
+  - `quality`: Compression quality rating from 1 to 100 for lossy formats (JPEG, WEBP). Defaults to 85.
+
+  Returns:
+  - An object containing metadata of the written image: `path`, `format`, `width`, `height`, `mode`, and `bytes`.
+
+  Example:
+  ```sesi
+  let result = resize("input.png", "output_thumb.png", 300, 300, "cover", 90)
+  show "Saved resized image to" result.path
+  ```
+
+  Notes:
+  - Supports output extensions: `.jpg`, `.jpeg`, `.png`, `.webp`, `.tif`, `.tiff`.
+*/
+export fn resize(input_path: string, output_path: string, width: number, height: number, mode: string = "contain", quality: number = 85) -> object {
+  return process("resize", input_path, output_path, {
+    width: width,
+    height: height,
+    mode: mode,
+    quality: quality
+  })
+}
+/**
+  Crops a rectangular region from an image based on specified coordinates and dimensions.
+
+  Parameters:
+  - `input_path`: Path to the source image file.
+  - `output_path`: Path where the cropped image will be saved.
+  - `x`: Horizontal pixel coordinate of the top-left corner of the crop rectangle (must be >= 0).
+  - `y`: Vertical pixel coordinate of the top-left corner of the crop rectangle (must be >= 0).
+  - `width`: Width of the crop rectangle in pixels (must be >= 1).
+  - `height`: Height of the crop rectangle in pixels (must be >= 1).
+  - `quality`: Compression quality rating from 1 to 100 for lossy formats. Defaults to 85.
+
+  Returns:
+  - An object containing metadata of the saved cropped image: `path`, `format`, `width`, `height`, `mode`, and `bytes`.
+
+  Example:
+  ```sesi
+  let cropInfo = crop("photo.jpg", "avatar.jpg", 50, 50, 200, 200, 90)
+  show "Cropped image dimensions:" cropInfo.width "x" cropInfo.height
+  ```
+
+  Notes:
+  - The crop box coordinates `(x + width, y + height)` must not exceed the source image bounds.
+*/
+export fn crop(input_path: string, output_path: string, x: number, y: number, width: number, height: number, quality: number = 85) -> object {
+  return process("crop", input_path, output_path, {
+    x: x,
+    y: y,
+    width: width,
+    height: height,
+    quality: quality
+  })
+}
+/**
+  Rotates an image by a given angle in degrees using Bicubic resampling.
+
+  Parameters:
+  - `input_path`: Path to the source image file.
+  - `output_path`: Path where the rotated image will be saved.
+  - `degrees`: Counter-clockwise rotation angle in degrees.
+  - `expand`: If `true`, expands the output image dimensions to contain the rotated image without clipping. Defaults to `true`.
+  - `quality`: Compression quality rating from 1 to 100 for lossy formats. Defaults to 85.
+
+  Returns:
+  - An object containing metadata of the saved rotated image: `path`, `format`, `width`, `height`, `mode`, and `bytes`.
+
+  Example:
+  ```sesi
+  let rotated = rotate("source.png", "rotated.png", 90, true)
+  show "New size after rotation:" rotated.width "x" rotated.height
+  ```
+
+  Notes:
+  - When `expand` is set to `false`, the rotated image is clipped to the original image dimensions.
+*/
+export fn rotate(input_path: string, output_path: string, degrees: number, expand: bool = true, quality: number = 85) -> object {
+  return process("rotate", input_path, output_path, {
+    degrees: degrees,
+    expand: expand,
+    quality: quality
+  })
+}
+/**
+  Optimizes an image file for storage or web delivery by applying compression and optional maximum boundary constraints while maintaining aspect ratio.
+
+  Parameters:
+  - `input_path`: Path to the source image file.
+  - `output_path`: Path where the optimized image will be saved.
+  - `quality`: Compression quality rating from 1 to 100. Defaults to 85.
+  - `max_width`: Optional maximum width constraint in pixels. If image exceeds this, it is scaled down proportionally.
+  - `max_height`: Optional maximum height constraint in pixels. If image exceeds this, it is scaled down proportionally.
+
+  Returns:
+  - An object containing metadata of the saved optimized image: `path`, `format`, `width`, `height`, `mode`, and `bytes`.
+
+  Example:
+  ```sesi
+  let opt = optimize("large_photo.jpg", "optimized.jpg", 80, 1920, 1080)
+  show "Optimized image size:" opt.bytes "bytes"
+  ```
+
+  Notes:
+  - When `max_width` or `max_height` is provided, scaling preserves the original aspect ratio without distortion.
+*/
+export fn optimize(input_path: string, output_path: string, quality: number = 85, max_width: number? = null, max_height: number? = null) -> object {
+  return process("optimize", input_path, output_path, {
+    quality: quality,
+    max_width: max_width,
+    max_height: max_height
+  })
+}

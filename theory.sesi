@@ -16,7 +16,7 @@ allow "std/terminal" in with {color}
 fn theory(output: string = "text", both: bool = false) -> string {
     let message = color("
     /*
-        Welcome to Sesi 1.9.0.
+        Welcome to Sesi 1.9.1.
         Sesi is a concise, readable scripting language for general programming,
         automation, creative tools, web services, and optional AI workflows.
     */

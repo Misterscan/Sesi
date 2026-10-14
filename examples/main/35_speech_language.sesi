@@ -1,60 +1,18 @@
 /*
   Example 35: Speech and Transcription
 
-  Uses Whisper for transcription and the operating-system voice for speech.
+  Uses OpenAI or Gemini for transcription and the operating-system voice for speech.
 
 Usage:
   sesi examples/main/35_speech_language.sesi
   sesi examples/main/35_speech_language.sesi --ai 
 
-  Note: This example requires CMake to be installed for the `from_speech()` function to work.
+  Set OPENAI_API_KEY for transcription and GEMINI_API_KEY for AI speech.
 */
-allow "shell-automation" in with {brew_install}
 allow "helpers/safe" in as safe
-
-/**
-  Get the operating system platform.
-
-  Returns:
-  A string representing the OS platform (e.g., "darwin", "win32", "linux").
-*/
-fn getOS() {return trim(js("console.log(require('os').platform())"))}
-let platform = getOS()
-
 allow "std/terminal" in with {color}
 
 let tts = "Text to speak: " | input
-
-// Check if CMake is installed
-let cmakeFound = "const cp=require('child_process');const p=require('os').platform();try{cp.execFileSync(p==='win32'?'where.exe':'which',['cmake'],{stdio:['ignore','pipe','ignore']});console.log('yes')}catch(e){console.log('no')}" | js | trim
-let installCMake = ""
-
-if cmakeFound == "yes" {
-  show color("CMake is already installed.\n", "green")
-} else if platform == "darwin" {
-  let brewFound = "const cp=require('child_process');try{cp.execFileSync('which',['brew'],{stdio:['ignore','pipe','ignore']});console.log('yes')}catch(e){console.log('no')}" | js | trim
-  if brewFound == "yes" {
-    show color("CMake is not installed. It is required for the 'from_speech()' demonstration.", "yellow")
-    // Prompt user to install CMake via Homebrew
-    installCMake = color("Allow Sesi to install CMake with Homebrew? (y/n): ", "yellow") | input
-  } else {
-    show color("CMake is not installed. Install Homebrew from https://brew.sh, then run: brew install cmake", "yellow")
-  }
-} else if platform == "win32" {
-  show color("CMake is not installed. Install it from https://cmake.org/download/ or run: winget install Kitware.CMake", "yellow")
-} else {
-  show color("CMake is not installed. Install it with your system package manager before using from_speech().", "yellow")
-}
-
-if trim(installCMake) == "y" {
-  try { // Install CMake via Homebrew
-      "cmake" | brew_install
-      show color("CMake installed successfully.", "green")
-  } catch (e) {
-      show color("Error installing CMake: " + str(e), "red")
-  }
-}
-if (installCMake | trim) == "n" {show color("Skipping 'from_speech()' demonstration.", "yellow")}
 
 if tts != "" && (args[0] != "ai" || args[0] == null) {
   show "Text to speak:" tts
@@ -67,12 +25,10 @@ if tts != "" && (args[0] != "ai" || args[0] == null) {
 
   try {
     transcript = audioPath | from_speech
-    // Clean up common subtitle timestamps in Whisper transcription output
-    if contains(transcript, "[") && contains(transcript, "-->") {transcript = js("const t=" + to_json(transcript) + ";console.log(t.replace(/\\[\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\s*-->\\s*\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\]/g,'').trim())")}
   } catch (e) {
     show color("Error transcribing audio: " + str(e), "red")
   }
-  audioPath | safe.remove; "audio_text.wav.txt" | safe.remove
+  audioPath | safe.remove
 
   if is_null(transcript) || trim(transcript) == "" || includes(transcript, "Error:") {
     show color("No transcription was produced.", "yellow")

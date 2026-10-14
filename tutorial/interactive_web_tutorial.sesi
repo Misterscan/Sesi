@@ -33,12 +33,12 @@ let MAX_CODE_LENGTH = 50000
 */
 fn json_response(status, payload) {
   return {
-    "status": status,
-    "headers": {
+    status: status,
+    headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store"
     },
-    "body": to_json(payload)
+    body: to_json(payload)
   }
 }
 
@@ -60,80 +60,91 @@ fn handleRequest(req) {
   if req.method == "GET" && req.path == "/" {
     try {
       return {
-        "status": 200,
-        "headers": {
+        status: 200,
+        headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Cache-Control": "no-store",
           "X-Content-Type-Options": "nosniff"
         },
-        "body": safe.read(FRONTEND)
+        body: safe.read(FRONTEND)
       }
     } catch (err) {
       return {
-        "status": 500,
-        "headers": {"Content-Type": "text/plain; charset=utf-8"},
-        "body": "Could not load tutorial/tutorial_frontend.html.\n" + str(err)
+        status: 500,
+        headers: {"Content-Type": "text/plain; charset=utf-8"},
+        body: "Could not load tutorial/tutorial_frontend.html.\n" + str(err)
       }
     }
   }
-
-  if req.method == "GET" && req.path == "/health" {
-    return json_response(200, {"ok": true, "service": "sesi-tutorial"})
+  if req.method == "GET" && req.path == "/styles.css" {
+    try {
+      return {
+        status: 200,
+        headers: {
+          "Content-Type": "text/css; charset=utf-8",
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff"
+        },
+        body: safe.read("tutorial/styles.css")
+      }
+    } catch (err) {
+      return {
+        status: 500,
+        headers: {"Content-Type": "text/plain; charset=utf-8"},
+        body: "Could not load tutorial/styles.css.\n" + str(err)
+      }
+    }
   }
-
+  if req.method == "GET" && req.path == "/tutorial.js" {
+    try {
+      return {
+        status: 200,
+        headers: {
+          "Content-Type": "application/javascript; charset=utf-8",
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff"
+        },
+        body: safe.read("tutorial/tutorial.js")
+      }
+    } catch (err) {
+      return {
+        status: 500,
+        headers: {"Content-Type": "text/plain; charset=utf-8"},
+        body: "Could not load tutorial/tutorial.js.\n" + str(err)
+      }
+    }
+  }
   if req.method == "POST" && req.path == "/run" {
     let temp_file = null
     let response = null
-
     try {
       let payload = from_json(req.body)
-      let code = payload["code"]
-
-      if type(code) != "string" {
-        return json_response(400, {"error": "The request must include a string field named 'code'."})
-      }
-
-      if len(trim(code)) == 0 {
-        return json_response(400, {"error": "Write some Sesi code before running the lesson."})
-      }
-
-      if len(code) > MAX_CODE_LENGTH {
-        return json_response(413, {"error": "Code is limited to 50,000 characters in the tutorial."})
-      }
-
+      let code = payload.code
+      if type(code) != "string" { return json_response(400, {error: "The request must include a string field named 'code'."}) }
+      if len(trim(code)) == 0 { return json_response(400, {error: "Write some Sesi code before running the lesson."}) }
+      if len(code) > MAX_CODE_LENGTH { return json_response(413, {"error": "Code is limited to 50,000 characters in the tutorial."}) }
       temp_file = "tutorial/.tmp_run_" + str(time()) + ".sesi"
       safe.write(temp_file, code)
-
       run_sesi(temp_file, false, true)
       let out = run("sesi " + temp_file)
-
-      response = json_response(200, {"output": out})
-    } catch (err) {
-      response = json_response(200, {"error": str(err)})
-    }
-
+      response = json_response(200, {output: out})
+    } catch (err) { response = json_response(200, {error: str(err)}) }
     if temp_file != null {
-      try {
-        safe.remove(temp_file)
-      } catch (cleanup_error) {}
+      try { safe.remove(temp_file) } 
+      catch (cleanup_error) {}
     }
-
     return response
   }
-
-  return json_response(404, {"error": "Not found"})
+  if req.method == "GET" && req.path == "/health" { return json_response(200, {ok: true, service: "sesi-tutorial"}) }
+  return json_response(404, {error: "Not found"})
 }
 
 let server = listen(PORT, handleRequest)
-TERM.info("Sesi Learning Lab is starting...")
+TERM.header("Sesi Learning Lab is starting...")
 sleep(500)
 TERM.box("Online!")
-
-try {
-  open(HOST)
-} catch (e) {
-  TERM.error("Could not automatically open browser. Please visit " + HOST)
-}
-TERM.info("\nPress Enter anytime to stop the server...\n")
+try { open(HOST) } 
+catch (e) { TERM.error("Could not automatically open browser. Please visit " + HOST) }
+TERM.info("Press Enter anytime to stop the server...\n")
 let end = input("")
 server.close(end)

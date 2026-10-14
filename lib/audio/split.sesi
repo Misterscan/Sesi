@@ -1,0 +1,232 @@
+allow "std/math" in as Math
+/**
+  Pads an integer with leading zeros to ensure a 3-digit sequential format.
+
+  Parameters:
+  - `n`: The number to format.
+
+  Returns:
+  - A 3-digit padded string (e.g. `001`, `042`).
+*/
+fn pad3(n: number) -> string {
+  let s = str(n)
+  if len(s) == 1 { return "00" + s
+  } else if len(s) == 2 { return "0" + s }
+  return s
+}
+/**
+  Calculates root mean square (RMS) amplitude of a slice of normalized audio samples.
+
+  Parameters:
+  - `samples`: Array of normalized audio samples in [-1.0, 1.0].
+  - `start_idx`: Starting sample index.
+  - `end_idx`: Ending sample index (exclusive).
+
+  Returns:
+  - RMS amplitude as a float.
+*/
+fn calculate_rms(samples: array<number>, start_idx: number, end_idx: number) -> number {
+  let count = end_idx - start_idx
+  if count <= 0 { return 0.0 }
+  let sum_sq = 0.0
+  let i = start_idx
+  while i < end_idx {
+    let val = samples[i]
+    sum_sq = sum_sq + (val * val)
+    i = i + 1
+  }
+  return Math.sqrt(sum_sq / count)
+}
+/**
+  Detects non-silent segments in loaded PCM audio based on a dBFS silence threshold.
+
+  Parameters:
+  - `samples`: Array of normalized audio samples.
+  - `sample_rate`: Sample rate in Hz.
+  - `min_silence_len`: Minimum consecutive silence duration in milliseconds to split.
+  - `silence_thresh`: Silence threshold in dBFS (e.g. -40).
+
+  Returns:
+  - An array of ranges `[{start_ms: number, end_ms: number}, ...]`.
+*/
+fn detect_nonsilent_ranges(samples: array<number>, sample_rate: number, min_silence_len: number, silence_thresh: number) -> array {
+  let total_samples = len(samples)
+  if total_samples == 0 { return [] }
+  // Convert dBFS threshold to linear amplitude: amp = 10 ^ (dBFS / 20)
+  let linear_thresh = Math.pow(10.0, silence_thresh / 20.0)
+  // Analyze audio in 25ms windows to detect sound activity
+  let window_ms = 25
+  let window_size = Math.floor((sample_rate * window_ms) / 1000)
+  if window_size <= 0 { window_size = 1 }
+  let min_silence_windows = Math.floor(min_silence_len / window_ms)
+  let total_windows = Math.floor(total_samples / window_size)
+  let in_sound = false
+  let segment_start_ms = 0
+  let silent_window_count = 0
+  let ranges = []
+  let w = 0
+  while w < total_windows {
+    let start_idx = w * window_size
+    let end_idx = start_idx + window_size
+    if end_idx > total_samples { end_idx = total_samples }
+    let rms = calculate_rms(samples, start_idx, end_idx)
+    let is_silent = rms < linear_thresh
+    let current_time_ms = Math.floor((start_idx / sample_rate) * 1000)
+    if !in_sound {
+      if !is_silent {
+        in_sound = true
+        segment_start_ms = current_time_ms
+        silent_window_count = 0
+      }
+    } else {
+      if is_silent {
+        silent_window_count = silent_window_count + 1
+        if silent_window_count >= min_silence_windows {
+          // Reached split boundary; record completed non-silent chunk
+          let segment_end_ms = current_time_ms - (silent_window_count * window_ms)
+          if segment_end_ms > segment_start_ms { push(ranges, {start_ms: segment_start_ms, end_ms: segment_end_ms}) }
+          in_sound = false
+          silent_window_count = 0
+        }
+      } else { silent_window_count = 0 }
+    }
+    w = w + 1
+  }
+  // Flush trailing audio segment if audio ended during speech
+  if in_sound {
+    let total_audio_ms = Math.floor((total_samples / sample_rate) * 1000)
+    push(ranges, {start_ms: segment_start_ms, end_ms: total_audio_ms})
+  }
+  return ranges
+}
+/**
+  Splits an audio file into smaller clips based on detected silences.
+
+  Parameters:
+  - `input_path`: Path to the input audio file.
+  - `output_dir`: Directory where the output clips will be saved.
+  - `min_silence_len`: Minimum length of silence in ms to trigger a split.
+  - `silence_thresh`: Threshold in dBFS.
+  - `keep_silence`: Padding silence in ms to retain on each clip boundary.
+
+  Returns:
+  - `null`
+
+  Example:
+  ```sesi
+  split_audio_by_silence("input.wav", "output_clips", 1000, -40, 250)
+  ```
+
+  Notes:
+  - The function relies on `ffmpeg` for audio decoding if the input is not a WAV file.
+  - The `silence_thresh` parameter is in dBFS; lower values make the function more sensitive to quiet sounds.
+  - The `keep_silence` parameter ensures that a small portion of silence is retained at the start and end of each clip.
+*/
+export fn split_audio_by_silence(input_path: string, output_dir: string, min_silence_len: number = 1000, silence_thresh: number = -40, keep_silence: number = 250) {
+  if !exists(input_path) {
+    show "ERROR: Input file not found:" input_path
+    return null
+  }
+  // Ensure output directory exists
+  make_dir(output_dir)
+  show "INFO: Loading audio file:" input_path
+  // Transcode to an intermediate WAV via ffmpeg if input is not already WAV
+  let wav_path = input_path
+  let ext = get_ext(input_path)
+  let cleanup_tmp = false
+  if ext != "wav" {
+    let tmp_wav = output_dir + "/_temp_input.wav"
+    try {
+      ffmpeg(["-y", "-i", input_path, "-ac", "1", "-ar", "44100", tmp_wav])
+      wav_path = tmp_wav
+      cleanup_tmp = true
+    } catch (err) {
+      show "ERROR: Failed to decode input file. Ensure ffmpeg is available. Error:" err
+      return null
+    }
+  }
+  // Read and parse decoded PCM audio data
+  allow "std/audio" in as Audio
+  let audio_data = null
+  try { audio_data = Audio.load(wav_path) } 
+  catch (err) {
+    show "ERROR: Failed to load audio PCM buffer. Error:" err
+    if cleanup_tmp { trash(wav_path, true) }
+    return null
+  }
+  show "INFO: Detecting non-silent segments... (This may take a while for long files)"
+  let ranges = detect_nonsilent_ranges(audio_data.samples, audio_data.sampleRate, min_silence_len, silence_thresh)
+  if len(ranges) == 0 { show "WARNING: No non-silent segments detected. The audio might be entirely silent or the threshold is too high."
+    if cleanup_tmp { trash(wav_path, true) }
+    return null
+  }
+  show "INFO: Detected" len(ranges) "clips. Starting export..."
+  let total_audio_ms = Math.floor((len(audio_data.samples) / audio_data.sampleRate) * 1000)
+  let i = 0
+  while i < len(ranges) {
+    let rng = ranges[i]
+    // Apply keep_silence padding within audio bounds
+    let start_ms = Math.max(0, rng.start_ms - keep_silence)
+    let end_ms = Math.min(total_audio_ms, rng.end_ms + keep_silence)
+    let duration_ms = end_ms - start_ms
+    let start_sec = str(start_ms / 1000.0)
+    let dur_sec = str(duration_ms / 1000.0)
+    let clip_filename = "clip_" + pad3(i + 1) + ".wav"
+    let clip_path = output_dir + "/" + clip_filename
+    try {
+      // Export sliced chunk using fast stream-level slicing
+      ffmpeg(["-y", "-ss", start_sec, "-t", dur_sec, "-i", wav_path, clip_path])
+      show "INFO: Exported:" clip_filename "(Duration:" duration_ms "ms)"
+    } catch (err) { show "ERROR: Failed to export" clip_filename "Error:" err }
+    i = i + 1
+  }
+  // Cleanup temporary converted WAV if one was generated
+  if cleanup_tmp { trash(wav_path, true) }
+  show "INFO: Audio splitting complete!"
+}
+/**
+  Command-line interface for the audio splitting script.
+
+  Parameters:
+  - `input_file`: Path to the input audio file.
+  - `out_dir`: Directory to save the output clips. Defaults to `"output_clips"`.
+  - `min_len`: Minimum length of non-silent segments in milliseconds. Defaults to `1000`.
+  - `thresh`: Silence threshold in dBFS. Defaults to `-40`.
+  - `padding`: Amount of silence to retain around non-silent segments in milliseconds. Defaults to `250`.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  cli()
+  ```
+
+  Notes:
+
+  - The CLI parses command-line arguments to configure the audio splitting process.
+  - If no input file is provided, it displays usage information.
+  - The script supports optional arguments for output directory, minimum segment length, silence threshold, and padding.
+*/
+fn cli(input_file: str = "", out_dir: str = "output_clips", min_len: num = 1000, thresh: num = -40, padding: num = 250) {
+  let idx = 0
+  while idx < len(args) {
+    let arg = args[idx]
+    if arg == "--out" && (idx + 1) < len(args) {
+      out_dir = args[idx + 1]
+      idx = idx + 1
+    } else if arg == "--min-len" && (idx + 1) < len(args) {
+      min_len = num(args[idx + 1])
+      idx = idx + 1
+    } else if arg == "--thresh" && (idx + 1) < len(args) {
+      thresh = num(args[idx + 1])
+      idx = idx + 1
+    } else if arg == "--padding" && (idx + 1) < len(args) {
+      padding = num(args[idx + 1])
+      idx = idx + 1
+    } else if !starts_with(arg, "--") && input_file == "" { input_file = arg }
+    idx = idx + 1
+  }
+  if input_file == "" { show "Usage: sesi lib/audio/split.sesi <input> [--out <dir>] [--min-len <ms>] [--thresh <dBFS>] [--padding <ms>]"
+  } else { split_audio_by_silence(input_file, out_dir, min_len, thresh, padding) }
+}

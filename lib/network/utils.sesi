@@ -5,7 +5,6 @@
 
  Use these functions to simplify network operations and web content handling in your applications.
 */
-
 /**
   Perform an HTTP GET request to a URL and return its response body.
 
@@ -36,14 +35,12 @@
   - Use `getWithHeaders` when custom request headers are required.
 */
 export fn get(url: string) -> any {
-    try {
-        return web_get(url)
-    } catch (e) {
+    try { return web_get(url) }
+    catch (e) {
         show e.message
         return null
     }
 }
-
 /**
   Check whether a host responds to an HTTP request.
 
@@ -77,7 +74,6 @@ export fn ping(host: string) -> bool {
     let response = get("http://" + host)
     return response != null && response != ""
 }
-
 /**
   Perform an HTTP GET request and parse the response as JSON.
 
@@ -110,14 +106,12 @@ export fn getJSON(url: string) -> any {
         show "Failed to reach:" url
         return response
     }
-    try {
-        return from_json(response)
-    } catch (e) {
+    try { return from_json(response) }
+    catch (e) {
         show e.message
         return null
     }
 }
-
 /**
   Perform an HTTP GET request with custom headers and parse the response as JSON.
 
@@ -152,14 +146,12 @@ export fn getJSONWithHeaders(url: string, headers: object) -> any {
         show "Failed to reach:" url
         return response
     }
-    try {
-        return from_json(response)
-    } catch (e) {
+    try { return from_json(response) }
+    catch (e) {
         show e.message
         return null
     }
 }
-
 /**
   Perform an HTTP GET request with custom headers.
 
@@ -189,14 +181,12 @@ export fn getJSONWithHeaders(url: string, headers: object) -> any {
   - Request failures are printed and converted to `null`.
 */
 export fn getWithHeaders(url: string, headers: object) -> any {
-    try {
-        return web_get(url, headers)
-    } catch (e) {
+    try { return web_get(url, headers) }
+    catch (e) {
         show "Failed to reach:" url ":" e.message
         return null
     }
 }
-
 /**
   Perform an HTTP POST request with a payload.
 
@@ -227,14 +217,12 @@ export fn getWithHeaders(url: string, headers: object) -> any {
   - Use `sendWithHeaders` to provide content-type or authorization headers.
 */
 export fn send(url: string, payload: object) -> any {
-    try {
-        return web_send(url, to_json(payload))
-    } catch (e) {
+    try { return web_send(url, to_json(payload)) }
+    catch (e) {
         show "Failed to reach:" url ":" e.message
         return null
     }
 }
-
 /**
   Perform an HTTP POST request with a payload and custom headers.
 
@@ -266,14 +254,12 @@ export fn send(url: string, payload: object) -> any {
   - Use `sendJSONWithHeaders` when the response should be parsed as JSON.
 */
 export fn sendWithHeaders(url: string, payload: object, headers: object) -> any {
-    try {
-        return web_send(url, to_json(payload), headers)
-    } catch (e) {
+    try { return web_send(url, to_json(payload), headers) }
+    catch (e) {
         show "Failed to reach:" url ":" e.message
         return null
     }
 }
-
 /**
   Perform an HTTP POST request and parse the response as JSON.
 
@@ -303,17 +289,13 @@ export fn sendWithHeaders(url: string, payload: object, headers: object) -> any 
 */
 export fn sendJSON(url: string, payload: object) -> any {
     let response = send(url, to_json(payload))
-    if response == null {
-        return response
-    }
-    try {
-        return from_json(response)
-    } catch (e) {
+    if response == null { return response }
+    try { return from_json(response) }
+    catch (e) {
         show "Failed to parse JSON:" e.message
         return null
     }
 }
-
 /**
   Perform an HTTP POST request with custom headers and parse the response as JSON.
 
@@ -348,17 +330,13 @@ export fn sendJSON(url: string, payload: object) -> any {
 */
 export fn sendJSONWithHeaders(url: string, payload: object, headers: object) -> any {
     let response = sendWithHeaders(url, to_json(payload), headers)
-    if response == null {
-        return response
-    }
-    try {
-        return from_json(response)
-    } catch (e) {
+    if response == null { return response }
+    try { return from_json(response) }
+    catch (e) {
         show "Failed to parse JSON:" e.message
         return null
     }
 }
-
 /**
   Retrieve the contents of a web page.
 
@@ -385,19 +363,12 @@ fn read(url: string) -> any {
     let contents = ""
     // Error to be raised if the page cannot be retrieved.
     let error: str = error_type("NetworkError", "Page not found. Make sure the URL is correct.")
-
     try {
-        if url | starts_with("http://") || url | starts_with("https://") {
-            contents = web_get(url)
-        } else {
-            contents = web_get("https://" + url)
-        }
+        if url | starts_with("http://") || url | starts_with("https://") { contents = web_get(url)
+        } else { contents = web_get("https://" + url) }
         return contents
-    } catch (e) {
-        return raise_error(error) + e.message
-    }
+    } catch (e) { return raise_error(error) + e.message }
 }
-
 /**
   Save web page contents to a local file.
 
@@ -432,10 +403,8 @@ fn save(url: string, path: string) -> bool {
     let error: str = error_type("NetworkError", "Page not found. Make sure the URL is correct.")
     // Error message for save failure when the page cannot be saved to the specified path.
     let saveError: str = error_type("SaveError", "Failed to save the page. Make sure the path is correct.")
-
     // Extract the directory path from the full file path to ensure the destination directory exists.
     let dir = path | split("/") | slice(0, -1) | join("/")
-
     if contents == error {
         show contents.message
         return false
@@ -447,11 +416,9 @@ fn save(url: string, path: string) -> bool {
             show raise_error(saveError) "\n" e.message
             return false
         }
-
         return true
     }
 }
-
 /**
   Extract external and inline CSS from a web page.
 
@@ -485,53 +452,36 @@ fn save(url: string, path: string) -> bool {
 fn getCssFromPage(url: string) -> any {
     // Error to be raised if no CSS is found on the page.
     let error: str = error_type("CSSNotFound", "CSS not found. Make sure the page contains CSS.")
-    // Helper function to extract the href link from a CSS link tag.
-    //
-    // Parameters:
-    // - `css`: The CSS link tag as a string.
-    // Returns the href link from the CSS link tag.
+    /* Helper function to extract the href link from a CSS link tag.
+    *
+    * Parameters:
+    * - `css`: The CSS link tag as a string.
+    * Returns the href link from the CSS link tag.
+    */
     fn getLinkFromCss(css: string) -> string {
         let link = regex("href=[\"']([^\"']+)[\"']", css, { "mode": "match" })
         return link[0].match
     }
-
     // Ensure the page URL starts with "http://" or "https://". If not, prepend "https://".
     let pageUrl = url
-    if !(pageUrl | starts_with("http://")) && !(pageUrl | starts_with("https://")) {
-        pageUrl = "https://" + pageUrl
-    }
+    if !(pageUrl | starts_with("http://")) && !(pageUrl | starts_with("https://")) { pageUrl = "https://" + pageUrl }
     // Retrieve the contents of the web page at the specified URL.
     let contents = get(pageUrl)
-    if contents == "" {
-        return raise_error(error)
-    }
-
+    if contents == "" { return raise_error(error) }
     // All stylesheet link tags in the page.
     let stylesheetTags = regex("<link(?=[^>]*\\brel\\s*=\\s*[\"'][^\"']*\\bstylesheet\\b[^\"']*[\"'])[^>]*>", contents, { "mode": "match", "flags": "gi" })
     // All inline style blocks in the page.
     let inlineStyles = regex("<style[^>]*>([\\s\\S]*?)</style>", contents, { "mode": "match", "flags": "gi" })
     // Array to store all extracted CSS blocks.
     let cssBlocks = []
-
-    for style in inlineStyles {
-        if style["captures"][0] != null {
-            push(cssBlocks, style["captures"][0])
-        }
-    }
-
+    for style in inlineStyles { if style["captures"][0] != null { push(cssBlocks, style["captures"][0]) } }
     for tag in stylesheetTags {
         let link = getLinkFromCss(tag["match"])
         let href = link | swap("href=", "") | swap("\"", "") | swap("'", "")
         let stylesheetUrl = trim(js("console.log(new URL(" + to_json(href) + ", " + to_json(pageUrl) + ").href)"))
         let stylesheet = get(stylesheetUrl)
-        if stylesheet != "" {
-            push(cssBlocks, stylesheet)
-        }
+        if stylesheet != "" { push(cssBlocks, stylesheet) }
     }
-
-    if (cssBlocks | len) == 0 {
-        return raise_error(error)
-    }
-
+    if (cssBlocks | len) == 0 { return raise_error(error) }
     return join(cssBlocks, "\n\n")
 }

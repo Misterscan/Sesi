@@ -1,4 +1,7 @@
 import { AIRuntime } from '../src/ai-runtime';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`Assertion failed: ${message}`);
@@ -36,8 +39,8 @@ async function main() {
   assert(response.text === 'ok', 'mock Gemini response is returned');
   assert(requests.length === 1, 'one Gemini request is sent');
   assert(
-    requests[0]?.config?.systemInstruction === 'Follow this instruction exactly.',
-    'Gemini receives the trimmed system instruction through generateContent config'
+    requests[0]?.config?.systemInstruction?.endsWith('Follow this instruction exactly.'),
+    'Gemini receives the trimmed system instruction after the runtime context'
   );
 
   await runtime.callModel({
@@ -101,8 +104,8 @@ async function main() {
 
   assert(chunks.join('') === 'streamed', 'stream callback receives Gemini output');
   assert(
-    streamedRequest?.config?.systemInstruction === 'Stream under these rules.',
-    'Gemini streaming receives the system instruction'
+    streamedRequest?.config?.systemInstruction?.endsWith('Stream under these rules.'),
+    'Gemini streaming receives the system instruction after the runtime context'
   );
 
   let imageRequest: any = null;
@@ -119,15 +122,58 @@ async function main() {
   const imageResponse = await runtime.callModel({
     model: 'gemini-3.1-flash-image',
     prompt: 'Draw the scene.',
+    audio: { data: 'mock-image-audio-base64', mimeType: 'audio/wav' },
     systemPrompt: 'Use the supplied art direction.',
     cache: false,
   });
 
   assert(imageResponse.text === 'mock-image', 'mock Gemini image response is returned');
   assert(
-    imageRequest?.config?.systemInstruction === 'Use the supplied art direction.',
-    'Gemini image generation receives the system instruction'
+    imageRequest?.config?.systemInstruction?.endsWith('Use the supplied art direction.'),
+    'Gemini image generation receives the system instruction after the runtime context'
   );
+  assert(
+    imageRequest?.contents?.[0]?.parts?.[0]?.inlineData?.mimeType === 'audio/wav'
+      && imageRequest?.contents?.[0]?.parts?.[0]?.inlineData?.data === 'mock-image-audio-base64',
+    'Gemini image generation receives inline audio'
+  );
+
+  let audioRequest: any = null;
+  runtime._client.models.generateContent = async (request: any) => {
+    audioRequest = request;
+    return {
+      candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'heard it' }] } }],
+      usageMetadata: { promptTokenCount: 7, candidatesTokenCount: 2 },
+    };
+  };
+  const audioResponse = await runtime.callModel({
+    model: 'gemini-3.5-flash',
+    prompt: 'What is in this recording?',
+    audio: { data: 'mock-wav-base64', mimeType: 'audio/wav' },
+    cache: false,
+  });
+  const audioParts = audioRequest?.contents?.[0]?.parts;
+  assert(audioResponse.text === 'heard it', 'Gemini audio response is returned');
+  assert(audioParts?.[0]?.inlineData?.mimeType === 'audio/wav', 'Gemini receives the audio MIME type');
+  assert(audioParts?.[0]?.inlineData?.data === 'mock-wav-base64', 'Gemini receives base64 audio data');
+  assert(audioParts?.[1]?.text === 'What is in this recording?', 'Gemini receives the audio prompt');
+
+  const audioFixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-audio-input-'));
+  const audioFixturePath = path.join(audioFixtureDir, 'sample.wav');
+  try {
+    fs.writeFileSync(audioFixturePath, Buffer.from('mock-local-wav'));
+    await runtime.callModel({
+      model: 'gemini-3.5-flash',
+      prompt: 'Inspect the local recording.',
+      audio: audioFixturePath,
+      cache: false,
+    });
+    const localAudio = audioRequest?.contents?.[0]?.parts?.[0]?.inlineData;
+    assert(localAudio?.mimeType === 'audio/wav', 'local audio extension is mapped to a MIME type');
+    assert(localAudio?.data === Buffer.from('mock-local-wav').toString('base64'), 'local audio is base64 encoded');
+  } finally {
+    fs.rmSync(audioFixtureDir, { recursive: true, force: true });
+  }
 
   let omniRequest: any = null;
   runtime._client.interactions = {
@@ -137,7 +183,7 @@ async function main() {
     },
   };
   const omniVideo = await runtime.callVideo({
-    model: 'gemini-omni-flash-preview',
+    model: 'gemini-omni-1.1-flash',
     prompt: 'Animate a marble run.',
     ratio: '9:16',
   });

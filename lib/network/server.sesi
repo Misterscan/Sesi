@@ -1,0 +1,429 @@
+/**
+  HTTP Server and Routing Module for Sesi.
+
+  Provides utilities for constructing standard HTTP responses, parsing JSON bodies
+  and query strings, pattern-matching URL routes with dynamic path parameters, and
+  managing HTTP server instances with middleware chains and method-based routing.
+*/
+/**
+  Constructs a plain-text HTTP response object with appropriate headers.
+
+  Parameters:
+  - status: The HTTP status code number (e.g., 200, 404, 500).
+  - body: The response text content. Defaults to an empty string.
+
+  Returns:
+  - An HTTP response object containing `status`, `body`, and `headers`.
+
+  Example:
+  ```sesi
+  let res = text_response(200, "Operation successful")
+  show res.status // 200
+  show res.body   // Operation successful
+  ```
+
+  Notes:
+  - Sets the `Content-Type` header to `"text/plain; charset=utf-8"`.
+*/
+export fn text_response(status: number, body: string = "") -> object { return { status: status, body: body, headers: {"Content-Type": "text/plain; charset=utf-8"} } }
+/**
+  Serializes data to JSON and returns a structured HTTP response object.
+
+  Parameters:
+  - status: The HTTP status code number (e.g., 200, 201).
+  - data: The value, object, or array to serialize into JSON format.
+
+  Returns:
+  - An HTTP response object containing `status`, serialized JSON `body`, and `headers`.
+
+  Example:
+  ```sesi
+  let user = {id: 1, name: "Ada"}
+  let res = json_response(200, user)
+  show res.body // {"id":1,"name":"Ada"}
+  ```
+
+  Notes:
+  - Automatically serializes `data` using `to_json()`.
+  - Sets the `Content-Type` header to `"application/json; charset=utf-8"`.
+*/
+export fn json_response(status: number, data: any) -> object { return { status: status, body: to_json(data), headers: {"Content-Type": "application/json; charset=utf-8"} } }
+/**
+  Safely parses the JSON string body from an incoming HTTP request object.
+
+  Parameters:
+  - req: The incoming HTTP request object containing an optional `body` field.
+
+  Returns:
+  - The parsed JSON value (object, array, etc.), or `null` if parsing fails or `body` is empty.
+
+  Example:
+  ```sesi
+  let req = {body: "{\"role\": \"admin\"}"}
+  let payload = parse_json_body(req)
+  show payload.role // admin
+  ```
+
+  Notes:
+  - Wraps parsing in a `try/catch` block to handle malformed JSON strings safely without throwing.
+*/
+export fn parse_json_body(req: object) -> any {
+  if !req.body { return null }
+  try { return from_json(req.body) }
+  catch (err) { return null }
+}
+/**
+  Parses query parameters from a request URL path into a key-value object.
+
+  Parameters:
+  - req: The incoming HTTP request object containing a `path` property.
+
+  Returns:
+  - An object mapping query parameter names to their string values.
+
+  Example:
+  ```sesi
+  let req = {path: "/search?query=sesi&page=2"}
+  let params = query_params(req)
+  show params.query // sesi
+  show params.page  // 2
+  ```
+
+  Notes:
+  - Splits key-value pairs by `&` and `=` delimiters.
+  - Returns an empty object if no query string is present in the request path.
+*/
+export fn query_params(req: object) -> object {
+  let result = {}
+  let parts = split(req.path || "/", "?")
+  if len(parts) < 2 { return result }
+  for pair in split(parts[1], "&") {
+    let fields = split(pair, "=")
+    if fields[0] != "" { result[fields[0]] = fields[1] || "" }
+  }
+  return result
+}
+/**
+  Matches an incoming request path against a route pattern supporting parameter extraction.
+
+  Parameters:
+  - pattern: The route pattern containing literal segments and dynamic `:param` tokens.
+  - path: The incoming request path to test.
+
+  Returns:
+  - An object containing extracted dynamic parameter keys and values, or `null` if the path does not match the pattern.
+
+  Example:
+  ```sesi
+  let params = match_path("/users/:id", "/users/42")
+  show params.id // 42
+  ```
+
+  Notes:
+  - Dynamic segments must start with a colon (e.g. `:id`, `:name`).
+  - Segment count and exact non-parameter string values must match.
+*/
+fn match_path(pattern: string, path: string) -> object? {
+  let expected = split(pattern, "/")
+  let actual = split(path, "/")
+  if len(expected) != len(actual) { return null }
+  let params = {}
+  for i = 0 to len(expected) {
+    let segment = expected[i]
+    let name_parts = split(segment, ":")
+    if len(name_parts) == 2 && name_parts[0] == "" && name_parts[1] != "" {
+      if actual[i] == "" { return null }
+      params[name_parts[1]] = actual[i]
+    } else if segment != actual[i] { return null }
+  }
+  return params
+}
+/**
+  Normalizes arbitrary handler output into a standardized HTTP response object.
+
+  Parameters:
+  - value: The return value produced by a route handler or middleware.
+
+  Returns:
+  - A formatted HTTP response object containing `status`, `body`, and `headers`.
+
+  Example:
+  ```sesi
+  let res = normalize_result("OK")
+  show res.status // 200
+  show res.body   // OK
+  ```
+
+  Notes:
+  - Converts `null` or `undefined` returns to a 204 No Content response.
+  - Passes through existing response objects that already contain a `status` field.
+  - Coerces other primitive/string return values to a 200 OK text response.
+*/
+fn normalize_result(value: any) -> object {
+  if value == null { return text_response(204) }
+  if value?.status { return value }
+  return text_response(200, str(value))
+}
+/**
+  Server template managing route registrations, middleware execution, and HTTP dispatching.
+*/
+export make Server {
+  /**
+  * Collection of registered route definitions.
+  *
+  * Fields:
+  * - method: Uppercase HTTP method string or wildcard "*".
+  * - path: Route path pattern string.
+  * - handler: Handler function invoked when matched.
+  *
+  * Notes:
+  * - Routes are evaluated sequentially in the order they are declared.
+  */
+  let routes = []
+  /**
+  * List of middleware functions executed before routing.
+  *
+  * Notes:
+  * - Middlewares are called in order of registration.
+  * - If a middleware returns a non-null value, request processing halts and returns that response.
+  */
+  let middlewares = []
+  /**
+  * Active HTTP listener handle returned by `listen()`.
+  *
+  * Notes:
+  * - Holds the runtime server listener handle or `null` when inactive.
+  */
+  let listener = any
+  /**
+  * Registers a generic route with a custom HTTP method, path, and handler.
+  *
+  * Parameters:
+  * - self: The Server instance.
+  * - method: The HTTP method string (e.g. "GET", "POST", "*").
+  * - path: The URL pattern string.
+  * - handler: The handler function receiving the request object.
+  *
+  * Returns:
+  * - The Server instance (`self`) for method chaining.
+  *
+  * Example:
+  * ```sesi
+  * server.route("GET", "/items", json_response(200, [1, 2, 3]))
+  * ```
+  *
+  * Notes:
+  * - Converts `method` to uppercase automatically.
+  */
+  fn route(self, method: string, path: string, handler: any) {
+    push(self.routes, { method: to_upper(method), path: path, handler: handler })
+    return self
+  }
+  /**
+  * Registers a GET route handler.
+  *
+  * Parameters:
+  * - self: The Server instance.
+  * - path: The URL pattern string.
+  * - handler: The handler function receiving the request object.
+  *
+  * Returns:
+  * - The Server instance (`self`) for method chaining.
+  *
+  * Example:
+  * ```sesi
+  * server.get("/items", json_response(200, [1, 2, 3]))
+  * ```
+  */
+  fn get(self, path: string, handler: any) { return self.route("GET", path, handler) }
+  /**
+  * Registers a POST route handler.
+  *
+  * Parameters:
+  * - self: The Server instance.
+  * - path: The URL pattern string.
+  * - handler: The handler function receiving the request object.
+  *
+  * Returns:
+  * - The Server instance (`self`) for method chaining.
+  *
+  * Example:
+  * ```sesi
+  * server.post("/items", text_response(201, "created"))
+  * ```
+  */
+  fn post(self, path: string, handler: any) { return self.route("POST", path, handler) }
+  /**
+  * Registers a PUT route handler.
+  *
+  * Parameters:
+  * - self: The Server instance.
+  * - path: The URL pattern string.
+  * - handler: The handler function receiving the request object.
+  *
+  * Returns:
+  * - The Server instance (`self`) for method chaining.
+  *
+  * Example:
+  * ```sesi
+  * server.put("/items/:id", json_response(200, "updated"))
+  * ```
+  */
+  fn put(self, path: string, handler: any) { return self.route("PUT", path, handler) }
+  /**
+  * Registers a PATCH route handler.
+  *
+  * Parameters:
+  * - self: The Server instance.
+  * - path: The URL pattern string.
+  * - handler: The handler function receiving the request object.
+  *
+  * Returns:
+  * - The Server instance (`self`) for method chaining.
+  *
+  * Example:
+  * ```sesi
+  * server.patch("/items/:id", json_response(200, "patched"))
+  * ```
+  */
+  fn patch(self, path: string, handler: any) { return self.route("PATCH", path, handler) }
+  /**
+  * Registers a DELETE route handler.
+  *
+  * Parameters:
+  * - self: The Server instance.
+  * - path: The URL pattern string.
+  * - handler: The handler function receiving the request object.
+  *
+  * Returns:
+  * - The Server instance (`self`) for method chaining.
+  *
+  * Example:
+  * ```sesi
+  * server.delete("/items/:id", json_response(200, "deleted"))
+  * ```
+  */
+  fn delete(self, path: string, handler: any) { return self.route("DELETE", path, handler) }
+  /**
+  * Adds a middleware function to the execution chain.
+  *
+  * Parameters:
+  * - self: The Server instance.
+  * - middleware: A function receiving the request object.
+  *
+  * Returns:
+  * - The Server instance (`self`) for method chaining.
+  *
+  * Example:
+  * ```sesi
+  * fn logger(req) { show "Request received: " + req.path }
+  * server.use(logger)
+  * ```
+  */
+  fn use(self, middleware: any) {
+    push(self.middlewares, middleware)
+    return self
+  }
+  /**
+  * Dispatches an incoming request through middleware and route matching.
+  *
+  * Parameters:
+  * - self: The Server instance.
+  * - req: The raw incoming request object.
+  *
+  * Returns:
+  * - A normalized HTTP response object matching the request or an error response (404, 405).
+  *
+  * Example:
+  * ```sesi
+  * let res = server.dispatch({method: "GET", path: "/users/1"})
+  * show res.status // 200
+  * ```
+  *
+  * Notes:
+  * - Injects parsed `params` and `query` into the request object before handler execution.
+  * - Returns a 405 Method Not Allowed response with the `Allow` header if the route path exists under other HTTP methods.
+  */
+  fn dispatch(self, req: object) -> object {
+    let method = to_upper(req.method || "GET")
+    let path = split(req.path || "/", "?")[0]
+    for middleware in self.middlewares {
+      let early_response = middleware(req)
+      if early_response != null { return normalize_result(early_response) }
+    }
+    let allowed = []
+    for route in self.routes {
+      let params = match_path(route.path, path)
+      if params != null {
+        if route.method == method || route.method == "*" {
+          req.params = params
+          req.query = query_params(req)
+          return normalize_result(route.handler(req))
+        }
+        push(allowed, route.method)
+      }
+    }
+    if len(allowed) > 0 { return { status: 405, body: "Method Not Allowed", headers: { "Content-Type": "text/plain; charset=utf-8", Allow: join(allowed, ", ") } } }
+    return text_response(404, "Not Found")
+  }
+  /**
+  * Starts listening for HTTP requests on the specified port.
+  *
+  * Parameters:
+  * - self: The Server instance.
+  * - port: The TCP port number to listen on (e.g. 8080).
+  *
+  * Returns:
+  * - The active listener object returned by `listen()`.
+  *
+  * Example:
+  * ```sesi
+  * let listener = server.serve(8080)
+  * show "Server running on port 8080"
+  * ```
+  *
+  * Notes:
+  * - Catches unhandled dispatch exceptions and produces 500 Internal Server Error responses.
+  */
+  fn serve(self, port: number) {
+    /**
+    * Internal handler wrapping request dispatching in a protective try-catch block.
+    *
+    * Parameters:
+    * - req: The raw incoming request object.
+    *
+    * Returns:
+    * - The generated response object or a 500 error response upon exception.
+    */
+    fn handle(req) {
+      try { return self.dispatch(req) }
+      catch (err) { return text_response(500, "Internal Server Error") }
+    }
+    self.listener = listen(port, handle)
+    return self.listener
+  }
+  /**
+  * Stops the active HTTP listener and closes connections.
+  *
+  * Parameters:
+  * - self: The Server instance.
+  *
+  * Returns:
+  * - None.
+  *
+  * Example:
+  * ```sesi
+  * server.stop()
+  * show "Server stopped"
+  * ```
+  *
+  * Notes:
+  * - Resets the internal `listener` field to `null`.
+  */
+  fn stop(self) {
+    if self.listener {
+      self.listener.close()
+      self.listener = null
+    }
+  }
+}

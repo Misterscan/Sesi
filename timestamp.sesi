@@ -2,39 +2,99 @@ allow "std/time" in with {
   now, format
 }
 
+/** Resolve friendly date-style aliases to standard styles. */
+fn resolveDateStyle(dateStyle: string) -> string {
+  if dateStyle == "number" || dateStyle == null || dateStyle == "" {
+    return "short"
+  }
+  if dateStyle == "name" {
+    return "medium"
+  }
+  return dateStyle
+}
+
+/** Resolve friendly time-style aliases to standard styles. */
+fn resolveTimeStyle(timeStyle: string) -> string {
+  if timeStyle == "basic" || timeStyle == null || timeStyle == "" {
+    return "short"
+  }
+  if timeStyle == "in_ms" {
+    return "medium"
+  }
+  if timeStyle == "detailed" {
+    return "full"
+  }
+  return timeStyle
+}
+
+/** Use Eastern Time when no time zone is supplied. */
+fn resolveTimeZone(timeZone: string) -> string {
+  if timeZone == null || timeZone == "" {
+    return "America/New_York"
+  }
+  return timeZone
+}
+
+/** Use US English when no locale is supplied. */
+fn resolveLocale(locale: string) -> string {
+  if locale == null || locale == "" {
+    return "en-US"
+  }
+  return locale
+}
+
 /*
   Convert the current date into a local readable format.
-  Supports friendly aliases ("number", "name") or standard styles ("short", "medium", "long", "full").
 
   Parameters:
   - `dateStyle`: The style in which to format the date. Can be "number", "name", or standard styles like "short", "medium", "long", "full".
 
   Returns:
   A string representing the current date formatted according to the specified style.
+
+  Example:
+  ```sesi
+  show getDate("number")
+  ```
+
+  Notes:
+  - The `dateStyle` parameter accepts both friendly aliases ("number", "name") and standard styles ("short", "medium", "long", "full").
 */
-export fn getDate(dateStyle: string) -> string {
-  let numerical = "short"
-  let with_letters = "medium"
+export fn getDate(dateStyle: string = "number") -> string {
+  return format(now(), {dateStyle: resolveDateStyle(dateStyle)})
+}
 
-  let resolvedStyle = dateStyle
-  if dateStyle == "number" {
-    resolvedStyle = numerical
-  } else if dateStyle == "name" {
-    resolvedStyle = with_letters
-  }
+/**
+  Convert the current date into a local readable format with time zone and locale support.
 
-  // if locale == null || locale == "" {
-  //   locale = "en-US" // Default to US English if no locale is specified
-  // }
+  Parameters:
+  - `timeZone`: The time zone in which to format the date (e.g., "America/New_York").
+  - `locale`: The locale to use for formatting (e.g., "en-US").
+  - `dateStyle`: The style in which to format the date. Can be "number", "name", or standard styles.
 
-  let timestamp = format(now(), {"dateStyle": resolvedStyle})
-  return timestamp
+  Returns:
+  A string representing the current date formatted according to the specified style, locale, and time zone.
+
+  Example:
+  ```sesi
+  show getDateInZone("America/Los_Angeles", "en-US", "name")
+  ```
+
+  Notes:
+  - The `timeZone` parameter should be a valid IANA time zone string (e.g., "America/New_York").
+  - The `locale` parameter should be a valid BCP 47 language tag (e.g., "en-US").
+  - The `dateStyle` parameter accepts both friendly aliases ("number", "name") and standard styles ("short", "medium", "long", "full").
+*/
+export fn getDateInZone(timeZone: string = "America/New_York", locale: string = "en-US", dateStyle: string = "number") -> string {
+  return format(now(), {
+    timeZone: resolveTimeZone(timeZone),
+    locale: resolveLocale(locale),
+    dateStyle: resolveDateStyle(dateStyle)
+  })
 }
 
 /*
   Convert the current time into a local readable format.
-  Supports friendly aliases ("basic", "in_ms", "detailed") or standard styles.
-  Also supports locale-specific formatting (e.g., "en-US", "fr-FR", "ja-JP") and time zone specification (e.g., "America/New_York", "Europe/London").
 
   Parameters:
   - `timeZone`: The time zone in which to format the time (e.g., "America/New_York").
@@ -43,34 +103,86 @@ export fn getDate(dateStyle: string) -> string {
 
   Returns:
   A string representing the current local time formatted according to the specified style, locale, and time zone.
+
+  Example:
+
+  ```sesi
+  show localTime("America/Los_Angeles", "en-US", "basic")
+  ```
+
+  Notes:
+  - The `timeZone` parameter should be a valid IANA time zone string (e.g., "America/New_York").
+  - The `locale` parameter should be a valid BCP 47 language tag (e.g., "en-US").
+  - The `timeStyle` parameter accepts both friendly aliases ("basic", "in_ms", "detailed") and standard styles ("short", "medium", "long", "full").
 */
-export fn localTime(timeZone: string, locale: string, timeStyle: string) -> string {
-  let compacted = "short"
-  let milliseconds = "medium"
-  let verbose = "full"
-
-  if timeZone == null || timeZone == "" {
-    timeZone = "America/New_York" // Default to Eastern Time if no time zone is specified
-  }
-
-  if locale == null || locale == "" {
-    locale = "en-US" // Default to US English if no locale is specified
-  }
-  
-  let resolvedStyle = timeStyle
-  if timeStyle == "basic" || timeStyle == null || timeStyle == "" {
-    resolvedStyle = compacted
-  } else if timeStyle == "in_ms" {
-    resolvedStyle = milliseconds
-  } else if timeStyle == "detailed" {
-    resolvedStyle = verbose
-  }
-
-  let timestamp = format(now(), {"timeZone": timeZone, "locale": locale, "timeStyle": resolvedStyle})
-  return timestamp
+export fn localTime(timeZone: string = "America/New_York", locale: string = "en-US", timeStyle: string = "basic") -> string {
+  return format(now(), {
+    timeZone: resolveTimeZone(timeZone),
+    locale: resolveLocale(locale),
+    timeStyle: resolveTimeStyle(timeStyle)
+  })
 }
 
-/* 
+/**
+  Convert the current date and time into a local readable format.
+
+  Parameters:
+  - `timeZone`: The time zone in which to format the date and time (e.g., "America/New_York").
+  - `locale`: The locale to use for formatting (e.g., "en-US").
+  - `dateStyle`: The style in which to format the date. Can be "number", "name", or standard styles.
+  - `timeStyle`: The style in which to format the time. Can be "basic", "in_ms", "detailed", or standard styles.
+
+  Returns:
+  A string representing the current local date and time formatted according to the specified styles, locale, and time zone.
+
+  Example:
+
+  ```sesi
+  show localDateTime("America/Los_Angeles", "en-US", "name", "basic")
+  ```
+
+  Notes:
+  - The `timeZone` parameter should be a valid IANA time zone string (e.g., "America/New_York").
+  - The `locale` parameter should be a valid BCP 47 language tag (e.g., "en-US").
+  - The `dateStyle` parameter accepts both friendly aliases ("number", "name") and standard styles ("short", "medium", "long", "full").
+  - The `timeStyle` parameter accepts both friendly aliases ("basic", "in_ms", "detailed") and standard styles ("short", "medium", "long", "full").
+*/
+export fn localDateTime(timeZone: string = "America/New_York", locale: string = "en-US", dateStyle: string = "name", timeStyle: string = "basic") -> string {
+  return format(now(), {
+    timeZone: resolveTimeZone(timeZone),
+    locale: resolveLocale(locale),
+    dateStyle: resolveDateStyle(dateStyle),
+    timeStyle: resolveTimeStyle(timeStyle)
+  })
+}
+
+/**
+  Convert the current date into a universal readable format (UTC).
+
+  Parameters:
+  - `dateStyle`: The style in which to format the date. Can be "number", "name", or standard styles.
+
+  Returns:
+  A string representing the current universal date (UTC) formatted in a readable style.
+
+  Example:
+
+  ```sesi
+  show universalDate("name")
+  ```
+
+  Notes:
+  - The `dateStyle` parameter accepts both friendly aliases ("number", "name") and standard styles ("short", "medium", "long", "full").
+*/
+export fn universalDate(dateStyle: string = "name") -> string {
+  return format(now(), {
+    timeZone: "UTC",
+    locale: "en-US",
+    dateStyle: resolveDateStyle(dateStyle)
+  })
+}
+
+/**
   Convert the current time into a universal readable format (UTC).
 
   Parameters:
@@ -78,16 +190,35 @@ export fn localTime(timeZone: string, locale: string, timeStyle: string) -> stri
 
   Returns:
   A string representing the current universal time (UTC) formatted in a readable style.
+
+  Example:
+
+  ```sesi
+  show universalTime()
+  ```
+
+  Notes:
+  - The time is always formatted in the "medium" style and appended with "UTC".
 */
 export fn universalTime() -> string {
-  let timestamp = format(now(), {"timeZone": "UTC", "timeStyle": "medium"})
-  return timestamp + " UTC"
+  return format(now(), {
+    timeZone: "UTC",
+    locale: "en-US",
+    timeStyle: "medium"
+  }) + " UTC"
+}
+
+export fn universalDateTime(dateStyle: string = "name", timeStyle: string = "in_ms") -> string {
+  return format(now(), {
+    timeZone: "UTC",
+    locale: "en-US",
+    dateStyle: resolveDateStyle(dateStyle),
+    timeStyle: resolveTimeStyle(timeStyle)
+  }) + " UTC"
 }
 
 /* 
   Format the time specifically for safe use in filenames.
-  Replaces spaces, colons, and AM/PM markers to prevent filesystem errors.
-  Supports locale-specific formatting and time zone specification.
 
   Parameters:
   - `timeZone`: The time zone in which to format the time (e.g., "America/New_York").
@@ -95,63 +226,121 @@ export fn universalTime() -> string {
 
   Returns:
   A string representing the current time formatted in a filesystem-safe manner.
+
+  Example:
+
+  ```sesi
+  let safeTime = formattedTime()
+  let logFile = "Current safe time: " + safeTime
+  write_file("log-" + safeTime + ".txt", logFile)
+  ```
+
+  Notes:
+  - The formatted time is safe to use in filenames across different operating systems.
 */
-export fn formattedTime(timeZone: string, locale: string) -> string {
-  let dateRef = getDate("number") // e.g., "6/4/2024"
-  let timeRef = localTime(timeZone, locale, "in_ms") // e.g., "12:04:32 PM"
-  
-  // Sequentially sanitize the string for cross-platform filesystem safety
-  fn sanitizeForFilename() -> string {
-    let safeTime = swap(timeRef, " ", "-")
-    let safeDate = swap(dateRef, "/", "-")
-    let safeT = swap(safeTime, ":", "-")
-    let safe = safeDate + "-" + safeT
-  
-    return safe // e.g., "6-4-2024-12-04-32-PM"
-  }
-  return sanitizeForFilename()
+export fn formattedTime(timeZone: string = "America/New_York", locale: string = "en-US") -> string {
+  let zone = resolveTimeZone(timeZone)
+  let language = resolveLocale(locale)
+  let instant = now()
+
+  let dateRef = format(instant, {
+    timeZone: zone,
+    locale: language,
+    dateStyle: "short"
+  })
+  let timeRef = format(instant, {
+    timeZone: zone,
+    locale: language,
+    timeStyle: "medium"
+  })
+
+  let safe = dateRef + "-" + timeRef
+  safe = swap(safe, "/", "-")
+  safe = swap(safe, "\\", "-")
+  safe = swap(safe, ":", "-")
+  safe = swap(safe, " ", "-")
+  safe = swap(safe, ",", "-")
+  safe = swap(safe, ".", "-")
+  safe = swap(safe, "<", "-")
+  safe = swap(safe, ">", "-")
+  safe = swap(safe, "\"", "-")
+  safe = swap(safe, "|", "-")
+  safe = swap(safe, "?", "-")
+  safe = swap(safe, "*", "-")
+  return safe
 }
 
-/*
-  Register the functions as Sesi-native AI tools.
-  This allows any reasoning model in your parent script to dynamically query the system clock.
+/**
+  Register the time-related functions as Sesi-native AI tools.
+
+  Returns:
+  An object containing references to the registered tools and their descriptions.
+
+  Example:
+
+  ```sesi
+  let tools = time_tools()
+  show tools
+  ```
 */
 export fn time_tools() {
   let tool_refs = {}
 
-  // Scoped helper function to register and track tools
-  fn register_tool(name: string, func, desc: string) {
-    define_tool(name, func, desc)
-    tool_refs[name] = desc
+  /**
+  *  Helper function to register a tool with its name, function reference, and description.
+  *
+  *  Parameters:
+  *  - name: The name of the tool to register.
+  *  - func: The function reference for the tool.
+  *  - description: A brief description of the tool's purpose.
+  *
+  *  Returns:
+  *  - None. The tool is registered and its description is stored in the tool_refs object.
+  *
+  *  Example:
+  *  ```sesi
+  *  register_tool("exampleTool", exampleFunction, "An example tool.")
+  *  ```
+  */
+  fn register_tool(name: string, func, description: string) {
+    define_tool(name, func, description)
+    tool_refs[name] = description
   }
 
-/*
-  Register the tools for easy calls within your scripts
-*/
-  register_tool("getDate",       getDate,       "Retrieve the current date. Accepts 'number', 'name', or standard styles.")
-  register_tool("localTime",     localTime,     "Retrieve the local time. Accepts 'basic', 'in_ms', 'detailed', or standard styles.")
-  register_tool("universalTime", universalTime, "Retrieve the current universal time (UTC) in short format.")
-  register_tool("formattedTime", formattedTime, "Retrieve a filesystem-safe timestamp (e.g., '12-04-32-PM') for file naming.")
+  register_tool("getDate", getDate, "Get the current local date using a friendly alias or standard date style.")
+  register_tool("getDateInZone", getDateInZone, "Get the current date in a specified time zone and locale.")
+  register_tool("localTime", localTime, "Get the current time in a specified time zone and locale.")
+  register_tool("localDateTime", localDateTime, "Get the current date and time in a specified time zone and locale.")
+  register_tool("universalDate", universalDate, "Get the current UTC date.")
+  register_tool("universalTime", universalTime, "Get the current UTC time.")
+  register_tool("universalDateTime", universalDateTime, "Get the current UTC date and time.")
+  register_tool("formattedTime", formattedTime, "Get a timestamp with common filename-unsafe characters replaced.")
 
-  let _registry = list_tools()
-  show "⏱️ timestamp tool registry loaded —" str(len(_registry)) "tools available"
-  show to_json(tool_refs)
+  return tool_refs
 }
 
 /*
   Example usage:
-    You can use these in your script easily.
-    Just allow "timestamp" in with {getDate, localTime, universalTime, or formattedTime}, or simply as TS
-    - `basic` reads out `12:00 PM`
-    - `in_ms` reads out `12:00:00 PM`
-    - `detailed` reads out `12:00:00 PM Eastern Daylight Time`
+    allow "timestamp" in as *
+
+    // - `basic` reads out `12:00 PM`
+    // - `in_ms` reads out `12:00:00 PM`
+    // - `detailed` reads out `12:00:00 PM Eastern Daylight Time`
 
     time_tools()
-    let local = TS.localTime("detailed")
-    let universal = TS.universalTime()
-    let formatted = TS.formattedTime()
+    let date = getDate()
+    let local = localTime("detailed")
+    let local_date_time = localDateTime("detailed")
+    let universal = universalTime()
+    let universal_date = universalDate()
+    let universal_date_time = universalDateTime()
+    let formatted = formattedTime()
 
+    show "Current date:" date
     show "Current time:" local
+    show "Current date and time:" local_date_time
     show "Current time (UTC):" universal
+    show "Current date (UTC):" universal_date
+    show "Current date and time (UTC):" universal_date_time
     show "Formatted time:" formatted
 */

@@ -1,0 +1,480 @@
+/*
+  QR Code Utilities
+  Provides functions to encode payloads into QR code matrices and render them as SVG.
+*/
+/**
+  Embedded Python script string responsible for encoding payloads into QR code matrices,
+  calculating Reed-Solomon error correction codewords, applying optimal penalty masks,
+  and rendering vector SVG XML output.
+
+  Fields:
+  - DATA_CODEWORDS: Capacity limits per QR code version.
+  - ECC_PER_BLOCK: Error correction codewords per block.
+  - BLOCKS: Number of error correction blocks per version.
+
+  Notes:
+  - Executed internally via the `python()` built-in using `SESI_ARGS` environment serialization.
+  - Requires Python 3 on the system path and standard Python execution permissions (fails if Safe Mode is enabled).
+
+  Output:
+  - String containing raw SVG XML element markup.
+*/
+let QR_ENGINE = "
+import json
+import os
+import re
+import sys
+from urllib.parse import urlparse
+
+DATA_CODEWORDS = [0, 19, 34, 55, 80, 108, 136, 156, 194, 232]
+ECC_PER_BLOCK = [0, 7, 10, 15, 20, 26, 18, 20, 24, 30]
+BLOCKS = [0, 1, 1, 1, 1, 1, 2, 2, 2, 2]
+
+def multiply(a, b):
+    result = 0
+    while b:
+        if b & 1:
+            result ^= a
+        a <<= 1
+        if a & 256:
+            a ^= 285
+        b >>= 1
+    return result
+
+def remainder(data, degree):
+    divisor = [1]
+    root = 1
+    for _ in range(degree):
+        next_divisor = [0] * (len(divisor) + 1)
+        for i, value in enumerate(divisor):
+            next_divisor[i] ^= value
+            next_divisor[i + 1] ^= multiply(value, root)
+        divisor = next_divisor
+        root = multiply(root, 2)
+
+    result = [0] * degree
+    for value in data:
+        factor = value ^ result[0]
+        result = result[1:] + [0]
+        for i in range(degree):
+            result[i] ^= multiply(divisor[i + 1], factor)
+    return result
+
+def encode(payload, version):
+    raw = payload.encode('utf-8')
+    bits = [0, 1, 0, 0]
+    count = len(raw)
+    for shift in range(7, -1, -1):
+        bits.append((count >> shift) & 1)
+    for value in raw:
+        for shift in range(7, -1, -1):
+            bits.append((value >> shift) & 1)
+
+    capacity = DATA_CODEWORDS[version] * 8
+    bits.extend([0] * min(4, capacity - len(bits)))
+    bits.extend([0] * ((-len(bits)) % 8))
+
+    data = []
+    for i in range(0, len(bits), 8):
+        value = 0
+        for bit in bits[i:i + 8]:
+            value = (value << 1) | bit
+        data.append(value)
+
+    while len(data) < DATA_CODEWORDS[version]:
+        data.append(236 if len(data) % 2 == 0 else 17)
+
+    block_count = BLOCKS[version]
+    block_size = len(data) // block_count
+    chunks = [data[i * block_size:(i + 1) * block_size] for i in range(block_count)]
+    parity = [remainder(chunk, ECC_PER_BLOCK[version]) for chunk in chunks]
+
+    output = []
+    for i in range(block_size):
+        for chunk in chunks:
+            output.append(chunk[i])
+    for i in range(ECC_PER_BLOCK[version]):
+        for block in parity:
+            output.append(block[i])
+    return output
+
+def make_matrix(version, codewords):
+    size = version * 4 + 17
+    grid = [[False] * size for _ in range(size)]
+    reserved = [[False] * size for _ in range(size)]
+
+    def put(x, y, value):
+        if 0 <= x < size and 0 <= y < size:
+            grid[y][x] = bool(value)
+            reserved[y][x] = True
+
+    for cx, cy in [(3, 3), (size - 4, 3), (3, size - 4)]:
+        for dy in range(-4, 5):
+            for dx in range(-4, 5):
+                distance = max(abs(dx), abs(dy))
+                put(cx + dx, cy + dy, distance != 2 and distance != 4)
+
+    for i in range(8, size - 8):
+        put(6, i, i % 2 == 0)
+        put(i, 6, i % 2 == 0)
+
+    if version >= 2:
+        centers = [6, size - 7] if version <= 6 else [6, 4 * version + 2, size - 7]
+        for x in centers:
+            for y in centers:
+                if reserved[y][x]:
+                    continue
+                for dy in range(-2, 3):
+                    for dx in range(-2, 3):
+                        put(x + dx, y + dy, max(abs(dx), abs(dy)) != 1)
+
+    if version >= 7:
+        value = version
+        for _ in range(12):
+            value = (value << 1) ^ ((value >> 11) * 7973)
+        value = (version << 12) | value
+        for i in range(18):
+            bit = (value >> i) & 1
+            x = size - 11 + i % 3
+            y = i // 3
+            put(x, y, bit)
+            put(y, x, bit)
+
+    def format_bits(mask):
+        value = 8 | mask
+        remainder_value = value
+        for _ in range(10):
+            remainder_value = (remainder_value << 1) ^ ((remainder_value >> 9) * 1335)
+        value = ((value << 10) | remainder_value) ^ 21522
+
+        for i in range(6):
+            put(8, i, (value >> i) & 1)
+        put(8, 7, (value >> 6) & 1)
+        put(8, 8, (value >> 7) & 1)
+        put(7, 8, (value >> 8) & 1)
+        for i in range(9, 15):
+            put(14 - i, 8, (value >> i) & 1)
+
+        for i in range(8):
+            put(size - 1 - i, 8, (value >> i) & 1)
+        for i in range(8, 15):
+            put(8, size - 15 + i, (value >> i) & 1)
+        put(8, size - 8, True)
+
+    format_bits(0)
+
+    bits = []
+    for value in codewords:
+        for shift in range(7, -1, -1):
+            bits.append(bool((value >> shift) & 1))
+
+    index = 0
+    right = size - 1
+    while right >= 1:
+        if right == 6:
+            right = 5
+        upward = ((right + 1) & 2) == 0
+        for step in range(size):
+            y = size - 1 - step if upward else step
+            for x in [right, right - 1]:
+                if not reserved[y][x]:
+                    grid[y][x] = bits[index] if index < len(bits) else False
+                    index += 1
+        right -= 2
+
+    def apply_mask(mask):
+        for y in range(size):
+            for x in range(size):
+                if reserved[y][x]:
+                    continue
+                if mask == 0:
+                    invert = (x + y) % 2 == 0
+                elif mask == 1:
+                    invert = y % 2 == 0
+                elif mask == 2:
+                    invert = x % 3 == 0
+                elif mask == 3:
+                    invert = (x + y) % 3 == 0
+                elif mask == 4:
+                    invert = (y // 2 + x // 3) % 2 == 0
+                elif mask == 5:
+                    invert = (x * y) % 2 + (x * y) % 3 == 0
+                elif mask == 6:
+                    invert = ((x * y) % 2 + (x * y) % 3) % 2 == 0
+                else:
+                    invert = ((x + y) % 2 + (x * y) % 3) % 2 == 0
+                if invert:
+                    grid[y][x] = not grid[y][x]
+
+    def penalty():
+        score = 0
+        sequences = [list(row) for row in grid]
+        sequences.extend([[grid[y][x] for y in range(size)] for x in range(size)])
+        for line in sequences:
+            run = 1
+            for i in range(1, size):
+                if line[i] == line[i - 1]:
+                    run += 1
+                    if run == 5:
+                        score += 3
+                    elif run > 5:
+                        score += 1
+                else:
+                    run = 1
+            pattern = ''.join('1' if cell else '0' for cell in line)
+            score += 40 * (pattern.count('10111010000') + pattern.count('00001011101'))
+
+        for y in range(size - 1):
+            for x in range(size - 1):
+                color = grid[y][x]
+                if grid[y][x + 1] == color and grid[y + 1][x] == color and grid[y + 1][x + 1] == color:
+                    score += 3
+
+        dark = sum(sum(row) for row in grid)
+        score += (abs(dark * 20 - size * size * 10) // (size * size)) * 10
+        return score
+
+    best_score = None
+    best_grid = None
+    for mask in range(8):
+        apply_mask(mask)
+        format_bits(mask)
+        score = penalty()
+        if best_score is None or score < best_score:
+            best_score = score
+            best_grid = [row[:] for row in grid]
+        apply_mask(mask)
+    return best_grid
+
+def contact_payload(contact):
+    if not isinstance(contact, dict):
+        raise ValueError('Contact must be an object')
+
+    def field(key):
+        value = contact.get(key, '')
+        if value is None:
+            return ''
+        return str(value).replace(chr(92), chr(92) * 2).replace(';', chr(92) + ';').replace(',', chr(92) + ',').replace(chr(10), chr(92) + 'n')
+
+    if not field('name'):
+        raise ValueError('Contact name is required')
+
+    lines = ['BEGIN:VCARD', 'VERSION:3.0', 'FN:' + field('name')]
+    for key, label in [('organization', 'ORG'), ('title', 'TITLE'), ('phone', 'TEL'), ('email', 'EMAIL'), ('url', 'URL'), ('address', 'ADR')]:
+        if field(key):
+            lines.append(label + ':' + field(key))
+    lines.append('END:VCARD')
+    return (chr(13) + chr(10)).join(lines)
+
+request = json.loads(os.environ['SESI_ARGS'])
+kind = request.get('kind', 'text')
+payload = request.get('payload', '')
+
+if kind == 'contact':
+    payload = contact_payload(payload)
+elif kind == 'url':
+    payload = str(payload)
+    parsed = urlparse(payload)
+    if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+        raise ValueError('URL must be an absolute HTTP or HTTPS URL')
+elif kind == 'workflow':
+    if not isinstance(payload, str):
+        payload = 'sesi-workflow:' + json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
+else:
+    payload = str(payload)
+
+raw = payload.encode('utf-8')
+version = None
+for candidate in range(1, 10):
+    if len(raw) * 8 + 12 <= DATA_CODEWORDS[candidate] * 8:
+        version = candidate
+        break
+if version is None:
+    raise ValueError('Payload is too long for QR versions 1 through 9')
+
+options = request.get('options') or {}
+scale = int(options.get('scale', 8))
+border = int(options.get('border', 4))
+dark = str(options.get('dark', '#000000'))
+light = str(options.get('light', '#ffffff'))
+if not 1 <= scale <= 100 or not 4 <= border <= 100:
+    raise ValueError('Scale must be 1-100 and border must be 4-100')
+for color in [dark, light]:
+    if not re.fullmatch('#[0-9a-fA-F]{6}', color):
+        raise ValueError('Colors must use six-digit hex notation')
+
+matrix = make_matrix(version, encode(payload, version))
+dimension = (len(matrix) + 2 * border) * scale
+quote = chr(34)
+parts = ['<svg xmlns=' + quote + 'http://www.w3.org/2000/svg' + quote + ' width=' + quote + str(dimension) + quote + ' height=' + quote + str(dimension) + quote + ' viewBox=' + quote + '0 0 ' + str(dimension) + ' ' + str(dimension) + quote + ' shape-rendering=' + quote + 'crispEdges' + quote + '>']
+parts.append('<path fill=' + quote + light + quote + ' d=' + quote + 'M0 0h' + str(dimension) + 'v' + str(dimension) + 'H0z' + quote + '/>')
+commands = []
+for y, row in enumerate(matrix):
+    for x, cell in enumerate(row):
+        if cell:
+            px = (x + border) * scale
+            py = (y + border) * scale
+            commands.append('M' + str(px) + ' ' + str(py) + 'h' + str(scale) + 'v' + str(scale) + 'h-' + str(scale) + 'z')
+parts.append('<path fill=' + quote + dark + quote + ' d=' + quote + ''.join(commands) + quote + '/>')
+parts.append('</svg>')
+sys.stdout.write(''.join(parts))
+"
+/**
+  Generates an SVG QR code for a plain text string.
+
+  Parameters:
+  - text: The string content to encode into the QR code matrix.
+  - options: Optional dictionary configuring dimensions and colors. Supported keys: `scale` (number, 1-100, default 8), `border` (number, 4-100, default 4), `dark` (six-digit hex string, default "#000000"), `light` (six-digit hex string, default "#ffffff").
+
+  Returns:
+  - A string containing valid SVG XML element markup for the generated QR code.
+
+  Example:
+  ```sesi
+  allow "qr" in with { qr_svg }
+
+  let svgMarkup = qr_svg("Hello from Sesi!", {
+    scale: 10,
+    border: 4,
+    dark: "#1e293b",
+    light: "#f8fafc"
+  })
+
+  show svgMarkup
+  write_file("hello_qr.svg", svgMarkup)
+  ```
+
+  Notes:
+  - Payload size must fit within QR code version 9 capacity limits.
+  - Color values must be formatted as 6-digit hex notation (e.g., `#000000`).
+*/
+export fn qr_svg(text: string, options: object = null) -> string { return python(QR_ENGINE, {kind: "text", payload: text, options: options}) }
+/**
+  Generates an SVG QR code for an absolute HTTP or HTTPS URL.
+
+  Parameters:
+  - url: Absolute web URL string (must start with http:// or https:// and include a valid domain).
+  - options: Optional configuration dictionary for `scale`, `border`, `dark`, and `light` colors.
+
+  Returns:
+  - A string containing valid SVG XML markup encoding the given URL.
+
+  Example:
+  ```sesi
+  allow "qr" in with { qr_url }
+
+  let websiteQr = qr_url("https://github.com", {
+    scale: 8,
+    dark: "#0f172a"
+  })
+
+  write_file("website_qr.svg", websiteQr)
+  show "Generated website QR code."
+  ```
+
+  Notes:
+  - Throws a validation error if the URL scheme is not HTTP/HTTPS or if the hostname is missing.
+*/
+export fn qr_url(url: string, options: object = null) -> string { return python(QR_ENGINE, {kind: "url", payload: url, options: options}) }
+/**
+  Generates an SVG QR code containing a vCard 3.0 contact card.
+
+  Parameters:
+  - contact: Object containing contact details to be formatted into a standard vCard string.
+  - options: Optional configuration dictionary for `scale`, `border`, `dark`, and `light` colors.
+
+  Returns:
+  - A string containing valid SVG XML markup encoding the vCard contact details.
+
+  Example:
+  ```sesi
+  allow "qr" in with { qr_contact }
+
+  let contactInfo = {
+    name: "Ada Lovelace",
+    organization: "Analytics Corp",
+    title: "Chief Engineer",
+    email: "ada@example.com",
+    phone: "+1-555-0199",
+    url: "https://example.com"
+  }
+
+  let contactSvg = qr_contact(contactInfo, { scale: 6, dark: "#312e81" })
+  write_file("contact.svg", contactSvg)
+  ```
+
+  Notes:
+  - Requires the `name` field; throws a ValueError if omitted.
+  - Special characters (commas, semicolons, backslashes, newlines) within fields are automatically escaped for vCard 3.0 compliance.
+*/
+export fn qr_contact(contact: object, options: object = null) -> string { return python(QR_ENGINE, {kind: "contact", payload: contact, options: options}) }
+/**
+  Generates an SVG QR code representing a local workflow identifier or structured workflow object.
+
+  Parameters:
+  - workflow: Workflow payload. Can be a pre-formatted workflow string or any object/array to serialize as JSON.
+  - options: Optional configuration dictionary for `scale`, `border`, `dark`, and `light` colors.
+
+  Returns:
+  - A string containing valid SVG XML markup representing the workflow QR code.
+
+  Example:
+  ```sesi
+  allow "qr" in with { qr_workflow }
+
+  let task = {
+    action: "build_and_deploy",
+    target: "production",
+    version: "2.1.0",
+    retries: 3
+  }
+
+  let workflowQr = qr_workflow(task, { scale: 8, dark: "#065f46" })
+  write_file("workflow.svg", workflowQr)
+  ```
+
+  Notes:
+  - When an object or non-string value is passed, it is converted to JSON and prepended with the standard `sesi-workflow:` protocol prefix.
+*/
+export fn qr_workflow(workflow: any, options: object = null) -> string { return python(QR_ENGINE, {kind: "workflow", payload: workflow, options: options}) }
+/**
+  Generates an SVG QR code from text and writes it directly to a file destination.
+
+  Parameters:
+  - path: Target file path where the resulting SVG file should be saved.
+  - text: Plain text string or payload to encode into the QR code.
+  - options: Optional configuration dictionary for `scale`, `border`, `dark`, and `light` colors.
+
+  Returns:
+  - The destination file path if the save succeeds, or an empty string `""` if an error occurs.
+
+  Example:
+  ```sesi
+  allow "qr" in with { qr_save_svg }
+
+  let savedPath = qr_save_svg("output/qr_result.svg", "https://code-with-sesi.netlify.app", {
+    scale: 10,
+    dark: "#111827",
+    light: "#ffffff"
+  })
+
+  if savedPath != "" {
+    show "QR code successfully written to:" savedPath
+  } else {
+    show "Failed to write QR code."
+  }
+  ```
+
+  Notes:
+  - Wraps file output in a `try/catch` block to handle file write exceptions gracefully without crashing.
+  - Outputs an error message to stdout using `show` if an exception is caught.
+*/
+export fn qr_save_svg(path: string, text: string, options: object = null) -> string {
+  try {
+    write_file(path, qr_svg(text, options))
+    return path
+  } catch (err) {
+    show "Could not save QR code:" err
+    return ""
+  }
+}

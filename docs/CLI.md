@@ -4,11 +4,24 @@ Sesi’s CLI is a powerful, zero-footprint environment orchestrator. It allows y
 
 ---
 
+## Compile Sesi for a browser
+
+Run `sesi build path/to/your-file.sesi`. This writes minified `path/to/your-file.js`; Sesi can generate the other files you deploy alongside it.
+All generated JavaScript, including service workers, is minified automatically.
+
+When the program uses `listen`, the build also writes `your-file.html`, `your-file.worker.js`, and any referenced
+assets to `your-file.assets.json`. Deploy these generated files together on HTTPS and open `your-file.html`.
+The service worker runs the existing Sesi request handler in the browser. Authentication-header constants are replaced
+with runtime credentials entered on the launch page.
+
+---
+
 ## 🗺️ CLI Command Reference Matrix
 
 | Command Syntax                         | Execution Mode         | File Dependency                   | Description                                                                         |
 | :------------------------------------- | :--------------------- | :-------------------------------- | :---------------------------------------------------------------------------------- |
 | `sesi <file>`                          | **Standard Execution** | Yes                               | Runs the Sesi script file to standard output stream.                                |
+| `sesi build <file.sesi>`               | Browser build          | Yes                               | Compiles the Sesi file and its imports to a JavaScript file beside it.              |
 | `sesi <file> <args...>`                | **Parametric Script**  | Yes                               | Runs the script and exposes trailing parameters in `args`.                          |
 | `sesi -e "<code>"`                     | Inline Eval            | **No (Fileless)**                 | Evaluates the string of Sesi code directly in-memory.                               |
 | `sesi -e "<code>" <args...>`           | **Parametric Eval**    | **No (Fileless)**                 | Evaluates inline code and populates `args` array with inputs.                       |
@@ -204,7 +217,7 @@ sesi
 Inside the REPL, any **Expression Statement** (like mathematical equations, string variables, or expressions) will auto-show its evaluated result to the terminal.
 
 ```sesi
-┌─ Sesi Interactive Terminal (v1.9.0) ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+┌─ Sesi Interactive Terminal (v1.9.1) ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │Welcome to Sesi! Type code and press Enter.                                                                                                                                                         │
 │Type .exit or press ESC to quit.                                                                                                                                                                    │
 │sesi> let x = 10                                                                                                                                                                                    │

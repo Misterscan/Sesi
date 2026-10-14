@@ -1,5 +1,5 @@
 /*
-  Sesi Studio v2.1.5
+  Sesi Studio v2.1.6
   
   Usage:
     sesi -s
@@ -27,10 +27,17 @@ let PROJECT_ROOT = Tools.PROJECT_ROOT
 let global_tools = Agent.global_tools
 let copilotMemory = Memory.context
 let sesiDocs = Memory.sesiDocs
+let GPT = Tools.hasGPT()
 
-set_alias("copilot", "gemini-3.5-flash-lite")
-set_alias("agent", "gemini-3.6-flash")
-set_alias("search", "gemini-3-flash-preview")
+if GPT {
+  set_alias("copilot", "gpt-6-luna")
+  set_alias("agent", "gpt-6.1-sol")
+  set_alias("search", "gpt-6-luna")
+} else {
+  set_alias("copilot", "gemini-3.5-flash-lite")
+  set_alias("agent", "gemini-3.6-flash")
+  set_alias("search", "gemini-3-flash-preview")
+}
 
 /**
   Get the collections from a Sesi database.
@@ -225,6 +232,11 @@ fn handle_http(req) {
       let is_binary = false
       
       if ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif" || ext == "ico" {
+        mode = "base64"
+        is_binary = true
+      }
+
+      if req.query["encoding"] == "base64" {
         mode = "base64"
         is_binary = true
       }
@@ -448,7 +460,7 @@ fn handle_http(req) {
         "model": "copilot",
         "system": copilotMemory,
         "thinkingLevel": "low",
-        "max_tokens": 300
+        "max_tokens": 500
       })
       let res = Copilot.run(agent, completionPrompt)
       return {"status": 200, "body": {"suggestion": res}}
@@ -1491,7 +1503,7 @@ try {
 show ""
 show "  ╔══════════════════════════════════════════╗"
 show "  ║                                          ║"
-show "  ║   🧠 Sesi Studio v2.1.5                   ║"
+show "  ║   🧠 Sesi Studio v2.1.6                  ║"
 show "  ║   → http://localhost:" str(http_port) "              ║"
 show "  ║                                          ║"
 show "  ╚══════════════════════════════════════════╝"

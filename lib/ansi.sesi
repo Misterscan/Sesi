@@ -1,6 +1,5 @@
 /**
   Terminal Formatting Convenience Wrappers
-  ========================================
 
   Provides clean, semantic helpers for ANSI terminal output,
   styled logs, banners, and notices using std/terminal.
@@ -12,7 +11,29 @@
 */
 
 allow "std/terminal" in as Term
+allow "std/time" in as Time
+/**
+  Pause execution for a specified number of seconds.
 
+  This function provides a convenient way to introduce delays in the terminal
+  output, allowing for timed pauses between messages or actions.
+
+  Parameters:
+  - `seconds`: The number of seconds to pause.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  pause(3)
+  ```
+*/
+export fn pause(seconds) {
+  let ms = seconds * 1000
+  info("Sleeping for " + seconds + " seconds...")
+  Time.sleep(ms)
+}
 /**
   Remove the current terminal line.
 
@@ -37,10 +58,7 @@ allow "std/terminal" in as Term
   - Uses the terminal line-erasing operation from `std/terminal`.
   - The function performs an immediate terminal side effect.
 */
-export fn rm_line() {
-  Term.eraseLine()
-}
-
+export fn rm_line() { Term.eraseLine() }
 /**
   Reset the terminal display.
 
@@ -64,10 +82,7 @@ export fn rm_line() {
   - Uses `Term.eraseScreen()` with its default mode.
   - This clears the display but does not terminate the running script.
 */
-export fn reset() {
-  Term.eraseScreen()
-}
-
+export fn reset() { Term.eraseScreen() }
 /**
   Print a successful operation message.
 
@@ -93,7 +108,6 @@ export fn success(msg: string) {
   let text = "✔ " + msg
   show text | Term.color("green") | Term.style("bold")
 }
-
 /**
   Print a successful operation message with a background.
 
@@ -119,7 +133,52 @@ export fn success_bg(msg: string) {
   let text = "✔ " + msg
   show text | Term.color("black") | Term.style("bold") | Term.background("green")
 }
+/**
+  Print a saved file message.
 
+  Displays a success indicator followed by the information about the saved file.
+  The complete message is rendered in green with a bold style.
+
+  Parameters:
+  - `file`: The name of the file that was saved.
+  - `dest`: The destination where the file was saved.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  saved("config.json", "/etc/myapp/")
+  ```
+
+  Notes:
+  - The output is prefixed with `✔`.
+  - The function writes directly to standard output through `success`.
+*/
+export fn saved(file: string, dest: string) { success("Saved " + file + " to " + dest + "!") }
+/**
+  Print a saved file message with a background.
+
+  Displays a success indicator followed by the information about the saved file.
+  The message is rendered with black bold text on a green background for high visibility.
+
+  Parameters:
+  - `file`: The name of the file that was saved.
+  - `dest`: The destination where the file was saved.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  saved_bg("config.json", "/etc/myapp/")
+  ```
+
+  Notes:
+  - The output is prefixed with `✔`.
+  - The function applies black foreground color, bold styling, and a green background.
+*/
+export fn saved_bg(file: string, dest: string) { success_bg("Saved " + file + " to " + dest + "!") }
 /**
   Print an error message.
 
@@ -145,7 +204,6 @@ export fn error(msg: string) {
   let text = "✖ " + msg
   show text | Term.color("red") | Term.style("bold")
 }
-
 /**
   Print an error message with a background.
 
@@ -171,7 +229,6 @@ export fn error_bg(msg: string) {
   let text = "✖ " + msg
   show text | Term.color("black") | Term.style("bold") | Term.background("red")
 }
-
 /**
   Print a warning message.
 
@@ -197,7 +254,6 @@ export fn warning(msg: string) {
   let text = "⚠️ " + msg
   show text | Term.color("yellow") | Term.style("bold")
 }
-
 /**
   Print a warning message with a background.
 
@@ -223,7 +279,6 @@ export fn warning_bg(msg: string) {
   let text = "⚠ " + msg
   show text | Term.color("black") | Term.style("bold") | Term.background("yellow")
 }
-
 /**
   Print an informational message.
 
@@ -249,7 +304,6 @@ export fn info(msg: string) {
   let text = "ℹ️  " + msg
   show text | Term.color("cyan") | Term.style("bold")
 }
-
 /**
   Print an informational message with a background.
 
@@ -275,7 +329,6 @@ export fn info_bg(msg: string) {
   let text = "ℹ  " + msg
   show text | Term.color("black") | Term.style("bold") | Term.background("cyan")
 }
-
 /**
   Display a prominent section header.
 
@@ -306,7 +359,6 @@ export fn header(title: string) {
   show "  " + title | Term.color("brightWhite") | Term.style("bold")
   show bar | Term.color("brightBlue")
 }
-
 /**
   Print a framed message box.
 
@@ -340,7 +392,6 @@ export fn box(msg: string) {
   show "│" + spaces + msg + spaces + "│" | Term.color("brightMagenta")
   show bottom | Term.color("magenta")
 }
-
 /**
   Print an inline labeled badge.
 
@@ -370,7 +421,6 @@ export fn badge(label: string, msg: string, colorName: string = "blue") {
   prompt labelPrompt {"["label"]"}
   show labelPrompt | Term.color(colorName) | Term.style("bold") msg
 }
-
 /**
   Print a styled key-value pair.
 
@@ -399,7 +449,6 @@ export fn key_value(key: string, val: string) {
   prompt valPrompt {val | Term.color("white")}
   show keyPrompt valPrompt
 }
-
 /**
   Print a customizable divider line.
 
@@ -428,7 +477,6 @@ export fn divider(char: string = "─", count: number = 46) {
   let line = repeat(char, count)
   show line | Term.color("brightBlack")
 }
-
 /**
   Print a formatted table header row.
 
@@ -466,7 +514,6 @@ fn table_header(cols: array, colWidths: array) {
   let totalWidth = len("│" + rowStr + "│")
   divider(Term.color("-", "brightCyan"), totalWidth)
 }
-
 /**
   Print a formatted table data row.
 
@@ -502,7 +549,6 @@ fn table_row(cols: array, colWidths: array) {
   let rowStr = join(paddedCols, "│")
   show "│" + rowStr + "│" | Term.color("cyan")
 }
-
 /**
   Print a complete formatted table.
 
@@ -534,18 +580,12 @@ fn table_row(cols: array, colWidths: array) {
 */
 export fn table(headers: array, rows: array, colWidths: array) {
   let totalWidth = 1
-  for w in colWidths {
-    totalWidth = totalWidth + w
-  }
-
+  for w in colWidths { totalWidth = totalWidth + w }
   divider(Term.color("-", "brightCyan"), totalWidth + len(colWidths) + 1)
   table_header(headers, colWidths)
-  for row in rows {
-    table_row(row, colWidths)
-  }
+  for row in rows { table_row(row, colWidths) }
   divider(Term.color("-", "brightCyan"), totalWidth + len(colWidths) + 1)
 }
-
 /**
   Prompt the user for input inside a highlighted message box.
 
@@ -573,7 +613,6 @@ export fn ask(msg: string) {
   box(msg | trim)
   return input()
 }
-
 /**
   Determine a safe logical terminal width.
 
@@ -606,7 +645,7 @@ fn screen_width() {
   if width < 40 { width = 40 }
   return width
 }
-
+let w = screen_width()
 /**
   Center-align a message within a terminal width.
 
@@ -631,12 +670,11 @@ fn screen_width() {
   - Centering is based on the message length and leading spaces.
   - The default width is clamped by `screen_width()`.
 */
-export fn center(msg: string, width: number = screen_width()) {
+export fn center(msg: string, width: number = w) {
   let padding = (width - len(msg)) / 2
   let spaces = repeat(" ", padding)
   show spaces msg
 }
-
 /**
   Print a blank line.
 
@@ -660,10 +698,34 @@ export fn center(msg: string, width: number = screen_width()) {
   - The function is a convenience wrapper around `show ""`.
   - It is exported for use by scripts that import this terminal utility module.
 */
-export fn newline() -> string {
-  show ""
-}
+export fn newline() -> string { show ""}
+/* Convience wrapper for `newline()`. */
+export fn nl() -> string { newline() }
+/**
+  Display a progress bar in the terminal.
 
+  Parameters:
+  - `current`: The current progress value.
+  - `total`: The total value representing 100% progress.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  progress_bar(3, 10)
+  ```
+
+  Notes:
+  - The progress bar is rendered using block characters.
+  - The bar updates in place if the terminal supports it.
+*/
+export fn progress(current: number, total: number) {
+  let percent = (current / total) * 100
+  let filled = floor(percent / 5)
+  let bar = repeat("█", filled) + repeat("░", 20 - filled)
+  Term.line("[" + bar + "] " + str(floor(percent)) + "%")
+}
 /**
   Run the terminal wrapper demonstration suite.
 
@@ -692,6 +754,7 @@ fn run_all_tests() {
   reset()
   header("ANSI Terminal Wrapper Test Suite")
   newline()
+  pause(3)
   success("Success message standard test passed.")
   success_bg("Success message background test passed.")
   newline()
@@ -700,6 +763,8 @@ fn run_all_tests() {
   newline()
   warning("Warning message standard test passed.")
   warning_bg("Warning message background test passed.")
+  newline()
+  progress(50, 100)
   newline()
   info("Info message standard test passed.")
   info_bg("Info message background test passed.")
@@ -716,8 +781,4 @@ fn run_all_tests() {
   )
   ask("Press Enter to end:")
   center("--- End of Test Suite ---", 35)
-}
-
-if args[0] == "test" {
-  run_all_tests()
 }

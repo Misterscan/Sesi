@@ -47,7 +47,7 @@ work.
 The configuration block accepts these aliases. Unknown keys are ignored by the
 Sesi video runtime.
 
-| Sesi key | Aliases | Applies to | Gemini API field / notes |
+| Sesi key | Aliases | Applies to | Provider field / notes |
 | --- | --- | --- | --- |
 | `ratio` | `aspectRatio`, `aspect_ratio` | Omni, Veo | `"16:9"` (default) or `"9:16"`. |
 | `images` | `image` | Omni, Veo | A path or array of local reference-image paths. Omni sends every supplied image; the current Veo wrapper sends the first only. |

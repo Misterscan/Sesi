@@ -101,6 +101,7 @@ export interface Program {
 export type Statement =
   | LetStatement
   | FunctionStatement
+  | MakeStatement
   | ExpressionStatement
   | BlockStatement
   | IfStatement
@@ -132,6 +133,15 @@ export interface FunctionStatement {
   body: BlockStatement;
   line: number;
   isAsync?: boolean;
+  leadingComments?: string[];
+}
+
+export interface MakeStatement {
+  type: 'MakeStatement';
+  name: string;
+  fields: LetStatement[];
+  methods: FunctionStatement[];
+  line: number;
   leadingComments?: string[];
 }
 
@@ -219,7 +229,7 @@ export interface AllowStatement {
 
 export interface ExportStatement {
   type: 'ExportStatement';
-  statement: FunctionStatement | LetStatement;
+  statement: FunctionStatement | MakeStatement | LetStatement;
   line: number;
   leadingComments?: string[];
 }
@@ -556,6 +566,11 @@ export class Environment {
 }
 
 // AI request/response types
+export interface AIAudioInput {
+  data: string;
+  mimeType: string;
+}
+
 export interface AIRequest {
   model: string;
   prompt: string;
@@ -567,7 +582,9 @@ export interface AIRequest {
   size?: string;
   tools?: any[];
   images?: string[]; // base64-encoded image data URIs or file paths resolved at runtime
-  audio?: { data: string; mimeType: string }; // base64-encoded inline audio for multimodal requests
+  // A local path/data URL is resolved by AIRuntime. The object form contains
+  // base64-encoded audio and is useful to embedders and Sesi read_file calls.
+  audio?: string | AIAudioInput;
   systemPrompt?: string;
   thinkingLevel?: { thinking?: string; level?: string } | string;
   responseSchema?: Record<string, any>;

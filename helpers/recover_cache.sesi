@@ -1,0 +1,14 @@
+let id = args[0] || input("Enter the .sesi_cache ID to recover the results from: ")
+if id == "" { show "ID must be entered to recovered the neccesary cache results.\n*Tip*: The ID is the 64-char in .sesi_cache.json relative to the text response." }
+let json = {}
+try { json = ".sesi_cache.json" | read_file | from_json } catch (e) { show "Could not find .sesi_cache.json, please ensure this file exists. Try making a model request first, if it fails we can retrieve it by ID.\n" e }
+show "Searching for results..."
+let ref = json[id].text
+if ref != null { show "Found results!\n\n" ref | trunc(300) "...\n<truncated>"
+} else { show "We ran into an error finding the cached results:" ref; return }
+if !exists("temp/") { make_dir("temp/") }
+let recovered = "temp/recovered.txt"
+let wrote = false
+if write_file(recovered, ref) { wrote = true }
+if exists(recovered) && wrote { show "Cache recovered and saved to" recovered
+} else { show "An error occurred." }

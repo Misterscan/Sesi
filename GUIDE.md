@@ -20,7 +20,7 @@ Sesi is a **clean, minimal, side-effect-oriented** scripting language. It is:
 ```sesi
 let name    = "Sesi"
 let retries: number = 3
-let version = 1.9.0
+let version = 1.9.1
 let active  = true
 let missing         // null (uninitialized)
 ```
@@ -341,10 +341,10 @@ Sesi's unique string-composition primitive. Replaces template literals.
 
 ```sesi
 let name = "Ada"
-let ver  = "1.9.0"
+let ver  = "1.9.1"
 
 prompt header {"Welcome to Sesi "ver". Hello, "name}
-// header = "Welcome to Sesi 1.9.0. Hello, Ada"
+// header = "Welcome to Sesi 1.9.1. Hello, Ada"
 
 show header
 write_file("out.txt", header)
@@ -389,7 +389,7 @@ show "Hello, " + name + " version " + str(version)
 
 ```sesi
 export fn add(a, b) { return a + b }
-export let VERSION = "1.9.0"
+export let VERSION = "1.9.1"
 ```
 
 ### Importing — `import` (named)
@@ -531,7 +531,7 @@ Draw.pixel_ring(cx, cy, radius, thickness, color)
 Draw.pixel_arc(cx, cy, radius, startAngle, endAngle, color)
 Draw.pixel_bezier(x1, y1, cx, cy, x2, y2, color)
 Draw.pixel_path(d, color, filled?)
-Draw.pixel_text(x, y, text, color, scale?)
+Draw.pixel_text(x, y, text, color, scale?, font?)
 Draw.save_png(path, width, height, background?)
 ```
 
@@ -570,6 +570,7 @@ let result = model("gemini-3.8-flash") {thinkingLevel: "medium", max_tokens: 500
 | `thinkingLevel` | `string`          | `"minimal"`, `"low"`, `"medium"`, `"high"` |
 | `max_tokens`    | `number`          | Cap response length                        |
 | `images`        | `string \| array` | Vision input file path(s)                  |
+| `audio`         | `string \| object` | Audio path/data URL or `{data, mimeType}`; valid in `model()` and `image()` |
 | `stream`        | `bool \| fn`      | Stream to stdout or callback               |
 | `cache`         | `bool`            | `false` = bypass Sesi Logic Caching        |
 | `search`        | _(bare key)_      | Enable live web search grounding           |
@@ -579,6 +580,13 @@ let result = model("gemini-3.8-flash") {thinkingLevel: "medium", max_tokens: 500
 ```sesi
 // Vision
 let desc = model("gemini-3.8-flash") {images: "photo.png"} {"Describe this image."}
+
+// Audio understanding (use an audio-capable model)
+let transcript = model("gemini-3.6-flash") {audio: "meeting.wav"} {"Transcribe this recording."}
+
+// Base64 audio is also accepted
+let wav = read_file("meeting.wav", "base64")
+let summary = model("gemini-3.6-flash") {audio: {data: wav, mimeType: "audio/wav"}} {"Summarize the discussion."}
 
 // Streaming
 let r = model("gemini-3.5-flash-lite") {stream: true} {"Write a poem."}
@@ -606,7 +614,13 @@ Use `tools: ["calculateTax"]` to expose only selected registered tools, or `tool
 ```sesi
 let img = image("gemini-3.1-flash-image-lite") {ratio: "16:9", size: "1K"} {"A cyberpunk city at night"}
 write_image("banner.png", img)
+
+// Both Gemini and OpenAI image routes accept audio context
+let geminiCover = image("gemini-3.1-flash-image") {audio: "song.wav", ratio: "1:1"} {"Create cover art inspired by this recording."}
+let openaiCover = image("gpt-image-2") {audio: "song.mp3", ratio: "1:1"} {"Create cover art inspired by this recording."}
 ```
+
+Gemini model and image calls receive audio inline. OpenAI model and image calls currently transcribe WAV or MP3 audio through OpenAI and append the transcript to the requested prompt.
 
 ---
 
@@ -845,7 +859,7 @@ Functions: `abs`, `acos`, `acosh`, `asin`, `asinh`, `atan`, `atanh`, `atan2`, `c
 | `python(code, args)` | Run inline Python code (blocked in Safe Mode)       |
 | `js(code, args)`     | Run inline JavaScript code (blocked in Safe Mode)   |
 | `gif(input, output, options?)` | Create an animated GIF with FFmpeg (blocked in Safe Mode) |
-| `video(model) {config} {prompt}` | Generate Base64 video with Gemini Omni Flash or Veo |
+| `video(model) {config} {prompt}` | Generate Base64 video with temporary OpenAI Sora 2 support, Gemini Omni Flash, or Veo |
 | `video(input, output, options?)` | Create or transcode video with FFmpeg (blocked in Safe Mode) |
 | `ffmpeg(args, options?)` | Run structured FFmpeg arguments (blocked in Safe Mode) |
 | `html(body, opts)`   | Build a complete HTML document string               |

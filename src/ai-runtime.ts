@@ -7,7 +7,7 @@ async function importTransformersModule(): Promise<any> {
   return transformers;
 }
 // AI Runtime - local, Gemini, and OpenAI model providers
-import { AIRequest, AIResponse, StructuredOutput, RuntimeValue } from './types';
+import { AIAudioInput, AIRequest, AIResponse, StructuredOutput, RuntimeValue } from './types';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -78,6 +78,10 @@ export class AIRuntime {
   private isGPTImageModel(model: string): boolean {
     const normalized = String(model || '').trim();
     return this.isGPTModel(normalized) && /image/i.test(normalized);
+  }
+
+  private isGPTAudioModel(model: string): boolean {
+    return /^gpt-audio(?:-|$)/i.test(String(model || '').trim());
   }
 
   private isLocalModel(model: string): boolean {
@@ -547,7 +551,7 @@ export class AIRuntime {
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY is required for GPT model calls.');
+      throw new Error('OPENAI_API_KEY is required for OpenAI model calls.');
     }
 
     try {
@@ -658,6 +662,167 @@ export class AIRuntime {
     });
   }
 
+  private resolveAudioInput(audio: string | AIAudioInput): AIAudioInput {
+    const mimeTypes: Record<string, string> = {
+      '.aac': 'audio/aac',
+      '.flac': 'audio/flac',
+      '.m4a': 'audio/mp4',
+      '.mp3': 'audio/mpeg',
+      '.mp4': 'audio/mp4',
+      '.mpeg': 'audio/mpeg',
+      '.mpga': 'audio/mpeg',
+      '.oga': 'audio/ogg',
+      '.ogg': 'audio/ogg',
+      '.wav': 'audio/wav',
+      '.webm': 'audio/webm',
+    };
+
+    if (typeof audio === 'string') {
+      const source = audio.trim();
+      if (!source) throw new Error('Audio input must not be empty.');
+      const dataUrl = source.match(/^data:(audio\/[a-z0-9.+-]+(?:;[^,]*)?);base64,(.+)$/is);
+      if (dataUrl) {
+        return { mimeType: dataUrl[1].split(';')[0].toLowerCase(), data: dataUrl[2] };
+      }
+
+      const absolutePath = path.isAbsolute(source) ? source : path.resolve(process.cwd(), source);
+      if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+        throw new Error(`Audio input file was not found: ${source}`);
+      }
+      const mimeType = mimeTypes[path.extname(absolutePath).toLowerCase()];
+      if (!mimeType) {
+        throw new Error(`Could not infer the audio MIME type for "${source}". Use {data, mimeType} instead.`);
+      }
+      return { mimeType, data: fs.readFileSync(absolutePath).toString('base64') };
+    }
+
+    if (!audio || typeof audio.data !== 'string' || audio.data.trim() === '') {
+      throw new Error('Audio input objects require non-empty base64 data.');
+    }
+    if (typeof audio.mimeType !== 'string' || !/^audio\/[a-z0-9.+-]+(?:;.*)?$/i.test(audio.mimeType.trim())) {
+      throw new Error('Audio input objects require a valid audio MIME type.');
+    }
+    return { data: audio.data, mimeType: audio.mimeType.trim().toLowerCase() };
+  }
+
+  private openAIAudioFormat(audio: AIAudioInput): 'wav' | 'mp3' {
+    const mimeType = audio.mimeType.split(';')[0].toLowerCase();
+    if (mimeType === 'audio/wav' || mimeType === 'audio/x-wav' || mimeType === 'audio/wave') return 'wav';
+    if (mimeType === 'audio/mpeg' || mimeType === 'audio/mp3') return 'mp3';
+    throw new Error('OpenAI audio input currently requires WAV or MP3 audio.');
+  }
+
+  private async analyzeOpenAIAudio(audio: AIAudioInput, userPrompt: string): Promise<string> {
+    const format = this.openAIAudioFormat(audio);
+    const response = await this.openAIClient.chat.completions.create({
+      model: 'gpt-audio-1.5',
+      modalities: ['text', 'audio'],
+      audio: { voice: 'alloy', format: 'wav' },
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: [
+              'Analyze the supplied audio for the user request below.',
+              'Describe all relevant audible content, including speech, music, instruments, rhythm, sound effects, ambience, timing, tone, and emotion.',
+              'Do not limit the analysis to speech transcription.',
+              `User request: ${userPrompt}`,
+            ].join('\n'),
+          },
+          {
+            type: 'input_audio',
+            input_audio: { data: audio.data, format },
+          },
+        ],
+      }],
+      store: true,
+    });
+    const message = response?.choices?.[0]?.message;
+    const content = message?.content;
+    if (typeof content === 'string') return content.trim();
+    if (Array.isArray(content)) {
+      return content
+        .map((part: any) => typeof part === 'string' ? part : part?.text ?? '')
+        .filter((part: string) => part.trim() !== '')
+        .join('\n')
+        .trim();
+    }
+    if (typeof message?.audio?.transcript === 'string') {
+      return message.audio.transcript.trim();
+    }
+    return '';
+  }
+
+  private async callGPTAudioModel(request: AIRequest): Promise<AIResponse> {
+    if (!request.audio) {
+      throw new Error(`GPT audio model "${request.model}" requires Sesi audio input.`);
+    }
+    if (request.images?.length) {
+      throw new Error(`GPT audio model "${request.model}" does not support image input.`);
+    }
+    if (request.search || request.tools?.length) {
+      throw new Error(`GPT audio model "${request.model}" does not support Sesi search or tools in this route.`);
+    }
+    if (request.stream) {
+      throw new Error(`GPT audio model "${request.model}" does not support Sesi streaming in this route.`);
+    }
+
+    const audio = request.audio as AIAudioInput;
+    const format = this.openAIAudioFormat(audio);
+    const messages: any[] = [];
+    if (request.systemPrompt?.trim()) {
+      messages.push({ role: 'system', content: request.systemPrompt.trim() });
+    }
+    messages.push({
+      role: 'user',
+      content: [
+        { type: 'text', text: request.prompt || 'Analyze the supplied audio.' },
+        { type: 'input_audio', input_audio: { data: audio.data, format } },
+      ],
+    });
+
+    const body: Record<string, any> = {
+      model: request.model,
+      modalities: ['text', 'audio'],
+      audio: { voice: 'alloy', format: 'wav' },
+      messages,
+      store: true,
+    };
+    if (request.temperature !== undefined) body.temperature = request.temperature;
+    if (request.maxTokens !== undefined) body.max_completion_tokens = request.maxTokens;
+    if (request.topP !== undefined) body.top_p = request.topP;
+
+    const response = await this.openAIClient.chat.completions.create(body);
+    const choice = response?.choices?.[0];
+    const message = choice?.message;
+    const content = message?.content;
+    let text = typeof content === 'string' ? content.trim() : '';
+    if (!text && Array.isArray(content)) {
+      text = content
+        .map((part: any) => typeof part === 'string' ? part : part?.text ?? '')
+        .filter((part: string) => part.trim() !== '')
+        .join('\n')
+        .trim();
+    }
+    if (!text && typeof message?.audio?.transcript === 'string') {
+      text = message.audio.transcript.trim();
+    }
+    if (!text) {
+      throw new Error(`GPT audio model "${request.model}" returned no text or audio transcript.`);
+    }
+
+    const usage = response?.usage || {};
+    return {
+      text,
+      finishReason: String(choice?.finish_reason || 'stop').toUpperCase(),
+      usage: {
+        inputTokens: usage.prompt_tokens ?? 0,
+        outputTokens: usage.completion_tokens ?? 0,
+      },
+    };
+  }
+
   private normalizeGeminiTools(tools: any[]): any[] {
     const declarations: any[] = [];
     const passthrough: any[] = [];
@@ -691,7 +856,20 @@ export class AIRuntime {
     };
 
     return imagePaths.map((imagePath) => {
-      const absolutePath = path.isAbsolute(imagePath) ? imagePath : path.resolve(process.cwd(), imagePath);
+      const source = String(imagePath || '').trim();
+      if (source === '') {
+        throw new Error('GPT image inputs must be non-empty file paths, data URLs, or HTTP(S) URLs.');
+      }
+
+      if (/^https?:\/\//i.test(source) || /^data:image\/[a-z0-9.+-]+;base64,/i.test(source)) {
+        return {
+          type: 'input_image',
+          image_url: source,
+          detail: 'auto',
+        };
+      }
+
+      const absolutePath = path.isAbsolute(source) ? source : path.resolve(process.cwd(), source);
       const mimeType = mimeMap[path.extname(absolutePath).toLowerCase()] ?? 'image/jpeg';
       const data = fs.readFileSync(absolutePath).toString('base64');
       return {
@@ -722,13 +900,73 @@ export class AIRuntime {
     return ratioMap[normalizedRatio] ?? '1024x1024';
   }
 
+  private async resolveOpenAIImageUploads(imageSources: string[]): Promise<any[]> {
+    if (imageSources.length > 16) {
+      throw new Error('GPT image models accept at most 16 reference images.');
+    }
+
+    const { toFile } = require('openai');
+    const supportedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    const extensionMimeTypes: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+    };
+    const mimeExtensions: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+    };
+    const maximumBytes = 50 * 1024 * 1024;
+
+    return await Promise.all(imageSources.map(async (imageSource, index) => {
+      const source = String(imageSource || '').trim();
+      if (source === '') {
+        throw new Error('GPT reference images must be non-empty file paths, data URLs, or HTTP(S) URLs.');
+      }
+
+      let bytes: Buffer;
+      let mimeType: string;
+      let filename: string;
+      const dataUrl = source.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/is);
+
+      if (dataUrl) {
+        mimeType = dataUrl[1].toLowerCase();
+        bytes = Buffer.from(dataUrl[2], 'base64');
+        filename = `reference-${index + 1}.${mimeExtensions[mimeType] || 'img'}`;
+      } else if (/^https?:\/\//i.test(source)) {
+        const response = await fetch(source);
+        if (!response.ok) {
+          throw new Error(`Could not download GPT reference image: ${response.status} ${response.statusText}`);
+        }
+        mimeType = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+        bytes = Buffer.from(await response.arrayBuffer());
+        const urlName = path.basename(new URL(source).pathname);
+        filename = urlName || `reference-${index + 1}.${mimeExtensions[mimeType] || 'img'}`;
+      } else {
+        const absolutePath = path.isAbsolute(source) ? source : path.resolve(process.cwd(), source);
+        const extension = path.extname(absolutePath).toLowerCase();
+        mimeType = extensionMimeTypes[extension] || '';
+        bytes = fs.readFileSync(absolutePath);
+        filename = path.basename(absolutePath);
+      }
+
+      if (!supportedMimeTypes.has(mimeType)) {
+        throw new Error('GPT reference images must be PNG, JPEG, or WebP files.');
+      }
+      if (bytes.length === 0) {
+        throw new Error(`GPT reference image "${filename}" is empty.`);
+      }
+      if (bytes.length >= maximumBytes) {
+        throw new Error(`GPT reference image "${filename}" must be smaller than 50MB.`);
+      }
+
+      return await toFile(bytes, filename, { type: mimeType });
+    }));
+  }
+
   private async callGPTImageModel(request: AIRequest): Promise<AIResponse> {
-    if (request.audio) {
-      throw new Error('GPT image model calls do not yet support Sesi audio input.');
-    }
-    if (request.images?.length) {
-      throw new Error('GPT image model calls do not yet support reference image input.');
-    }
     if (request.tools?.length) {
       throw new Error('GPT image model calls do not yet support tools.');
     }
@@ -740,13 +978,27 @@ export class AIRuntime {
     }
 
     const imagesApi = this.openAIClient?.images;
-    if (!imagesApi || typeof imagesApi.generate !== 'function') {
-      throw new Error('OpenAI image generation is unavailable. Ensure the openai package is installed and supports images.generate().');
+    if (!imagesApi) {
+      throw new Error('OpenAI image generation is unavailable. Ensure the openai package is installed and supports the Images API.');
+    }
+    if (request.images?.length && typeof imagesApi.edit !== 'function') {
+      throw new Error('OpenAI reference image input is unavailable. Ensure the openai package supports images.edit().');
+    }
+    if (!request.images?.length && typeof imagesApi.generate !== 'function') {
+      throw new Error('OpenAI image generation is unavailable. Ensure the openai package supports images.generate().');
+    }
+
+    let prompt = request.prompt;
+    if (request.audio) {
+      const analysis = await this.analyzeOpenAIAudio(request.audio as AIAudioInput, request.prompt);
+      prompt = analysis
+        ? `${request.prompt}\n\nAudio analysis:\n${analysis}`
+        : `${request.prompt}\n\nAudio analysis: No audible content could be analyzed from the supplied recording.`;
     }
 
     const body: Record<string, any> = {
       model: request.model,
-      prompt: request.prompt,
+      prompt,
     };
 
     const size = this.resolveOpenAIImageSize(request.size, request.ratio);
@@ -754,7 +1006,12 @@ export class AIRuntime {
       body.size = size;
     }
 
-    const response = await imagesApi.generate(body);
+    const response = request.images?.length
+      ? await imagesApi.edit({
+        ...body,
+        image: await this.resolveOpenAIImageUploads(request.images),
+      })
+      : await imagesApi.generate(body);
     const firstImage = response?.data?.[0] ?? null;
     let base64String = firstImage?.b64_json ?? firstImage?.base64 ?? firstImage?.image_base64 ?? null;
 
@@ -779,24 +1036,30 @@ export class AIRuntime {
       },
     };
   }
+
   private async callGPTModel(request: AIRequest): Promise<AIResponse> {
-    if (request.audio) {
-      throw new Error('GPT model calls do not yet support Sesi audio input. Use a Gemini model for audio transcription.');
-    }
     const effort = this.mapThinkingEffort(request.thinkingLevel);
     const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
     const instructions = request.systemPrompt?.trim()
       ? `${timeContext}${request.systemPrompt.trim()}`
       : timeContext.trim();
-    const input = request.images?.length
-      ? [{
+    let prompt = request.prompt;
+    if (request.audio) {
+      const analysis = await this.analyzeOpenAIAudio(request.audio as AIAudioInput, request.prompt);
+      prompt = analysis
+        ? `${request.prompt}\n\nAudio analysis:\n${analysis}`
+        : `${request.prompt}\n\nAudio analysis: No audible content could be analyzed from the supplied recording.`;
+    }
+    const userMessage = {
         role: 'user',
         content: [
-          ...this.resolveOpenAIImageParts(request.images),
-          { type: 'input_text', text: request.prompt },
+          ...(request.images?.length ? this.resolveOpenAIImageParts(request.images) : []),
+          { type: 'input_text', text: prompt },
         ],
-      }]
-      : request.prompt;
+      };
+    const input = request.images?.length
+      ? [userMessage]
+      : prompt;
 
     const body: Record<string, any> = {
       model: request.model,
@@ -1144,6 +1407,13 @@ export class AIRuntime {
       ratio: request.ratio,
       size: request.size,
       images: request.images,
+      audio: request.audio
+        ? {
+          pipelineVersion: 4,
+          mimeType: (request.audio as AIAudioInput).mimeType,
+          dataHash: crypto.createHash('sha256').update((request.audio as AIAudioInput).data).digest('hex'),
+        }
+        : undefined,
       systemPrompt: request.systemPrompt,
       thinkingLevel: request.thinkingLevel,
       search: request.search,
@@ -1222,12 +1492,32 @@ export class AIRuntime {
   }
 
 
-  async transcribeSpeech(audioData: string, mimeType: string, language?: string, model: string = 'gemini-3.5-flash-lite'): Promise<string> {
+  async transcribeSpeech(audioData: string, mimeType: string, language?: string, model: string = 'gpt-transcribe', filename?: string): Promise<string> {
+    const selectedModel = model.trim().replace(/^models\//, '');
+    if (this.isGPTModel(selectedModel)) {
+      const { toFile } = require('openai');
+      const extensions: Record<string, string> = {
+        'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a',
+        'audio/ogg': 'ogg', 'audio/flac': 'flac', 'audio/aac': 'aac', 'audio/webm': 'webm',
+      };
+      const file = await toFile(Buffer.from(audioData, 'base64'),
+        filename || `audio.${extensions[mimeType] || 'bin'}`, { type: mimeType });
+      const response = await this.openAIClient.audio.transcriptions.create({
+        file, model: selectedModel, response_format: 'json',
+        ...(language?.trim() ? { language: language.trim() } : {}),
+        ...(/diarize/i.test(selectedModel) ? { chunking_strategy: 'auto' } : {}),
+      });
+      if (typeof response.text !== 'string') throw new Error('Speech transcription returned no transcript text.');
+      return response.text;
+    }
+    if (!/^gemini-/i.test(selectedModel)) {
+      throw new Error('from_speech() expects an OpenAI transcription model or Gemini model.');
+    }
     const languageInstruction = language && language.trim() !== ''
       ? ` The spoken language is ${language}; preserve it in the transcript.`
       : '';
     const response = await this.callModel({
-      model,
+      model: selectedModel,
       prompt: `Transcribe this audio accurately. Return only the transcript, without commentary, timestamps, or labels.${languageInstruction}`,
       cache: false,
       audio: { data: audioData, mimeType },
@@ -1236,6 +1526,9 @@ export class AIRuntime {
   }
 
   async callModel(request: AIRequest): Promise<AIResponse> {
+    if (request.audio) {
+      request = { ...request, audio: this.resolveAudioInput(request.audio) };
+    }
     const useCache = request.cache !== false;
     let cacheHash = '';
     if (useCache) {
@@ -1277,7 +1570,9 @@ export class AIRuntime {
       if (this.isGPTModel(request.model)) {
         const gptResponse = this.isGPTImageModel(request.model)
           ? await this.callGPTImageModel(request)
-          : await this.callGPTModel(request);
+          : this.isGPTAudioModel(request.model)
+            ? await this.callGPTAudioModel(request)
+            : await this.callGPTModel(request);
         if (useCache) {
           const cache = this.readCache();
           cache[cacheHash] = gptResponse;
@@ -1320,7 +1615,7 @@ export class AIRuntime {
       }
 
       // Handle image generation models dynamically
-      if (request.model.includes('image')) {
+      if (request.model.includes('image') || request.model.includes('nano')) {
         const imageConfig: any = {};
         if (request.ratio) imageConfig.aspectRatio = request.ratio;
         if (request.size) imageConfig.imageSize = request.size;
@@ -1340,10 +1635,19 @@ export class AIRuntime {
         if (thinkingConfig) configObj.thinkingConfig = thinkingConfig;
         if (systemInstruction) configObj.systemInstruction = systemInstruction;
 
+        const imageParts = request.images && request.images.length > 0
+          ? this.resolveImageParts(request.images)
+          : [];
+        const imageAudioParts = request.audio
+          ? [{ inlineData: {
+            mimeType: (request.audio as AIAudioInput).mimeType,
+            data: (request.audio as AIAudioInput).data,
+          } }]
+          : [];
         const response = await client.models.generateContent({
           model: resolvedModel,
-          contents: request.images && request.images.length > 0
-            ? [{ role: 'user', parts: [...this.resolveImageParts(request.images), { text: request.prompt }] }]
+          contents: imageParts.length > 0 || imageAudioParts.length > 0
+            ? [{ role: 'user', parts: [...imageParts, ...imageAudioParts, { text: request.prompt }] }]
             : request.prompt,
           config: configObj
         });
@@ -1403,7 +1707,10 @@ export class AIRuntime {
         ? this.resolveImageParts(request.images)
         : [];
       const audioParts: any[] = request.audio
-        ? [{ inlineData: { mimeType: request.audio.mimeType, data: request.audio.data } }]
+        ? [{ inlineData: {
+          mimeType: (request.audio as AIAudioInput).mimeType,
+          data: (request.audio as AIAudioInput).data,
+        } }]
         : [];
 
       contents.push({

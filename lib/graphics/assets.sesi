@@ -1,0 +1,270 @@
+allow "std/draw" in as Draw
+allow "../ansi" in with {saved}
+/**
+  Color palettes collection for SVG visual component rendering.
+
+  Fields:
+  - background: Hex color string representing the primary canvas background.
+  - accent: Hex color string representing the primary decorative accent shape or text element.
+  - detail: Hex color string representing secondary background highlights and detail circles.
+  - text: Hex color string representing rendered label and title text.
+
+  Notes:
+  - Index 0 provides a deep blue and sky blue palette.
+  - Index 1 provides a purple and pink palette.
+  - Index 2 provides an emerald green palette.
+  - Index 3 provides a rust orange palette.
+
+  Output:
+  - An array of color scheme definition objects used across SVG generator functions.
+*/
+let palettes = [
+  {background: "#172554", accent: "#38bdf8", detail: "#a5f3fc", text: "#ffffff"},
+  {background: "#4c1d95", accent: "#f472b6", detail: "#fbcfe8", text: "#ffffff"},
+  {background: "#064e3b", accent: "#34d399", detail: "#d1fae5", text: "#ffffff"},
+  {background: "#7c2d12", accent: "#fb923c", detail: "#ffedd5", text: "#ffffff"}
+]
+/**
+  Retrieves a color palette definition object mapped to the provided theme index.
+
+  Parameters:
+  - theme: Numeric identifier or index selecting the color scheme. Negative and out-of-bound values wrap safely.
+
+  Returns:
+  - An object containing `background`, `accent`, `detail`, and `text` color values.
+
+  Example:
+  ```sesi
+  let colors = palette(0)
+  show colors.background // "#172554"
+  show colors.accent     // "#38bdf8"
+  ```
+
+  Notes:
+  - Floors the input number and calculates the positive modulo relative to the palettes collection length.
+*/
+fn palette(theme: number) {
+  let index = floor(theme) % len(palettes)
+  if index < 0 { index = index + len(palettes) }
+  return palettes[index]
+}
+/**
+  Validates that a numeric dimension is strictly positive, returning a fallback value otherwise.
+
+  Parameters:
+  - value: The input numeric value to check.
+  - fallback: The default number to return if `value` is less than or equal to zero.
+
+  Returns:
+  - The positive numeric value if valid; otherwise, the fallback number.
+
+  Example:
+  ```sesi
+  let validWidth = positive(-10, 1200)
+  show validWidth // 1200
+  ```
+
+  Notes:
+  - Useful for sanitizing layout measurements like width, height, and radius.
+*/
+fn positive(value: number, fallback: number) -> number {
+  if value > 0 { return value }
+  return fallback
+}
+/**
+  Generates an SVG user avatar graphic with initials and abstract background accents.
+
+  Parameters:
+  - label: The display name or string from which up to two uppercase initials are extracted. Defaults to "?".
+  - size: The square dimension (width and height) in pixels. Defaults to 256.
+  - theme: The numeric theme palette index. Defaults to 0.
+
+  Returns:
+  - The rendered SVG XML document string.
+
+  Example:
+  ```sesi
+  let svg = avatar("Sesi Lang", 256, 0)
+  write_file("avatar.svg", svg)
+  ```
+
+  Notes:
+  - Clears the internal `std/draw` buffer prior to building the shape elements.
+  - Text is centered horizontally and vertically within a decorative circular container.
+*/
+export fn avatar(label: string = "?", size: number = 256, theme: number = 0) -> string {
+  let s = positive(size, 256)
+  let colors = palette(theme)
+  let initials = to_upper(join(slice(split(label, ""), 0, 2), ""))
+  if !initials { initials = "?" }
+  Draw.clear()
+  Draw.rect(0, 0, s, s, colors.background)
+  Draw.circle(s * 0.82, s * 0.18, s * 0.42, colors.accent, {opacity: 0.35})
+  Draw.circle(s * 0.13, s * 0.87, s * 0.32, colors.detail, {opacity: 0.18})
+  Draw.circle(s / 2, s / 2, s * 0.34, colors.accent)
+  Draw.text(s / 2, s * 0.59, initials, s * 0.29, colors.text, {"text-anchor": "middle", "font-family": "sans-serif", "font-weight": "700"})
+  return Draw.render(s, s)
+}
+/**
+  Generates an SVG banner graphic containing accent shapes, a vertical indicator bar, and a title.
+
+  Parameters:
+  - title: The text string to render on the banner. Defaults to "Your title".
+  - width: The canvas width in pixels. Defaults to 1200.
+  - height: The canvas height in pixels. Defaults to 400.
+  - theme: The numeric theme palette index. Defaults to 0.
+
+  Returns:
+  - The rendered SVG XML document string.
+
+  Example:
+  ```sesi
+  let svg = banner("Welcome to Sesi", 1200, 400, 1)
+  write_file("banner.svg", svg)
+  ```
+
+  Notes:
+  - Automatically resets the `std/draw` buffer before rendering.
+  - Dimensions fallback to default measurements if non-positive values are provided.
+*/
+export fn banner(title: string = "Your title", width: number = 1200, height: number = 400, theme: number = 0) -> string {
+  let w = positive(width, 1200)
+  let h = positive(height, 400)
+  let colors = palette(theme)
+  Draw.clear()
+  Draw.rect(0, 0, w, h, colors.background)
+  Draw.circle(w * 0.88, h * 0.18, h * 0.85, colors.accent, {opacity: 0.28})
+  Draw.circle(w * 0.76, h * 1.1, h * 0.72, colors.detail, {opacity: 0.14})
+  Draw.rect(w * 0.07, h * 0.24, w * 0.012, h * 0.52, colors.accent)
+  Draw.text(w * 0.11, h * 0.57, title, h * 0.17, colors.text, {"font-family": "sans-serif", "font-weight": "700"})
+  return Draw.render(w, h)
+}
+/**
+  Generates an SVG header graphic with an accent bottom border and title.
+
+  Parameters:
+  - title: The text string to display on the header. Defaults to "Page title".
+  - width: The canvas width in pixels. Defaults to 1200.
+  - height: The canvas height in pixels. Defaults to 240.
+  - theme: The numeric theme palette index. Defaults to 0.
+
+  Returns:
+  - The rendered SVG XML document string.
+
+  Example:
+  ```sesi
+  let svg = header("Documentation", 1200, 240, 2)
+  write_file("header.svg", svg)
+  ```
+
+  Notes:
+  - Resets the `std/draw` buffer before appending geometry.
+  - Includes a background circle and a horizontal accent bar spanning the bottom boundary.
+*/
+export fn header(title: string = "Page title", width: number = 1200, height: number = 240, theme: number = 0) -> string {
+  let w = positive(width, 1200)
+  let h = positive(height, 240)
+  let colors = palette(theme)
+  Draw.clear()
+  Draw.rect(0, 0, w, h, colors.background)
+  Draw.rect(0, h * 0.94, w, h * 0.06, colors.accent)
+  Draw.circle(w * 0.94, h * 0.12, h * 0.65, colors.accent, {opacity: 0.22})
+  Draw.text(w * 0.06, h * 0.62, title, h * 0.27, colors.text, {"font-family": "sans-serif", "font-weight": "700"})
+  return Draw.render(w, h)
+}
+/**
+  Generates an SVG preview thumbnail with geometric accents and a bottom overlay title card.
+
+  Parameters:
+  - title: The label text rendered across the bottom overlay bar. Defaults to "Preview".
+  - width: The canvas width in pixels. Defaults to 640.
+  - height: The canvas height in pixels. Defaults to 360.
+  - theme: The numeric theme palette index. Defaults to 0.
+
+  Returns:
+  - The rendered SVG XML document string.
+
+  Example:
+  ```sesi
+  let svg = thumbnail("Video Preview", 640, 360, 3)
+  write_file("thumbnail.svg", svg)
+  ```
+
+  Notes:
+  - Wipes the internal `std/draw` buffer prior to drawing.
+  - Renders a semi-transparent bottom banner to ensure title readability against background shapes.
+*/
+export fn thumbnail(title: string = "Preview", width: number = 640, height: number = 360, theme: number = 0) -> string {
+  let w = positive(width, 640)
+  let h = positive(height, 360)
+  let colors = palette(theme)
+  Draw.clear()
+  Draw.rect(0, 0, w, h, colors.background)
+  Draw.circle(w * 0.78, h * 0.42, h * 0.43, colors.accent, {opacity: 0.75})
+  Draw.circle(w * 0.91, h * 0.22, h * 0.17, colors.detail, {opacity: 0.7})
+  Draw.rect(0, h * 0.72, w, h * 0.28, colors.background, {opacity: 0.82})
+  Draw.text(w * 0.06, h * 0.89, title, h * 0.12, colors.text, {"font-family": "sans-serif", "font-weight": "700"})
+  return Draw.render(w, h)
+}
+
+/**
+  Dispatches and generates an SVG placeholder graphic based on a requested layout kind.
+
+  Parameters:
+  - kind: The component type to render ("avatar", "banner", "header", or any other value for "thumbnail").
+  - label: The text label or title string to display. Defaults to "Placeholder".
+  - width: Target width in pixels; also used as the square dimension for avatars. Defaults to 640.
+  - height: Target height in pixels (ignored when `kind` is "avatar"). Defaults to 360.
+  - theme: The numeric theme palette index. Defaults to 0.
+
+  Returns:
+  - The rendered SVG XML document string for the selected graphic component.
+
+  Example:
+  ```sesi
+  let avatarSvg = placeholder("avatar", "Ada Lovelace", 128, 128, 0)
+  let bannerSvg = placeholder("banner", "Welcome", 1200, 400, 1)
+  write_file("avatar.svg", avatarSvg)
+  write_file("banner.svg", bannerSvg)
+  ```
+
+  Notes:
+  - Serves as a unified entry point for generating dynamic SVG graphics.
+  - When `kind` is "avatar", the `width` parameter is forwarded as the square size measurement.
+*/
+export fn placeholder(kind: string, label: string = "Placeholder", width: number = 640, height: number = 360, theme: number = 0) -> string {
+  if kind == "avatar" { return avatar(label, width, theme) }
+  if kind == "banner" { return banner(label, width, height, theme) }
+  if kind == "header" { return header(label, width, height, theme) }
+  return thumbnail(label, width, height, theme)
+}
+/**
+  Test function for generating and saving placeholder SVG graphics.
+
+  This function demonstrates the usage of the `placeholder` function by creating
+  avatar, banner, header, and thumbnail SVG files in a temporary development
+  directory. It also saves the generated files and prints success messages.
+
+  Parameters:
+  - `label`: The text label to use for the generated placeholder graphics. Defaults to "Test".
+
+  Returns:
+  - None.
+
+  Notes:
+  - This function is intended for development and testing purposes.
+  - It creates a temporary directory and generates SVG files for different placeholder types.
+  - The function prints success messages for each saved file.
+*/
+fn test(label: string = "Test") {
+  let dir = "temp/dev/"; if !exists(dir) { make_dir(dir) }
+  let files = ["avatar.svg", "banner.svg", "header.svg", "thumbnail.svg"]
+  let final = []
+  for file in files { push(final, dir + file) }
+  for f in final {
+    let k = (swap(f, dir, "") | split("."))[0]
+    placeholder(k, label, 300, 300)
+    Draw.save_svg(f, 300, 300)
+    saved(k + ".svg", dir)
+  }
+}

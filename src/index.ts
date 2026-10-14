@@ -9,6 +9,7 @@ export { Compiler } from './compiler';
 export { VM } from './vm';
 export { disassemble } from './chunk';
 export { runInstall } from './pm';
+export { compileSesiForBrowser } from './browser-compiler';
 export {
   createNativeObject,
   isNativeObject,
@@ -148,8 +149,8 @@ function printAstTree(node: any, indent: string = ''): string {
     result += ` (value: ${JSON.stringify(node.value)})`;
   } else if (node.type === 'BinaryExpression') {
     result += ` (operator: "${node.operator}")`;
-  } else if (node.type === 'FunctionStatement') {
-    result += ` (name: "${node.name.lexeme}")`;
+  } else if (node.type === 'FunctionStatement' || node.type === 'MakeStatement') {
+    result += ` (name: "${node.name.lexeme || node.name}")`;
   }
   
   const childrenKeys = Object.keys(node).filter(k => k !== 'type' && k !== 'line' && k !== 'column' && k !== 'lexeme');
@@ -192,7 +193,7 @@ export async function runSesi(source: string, scriptDir?: string, options?: Sesi
 
     const dryRunDiagnostics = options?.dry
       ? [
-          ...runDryRunSemanticChecks(source),
+          ...runDryRunSemanticChecks(source, scriptDir),
           ...runTypeChecks(program).map(d => ({ ...d, column: 1 })),
         ]
       : [];

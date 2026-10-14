@@ -1,0 +1,242 @@
+/**
+  Converts a video file to a target format using specified encoding codecs and quality settings.
+
+  Parameters:
+  - `input`: The file path to the source video to be converted.
+  - `output`: The file path for the converted destination video.
+  - `codec`: The video codec used for encoding (defaults to `"libx264"`).
+  - `crf`: The Constant Rate Factor determining quality; lower values yield higher quality (defaults to `23`).
+
+  Returns:
+  - The result of the underlying FFmpeg execution call.
+
+  Example:
+  ```sesi
+  let result = conversion("source.mov", "output.mp4", "libx264", 20)
+  show result
+  ```
+
+  Notes:
+  - Overwrites existing destination files via the `-y` flag.
+  - Audio stream is automatically encoded using the AAC codec (`aac`).
+*/
+export fn conversion(input: string, output: string, codec: string = "libx264", crf: number = 23) { return ffmpeg(["-y", "-i", input, "-c:v", codec, "-crf", str(crf), "-c:a", "aac", output]) }
+/**
+  Trims a segment of a video from a starting timestamp for a given duration.
+
+  Parameters:
+  - `input`: The file path to the source video.
+  - `output`: The file path for the trimmed destination video clip.
+  - `start_seconds`: The timestamp in seconds where trimming starts.
+  - `duration_seconds`: The length of the trimmed video clip in seconds.
+
+  Returns:
+  - The result of the underlying FFmpeg execution call.
+
+  Example:
+  ```sesi
+  let clip = trim("lecture.mp4", "highlight.mp4", 120, 30)
+  show clip
+  ```
+
+  Notes:
+  - Uses fast input seeking (`-ss` before `-i`).
+  - Output video is encoded with `libx264` and audio with `aac`.
+*/
+export fn trim(input: string, output: string, start_seconds: number, duration_seconds: number) { return ffmpeg(["-y", "-ss", str(start_seconds), "-i", input, "-t", str(duration_seconds), "-c:v", "libx264", "-c:a", "aac", output]) }
+/**
+  Resizes a video to the specified width and height dimensions.
+
+  Parameters:
+  - `input`: The file path to the source video.
+  - `output`: The file path for the resized destination video.
+  - `width`: Target frame width in pixels.
+  - `height`: Target frame height in pixels.
+
+  Returns:
+  - The result of the underlying FFmpeg execution call.
+
+  Example:
+  ```sesi
+  let result = resize("1080p.mp4", "720p.mp4", 1280, 720)
+  show result
+  ```
+
+  Notes:
+  - Applies a video scaling filter (`scale=width:height`).
+  - Copies existing audio streams directly without re-encoding (`-c:a copy`).
+*/
+export fn resize(input: string, output: string, width: number, height: number) {
+  let filter = "scale=" + str(width) + ":" + str(height)
+  return ffmpeg(["-y", "-i", input, "-vf", filter, "-c:v", "libx264", "-c:a", "copy", output])
+}
+/**
+  Crops a rectangular region from a video stream starting at designated coordinates.
+
+  Parameters:
+  - `input`: The file path to the source video.
+  - `output`: The file path for the cropped destination video.
+  - `width`: The width of the cropped frame in pixels.
+  - `height`: The height of the cropped frame in pixels.
+  - `x`: The horizontal pixel offset from the top-left corner (defaults to `0`).
+  - `y`: The vertical pixel offset from the top-left corner (defaults to `0`).
+
+  Returns:
+  - The result of the underlying FFmpeg execution call.
+
+  Example:
+  ```sesi
+  let result = crop("wide.mp4", "square.mp4", 720, 720, 280, 0)
+  show result
+  ```
+
+  Notes:
+  - Applies the FFmpeg `crop=w:h:x:y` video filter.
+  - Re-encodes video with `libx264` and copies original audio.
+*/
+export fn crop(input: string, output: string, width: number, height: number, x: number = 0, y: number = 0) {
+  let filter = "crop=" + str(width) + ":" + str(height) + ":" + str(x) + ":" + str(y)
+  return ffmpeg(["-y", "-i", input, "-vf", filter, "-c:v", "libx264", "-c:a", "copy", output])
+}
+/**
+  Adjusts the playback speed of both video and audio streams by a multiplier factor.
+
+  Parameters:
+  - `input`: The file path to the source video.
+  - `output`: The file path for the speed-modified destination video.
+  - `multiplier`: The speed multiplier (e.g., `2.0` for double speed, `0.5` for half speed).
+
+  Returns:
+  - `false` if `multiplier` is less than or equal to `0`, otherwise the result of the FFmpeg execution call.
+
+  Example:
+  ```sesi
+  let result = speed("recording.mp4", "fast_forward.mp4", 1.5)
+  show result
+  ```
+
+  Notes:
+  - Scales video Presentation Timestamps using `setpts=PTS/multiplier`.
+  - Scales audio tempo using `atempo=multiplier`.
+  - Re-encodes video using `libx264` and audio using `aac`.
+*/
+export fn speed(input: string, output: string, multiplier: number) {
+  if multiplier <= 0 { return false }
+  let video_filter = "setpts=PTS/" + str(multiplier)
+  let audio_filter = "atempo=" + str(multiplier)
+  return ffmpeg(["-y", "-i", input, "-filter:v", video_filter, "-filter:a", audio_filter, "-c:v", "libx264", "-c:a", "aac", output])
+}
+/**
+  Extracts the audio track from a video file and saves it as an MP3 audio file.
+
+  Parameters:
+  - `input`: The file path to the source video file containing audio.
+  - `output`: The file path for the extracted MP3 audio file.
+
+  Returns:
+  - The result of the underlying FFmpeg execution call.
+
+  Example:
+  ```sesi
+  let audio_result = extract_audio("podcast.mp4", "podcast_audio.mp3")
+  show audio_result
+  ```
+
+  Notes:
+  - Strips video frames using `-vn`.
+  - Encodes audio using `libmp3lame` with a variable bitrate quality flag `-q:a 2`.
+*/
+export fn extract_audio(input: string, output: string) { return ffmpeg(["-y", "-i", input, "-vn", "-c:a", "libmp3lame", "-q:a", "2", output]) }
+/**
+  Captures a single image frame from a video at a specific timestamp.
+
+  Parameters:
+  - `input`: The file path to the source video.
+  - `output`: The file path for the saved image file (e.g. `thumbnail.jpg` or `frame.png`).
+  - `at_seconds`: The timestamp in seconds where the frame is captured.
+
+  Returns:
+  - The result of the underlying FFmpeg execution call.
+
+  Example:
+  ```sesi
+  let frame = extract_frame("clip.mp4", "preview.jpg", 15.5)
+  show frame
+  ```
+
+  Notes:
+  - Extracts exactly one video frame using `-frames:v 1`.
+  - Uses `-ss` input seeking to jump to the specified timestamp.
+*/
+export fn extract_frame(input: string, output: string, at_seconds: number) { return ffmpeg(["-y", "-ss", str(at_seconds), "-i", input, "-frames:v", "1", output]) }
+/**
+  Overlays a secondary video or image on top of a base video at specified coordinates.
+
+  Parameters:
+  - `input`: The file path to the primary/background video.
+  - `overlay`: The file path to the overlay image or video.
+  - `output`: The file path for the composited destination video.
+  - `x`: The horizontal pixel offset from the top-left corner (defaults to `0`).
+  - `y`: The vertical pixel offset from the top-left corner (defaults to `0`).
+
+  Returns:
+  - The result of the underlying FFmpeg execution call.
+
+  Example:
+  ```sesi
+  let result = overlay("main.mp4", "watermark.png", "watermarked.mp4", 20, 20)
+  show result
+  ```
+
+  Notes:
+  - Uses the `-filter_complex overlay=x:y` filter chain.
+  - Copies original audio from the base input video without re-encoding.
+*/
+export fn overlay(input: string, overlay: string, output: string, x: number = 0, y: number = 0) {
+  let filter = "overlay=" + str(x) + ":" + str(y)
+  return ffmpeg(["-y", "-i", input, "-i", overlay, "-filter_complex", filter, "-c:v", "libx264", "-c:a", "copy", output])
+}
+/**
+  Concatenates multiple video files sequentially into a single output video.
+
+  Parameters:
+  - `inputs`: An array of file path strings pointing to the videos to concatenate.
+  - `output`: The file path for the merged output video.
+
+  Returns:
+  - `false` if `inputs` is empty, otherwise the result of the FFmpeg execution call.
+
+  Example:
+  ```sesi
+  let clips = ["intro.mp4", "scene1.mp4", "outro.mp4"]
+  let result = concatenate(clips, "full_movie.mp4")
+  show result
+  ```
+
+  Notes:
+  - Constructs a dynamic `-filter_complex` concat chain for all video streams.
+  - Strips audio from the output (`-an`).
+  - Encodes the combined video track using `libx264`.
+*/
+export fn concatenate(inputs: array<string>, output: string) {
+  if len(inputs) == 0 { return false }
+  let command = ["-y"]
+  let filter = ""
+  let i = 0
+  while i < len(inputs) {
+    push(command, "-i")
+    push(command, inputs[i])
+    filter = filter + "[" + str(i) + ":v:0]"
+    i = i + 1
+  }
+  filter = filter + "concat=n=" + str(len(inputs)) + ":v=1:a=0[outv]"
+  push(command, "-filter_complex")
+  push(command, filter)
+  push(command, "-map")
+  push(command, "[outv]")
+  push(command, "-an")
+  push(command, "-c:v")
+  push(command, "libx264")
+  push(command, output)
+  return ffmpeg(command)
+}

@@ -153,7 +153,7 @@ show cheap
 - `gemini-3.5-flash` - Balanced, but token hungry (USE WISELY). Supports all native thinking effort levels (`minimal`, `low`, `medium`, `high`).
 - `gemini-3.5-flash-lite` - Faster 3.5 model for high-throughput execution like subagent work and document parsing.
 - `gemini-3.6-flash` - Stronger performance on complex agentic and multimodal tasks while reducing token usage, at a lower price point than 3.5 Flash.
-- `gemini-3.7-flash` - Enhanced reasoning capabilities, improved performance, and tool integration.
+- `gemini-3.7-flash (Deprecated)` - Enhanced reasoning capabilities, improved performance, and tool integration.
 - `gemini-3.8-flash` - Slightly improved reasoning capabilities, performance, and tool integration compared to 3.7 Flash.
 
 #### Pro Models
@@ -166,6 +166,7 @@ show cheap
 - `gemini-2.5-flash-image` - Standard image model. (No `512` image size support for this model. Only `1K` is supported.) Most cost efficient.
 - `gemini-3.1-flash-image` -  Most consistent image generation model.
 - `gemini-3.1-flash-image-lite` - Fastest and cheapest image model, engineered for velocity and scale where speed and cost are the primary operational constraints. Not optimized for multiple reference inputs or multi-turn sequential editing.
+- `gemini-nano-banana-2.1` - Latest Nano Banana model.
 - `gemini-3-pro-image` - High quality image generation model. (No `512` image size support for this model.)
 
 #### OpenAI GPT Models
@@ -178,17 +179,17 @@ show cheap
 - Sesi audio input currently requires a Gemini model.
 
 ```sesi
-let answer = model("gpt-5.6-sol") {"Summarize this document in 3 bullets."}
+let answer = model("gpt-6-luna") {"Summarize this document in 3 bullets."}
 show answer
 
 fn onChunk(chunk) {
   show "chunk:" chunk
 }
 
-let streamed = model("gpt-5.6-terra") {stream: onChunk, thinkingLevel: "low", max_tokens: 400} {"Explain event streaming in one paragraph."}
+let streamed = model("gpt-6.1-sol") {stream: onChunk, thinkingLevel: "low", max_tokens: 400} {"Explain event streaming in one paragraph."}
 show streamed
 
-let current = model("gpt-5.6-luna") {search: true} {"What is the current capital of France?"}
+let current = model("gpt-6-luna") {search: true} {"What is the current capital of France?"}
 show current
 ```
 
@@ -311,7 +312,7 @@ show tax  // 8.0
 
 ```sesi
 // Allow Reasoning to choose from multiple tools
-let result = model("gemini-3.7-flash") {tools: [getWeather, calculateTax]} {"What's the weather in NY and the sales tax on $50?"}
+let result = model("gemini-3.6-flash") {tools: [getWeather, calculateTax]} {"What's the weather in NY and the sales tax on $50?"}
 ```
 
 ## 5. Memory & Conversation

@@ -16,7 +16,7 @@ show "Sesi Studio Theme Generator — creating a custom IDE theme
 "
 
 let studioReadme = Safe.readFile("README.md")
-let studioHtml = Safe.readFile("index.html")
+let studioHtml = Safe.readFile("build/index.min.html")
 
 // Pass your style description as the first CLI argument.
 let style = ""
@@ -44,9 +44,9 @@ Updating prompt: (" style ")"
 // Enhance the prompt with a pre-model call
 let updatedStyle = ""
 if new == "y" || new == "new" {
-  updatedStyle = model("gemini-3.1-flash-lite") {thinkingLevel: "medium", temperature: 0.7, max_tokens: 500, cache: false} {"Enhance the following style description for an IDE theme to be more specific and detailed, while keeping it concise: "style". Return only the enhanced style description without any extra text."}
+  updatedStyle = model("gemini-3.1-flash-lite") {thinking: "medium", temp: 0.7, maxT: 500, cache: false} {"Enhance the following style description for an IDE theme to be more specific and detailed, while keeping it concise: "style". Return only the enhanced style description without any extra text."}
 } else {
-  updatedStyle = model("gemini-3.1-flash-lite") {thinkingLevel: "medium", temperature: 0.7, max_tokens: 500, cache: true} {"Enhance the following style description for an IDE theme to be more specific and detailed, while keeping it concise: "style". Return only the enhanced style description without any extra text."}
+  updatedStyle = model("gemini-3.1-flash-lite") {thinking: "medium", temp: 0.7, maxT: 500} {"Enhance the following style description for an IDE theme to be more specific and detailed, while keeping it concise: "style". Return only the enhanced style description without any extra text."}
 }
 style = updatedStyle
 show "Generating a custom theme for Sesi Studio based on the following style description:
@@ -99,23 +99,26 @@ show "Retrieving CSS...
 
 /* 
   Change the model and parameters as needed. 
+  - gpt-5.5^-* / all GPT 5.5+ models are supported, GPT 5.5 is deprecating soon, so we storngly suggest the latest GPT 6+ family.
   - gemini-3-flash-preview is a good choice for code generation tasks, but feel free to experiment with other models or settings.
   - gemini-3.5-flash for higher quality but token hungry.
   - gemini-3.6-flash for consistency and high-quality CSS generation.
+  - gemini-3.8-flash for the latest quality control.
   - gemini-3.1-pro-preview for a more polished and refined output.
-  - Both may take slightly longer than gemini-3-flash-preview, but can produce higher quality CSS with better adherence to best practices and design principles.
+    - These may take slightly longer than gemini-3-flash-preview, but can produce higher quality CSS with better adherence to best practices and design principles.
   
   Note: We set `cache: false` to ensure we get a fresh response each time, which is important during development when you may be iterating on the style description. 
 */
 let css = ""
+set_alias("gpt", "gpt-6.1-sol") // Change to your preferred GPT model
+set_alias("gemini", "gemini-3.8-flash") // Change to your preferred Gemini model
+let gpt = $OPENAI_API_KEY != ""
 if new == "y" || new == "new" {
-  css = model("gemini-3-flash-preview") {system: sys, thinkingLevel: "medium", temperature: 0.5, max_tokens: 8192, cache: true} {"
-User theme need: "need".
-Only output CSS."}
+  if gpt { css = model("gpt") {system: sys, thinkingLevel: "medium", max_tokens: 8192, cache: true} {"User theme need: "need".\nOnly output CSS."} }
+  else { css = model("gemini") {system: sys, thinkingLevel: "medium", temperature: 0.5, max_tokens: 8192, cache: true} {"User theme need: "need".\nOnly output CSS."} }
 } else {
-  css = model("gemini-3-flash-preview") {system: sys, thinkingLevel: "medium", temperature: 0.5, max_tokens: 8192, cache: false} {"
-User theme need: "need".
-Only output CSS."}
+  if gpt { css = model("gpt") {system: sys, thinkingLevel: "medium", max_tokens: 8192, cache: false} {"User theme need: "need".\nOnly output CSS."} }
+  else { css = model("gemini") {system: sys, thinkingLevel: "medium", temperature: 0.5, max_tokens: 8192, cache: false} {"User theme need: "need".\nOnly output CSS."} }
 }
 
 show "Received CSS preview (first 6 lines):"

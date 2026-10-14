@@ -506,10 +506,12 @@ Draw.save_png("pixel_bezier.png", 100, 100)
 
 ### Pixel Text — `Draw.pixel_text`
 
-Rasterizes text using a built-in bitmap pixel font into the pixel buffer.
+Rasterizes text directly into the pixel buffer. The default `classic` face uses
+the built-in 5x7 bitmap font. The `bubble` and `impact` faces render smooth,
+antialiased, full-scale lettering.
 
 ```
-Draw.pixel_text(x, y, text, color, scale = 1)
+Draw.pixel_text(x, y, text, color, scale = 1, font = "classic")
 ```
 
 | Parameter | Type | Description |
@@ -518,13 +520,23 @@ Draw.pixel_text(x, y, text, color, scale = 1)
 | `y` | `number` | Top Y position |
 | `text` | `string` | Text string to render |
 | `color` | `string` | Text color |
-| `scale` | `number` | Pixel scale multiplier per glyph cell |
+| `scale` | `number` | Text scale; multiplies bitmap cells for `classic` and controls rendered size for smooth faces |
+| `font` | `string` | Font face: `"classic"`, `"bubble"`, or `"impact"` |
 
 ```sesi
 allow "std/draw" in as Draw
 
 Draw.pixel_text(10, 10, "PIXEL ART", "#f72585", 2)
 Draw.save_png("pixel_text.png", 200, 50)
+```
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_rect(0, 0, 900, 240, "#101522", true)
+Draw.pixel_text(30, 25, "Bubble Text", "#79e6ff", 12, "bubble")
+Draw.pixel_text(30, 125, "IMPACT STYLE", "#fff1d0", 12, "impact")
+Draw.save_png("font_faces.png", 900, 240)
 ```
 
 ---
@@ -542,7 +554,7 @@ Encodes all raster pixels in the buffer to a PNG image file. Coordinates are flo
 ### Key Differences When Working With Full Resolutions:
 1. **Canvas Allocation**: `Draw.save_png(path, width, height, "transparent")` instructs the raster engine to write a complete width×height viewport. Any primitives placed outside that bounding box are clipped, and undefined pixels receive the specified background color (or transparency).
 2. **Scale Multipliers**:
-   - `Draw.pixel_text(x, y, text, color, scale)`: Using `scale = 2` or `scale = 3` scales bitmap font glyphs up so they remain legible on large canvases.
+   - `Draw.pixel_text(x, y, text, color, scale, font)`: For the `classic` face, `scale = 2` or `scale = 3` enlarges bitmap glyph cells. The smooth `bubble` and `impact` faces use the same value to control their rendered size.
    - `Draw.pixel_grid(grid, palette, scale)`: When using palette grids on an HD canvas, set `scale` (e.g., `32`, `64`, or `128`) so that character cells map to sizable multi-pixel blocks rather than single 1px dots.
 3. **Primitive Sizing**: Coordinates for `pixel_polygon`, `pixel_triangle`, `pixel_star`, `pixel_circle`, and `pixel_rect` must scale with the destination dimensions. Radius values of `40` to `100` and heights of `300` to `600` fill out a 720p or 1080p frame proportionally for reference.
 
@@ -677,7 +689,7 @@ Draw.pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled = true)
 Draw.pixel_ring(cx, cy, radius, thickness, color)
 Draw.pixel_arc(cx, cy, radius, startAngle, endAngle, color)
 Draw.pixel_bezier(x1, y1, cx, cy, x2, y2, color)
-Draw.pixel_text(x, y, text, color, scale = 1)
+Draw.pixel_text(x, y, text, color, scale = 1, font = "classic")
 Draw.save_png("output.png", width, height, "transparent")
 ```
 

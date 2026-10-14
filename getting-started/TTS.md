@@ -24,13 +24,13 @@ write_file("speech.wav", audio, "base64")
 
 ## Transcribe audio
 
-`from_speech()` transcribes an audio file using `nodejs-whisper`.
+`from_speech()` transcribes an audio file through OpenAI by default. Set `OPENAI_API_KEY`.
 
 ```sesi
 let transcript = from_speech("standup.mp3", "en")
+let openai = from_speech("standup.mp3", "en", "gpt-4o-mini-transcribe")
+let gemini = from_speech("standup.mp3", "en", "gemini-3.1-flash-lite")
 show transcript
 ```
 
-A downloaded model must be installed (`npx nodejs-whisper download base.en`).
-
-Pass a Gemini model as the third argument to use it instead of Whisper.
+The default model is `gpt-transcribe`. To use Gemini, pass a Gemini model as the third argument and set `GEMINI_API_KEY`.

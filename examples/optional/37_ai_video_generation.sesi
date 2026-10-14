@@ -19,7 +19,7 @@ let promptText = "A tiny glass robot walks through a rain-soaked neon garden, ci
 let outputPath = outputDir + "ai-video.mp4"
 
 // Gemini Omni Flash is the default choice for fast text-to-video generation.
-let clip = video("gemini-omni-flash-preview") {ratio: "16:9"} {promptText}
+let clip = video("gemini-omni-1.1-flash") {ratio: "16:9"} {promptText}
 try {
     outputPath | Safe.saveMedia(clip)
     show "Saved generated video to" outputPath

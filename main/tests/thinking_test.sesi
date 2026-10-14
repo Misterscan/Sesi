@@ -3,3 +3,6 @@ show "Response with thinking_level:" res
 
 let res2 = model("gemini-2.5-flash") {thinkingLevel: "low"} {"Say hi"}
 show "Response with thinkingLevel:" res2
+
+let res3 = model("gemini-2.5-flash") {thinking: "low"} {"Say hi"}
+show "Response with thinking:" res3

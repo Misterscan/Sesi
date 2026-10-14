@@ -1,11 +1,8 @@
 /**
   String utility functions for common string manipulations.
 
- These functions provide common string manipulation utilities such as quoting, sanitizing, and converting between different case styles.
+  These functions provide common string manipulation utilities such as quoting, sanitizing, and converting between different case styles.
 */
-
-allow "std/math" in with {floor}
-
 /**
   Generate a random integer between an inclusive minimum and maximum value.
 
@@ -25,10 +22,7 @@ allow "std/math" in with {floor}
   Notes:
   - The function uses the runtime `random()` function and floors the result to produce an integer.
 */
-export fn randomize(min: number, max: number) -> number {
-    return floor(random() * (max - min + 1)) + min
-}
-
+export fn randomize(min: number, max: number) -> number { return floor(random() * (max - min + 1)) + min }
 /**
   Quote a value as a double-quoted string while escaping embedded double quotes.
 
@@ -48,11 +42,10 @@ export fn randomize(min: number, max: number) -> number {
   - The input is converted with `str()` before escaping.
 */
 export fn quote(content: any) -> string {
-    let text = str(content)
-    text = swap(text, "\"", "\\\"")
-    return "\"" + text + "\""
+  let text = str(content)
+  text = swap(text, "\"", "\\\"")
+  return "\"" + text + "\""
 }
-
 /**
   Escape special characters in text for safe insertion into SVG markup.
 
@@ -72,15 +65,14 @@ export fn quote(content: any) -> string {
   - Ampersands are escaped before the other entities to prevent double interpretation.
 */
 export fn escapeSvgText(text: any) -> string{
-    let s = str(text)
-    s = swap(s, "&", "&amp;")
-    s = swap(s, "<", "&lt;")
-    s = swap(s, ">", "&gt;")
-    s = swap(s, "\"", "&quot;")
-    s = swap(s, "'", "&apos;")
-    return s
+  let s = str(text)
+  s = swap(s, "&", "&amp;")
+  s = swap(s, "<", "&lt;")
+  s = swap(s, ">", "&gt;")
+  s = swap(s, "\"", "&quot;")
+  s = swap(s, "'", "&apos;")
+  return s
 }
-
 /**
   Sanitize a value for use as a short, filesystem-friendly name.
 
@@ -102,28 +94,23 @@ export fn escapeSvgText(text: any) -> string{
   - Values longer than 40 characters are truncated.
 */
 export fn sanitize(content: any) -> string {
-    let s = str(content)
-    s = swap(s, "\n", "")
-    s = swap(s, " ", "_")
-    s = swap(s, "/", "-")
-    s = swap(s, "{", "")
-    s = swap(s, "}", "")
-    s = swap(s, ":", "")
-    s = swap(s, "\"", "")
-    s = swap(s, "'", "")
-    s = swap(s, "?", "")
-    s = swap(s, "*", "")
-    s = swap(s, "<", "")
-    s = swap(s, ">", "")
-    s = swap(s, "|", "")
-
-    if len(s) > 40 {
-        s = trunc(s, 40) 
-    }
-
-    return s
+  let s = str(content)
+  s = swap(s, "\n", "")
+  s = swap(s, " ", "_")
+  s = swap(s, "/", "-")
+  s = swap(s, "{", "")
+  s = swap(s, "}", "")
+  s = swap(s, ":", "")
+  s = swap(s, "\"", "")
+  s = swap(s, "'", "")
+  s = swap(s, "?", "")
+  s = swap(s, "*", "")
+  s = swap(s, "<", "")
+  s = swap(s, ">", "")
+  s = swap(s, "|", "")
+  if len(s) > 40 { s = trunc(s, 40) }
+  return s
 }
-
 /**
   Return a substring between two inclusive character indexes.
 
@@ -144,10 +131,7 @@ export fn sanitize(content: any) -> string {
   Notes:
   - This helper adapts Sesi's exclusive-end `slice()` function to use an inclusive end index.
 */
-export fn substring(string: string, start: number, end: number) -> string {
-    return slice(string, start, end + 1)
-}
-
+export fn substring(string: string, start: number, end: number) -> string { return slice(string, start, end + 1) }
 /**
   Return a substring from a starting index through the end of a string.
 
@@ -167,10 +151,7 @@ export fn substring(string: string, start: number, end: number) -> string {
   Notes:
   - The start index is inclusive.
 */
-export fn substringFrom(string: string, start: number) -> string {
-    return slice(string, start, len(string))
-}
-
+export fn substringFrom(string: string, start: number) -> string { return slice(string, start, len(string)) }
 /**
   Return a substring from the beginning of a string through an inclusive end index.
 
@@ -190,10 +171,7 @@ export fn substringFrom(string: string, start: number) -> string {
   Notes:
   - The end index is inclusive.
 */
-export fn substringTo(string: string, end: number) -> string {
-    return slice(string, 0, end + 1)
-}
-
+export fn substringTo(string: string, end: number) -> string { return slice(string, 0, end + 1) }
 /**
   Find the last occurrence of a substring in a string.
 
@@ -214,17 +192,56 @@ export fn substringTo(string: string, end: number) -> string {
   - The function scans candidate positions and returns the final matching position.
 */
 export fn lastIndexOf(string: string, substr: string) -> number {
-    let lenString = len(string)
-    let lenSubstring = len(substr)
-    let lens = lenString - lenSubstring + 1
-    for i in range(lens - 1) {
-        if substring(string, i, i + lenSubstring - 1) == substr {
-            return i + 1
-        }
-    }
-    return -1
+  let lenString = len(string)
+  let lenSubstring = len(substr)
+  let lens = lenString - lenSubstring + 1
+  for i in range(lens - 1) { if substring(string, i, i + lenSubstring - 1) == substr { return i + 1 } }
+  return -1
 }
+/**
+  Extracts the file name from a path by removing all parent folders and subfolders.
 
+  Parameters:
+  - `path`: The full or relative file path string.
+
+  Returns:
+  - The base file name without leading directory segments.
+
+  Example:
+  ```sesi
+  let file_name = getBaseName("src/controllers/api/v1/users.sesi")
+  show file_name // users.sesi
+  ```
+*/
+export fn getBaseName(path: string) -> string {
+  if is_null(path) || path == "" { return "" }
+  let normalized = swap(path, "\\", "/")
+  let parts = normalized | split("/")
+  while len(parts) > 0 && parts[len(parts) - 1] == "" { pop(parts) }
+  if len(parts) == 0 { return "" }
+  return parts[len(parts) - 1]
+}
+/**
+  Extracts the bare file name by stripping all parent folders and the file extension.
+
+  Parameters:
+  - `path`: The full or relative file path string.
+
+  Returns:
+  - The file name without directories or extension.
+
+  Example:
+  ```sesi
+  let name = getStem("docs/reports/annual_summary.pdf")
+  show name // annual_summary
+  ```
+*/
+export fn getStem(path: string) -> string {
+  let file_name = getBaseName(path)
+  let dot_idx = locate(file_name, ".")
+  if dot_idx == -1 { return file_name }
+  return slice(file_name, 0, dot_idx)
+}
 /**
   Return whether a regular expression has at least one match in a string.
 
@@ -246,13 +263,10 @@ export fn lastIndexOf(string: string, substr: string) -> number {
   - The function returns a boolean indicating whether at least one match exists.
 */
 export fn match(string: string, pattern: string) -> bool {
-    let findPattern = regex(pattern, string, {"mode": "match", "flags": "g"})
-    for arr in findPattern {
-        return true
-    }
-    return false
+  let findPattern = regex(pattern, string, {mode: "match", flags: "g"})
+  for arr in findPattern { return true }
+  return false
 }
-
 /**
   Count the number of matches of a regular expression in a string.
 
@@ -273,14 +287,11 @@ export fn match(string: string, pattern: string) -> bool {
   - Matching is performed with the `regex()` builtin in global match mode.
 */
 export fn matches(string: string, pattern: string) -> number {
-    let findPattern = regex(pattern, string, {"mode": "match", "flags": "g"})
-    let count = 0
-    for arr in findPattern {
-        count = count + 1
-    }
-    return count
+  let findPattern = regex(pattern, string, {mode: "match", flags: "g"})
+  let count = 0
+  for arr in findPattern { count = count + 1 }
+  return count
 }
-
 /**
   Search for a regular-expression pattern and return the first match index.
 
@@ -301,13 +312,10 @@ export fn matches(string: string, pattern: string) -> number {
   - Matching is performed with the `regex()` builtin in global match mode.
 */
 export fn searchInString(string: string, pattern: string) -> number {
-    let findIndex = regex(pattern, string, {"mode": "match", "flags": "g"})
-    for arr in findIndex {
-        return arr.index
-    }
-    return -1
+  let findIndex = regex(pattern, string, {mode: "match", flags: "g"})
+  for arr in findIndex { return arr.index }
+  return -1
 }
-
 /**
   Convert text containing spaces, underscores, or hyphens into camelCase.
 
@@ -328,23 +336,19 @@ export fn searchInString(string: string, pattern: string) -> number {
   - Characters that are not after a separator are converted to lowercase.
 */
 export fn toCamel(string: string) -> string {
-    let result = ""
-    let capitalizeNext = false
-    for char in split(string, "") {
-        if char == " " || char == "_" || char == "-" {
-            capitalizeNext = true
-        } else {
-            if capitalizeNext {
-                result = result + to_upper(char)
-                capitalizeNext = false
-            } else {
-                result = result + to_lower(char)
-            }
-        }
+  let result = ""
+  let capitalizeNext = false
+  for char in split(string, "") {
+    if char == " " || char == "_" || char == "-" { capitalizeNext = true
+    } else {
+      if capitalizeNext {
+        result = result + to_upper(char)
+        capitalizeNext = false
+      } else { result = result + to_lower(char) }
     }
-    return result
+  }
+  return result
 }
-
 /**
   Determine whether a character is an uppercase alphabetic character.
 
@@ -365,10 +369,7 @@ export fn toCamel(string: string) -> string {
   - Non-alphabetic characters return `false` because their uppercase and lowercase forms are equal.
   - This is an internal helper and is not exported.
 */
-fn is_upper(char: string) -> bool {
-    return char == to_upper(char) && char != to_lower(char)
-}
-
+fn is_upper(char: string) -> bool { return char == to_upper(char) && char != to_lower(char) }
 /**
   Convert text into snake_case.
 
@@ -389,24 +390,16 @@ fn is_upper(char: string) -> bool {
   - Spaces and hyphens become underscores.
 */
 export fn toSnake(string: string) -> string {
-    let result = ""
-    for char in split(string, "") {
-        if is_upper(char) {
-            if len(result) > 0 {
-                result = result + "_"
-            }
-            result = result + to_lower(char)
-        } else if char == "-" {
-            result = result + "_"
-        } else if char == " " {
-            result = result + "_"
-        } else {
-            result = result + char
-        }
+  let result = ""
+  for char in split(string, "") {
+    if is_upper(char) {
+      if len(result) > 0 { result = result + "_" } result = result + to_lower(char) }
+      else if char == "-" { result = result + "_" }
+      else if char == " " { result = result + "_" }
+      else { result = result + char }
     }
-    return result
+  return result
 }
-
 /**
   Convert text into kebab-case.
 
@@ -426,24 +419,17 @@ export fn toSnake(string: string) -> string {
   - Uppercase letters, underscores, and spaces are converted into lowercase hyphen-separated words.
 */
 export fn toKebab(string: string) -> string {
-    let result = ""
-    for char in split(string, "") {
-        if is_upper(char) {
-            if len(result) > 0 {
-                result = result + "-"
-            }
-            result = result + to_lower(char)
-        } else if char == "_" {
-            result = result + "-"
-        } else if char == " " {
-            result = result + "-"
-        } else {
-            result = result + char
-        }
-    }
-    return result
+  let result = ""
+  for char in split(string, "") {
+    if is_upper(char) {
+      if len(result) > 0 { result = result + "-" }
+      result = result + to_lower(char)
+    } else if char == "_" { result = result + "-" }
+    else if char == " " { result = result + "-" }
+    else { result = result + char }
+  }
+  return result
 }
-
 /**
   Convert text into PascalCase.
 
@@ -464,23 +450,19 @@ export fn toKebab(string: string) -> string {
   - All non-initial characters are converted to lowercase.
 */
 export fn toPascal(string: string) -> string {
-    let result = ""
-    let capitalizeNext = true
-    for char in split(string, "") {
-        if char == " " || char == "_" || char == "-" {
-            capitalizeNext = true
-        } else {
-            if capitalizeNext {
-                result = result + to_upper(char)
-                capitalizeNext = false
-            } else {
-                result = result + to_lower(char)
-            }
-        }
+  let result = ""
+  let capitalizeNext = true
+  for char in split(string, "") {
+    if char == " " || char == "_" || char == "-" { capitalizeNext = true }
+    else {
+      if capitalizeNext {
+        result = result + to_upper(char)
+        capitalizeNext = false
+      } else { result = result + to_lower(char) }
     }
-    return result
+  }
+  return result
 }
-
 /**
   Convert text into Title Case.
 
@@ -500,24 +482,21 @@ export fn toPascal(string: string) -> string {
   - Spaces, underscores, and hyphens are normalized to single spaces.
 */
 export fn toTitle(string: string) -> string {
-    let result = ""
-    let capitalizeNext = true
-    for char in split(string, "") {
-        if char == " " || char == "_" || char == "-" {
-            result = result + " "
-            capitalizeNext = true
-        } else {
-            if capitalizeNext {
-                result = result + to_upper(char)
-                capitalizeNext = false
-            } else {
-                result = result + to_lower(char)
-            }
-        }
+  let result = ""
+  let capitalizeNext = true
+  for char in split(string, "") {
+    if char == " " || char == "_" || char == "-" {
+      result = result + " "
+      capitalizeNext = true
+    } else {
+      if capitalizeNext {
+        result = result + to_upper(char)
+        capitalizeNext = false
+      } else { result = result + to_lower(char) }
     }
-    return result
+  }
+  return result
 }
-
 /**
   Generate a random salt string from letters, numbers, and punctuation.
 
@@ -538,15 +517,14 @@ export fn toTitle(string: string) -> string {
   - The generated value is intended for use in this module's hashing and masking utilities.
 */
 fn salt(length: number = 16) -> string {
-    let chars = "abcdefghijklmnopqrstuvwxyzABCEDFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-=_+[]\\;',./{}|:\"<>?`~"
-    let salted = ""
-    for i in range(length) {
-        let index = randomize(0, len(chars) - 1)
-        salted = salted + substring(chars, index, index)
-    }
-    return salted
+  let chars = "abcdefghijklmnopqrstuvwxyzABCEDFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-=_+[]\\;',./{}|:\"<>?`~"
+  let salted = ""
+  for i in range(length) {
+    let index = randomize(0, len(chars) - 1)
+    salted = salted + substring(chars, index, index)
+  }
+  return salted
 }
-
 /**
   Produce an encrypted hash-like value by combining input with a random salt.
 
@@ -569,12 +547,29 @@ fn salt(length: number = 16) -> string {
   - The returned value is encrypted rather than a conventional one-way cryptographic hash.
 */
 fn hash(input: string, length: number) -> string {
-    // Hash using encrypt() function with a salt
-    let salted = salt(length)
-    let hashed = encrypt(input + salted, salted)
-    return hashed
+  let salted = salt(length)
+  let hashed = encrypt(input + salted, salted)
+  return hashed
 }
+/**
+  Compute the SHA-256 hash of the given text.
 
+  Parameters:
+  - `text`: The input text to hash.
+
+  Returns:
+  - A SHA-256 hash string of the input text.
+
+  Example:
+  ```sesi
+  let digest = sha256("example text")
+  show digest
+  ```
+*/
+export fn sha256(text: string) -> string {
+  let code = "const crypto = require('crypto'); console.log(crypto.createHash('sha256').update(process.env.SESI_ARGS).digest('hex'));"
+  return js(code, text)
+}
 /**
   Generate a numeric password and transform it into a unique password string.
 
@@ -596,33 +591,28 @@ fn hash(input: string, length: number) -> string {
   - This function is exported for use by other modules.
 */
 export fn generateNumericPass(length: number) -> string {
-    let chars = "0123456789"
-    let password = ""
-    for i in range(length) {
-        let index = randomize(0, len(chars) - 1)
-        password = password + substring(chars, index, index)
-    }
-    password = hash(password, length)
-    let lowercaseChars = "abcdefghijklmnopqrstuvwxyz"
-    let uppercaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    for i in range(len(lowercaseChars)) {
-        let char = substring(lowercaseChars, i, i)
-        password = password | swap(char, (randomize(0, 10) | str | trunc(1)))
-    }
-    for i in range(len(uppercaseChars)) {
-        let char = substring(uppercaseChars, i, i)
-        password = password | swap(char, (randomize(0, 10) | str | trunc(1)))
-    }
-    // Make sure there are no repeated characters in the password
-    let uniquePassword = ""
-    for char in split(password, "") {
-        if index_of(uniquePassword, char) == -1 {
-            uniquePassword = uniquePassword + char + (randomize(0, 9) | str | trunc(1))
-        }
-    }
-    return uniquePassword | trunc(length)
+  let chars = "0123456789"
+  let password = ""
+  for i in range(length) {
+    let index = randomize(0, len(chars) - 1)
+    password = password + substring(chars, index, index)
+  }
+  password = hash(password, length)
+  let lowercaseChars = "abcdefghijklmnopqrstuvwxyz"
+  let uppercaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  for i in range(len(lowercaseChars)) {
+    let char = substring(lowercaseChars, i, i)
+    password = password | swap(char, (randomize(0, 10) | str | trunc(1)))
+  }
+  for i in range(len(uppercaseChars)) {
+    let char = substring(uppercaseChars, i, i)
+    password = password | swap(char, (randomize(0, 10) | str | trunc(1)))
+  }
+  // Make sure there are no repeated characters in the password
+  let uniquePassword = ""
+  for char in split(password, "") { if index_of(uniquePassword, char) == -1 { uniquePassword = uniquePassword + char + (randomize(0, 9) | str | trunc(1)) } }
+  return uniquePassword | trunc(length)
 }
-
 /**
   Generate a random password containing letters, numbers, and special characters.
 
@@ -644,55 +634,37 @@ export fn generateNumericPass(length: number) -> string {
   - This function is exported for use by other modules.
 */
 export fn generatePass(length: number) -> string {
-    // Lowercase, uppercase, numbers, and special characters included in the character set
-    let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@$%&*_?"
-    // Password initialization
-    let password = ""
-    for i in range(length) {
-        // Select a random character from the character set
-        let index = randomize(0, len(chars) - 1)
-        password = password + substring(chars, index, index)
-    }
-    if length <= 0 {
-        return ""
-    }
-    // Hash the generated password and truncate it to the desired length
-    let hashedPassword = hash(password, length) | trunc(length)
-    // Ensure the hashed password contains at least the minimum number of special characters
-    let specialChars = "!@~_?"
-    let maxSpecialCount = len(specialChars)
-    if length < maxSpecialCount {
-        maxSpecialCount = length
-    }
-    let minSpecialCount = 2
-    if maxSpecialCount < minSpecialCount {
-        minSpecialCount = maxSpecialCount
-    }
-    // Determine the number of special characters to include in the password
-    let specialCount = randomize(minSpecialCount, maxSpecialCount)
-    let remainingSpecials = specialCount
-    let availableSpecials = specialChars
-    // Final password construction
-    let result = ""
-    for i in range(length) {
-        let remainingPositions = length - i
-        let useSpecial = remainingSpecials == remainingPositions
-        if !useSpecial && remainingSpecials > 0 {
-            useSpecial = randomize(0, 1) == 1
-        }
-        if useSpecial {
-            let charIndex = randomize(0, len(availableSpecials) - 1)
-            let specialChar = substring(availableSpecials, charIndex, charIndex)
-            result = result + specialChar
-            availableSpecials = availableSpecials | swap(specialChar, "")
-            remainingSpecials = remainingSpecials - 1
-        } else {
-            result = result + substring(hashedPassword, i, i)
-        }
-    }
-    return result
+  let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@$%&*_?"
+  let password = ""
+  for i in range(length) {
+    let index = randomize(0, len(chars) - 1)
+    password = password + substring(chars, index, index)
+  }
+  if length <= 0 { return "" }
+  let hashedPassword = hash(password, length) | trunc(length)
+  let specialChars = "!@~_?"
+  let maxSpecialCount = len(specialChars)
+  if length < maxSpecialCount { maxSpecialCount = length }
+  let minSpecialCount = 2
+  if maxSpecialCount < minSpecialCount { minSpecialCount = maxSpecialCount }
+  let specialCount = randomize(minSpecialCount, maxSpecialCount)
+  let remainingSpecials = specialCount
+  let availableSpecials = specialChars
+  let result = ""
+  for i in range(length) {
+    let remainingPositions = length - i
+    let useSpecial = remainingSpecials == remainingPositions
+    if !useSpecial && remainingSpecials > 0 { useSpecial = randomize(0, 1) == 1 }
+    if useSpecial {
+      let charIndex = randomize(0, len(availableSpecials) - 1)
+      let specialChar = substring(availableSpecials, charIndex, charIndex)
+      result = result + specialChar
+      availableSpecials = availableSpecials | swap(specialChar, "")
+      remainingSpecials = remainingSpecials - 1
+    } else { result = result + substring(hashedPassword, i, i) }
+  }
+  return result
 }
-
 /**
   Mask the contents of a string while preserving its final four characters.
 
@@ -719,30 +691,21 @@ export fn generatePass(length: number) -> string {
   - This function is exported for use by other modules.
 */
 export fn mask(label: string, string: string, maskChar: string, key: any = "") -> string {
-    let dir = "keys/"; make_dir(dir)
-    let masked = ""
-    label = to_lower(label) | trim | swap(" ", "_")
-    key = to_lower(key) 
-    if key == "" {
-        key = salt() + generatePass(5)
-    }
-    for char in split(string, "") {
-        // Leave the last 4 characters unmasked
-        if len(masked) >= len(string) - 4 {
-            masked = masked + char
-        } else {
-            masked = masked + maskChar
-        }
-    }
-    try {
-        write_file(dir + "." + label + "_mask_key.txt", key)
-        show "Mask key written to:" dir "." label "_mask_key.txt"
-    } catch (e) {
-        show "Error writing mask key to file:" e
-    }
-    return masked
+  let dir = "keys/"; make_dir(dir)
+  let masked = ""
+  label = to_lower(label) | trim | swap(" ", "_")
+  key = to_lower(key) 
+  if key == "" { key = salt() + generatePass(5) }
+  for char in split(string, "") {
+    if len(masked) >= len(string) - 4 { masked = masked + char }
+    else { masked = masked + maskChar }
+  }
+  try {
+    write_file(dir + "." + label + "_mask_key.txt", key)
+    show "Mask key written to:" dir "." label "_mask_key.txt"
+  } catch (e) { show "Error writing mask key to file:" e }
+  return masked
 }
-
 /**
   Restore characters in a masked string using a supplied key.
 
@@ -771,23 +734,15 @@ export fn mask(label: string, string: string, maskChar: string, key: any = "") -
   - This function is exported for use by other modules.
 */
 export fn unmask(maskedString: string, maskChar: string, key: string) -> string {
-    let unmasked = ""
-    if key != "" {
-        // If a key is provided, use it to unmask the string
-        for i in range(len(maskedString)) {
-            if substring(maskedString, i, i) == maskChar {
-                unmasked = unmasked + substring(key, i, i)
-            } else {
-                unmasked = unmasked + substring(maskedString, i, i)
-            }
-        }
-    } else {
-        // If no key is provided, return the masked string as is
-        return maskedString
+  let unmasked = ""
+  if key != "" {
+    for i in range(len(maskedString)) {
+      if substring(maskedString, i, i) == maskChar { unmasked = unmasked + substring(key, i, i) }
+      else { unmasked = unmasked + substring(maskedString, i, i) }
     }
-    return unmasked
+  } else { return maskedString }
+  return unmasked
 }
-
 /**
   Normalize text by trimming surrounding whitespace and converting it to lowercase.
 
@@ -806,10 +761,7 @@ export fn unmask(maskedString: string, maskChar: string, key: string) -> string 
   Notes:
   - This function is exported for use by other modules.
 */
-export fn normalize(string) -> string {
-    return to_lower(string) | trim
-}
-
+export fn normalize(string) -> string { return to_lower(string) | trim }
 /**
   Create a cleaned filename-style string from text.
 
@@ -829,6 +781,4 @@ export fn normalize(string) -> string {
   - This function is exported for use by other modules.
   - This function relies on the `sanitize` function to remove or replace characters that are not suitable for filenames.
 */
-export fn cleanFileName(string) -> string {
-    return to_lower(sanitize(string)) | trim
-}
+export fn cleanFileName(string) -> string { return to_lower(sanitize(string)) | trim }

@@ -1,0 +1,380 @@
+/*
+  Test Utilities
+  Provides functions to define and run test cases, fixtures, and assertions.
+*/
+/**
+  A list of registered test cases.
+*/
+let tests = []
+/**
+  A list of registered fixture definitions.
+*/
+let fixtures = []
+/**
+  A list of error messages collected during the current test execution.
+*/
+let current_failures = []
+/**
+  The total count of assertions performed in the current test.
+*/
+let current_assertions = 0
+/**
+  Records an assertion result and increments the assertion counter.
+
+  Parameters:
+  - `passed`: A boolean indicating if the assertion succeeded.
+  - `message`: The failure message to record if the assertion fails.
+
+  Returns:
+  - The `passed` status.
+
+  Example:
+  ```sesi
+  let res = record_assertion(true, "Should pass")
+  ```
+*/
+fn record_assertion(passed, message) {
+  current_assertions = current_assertions + 1
+  if !passed { push(current_failures, message) }
+  return passed
+}
+/**
+  Registers a new test case to be executed later.
+
+  Parameters:
+  - `name`: The descriptive name of the test.
+  - `body`: A function containing the test logic.
+  - `fixture_name`: Optional name of a fixture to run before the test.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  let res = test("my test", assert_true(true))
+  ```
+*/
+export fn test(name, body, fixture_name = null) { push(tests, {name: name, body: body, fixture_name: fixture_name}) }
+/**
+  Registers a fixture for setup and cleanup during test execution.
+
+  Parameters:
+  - `name`: Unique identifier for the fixture.
+  - `setup`: Function to run before the test.
+  - `cleanup`: Optional function to run after the test.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  let res = fixture("db", connect())
+  ```
+*/
+export fn fixture(name, setup, cleanup = null) { push(fixtures, {name: name, setup: setup, cleanup: cleanup}) }
+/**
+  Resets the testing framework state, clearing all tests, fixtures, and results.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  let res = clear_tests()
+  ```
+*/
+export fn clear_tests() {
+  tests = []
+  fixtures = []
+  current_failures = []
+  current_assertions = 0
+}
+/**
+  Asserts that the provided value is truthy.
+
+  Parameters:
+  - `value`: The value to evaluate.
+  - `message`: Custom error message if the assertion fails.
+
+  Returns:
+  - Boolean status of the assertion.
+
+  Example:
+  ```sesi
+  let res = assert_true(1 == 1)
+  ```
+*/
+export fn assert_true(value, message = "Expected a truthy value") { return record_assertion(bool(value), message) }
+/**
+  Asserts that the provided value is falsy.
+
+  Parameters:
+  - `value`: The value to evaluate.
+  - `message`: Custom error message if the assertion fails.
+
+  Returns:
+  - Boolean status of the assertion.
+
+  Example:
+  ```sesi
+  let res = assert_false(0)
+  ```
+*/
+export fn assert_false(value, message = "Expected a falsy value") { return record_assertion(!bool(value), message) }
+/**
+  Asserts that two values are equal by comparing their JSON representations.
+
+  Parameters:
+  - `actual`: The value received.
+  - `expected`: The value expected.
+  - `message`: Custom error message if the assertion fails.
+
+  Returns:
+  - Boolean status of the assertion.
+
+  Example:
+  ```sesi
+  let res = assert_equal(1, 1)
+  ```
+*/
+export fn assert_equal(actual, expected, message = "Values should be equal") {
+  let passed = to_json(actual) == to_json(expected)
+  return record_assertion(passed, message + ": expected " + str(expected) + ", got " + str(actual))
+}
+/**
+  Asserts that two values are not equal.
+
+  Parameters:
+  - `actual`: The value received.
+  - `unexpected`: The value that should not match.
+  - `message`: Custom error message if the assertion fails.
+
+  Returns:
+  - Boolean status of the assertion.
+
+  Example:
+  ```sesi
+  let res = assert_not_equal(1, 2)
+  ```
+*/
+export fn assert_not_equal(actual, unexpected, message = "Values should differ") {
+  let passed = to_json(actual) != to_json(unexpected)
+  return record_assertion(passed, message + ": both values were " + str(actual))
+}
+/**
+  Asserts that a collection contains a specific value.
+
+  Parameters:
+  - `collection`: The array or map to search.
+  - `value`: The value to look for.
+  - `message`: Custom error message if the assertion fails.
+
+  Returns:
+  - Boolean status of the assertion.
+
+  Example:
+  ```sesi
+  let res = assert_contains([1, 2], 1)
+  ```
+*/
+export fn assert_contains(collection, value, message = "Expected value to be present") { return record_assertion(contains(collection, value), message + ": " + str(value)) }
+/**
+  Asserts that two numeric values are approximately equal within a tolerance.
+
+  Parameters:
+  - `actual`: The value received.
+  - `expected`: The value expected.
+  - `tolerance`: The margin of error allowed.
+  - `message`: Custom error message if the assertion fails.
+
+  Returns:
+  - Boolean status of the assertion.
+
+  Example:
+  ```sesi
+  let res = assert_approx(1.0001, 1.0, 0.01)
+  ```
+*/
+export fn assert_approx(actual, expected, tolerance = 0.000001, message = "Values should be approximately equal") {
+  allow "std/math" in as Math
+  let passed = Math.abs(actual - expected) <= tolerance
+  return record_assertion(passed, message + ": expected " + str(expected) + " ± " + str(tolerance) + ", got " + str(actual))
+}
+/**
+  Asserts that the provided function throws an error.
+
+  Parameters:
+  - `action`: A function to execute.
+  - `message`: Custom error message if the assertion fails.
+
+  Returns:
+  - Boolean status of the assertion.
+
+  Example:
+  ```sesi
+  let res = assert_throws(fail())
+  ```
+*/
+export fn assert_throws(action, message = "Expected an error") {
+  let threw = false
+  try { action() }
+  catch (err) { threw = true }
+  return record_assertion(threw, message)
+}
+/**
+  Forces a test failure.
+
+  Parameters:
+  - `message`: The failure message.
+
+  Returns:
+  - Always returns false.
+
+  Example:
+  ```sesi
+  let res = fail("Manual failure")
+  ```
+*/
+export fn fail(message = "Test failed") { return record_assertion(false, message) }
+
+/**
+  Locates a registered fixture by name.
+
+  Parameters:
+  - `name`: The name of the fixture to find.
+
+  Returns:
+  - The fixture object if found, otherwise null.
+*/
+fn find_fixture(name) {
+  for item in fixtures { if item.name == name { return item } }
+  return null
+}
+/**
+  Executes all registered tests and reports results.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - An object containing summary statistics and detailed results.
+
+  Example:
+  ```sesi
+  let res = run_tests()
+  ```
+*/
+export fn run_tests() {
+  let results = []
+  let passed = 0
+  let failed = 0
+  let assertion_count = 0
+  show "TEST RESULTS"
+  show "============"
+  for item in tests {
+    current_failures = []
+    current_assertions = 0
+    let selected: any = null
+    let value: any = null
+    let ready = true
+    let setup_complete = false
+    if item.fixture_name {
+      selected = find_fixture(item.fixture_name)
+      if !selected {
+        push(current_failures, "Fixture not found: " + item.fixture_name)
+        ready = false
+      } else {
+        try {
+          value = selected.setup()
+          setup_complete = true
+        } catch (err) {
+          push(current_failures, "Fixture setup failed: " + str(err))
+          ready = false
+        }
+      }
+    }
+    if ready {
+      try { item.body(value) }
+      catch (err) { push(current_failures, "Unexpected error: " + str(err)) }
+    }
+    if setup_complete && selected.cleanup {
+      try { selected.cleanup(value) }
+      catch (err) { push(current_failures, "Fixture cleanup failed: " + str(err)) }
+    }
+    assertion_count = assertion_count + current_assertions
+    let ok = len(current_failures) == 0
+    if ok {
+      passed = passed + 1
+      show "PASS" item.name
+    } else {
+      failed = failed + 1
+      show "FAIL" item.name
+      for problem in current_failures { show "  -" problem }
+    }
+    push(results, { name: item.name, passed: ok, assertions: current_assertions, failures: current_failures })
+  }
+  show "------------"
+  show "Tests:" len(tests) "| Passed:" passed "| Failed:" failed "| Assertions:" assertion_count
+  return { total: len(tests), passed: passed, failed: failed, assertions: assertion_count, results: results }
+}
+/**
+  Scans a directory for test files based on naming conventions.
+
+  Parameters:
+  - `directory`: The path to search.
+
+  Returns:
+  - An array of file paths.
+
+  Example:
+  ```sesi
+  let res = discover_tests("./tests")
+  ```
+*/
+export fn discover_tests(directory) {
+  let found = []
+  try {
+    for name in list_dir(directory) {
+      let extension = get_ext(name)
+      let parts = split(name, "_")
+      let has_test_prefix = len(parts) > 1 && parts[0] == "test"
+      let has_test_suffix = contains(name, ".test.sesi")
+      if (extension == ".sesi" || extension == "sesi") && (has_test_prefix || has_test_suffix) { push(found, directory + "/" + name) }
+    }
+  } catch (err) { show "Could not discover tests:" err }
+  return found
+}
+/**
+  Discovers and executes tests found in a directory.
+
+  Parameters:
+  - `directory`: The path to search for test files.
+
+  Returns:
+  - An array of execution results.
+
+  Example:
+  ```sesi
+  let res = run_discovered("./tests")
+  ```
+*/
+export fn run_discovered(directory) {
+  let paths = discover_tests(directory)
+  let results = []
+  show "DISCOVERED TEST FILES:" len(paths)
+  for path in paths {
+    try {
+      sesi(path)
+      push(results, {path: path, passed: true})
+      show "PASS" path
+    } catch (err) {
+      push(results, {path: path, passed: false, error: str(err)})
+      show "FAIL" path
+      show "  -" err
+    }
+  }
+  return results
+}

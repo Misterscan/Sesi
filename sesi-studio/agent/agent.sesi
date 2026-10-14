@@ -12,8 +12,14 @@ allow "helpers/safe" in as Safe
 allow "tools" in as Tools
 allow "shell-automation" in with {run_sesi}
 
-set_alias("copilot", "gemini-3.5-flash-lite")
-set_alias("search", "gemini-3-flash-preview")
+let GPT = Tools.hasGPT()
+if GPT {
+  set_alias("copilot", "gpt-6-luna")
+  set_alias("search", "gpt-6-luna")
+} else {
+  set_alias("copilot", "gemini-3.5-flash-lite")
+  set_alias("search", "gemini-3-flash-preview")
+}
 
 let active_browser = null
 let active_page = null
@@ -215,7 +221,7 @@ export fn searchGoogle(args) {
     return "Error: missing 'query' argument"
   }
   try {
-    let search_results = model("search"){temperature: 0.1, thinkingLevel: "low", search: true, cache: false, max_tokens: 1024}{query}
+    let search_results = model("search"){thinkingLevel: "low", search: true, cache: false, max_tokens: 1024}{query}
     return search_results
   } catch(e) {
     return "Error searching Google: " + str(e)
@@ -342,7 +348,7 @@ export fn generateImage(args) {
       refined_prompt = user_prompt
     }
 
-    let imageData = image("gemini-3.1-flash-image") {ratio: ratio, size: "1K"} {refined_prompt}
+    let imageData = image("gemini-nano-banana-2.1") {ratio: ratio, size: "1K"} {refined_prompt}
     let success = Safe.writeImage(path, imageData)
     if success {
       return "Subagent successfully generated and saved image. Refined prompt used: '" + refined_prompt + "'. Saved path: '" + path + "'"
@@ -371,7 +377,7 @@ export fn drawPicture(args) {
   let path = args["output_path"]
   let ratio = args["aspect_ratio"]
   let refs = []
-  let example = Safe.readFile("examples/main/pixel_placeholder_icon_detailed.sesi")
+  let example = Safe.readFile("examples/main/pixel_scene.sesi")
   let docs = Safe.readFile("getting-started/VARIABLES.md")
   docs = docs +"\n"+ Safe.readFile("getting-started/FUNCTIONS.md")
   push(refs, example)
@@ -391,7 +397,7 @@ export fn drawPicture(args) {
     let subagent = Agent.create({
       "model": "copilot",
       "system": subagent_system,
-      "thinkingLevel": "medium",
+      "thinkingLevel": "low",
       "cache": true,
       "max_tokens": 1024
     })
@@ -411,16 +417,16 @@ export fn drawPicture(args) {
     let imageData = ""
     if !is_null(env("OPENAI_API_KEY")) {
       try {
-        imageData = model("gpt-5.6-terra") {system: sys, thinking: "medium", cache: true} {user_prompt "
+        imageData = model("gpt-6.1-sol") {system: sys, thinking: "medium", cache: true} {user_prompt "
       Aspect Ratio: "ratio"
       Save it to: "path}
       } catch (e) {
-        imageData = model("gemini-3.7-flash") {system: sys, thinking: "high", temp: 0.7, cache: true, max_tokens: 8192} {user_prompt "
+        imageData = model("gemini-3.6-flash") {system: sys, thinking: "high", cache: true, max_tokens: 8192} {user_prompt "
       Aspect Ratio: "ratio"
       Save it to: "path}
       }
     } else {
-      imageData = model("gemini-3.7-flash") {system: sys, thinking: "high", temp: 0.7, cache: true, max_tokens: 8192} {user_prompt "
+      imageData = model("gemini-3.6-flash") {system: sys, thinking: "high", cache: true, max_tokens: 8192} {user_prompt "
       Aspect Ratio: "ratio"
       Save it to: "path}
     }

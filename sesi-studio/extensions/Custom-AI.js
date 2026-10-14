@@ -404,17 +404,17 @@
         if (p === "openai") {
           endpointInput.value = "https://api.openai.com/v1/chat/completions";
           if (!modelInput.value || modelInput.value === "llama3" || modelInput.value.startsWith("claude-") || modelInput.value.startsWith("gemini-")) {
-            modelInput.value = "gpt-5-mini";
+            modelInput.value = "gpt-6-sol";
           }
         } else if (p === "gemini") {
           endpointInput.value = "";
           if (!modelInput.value || modelInput.value === "llama3" || modelInput.value.startsWith("gpt-") || modelInput.value.startsWith("claude-")) {
-            modelInput.value = "gemini-3.5-flash";
+            modelInput.value = "gemini-3.8-flash";
           }
         } else if (p === "anthropic") {
           endpointInput.value = "https://api.anthropic.com/v1/messages";
           if (!modelInput.value || modelInput.value === "llama3" || modelInput.value.startsWith("gpt-") || modelInput.value.startsWith("gemini-")) {
-            modelInput.value = "claude-haiku-4-5";
+            modelInput.value = "claude-fable-5.1";
           }
         }
       }

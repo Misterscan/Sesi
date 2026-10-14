@@ -1,37 +1,21 @@
 /**
   Reference functions for accessing various documentation files.
 
- The functions in this file provide easy access to various documentation files, such as README, QUICKSTART, GUIDE, and other specific sections of the documentation.
+  The functions in this file provide easy access to various documentation files, such as README, QUICKSTART, GUIDE, and other specific sections of the documentation.
 
- Use these for quick file reference or in your AI-assisted development.
+  Use these for quick file reference or in your AI-assisted development.
 */
 allow "helpers/safe" in with {read}
-
-/**
-  Get the contents of the README file.
-*/
-export fn getREADME() -> str {
-  return read("README.md")
-}
-
-/**
-  Get the contents of the QUICKSTART file.
-*/
-export fn getQUICKSTART() -> str {
-  return read("QUICKSTART.md")
-}
-
-/**
-  Get the contents of the GUIDE file.
-*/
-export fn getGUIDE() -> str {
-  return read("GUIDE.md")
-}
-
+/* Get the contents of the README file. */
+export fn getREADME() -> str { return read("README.md") }
+/* Get the contents of the QUICKSTART file. */
+export fn getQUICKSTART() -> str { return read("QUICKSTART.md") }
+/* Get the contents of the GUIDE file. */
+export fn getGUIDE() -> str { return read("GUIDE.md") }
 /**
   Get the contents of all documentation files in the "docs" directory, excluding certain files.
 
- Returns:
+  Returns:
   - An array of objects containing the filename and contents of each documentation file.
 */
 export fn getDocs() -> array<str> {
@@ -39,24 +23,19 @@ export fn getDocs() -> array<str> {
   let docs = []
   let docFiles = list_dir(docDir)
   let contents = ""
-
   for file in docFiles {
-      if (file | get_ext) == "md" {
-          if file == "BUILDING_SESIRA.md" || file == "ffmpeg-cheatsheet.md" {
-              continue
-          }
-          contents = read(docDir + file)
-          docs | push({"filename": file, "contents": contents})
-      }
+    if (file | get_ext) == "md" {
+      if file == "BUILDING_SESIRA.md" || file == "ffmpeg-cheatsheet.md" { continue }
+      contents = read(docDir + file)
+      docs | push({filename: file, contents: contents})
+    }
   }
-
   return docs
 }
-
 /**
   Get the contents of all documentation files in the "getting-started" directory, including optional files.
 
- Returns:
+  Returns:
   - An array of objects containing the filename and contents of each documentation file.
 */
 export fn getGettingStarted() -> array<str> {
@@ -66,202 +45,63 @@ export fn getGettingStarted() -> array<str> {
   let mainFiles = list_dir(mainDir)
   let optFiles = list_dir(optDir)
   let contents = ""
-
   for file in mainFiles {
-      if (file | get_ext) == "md" {
-          contents = read(mainDir + file)
-          docs | push({"filename": file, "contents": contents})
-      }
+    if (file | get_ext) == "md" {
+      contents = read(mainDir + file)
+      docs | push({filename: file, contents: contents})
+    }
   }
-
   for file in optFiles {
-      contents = read(optDir + file)
-      docs | push({"filename": file, "contents": contents})
+    contents = read(optDir + file)
+    docs | push({filename: file, contents: contents})
   }
-
   return docs
 }
-
-/**
-  Get the contents of the BUILTINS documentation file.
-*/
-export fn getBUILTINS() -> str {
-  let docs = getDocs()
-  return docs[1].contents
-}
-
-/**
-  Get the contents of the IMAGE_GENERATION documentation file.
-*/
-export fn getAI_IMAGE() -> str {
-  let docs = getDocs()
-  return docs[4].contents
-}
-
-/**
-  Get the contents of the VIDEO_GENERATION documentation file.
-*/
-export fn getAI_VIDEO() -> str {
-  let docs = getDocs()
-  return docs[10].contents
-}
-
-/**
-  Get the contents of the LOCAL_MODELS documentation file.
-*/
-export fn getAI_LOCAL() -> str {
-  let docs = getDocs()
-  return docs[5].contents
-}
-
-/**
-  Get the contents of the REASONING documentation file.
-*/
-export fn getREASONING() -> str {
-  let docs = getDocs()
-  return docs[6].contents
-}
-
-/**
-  Get the contents of the REJEX documentation file.
-*/
-export fn getREJEX() -> str {
-  let docs = getDocs()
-  return docs[7].contents
-}
-
-/**
-  Get the contents of the SPECIFICATION documentation file.
-*/
-export fn getSPECIFICATION() -> str {
-  let docs = getDocs()
-  return docs[9].contents
-}
-
-/**
-  Get the contents of the WRITING_SCRIPTS documentation file.
-*/
-export fn getHOW_TO() -> str {
-  let docs = getDocs()
-  return docs[11].contents
-}
-
-/**
-  Get the contents of the AUDIO documentation file.
-*/
-export fn getAUDIO() -> str {
-  let docs = getGettingStarted()
-  return docs[0].contents
-}
-
-/**
-  Get the contents of the DATABASE documentation file.
-*/
-export fn getDATABASE() -> str {
-  let docs = getGettingStarted()
-  return docs[2].contents
-}
-
-/**
-  Get the contents of the FILE_IO documentation file.
-*/
-export fn getFILE_IO() -> str {
-  let docs = getGettingStarted()
-  return docs[3].contents
-}
-
-/**
-  Get the contents of the FUNCTIONS documentation file.
-*/
-export fn getFUNCTIONS() -> str {
-  let docs = getGettingStarted()
-  return docs[4].contents
-}
-
-/**
-  Get the contents of the GAME documentation file.
-*/
-export fn getGAME() -> str {
-  let docs = getGettingStarted()
-  return docs[5].contents
-}
-
-/**
-  Get the contents of the MAKE documentation file.
-*/
-export fn getMAKE() -> str {
-  let docs = getGettingStarted()
-  return docs[7].contents
-}
-
-/**
-  Get the contents of the MODULES documentation file.
-*/
-export fn getMODULES() -> str {
-  let docs = getGettingStarted()
-  return docs[8].contents
-}
-
-/**
-  Get the contents of the NETWORK documentation file.
-*/
-export fn getNETWORK() -> str {
-  let docs = getGettingStarted()
-  return docs[9].contents
-}
-
-/**
-  Get the contents of the PROMPTS documentation file.
-*/
-export fn getPROMPTS() -> str {
-  let docs = getGettingStarted()
-  return docs[10].contents
-}
-
-/**
-  Get the contents of the PYTHON-IN-SESI documentation file.
-*/
-export fn getPYTHON() -> str {
-  let docs = getGettingStarted()
-  return docs[11].contents
-}
-
-/**
-  Get the contents of the SVG-AND-PIXELS documentation file.
-*/
-export fn getSVG_PIXELS() -> str {
-  let docs = getGettingStarted()
-  return docs[12].contents
-}
-
-/**
-  Get the contents of the TTS documentation file.
-*/
-export fn getTTS() -> str {
-  let docs = getGettingStarted()
-  return docs[13].contents
-}
-
-/**
-  Get the contents of the VARIABLES documentation file.
-*/
-export fn getVARIABLES() -> str {
-  let docs = getGettingStarted()
-  return docs[14].contents
-}
-
-/**
-  Get the contents of the VIDEO documentation file.
-*/
-export fn getVIDEO() -> str {
-  let docs = getGettingStarted()
-  return docs[15].contents
-}
-
-/**
-  Get the contents of the AI_CONFIG documentation file.
-*/
-export fn getAI_CONFIG() -> str {
-  let docs = getGettingStarted()
-  return docs[16].contents
-}
+let docs = getDocs()
+/* Get the contents of the BUILTINS documentation file. */
+export fn getBUILTINS() -> str { return docs[1].contents }
+/* Get the contents of the IMAGE_GENERATION documentation file. */
+export fn getAI_IMAGE() -> str { return docs[4].contents }
+/* Get the contents of the VIDEO_GENERATION documentation file. */
+export fn getAI_VIDEO() -> str { return docs[10].contents }
+/* Get the contents of the LOCAL_MODELS documentation file. */
+export fn getAI_LOCAL() -> str { return docs[5].contents }
+/* Get the contents of the REASONING documentation file. */
+export fn getREASONING() -> str { return docs[6].contents }
+/* Get the contents of the REJEX documentation file. */
+export fn getREJEX() -> str { return docs[7].contents }
+/* Get the contents of the SPECIFICATION documentation file. */
+export fn getSPECIFICATION() -> str { return docs[9].contents }
+/* Get the contents of the WRITING_SCRIPTS documentation file. */
+export fn getHOW_TO() -> str { return docs[11].contents }
+docs = getGettingStarted()
+/* Get the contents of the AUDIO documentation file. */
+export fn getAUDIO() -> str { return docs[0].contents }
+/* Get the contents of the DATABASE documentation file. */
+export fn getDATABASE() -> str { return docs[2].contents }
+/* Get the contents of the FILE_IO documentation file. */
+export fn getFILE_IO() -> str { return docs[3].contents }
+/* Get the contents of the FUNCTIONS documentation file. */
+export fn getFUNCTIONS() -> str { return docs[4].contents }
+/* Get the contents of the GAME documentation file. */
+export fn getGAME() -> str { return docs[5].contents }
+/* Get the contents of the MAKE documentation file. */
+export fn getMAKE() -> str { return docs[7].contents }
+/* Get the contents of the MODULES documentation file. */
+export fn getMODULES() -> str { return docs[8].contents }
+/* Get the contents of the NETWORK documentation file. */
+export fn getNETWORK() -> str { return docs[9].contents }
+/* Get the contents of the PROMPTS documentation file. */
+export fn getPROMPTS() -> str { return docs[10].contents }
+/* Get the contents of the PYTHON-IN-SESI documentation file. */
+export fn getPYTHON() -> str { return docs[11].contents }
+/* Get the contents of the SVG-AND-PIXELS documentation file. */
+export fn getSVG_PIXELS() -> str { return docs[12].contents }
+/* Get the contents of the TTS documentation file. */
+export fn getTTS() -> str { return docs[13].contents }
+/* Get the contents of the VARIABLES documentation file. */
+export fn getVARIABLES() -> str { return docs[14].contents }
+/* Get the contents of the VIDEO documentation file. */
+export fn getVIDEO() -> str { return docs[15].contents }
+/* Get the contents of the AI_CONFIG documentation file. */
+export fn getAI_CONFIG() -> str { return docs[16].contents }

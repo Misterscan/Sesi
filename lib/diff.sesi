@@ -1,0 +1,235 @@
+/*
+  Diff and Comparison Utilities for Sesi.
+
+  This module provides structured diffing tools for objects, arrays, plain text,
+  and filesystem files. It implements recursive structural analysis for JSON-compatible
+  data structures as well as Longest Common Subsequence (LCS) line-by-line diffing
+  producing standard unified patch output.
+*/
+/**
+  Determines the structural kind of a value.
+
+  Inspects the serialized JSON representation of the provided value to classify
+  it as an object, an array, or a primitive value.
+
+  Parameters:
+  - `value`: The value or data structure to inspect.
+
+  Returns:
+  - A string representing the value category: `"object"`, `"array"`, or `"value"`.
+
+  Example:
+  ```sesi
+  let kind1 = value_kind({name: "Ada"})
+  let kind2 = value_kind([1, 2, 3])
+  let kind3 = value_kind("hello")
+
+  show kind1 // "object"
+  show kind2 // "array"
+  show kind3 // "value"
+  ```
+
+  Notes:
+  - Uses `to_json` to inspect the initial delimiter of the serialized value.
+*/
+fn value_kind(value) -> string {
+  let first = split(to_json(value), "")[0]
+  if first == "{" { return "object" }
+  if first == "[" { return "array" }
+  return "value"
+}
+/**
+  Recursively computes structural differences between two values.
+
+  Traverses nested objects and arrays, comparing elements at corresponding paths
+  and appending additions (`+`), removals (`-`), or direct substitutions to an accumulator array.
+
+  Parameters:
+  - `before`: The baseline value or nested data structure.
+  - `after`: The updated value or nested data structure.
+  - `path`: The current dot-notation / bracket-notation path string (e.g. `"$"` or `"$.user.name"`).
+  - `changes`: The mutable array accumulating diff entry strings.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  let original = {name: "Ada", count: 1}
+  let modified = {name: "Ada", count: 2, active: true}
+  let changes = []
+
+  diff_value(original, modified, "$", changes)
+  for change in changes {
+    show change
+  }
+  ```
+
+  Notes:
+  - Modifies the `changes` array in place via `push`.
+  - Compares primitives and unmatched structures directly using JSON serialization.
+*/
+fn diff_value(before, after, path, changes) {
+  if to_json(before) == to_json(after) { return }
+  let before_kind = value_kind(before)
+  let after_kind = value_kind(after)
+  if before_kind == "object" && after_kind == "object" {
+    let before_keys = keys(before)
+    let after_keys = keys(after)
+    for key in before_keys {
+      let child_path = path + "." + key
+      if contains(after_keys, key) { diff_value(before[key], after[key], child_path, changes)
+      } else { push(changes, "- " + child_path + ": " + to_json(before[key])) }
+    }
+    for key in after_keys {
+      if !contains(before_keys, key) { push(changes, "+ " + path + "." + key + ": " + to_json(after[key])) }
+    }
+    return
+  }
+  if before_kind == "array" && after_kind == "array" {
+    let i = 0
+    while i < len(before) || i < len(after) {
+      let child_path = path + "[" + str(i) + "]"
+      if i >= len(before) { push(changes, "+ " + child_path + ": " + to_json(after[i]))
+      } else if i >= len(after) { push(changes, "- " + child_path + ": " + to_json(before[i]))
+      } else { diff_value(before[i], after[i], child_path, changes) }
+      i = i + 1
+    }
+    return
+  }
+  push(changes, "- " + path + ": " + to_json(before))
+  push(changes, "+ " + path + ": " + to_json(after))
+}
+/**
+  Generates a structural diff string between two objects or data structures.
+
+  Recursively traverses both structures, identifies property and index-level
+  differences, and formats the result with standard patch headers.
+
+  Parameters:
+  - `before`: The baseline object, array, or value.
+  - `after`: The updated object, array, or value.
+
+  Returns:
+  - A formatted diff string with `--- before` and `+++ after` headers, or `""` if both structures are identical.
+
+  Example:
+  ```sesi
+  let old_cfg = {port: 8080, debug: false}
+  let new_cfg = {port: 8080, debug: true, timeout: 30}
+
+  let patch = diff_objects(old_cfg, new_cfg)
+  show patch
+  ```
+
+  Notes:
+  - Returns an empty string when `before` and `after` are structurally equivalent.
+*/
+export fn diff_objects(before, after) -> string {
+  let changes = []
+  diff_value(before, after, "$", changes)
+  if len(changes) == 0 { return "" }
+  return "--- before\n+++ after\n" + join(changes, "\n")
+}
+/**
+  Computes a unified line-by-line diff between two text strings.
+
+  Uses dynamic programming (Longest Common Subsequence) to compare multi-line
+  strings and produces a unified diff patch including file headers and hunk ranges.
+
+  Parameters:
+  - `before`: The baseline multi-line text string.
+  - `after`: The modified multi-line text string.
+  - `before_name`: Optional label for the original content header. Defaults to `"before"`.
+  - `after_name`: Optional label for the updated content header. Defaults to `"after"`.
+
+  Returns:
+  - A unified diff string containing hunk headers and line annotations (`-`, `+`, ` `), or `""` if both inputs are identical.
+
+  Example:
+  ```sesi
+  let old_text = "apple\nbanana\ncherry"
+  let new_text = "apple\nblueberry\ncherry"
+
+  let patch = diff_text(old_text, new_text, "a.txt", "b.txt")
+  show patch
+  ```
+
+  Notes:
+  - Splits input strings by `\n` to evaluate differences on a per-line basis.
+  - Returns an empty string if both strings match exactly.
+*/
+export fn diff_text(before: string, after: string, before_name: string = "before", after_name: string = "after") -> string {
+  if before == after { return "" }
+  let old_lines = split(before, "\n")
+  let new_lines = split(after, "\n")
+  let old_count = len(old_lines)
+  let new_count = len(new_lines)
+  let table = []
+  for i = 0 to old_count + 1 {
+    let row = []
+    for j = 0 to new_count + 1 { push(row, 0) }
+    push(table, row)
+  }
+  let i = old_count - 1
+  while i >= 0 {
+    let j = new_count - 1
+    while j >= 0 {
+      if old_lines[i] == new_lines[j] { table[i][j] = table[i + 1][j + 1] + 1
+      } else if table[i + 1][j] >= table[i][j + 1] { table[i][j] = table[i + 1][j]
+      } else { table[i][j] = table[i][j + 1] }
+      j = j - 1
+    }
+    i = i - 1
+  }
+  let patch = ["--- " + before_name, "+++ " + after_name, "@@ -1," + str(old_count) + " +1," + str(new_count) + " @@"]
+  i = 0
+  let j = 0
+  while i < old_count || j < new_count {
+    if i < old_count && j < new_count && old_lines[i] == new_lines[j] {
+      push(patch, " " + old_lines[i])
+      i = i + 1
+      j = j + 1
+    } else if i < old_count && (j >= new_count || table[i + 1][j] >= table[i][j + 1]) {
+      push(patch, "-" + old_lines[i])
+      i = i + 1
+    } else {
+      push(patch, "+" + new_lines[j])
+      j = j + 1
+    }
+  }
+  return join(patch, "\n")
+}
+/**
+  Compares two files on disk and returns their unified diff.
+
+  Reads the text content of both specified file paths and applies line-by-line
+  diffing using their respective paths in the diff header.
+
+  Parameters:
+  - `before_path`: The filesystem path to the original file.
+  - `after_path`: The filesystem path to the modified file.
+
+  Returns:
+  - A unified diff patch string showing line changes between the two files, or `""` if their contents are identical.
+
+  Example:
+  ```sesi
+  let patch = diff_files("config.old.json", "config.new.json")
+  if patch {
+    show patch
+    write_file("config.patch", patch)
+  } else {
+    show "Files are identical."
+  }
+  ```
+
+  Notes:
+  - Uses `read_file` to load both file contents synchronously.
+  - File I/O errors should be caught by wrapping the call in a `try/catch` block.
+*/
+export fn diff_files(before_path: string, after_path: string) -> string {
+  let before = read_file(before_path)
+  let after = read_file(after_path)
+  return diff_text(before, after, before_path, after_path)
+}

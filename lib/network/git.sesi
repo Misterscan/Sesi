@@ -2,7 +2,6 @@
   Utility functions for safely running Git commands and handling errors.
   These functions include pushing, pulling, cloning, checking out branches, and merging, all with safety checks for shell control characters.
 */
-
 /**
   Safely run a shell command and handle errors.
 
@@ -22,16 +21,7 @@
   - This function uses a try-catch block to safely execute shell commands.
   - If the command fails, the error message is returned instead of throwing an exception.
 */
-fn saferun(cmd: string) -> string {
-    try {
-        return run(cmd)
-    } catch (e) {
-        show "Error running command:" cmd "
-        " e
-        return e | str
-    }
-}
-
+fn saferun(cmd:string)->string{try{return run(cmd)}catch(e){show"Error running command:"cmd"\n"e;return e|str}}
 /**
   Safely quote a Git argument and reject shell control characters.
 
@@ -52,13 +42,7 @@ fn saferun(cmd: string) -> string {
   - If any unsafe characters are found, an error is raised.
   - The argument is safely quoted for use in Git commands.
 */
-fn git_arg(value: string) -> string {
-    if regex("[&|<>^%!\"\\r\\n]", value, {"mode": "match", "flags": "g"}) != [] {
-        raise_error("UnsafeGitArgument", "Git arguments cannot contain shell control characters")
-    }
-    return "\"" + value + "\""
-}
-
+fn git_arg(value:string)->string{if regex("[&|<>^%!\"\\r\\n]",value,{"mode":"match","flags":"g"})!=[]{raise_error("UnsafeGitArgument","Git arguments cannot contain shell control characters")}return"\""+value+"\""}
 /**
   Safely run a Git command and handle errors.
 
@@ -79,14 +63,7 @@ fn git_arg(value: string) -> string {
   - If the Git command contains unsafe shell control characters, an error is raised.
   - The Git command is safely  executed using the `saferun` function.
 */
-export fn git(cmd: string) -> string {
-    if regex("[&|<>^%!\\r\\n]", cmd, {"mode": "match", "flags": "g"}) != [] {
-        raise_error("UnsafeGitCommand", "Git commands cannot contain shell control characters")
-    }
-    let git_cmd = "git " + cmd
-    return saferun(git_cmd)
-}
-
+export fn git(cmd:string)->string{if regex("[&|<>^%!\\r\\n]",cmd,{"mode":"match","flags":"g"})!=[]{raise_error("UnsafeGitCommand","Git commands cannot contain shell control characters")}let git_cmd="git "+cmd;return saferun(git_cmd)}
 /**
   Safely clone a Git repository into a specific directory.
 
@@ -106,11 +83,7 @@ export fn git(cmd: string) -> string {
   Notes:
   - Clone means to create a copy of the specified Git repository in the target directory.
 */
-export fn git_clone(repo: string, dir: string) -> string {
-    let cmd = "clone " + git_arg(repo) + " " + git_arg(dir)
-    return git(cmd)
-}
-
+export fn git_clone(repo:string,dir:string)->string{let cmd="clone "+git_arg(repo)+" "+git_arg(dir);return git(cmd)}
 /**
   Safely checkout a specific Git branch.
 
@@ -128,11 +101,7 @@ export fn git_clone(repo: string, dir: string) -> string {
   Notes:
   - Checkout means to switch to the specified branch in the Git repository.
 */
-export fn git_checkout(branch: string) -> string {
-    let cmd = "checkout " + git_arg(branch)
-    return git(cmd)
-}
-
+export fn git_checkout(branch:string)->string{let cmd="checkout "+git_arg(branch);return git(cmd)}
 /**
   Safely create and checkout a new Git branch.
 
@@ -151,11 +120,7 @@ export fn git_checkout(branch: string) -> string {
   Notes:
   - This function creates a new branch and switches to it immediately.
 */
-export fn git_checkout_new(branch: string) -> string {
-    let cmd = "checkout -b " + git_arg(branch)
-    return git(cmd)
-}
-
+export fn git_checkout_new(branch:string)->string{let cmd="checkout -b "+git_arg(branch);return git(cmd)}
 /**
   Safely merge a specific Git branch into the current branch.
 
@@ -174,11 +139,7 @@ export fn git_checkout_new(branch: string) -> string {
   Notes:
   - Merge means to integrate changes from the specified branch into the current branch.
 */
-export fn git_merge(branch: string) -> string {
-    let cmd = "merge " + git_arg(branch)
-    return git(cmd)
-}
-
+export fn git_merge(branch:string)->string{let cmd="merge "+git_arg(branch);return git(cmd)}
 /**
   Safely merge a specific Git branch into the current branch with no fast-forward.
 
@@ -197,11 +158,7 @@ export fn git_merge(branch: string) -> string {
   Notes:
   - The `--no-ff` option ensures that the merge is always recorded as a separate commit, even if it could be fast-forwarded.
 */
-export fn git_merge_no_ff(branch: string) -> string {
-    let cmd = "merge --no-ff " + git_arg(branch)
-    return git(cmd)
-}
-
+export fn git_merge_no_ff(branch:string)->string{let cmd="merge --no-ff "+git_arg(branch);return git(cmd)}
 /**
   Safely merge a specific Git branch into the current branch with a squash commit.
 
@@ -220,11 +177,7 @@ export fn git_merge_no_ff(branch: string) -> string {
   Notes:
   - The `--squash` option combines all changes from the specified branch into a single commit on the current branch.
 */
-export fn git_merge_squash(branch: string) -> string {
-    let cmd = "merge --squash " + git_arg(branch)
-    return git(cmd)
-}
-
+export fn git_merge_squash(branch:string)->string{let cmd="merge --squash "+git_arg(branch);return git(cmd)}
 /**
   Safely abort an ongoing Git merge.
 
@@ -240,11 +193,7 @@ export fn git_merge_squash(branch: string) -> string {
   Notes:
   - The `--abort` option cancels the ongoing merge and returns the repository to its previous state.
 */
-export fn git_merge_abort() -> string {
-    let cmd = "merge --abort"
-    return git(cmd)
-}
-
+export fn git_merge_abort()->string{let cmd="merge --abort";return git(cmd)}
 /**
   Safely rebase the current branch onto a specific Git branch.
 
@@ -263,11 +212,7 @@ export fn git_merge_abort() -> string {
   Notes:
   - The `git rebase` command reapplies commits from the current branch onto the specified branch, allowing for a cleaner commit history.
 */
-export fn git_rebase(branch: string) -> string {
-    let cmd = "rebase " + git_arg(branch)
-    return git(cmd)
-}
-
+export fn git_rebase(branch:string)->string{let cmd="rebase "+git_arg(branch);return git(cmd)}
 /**
   Safely abort an ongoing Git rebase.
 
@@ -283,11 +228,7 @@ export fn git_rebase(branch: string) -> string {
   Notes:
   - The `--abort` option cancels the ongoing rebase and returns the repository to its previous state.
 */
-export fn git_rebase_abort() -> string {
-    let cmd = "rebase --abort"
-    return git(cmd)
-}
-
+export fn git_rebase_abort()->string{let cmd="rebase --abort";return git(cmd)}
 /**
   Continue an ongoing Git rebase after resolving conflicts.
 
@@ -303,11 +244,7 @@ export fn git_rebase_abort() -> string {
   Notes:
   - The `--continue` option resumes the rebase process after conflicts have been resolved.
 */
-export fn git_rebase_continue() -> string {
-    let cmd = "rebase --continue"
-    return git(cmd)
-}
-
+export fn git_rebase_continue()->string{let cmd="rebase --continue";return git(cmd)}
 /**
   Skip the current patch during an ongoing Git rebase.
 
@@ -323,11 +260,7 @@ export fn git_rebase_continue() -> string {
   Notes:
   - The `--skip` option skips the current patch and continues the rebase process.
 */
-export fn git_rebase_skip() -> string {
-    let cmd = "rebase --skip"
-    return git(cmd)
-}
-
+export fn git_rebase_skip()->string{let cmd="rebase --skip";return git(cmd)}
 /**
   Pull the latest changes from the remote repository.
 
@@ -344,11 +277,7 @@ export fn git_rebase_skip() -> string {
   Notes:
   - The `git pull` command fetches changes from the remote repository and merges them into the current branch.
 */
-export fn git_pull() -> string {
-    let cmd = "pull"
-    return git(cmd)
-}
-
+export fn git_pull()->string{let cmd="pull";return git(cmd)}
 /**
   Pull the latest changes from the remote repository and rebase the current branch.
 
@@ -365,11 +294,7 @@ export fn git_pull() -> string {
   Notes:
   - The `--rebase` option rebases the current branch on top of the upstream branch after fetching.
 */
-export fn git_pull_rebase() -> string {
-    let cmd = "pull --rebase"
-    return git(cmd)
-}
-
+export fn git_pull_rebase()->string{let cmd="pull --rebase";return git(cmd)}
 /**
   Pull the latest changes from the remote repository, rebase the current branch, and automatically stash local changes.
 
@@ -386,11 +311,7 @@ export fn git_pull_rebase() -> string {
   Notes:
   - The `--autostash` option automatically stashes local changes before rebasing and applies them afterward.
 */
-export fn git_pull_rebase_autostash() -> string {
-    let cmd = "pull --rebase --autostash"
-    return git(cmd)
-}
-
+export fn git_pull_rebase_autostash()->string{let cmd="pull --rebase --autostash";return git(cmd)}
 /**
   Fetch the latest changes from the remote repository.
 
@@ -407,11 +328,7 @@ export fn git_pull_rebase_autostash() -> string {
   Notes:
   - The `git fetch` command retrieves changes from the remote repository without merging them into the current branch.
 */
-export fn git_fetch() -> string {
-    let cmd = "fetch"
-    return git(cmd)
-}
-
+export fn git_fetch()->string{let cmd="fetch";return git(cmd)}
 /**
   Fetch all branches from the remote repository.
 
@@ -428,11 +345,7 @@ export fn git_fetch() -> string {
   Notes:
   - The `--all` option fetches all branches from the remote repository.
 */
-export fn git_fetch_all() -> string {
-    let cmd = "fetch --all"
-    return git(cmd)
-}
-
+export fn git_fetch_all()->string{let cmd="fetch --all";return git(cmd)}
 /**
   Fetch the latest changes from the remote repository and prune deleted branches.
 
@@ -449,11 +362,7 @@ export fn git_fetch_all() -> string {
   Notes:
   - The `--prune` option removes any remote-tracking references that no longer exist on the remote.
 */
-export fn git_fetch_prune() -> string {
-    let cmd = "fetch --prune"
-    return git(cmd)
-}
-
+export fn git_fetch_prune()->string{let cmd="fetch --prune";return git(cmd)}
 /**
   Fetch all branches from the remote repository and prune deleted branches.
 
@@ -471,11 +380,7 @@ export fn git_fetch_prune() -> string {
   - The `--all` option fetches all branches from the remote repository.
   - The `--prune` option removes any remote-tracking references that no longer exist on the remote.
 */
-export fn git_fetch_all_prune() -> string {
-    let cmd = "fetch --all --prune"
-    return git(cmd)
-}
-
+export fn git_fetch_all_prune()->string{let cmd="fetch --all --prune";return git(cmd)}
 /**
   Fetch the latest changes from the remote repository, prune deleted branches, and fetch tags.
 
@@ -493,11 +398,7 @@ export fn git_fetch_all_prune() -> string {
   - The `--prune` option removes any remote-tracking references that no longer exist on the remote.
   - The `--tags` option fetches all tags from the remote repository.
 */
-export fn git_fetch_prune_tags() -> string {
-    let cmd = "fetch --prune --tags"
-    return git(cmd)
-}
-
+export fn git_fetch_prune_tags()->string{let cmd="fetch --prune --tags";return git(cmd)}
 /**
   Fetch all branches from the remote repository, prune deleted branches, and fetch tags.
 
@@ -516,11 +417,7 @@ export fn git_fetch_prune_tags() -> string {
   - The `--prune` option removes any remote-tracking references that no longer exist on the remote.
   - The `--tags` option fetches all tags from the remote repository.
 */
-export fn git_fetch_all_prune_tags() -> string {
-    let cmd = "fetch --all --prune --tags"
-    return git(cmd)
-}
-
+export fn git_fetch_all_prune_tags()->string{let cmd="fetch --all --prune --tags";return git(cmd)}
 /**
   Fetch tags from the remote repository.
 
@@ -537,11 +434,7 @@ export fn git_fetch_all_prune_tags() -> string {
   Notes:
   - The `--tags` option fetches all tags from the remote repository.
 */
-export fn git_fetch_tags() -> string {
-    let cmd = "fetch --tags"
-    return git(cmd)
-}
-
+export fn git_fetch_tags()->string{let cmd="fetch --tags";return git(cmd)}
 /**
   Fetch all branches and tags from the remote repository.
 
@@ -559,11 +452,7 @@ export fn git_fetch_tags() -> string {
   - The `--all` option fetches all branches from the remote repository.
   - The `--tags` option fetches all tags from the remote repository.
 */
-export fn git_fetch_all_tags() -> string {
-    let cmd = "fetch --all --tags"
-    return git(cmd)
-}
-
+export fn git_fetch_all_tags()->string{let cmd="fetch --all --tags";return git(cmd)}
 /**
   Push the current branch to the remote repository.
 
@@ -580,11 +469,7 @@ export fn git_fetch_all_tags() -> string {
   Notes:
   - The `git push` command pushes the current branch to the remote repository.
 */
-export fn git_push() -> string {
-    let cmd = "push"
-    return git(cmd)
-}
-
+export fn git_push()->string{let cmd="push";return git(cmd)}
 /**
   Force push the current branch to the remote repository.
 
@@ -601,11 +486,7 @@ export fn git_push() -> string {
   Notes:
   - The `--force` option forces the push to the remote repository, potentially overwriting changes.
 */
-export fn git_push_force() -> string {
-    let cmd = "push --force"
-    return git(cmd)
-}
-
+export fn git_push_force()->string{let cmd="push --force";return git(cmd)}
 /**
   Force push the current branch to the remote repository with lease.
 
@@ -622,11 +503,7 @@ export fn git_push_force() -> string {
   Notes:
   - The `--force-with-lease` option forces the push to the remote repository only if the remote branch has not been updated, preventing accidental overwrites.
 */
-export fn git_push_force_with_lease() -> string {
-    let cmd = "push --force-with-lease"
-    return git(cmd)
-}
-
+export fn git_push_force_with_lease()->string{let cmd="push --force-with-lease";return git(cmd)}
 /**
   Push the current branch to the remote repository and set the upstream branch.
 
@@ -646,11 +523,7 @@ export fn git_push_force_with_lease() -> string {
   Notes:
   - The `--set-upstream` option sets the upstream branch for the current branch.
 */
-export fn git_push_set_upstream(branch: string) -> string {
-    let cmd = "push --set-upstream origin " + git_arg(branch)
-    return git(cmd)
-}
-
+export fn git_push_set_upstream(branch:string)->string{let cmd="push --set-upstream origin "+git_arg(branch);return git(cmd)}
 /**
   Push all tags to the remote repository.
 
@@ -667,11 +540,7 @@ export fn git_push_set_upstream(branch: string) -> string {
   Notes:
   - The `--tags` option pushes all tags to the remote repository.
 */
-export fn git_push_tags() -> string {
-    let cmd = "push --tags"
-    return git(cmd)
-}
-
+export fn git_push_tags()->string{let cmd="push --tags";return git(cmd)}
 /**
   Push all branches to the remote repository.
 
@@ -688,11 +557,7 @@ export fn git_push_tags() -> string {
   Notes:
   - The `--all` option pushes all branches to the remote repository.
 */
-export fn git_push_all() -> string {
-    let cmd = "push --all"
-    return git(cmd)
-}
-
+export fn git_push_all()->string{let cmd="push --all";return git(cmd)}
 /**
   Force push all tags to the remote repository.
 
@@ -709,11 +574,7 @@ export fn git_push_all() -> string {
   Notes:
   - The `--force` option forces the push to the remote repository, potentially overwriting changes.
 */
-export fn git_push_force_tags() -> string {
-    let cmd = "push --force --tags"
-    return git(cmd)
-}
-
+export fn git_push_force_tags()->string{let cmd="push --force --tags";return git(cmd)}
 /**
   Force push all branches to the remote repository.
 
@@ -730,11 +591,7 @@ export fn git_push_force_tags() -> string {
   Notes:
   - The `--force` option forces the push to the remote repository, potentially overwriting changes.
 */
-export fn git_push_force_all() -> string {
-    let cmd = "push --force --all"
-    return git(cmd)
-}
-
+export fn git_push_force_all()->string{let cmd="push --force --all";return git(cmd)}
 /**
   Force push all tags to the remote repository with lease.
 
@@ -751,11 +608,7 @@ export fn git_push_force_all() -> string {
   Notes:
   - The `--force-with-lease` option forces the push to the remote repository only if the remote branch has not been updated, preventing accidental overwrites.
 */
-export fn git_push_force_with_lease_tags() -> string {
-    let cmd = "push --force-with-lease --tags"
-    return git(cmd)
-}
-
+export fn git_push_force_with_lease_tags()->string{let cmd="push --force-with-lease --tags";return git(cmd)}
 /**
   Force push all branches to the remote repository with lease.
 
@@ -772,10 +625,7 @@ export fn git_push_force_with_lease_tags() -> string {
   Notes:
   - The `--force-with-lease` option forces the push to the remote repository only if the remote branch has not been updated, preventing accidental overwrites.
 */
-export fn git_push_force_with_lease_all() -> string {
-    let cmd = "push --force-with-lease --all"
-    return git(cmd)
-}
+export fn git_push_force_with_lease_all()->string{let cmd="push --force-with-lease --all";return git(cmd)}
 /**
   Show the working tree status.
 
@@ -792,11 +642,7 @@ export fn git_push_force_with_lease_all() -> string {
   Notes:
   - The `git status` command shows the current state of the working directory and the staging area.
 */
-export fn git_status() -> string {
-    let cmd = "status"
-    return git(cmd)
-}
-
+export fn git_status()->string{let cmd="status";return git(cmd)}
 /**
   Show the working tree status in short format.
 
@@ -813,11 +659,7 @@ export fn git_status() -> string {
   Notes:
   - The `--short` option shows the status in a concise format.
 */
-export fn git_status_short() -> string {
-    let cmd = "status --short"
-    return git(cmd)
-}
-
+export fn git_status_short()->string{let cmd="status --short";return git(cmd)}
 /**
   Show changes between the working tree and the index (staging area).
 
@@ -834,11 +676,7 @@ export fn git_status_short() -> string {
   Notes:
   - The `git diff` command shows the differences between the working tree and the index (staging area).
 */
-export fn git_diff() -> string {
-    let cmd = "diff"
-    return git(cmd)
-}
-
+export fn git_diff()->string{let cmd="diff";return git(cmd)}
 /**
   Show changes between the index (staging area) and the last commit.
 
@@ -855,11 +693,7 @@ export fn git_diff() -> string {
   Notes:
   - The `--cached` option shows the differences between the index (staging area) and the last commit.
 */
-export fn git_diff_cached() -> string {
-    let cmd = "diff --cached"
-    return git(cmd)
-}
-
+export fn git_diff_cached()->string{let cmd="diff --cached";return git(cmd)}
 /**
   Show a summary of changes between the working tree and the index (staging area).
 
@@ -876,11 +710,7 @@ export fn git_diff_cached() -> string {
   Notes:
   - The `--stat` option shows a summary of changes between the working tree and the index (staging area).
 */
-export fn git_diff_stat() -> string {
-    let cmd = "diff --stat"
-    return git(cmd)
-}
-
+export fn git_diff_stat()->string{let cmd="diff --stat";return git(cmd)}
 /**
   Show a summary of changes between the index (staging area) and the last commit.
 
@@ -897,11 +727,7 @@ export fn git_diff_stat() -> string {
   Notes:
   - The `--cached --stat` option shows a summary of changes between the index (staging area) and the last commit.
 */
-export fn git_diff_cached_stat() -> string {
-    let cmd = "diff --cached --stat"
-    return git(cmd)
-}
-
+export fn git_diff_cached_stat()->string{let cmd="diff --cached --stat";return git(cmd)}
 /**
   Show the names of changed files between the working tree and the index (staging area).
 
@@ -918,11 +744,7 @@ export fn git_diff_cached_stat() -> string {
   Notes:
   - The `--name-only` option shows only the names of changed files between the working tree and the index (staging area).
 */
-export fn git_diff_name_only() -> string {
-    let cmd = "diff --name-only"
-    return git(cmd)
-}
-
+export fn git_diff_name_only()->string{let cmd="diff --name-only";return git(cmd)}
 /**
   Show the names of changed files between the index (staging area) and the last commit.
 
@@ -939,11 +761,7 @@ export fn git_diff_name_only() -> string {
   Notes:
   - The `--cached --name-only` option shows only the names of changed files between the index (staging area) and the last commit.
 */
-export fn git_diff_cached_name_only() -> string {
-    let cmd = "diff --cached --name-only"
-    return git(cmd)
-}
-
+export fn git_diff_cached_name_only()->string{let cmd="diff --cached --name-only";return git(cmd)}
 /**
   Show the names and status of changed files between the working tree and the index (staging area).
 
@@ -960,11 +778,7 @@ export fn git_diff_cached_name_only() -> string {
   Notes:
   - The `--name-status` option shows the names and status of changed files between the working tree and the index (staging area).
 */
-export fn git_diff_name_status() -> string {
-    let cmd = "diff --name-status"
-    return git(cmd)
-}
-
+export fn git_diff_name_status()->string{let cmd="diff --name-status";return git(cmd)}
 /**
   Show the names and status of changed files between the index (staging area) and the last commit.
 
@@ -981,11 +795,7 @@ export fn git_diff_name_status() -> string {
   Notes:
   - The `--cached --name-status` option shows the names and status of changed files between the index (staging area) and the last commit.
 */
-export fn git_diff_cached_name_status() -> string {
-    let cmd = "diff --cached --name-status"
-    return git(cmd)
-}
-
+export fn git_diff_cached_name_status()->string{let cmd="diff --cached --name-status";return git(cmd)}
 /**
   Show changes between the working tree and the index (staging area) with color highlighting.
 
@@ -1002,11 +812,7 @@ export fn git_diff_cached_name_status() -> string {
   Notes:
   - The `--color` option enables color highlighting for the diff output.
 */
-export fn git_diff_color() -> string {
-    let cmd = "diff --color"
-    return git(cmd)
-}
-
+export fn git_diff_color()->string{let cmd="diff --color";return git(cmd)}
 /**
   Stage one or more files or path patterns in the Git index.
 
@@ -1026,11 +832,7 @@ export fn git_diff_color() -> string {
   - The supplied paths are quoted before execution.
   - The command uses `git add --`, so paths beginning with a hyphen are not interpreted as options.
 */
-export fn git_add(files: string) -> string {
-    let cmd = "add -- " + git_arg(files)
-    return git(cmd)
-}
-
+export fn git_add(files:string)->string{let cmd="add -- "+git_arg(files);return git(cmd)}
 /**
   Stage all changes in the current repository.
 
@@ -1050,11 +852,7 @@ export fn git_add(files: string) -> string {
   - This stages modified, deleted, and untracked files beneath the current directory.
   - Review the result with `git_status_short()` before committing.
 */
-export fn git_add_all() -> string {
-    let cmd = "add ."
-    return git(cmd)
-}
-
+export fn git_add_all()->string{let cmd="add .";return git(cmd)}
 /**
   Remove files from the working tree and Git index.
 
@@ -1074,11 +872,7 @@ export fn git_add_all() -> string {
   - Git removes the specified files from both the working tree and the index.
   - Paths are passed after `--` to prevent option injection.
 */
-export fn git_rm(files: string) -> string {
-    let cmd = "rm -- " + git_arg(files)
-    return git(cmd)
-}
-
+export fn git_rm(files:string)->string{let cmd="rm -- "+git_arg(files);return git(cmd)}
 /**
   Remove files from the Git index while retaining them in the working tree.
 
@@ -1097,11 +891,7 @@ export fn git_rm(files: string) -> string {
   Notes:
   - The files remain on disk but are no longer tracked by the index.
 */
-export fn git_rm_cached(files: string) -> string {
-    let cmd = "rm --cached -- " + git_arg(files)
-    return git(cmd)
-}
-
+export fn git_rm_cached(files:string)->string{let cmd="rm --cached -- "+git_arg(files);return git(cmd)}
 /**
   Move or rename tracked files.
 
@@ -1121,11 +911,7 @@ export fn git_rm_cached(files: string) -> string {
   Notes:
   - Both paths are quoted and placed after `--`.
 */
-export fn git_mv(old: string, new: string) -> string {
-    let cmd = "mv -- " + git_arg(old) + " " + git_arg(new)
-    return git(cmd)
-}
-
+export fn git_mv(old:string,new:string)->string{let cmd="mv -- "+git_arg(old)+" "+git_arg(new);return git(cmd)}
 /**
   Forcefully move or rename tracked files.
 
@@ -1145,11 +931,7 @@ export fn git_mv(old: string, new: string) -> string {
   Notes:
   - Existing destination files may be overwritten according to Git's behavior.
 */
-export fn git_mv_force(old: string, new: string) -> string {
-    let cmd = "mv -f -- " + git_arg(old) + " " + git_arg(new)
-    return git(cmd)
-}
-
+export fn git_mv_force(old:string,new:string)->string{let cmd="mv -f -- "+git_arg(old)+" "+git_arg(new);return git(cmd)}
 /**
   Preview a Git file move without applying it.
 
@@ -1169,11 +951,7 @@ export fn git_mv_force(old: string, new: string) -> string {
   Notes:
   - The working tree and index are not changed.
 */
-export fn git_mv_dry_run(old: string, new: string) -> string {
-    let cmd = "mv --dry-run -- " + git_arg(old) + " " + git_arg(new)
-    return git(cmd)
-}
-
+export fn git_mv_dry_run(old:string,new:string)->string{let cmd="mv --dry-run -- "+git_arg(old)+" "+git_arg(new);return git(cmd)}
 /**
   Move files while skipping errors for existing destinations.
 
@@ -1193,11 +971,7 @@ export fn git_mv_dry_run(old: string, new: string) -> string {
   Notes:
   - Git skips problematic paths instead of aborting the entire move operation where supported.
 */
-export fn git_mv_skip_errors(old: string, new: string) -> string {
-    let cmd = "mv -k -- " + git_arg(old) + " " + git_arg(new)
-    return git(cmd)
-}
-
+export fn git_mv_skip_errors(old:string,new:string)->string{let cmd="mv -k -- "+git_arg(old)+" "+git_arg(new);return git(cmd)}
 /**
   Create a Git commit with the supplied message.
 
@@ -1217,11 +991,7 @@ export fn git_mv_skip_errors(old: string, new: string) -> string {
   - The message is shell-quoted before execution.
   - Changes must be staged before calling this function.
 */
-export fn git_commit(message: string) -> string {
-    let cmd = "commit -m " + git_arg(message)
-    return git(cmd)
-}
-
+export fn git_commit(message:string)->string{let cmd="commit -m "+git_arg(message);return git(cmd)}
 /**
   Amend the latest Git commit with a new message.
 
@@ -1241,11 +1011,7 @@ export fn git_commit(message: string) -> string {
   - This rewrites the most recent commit.
   - Use carefully when the commit has already been shared.
 */
-export fn git_commit_amend(message: string) -> string {
-    let cmd = "commit --amend -m " + git_arg(message)
-    return git(cmd)
-}
-
+export fn git_commit_amend(message:string)->string{let cmd="commit --amend -m "+git_arg(message);return git(cmd)}
 /**
   Amend the latest Git commit while preserving its existing message.
 
@@ -1264,11 +1030,7 @@ export fn git_commit_amend(message: string) -> string {
   Notes:
   - Staged changes are added to the previous commit.
 */
-export fn git_commit_amend_no_edit() -> string {
-    let cmd = "commit --amend --no-edit"
-    return git(cmd)
-}
-
+export fn git_commit_amend_no_edit()->string{let cmd="commit --amend --no-edit";return git(cmd)}
 /**
   Amend the latest Git commit without changing its message and add a signoff.
 
@@ -1287,11 +1049,7 @@ export fn git_commit_amend_no_edit() -> string {
   Notes:
   - Git appends a Signed-off-by trailer to the commit message.
 */
-export fn git_commit_amend_no_edit_with_signoff() -> string {
-    let cmd = "commit --amend --no-edit --signoff"
-    return git(cmd)
-}
-
+export fn git_commit_amend_no_edit_with_signoff()->string{let cmd="commit --amend --no-edit --signoff";return git(cmd)}
 /**
   Create a signed-off Git commit.
 
@@ -1310,11 +1068,7 @@ export fn git_commit_amend_no_edit_with_signoff() -> string {
   Notes:
   - The `-s` option adds a Signed-off-by trailer.
 */
-export fn git_commit_signoff(message: string) -> string {
-    let cmd = "commit -s -m " + git_arg(message)
-    return git(cmd)
-}
-
+export fn git_commit_signoff(message:string)->string{let cmd="commit -s -m "+git_arg(message);return git(cmd)}
 /**
   Amend the latest commit with a new signed-off message.
 
@@ -1334,11 +1088,7 @@ export fn git_commit_signoff(message: string) -> string {
   - The commit message is inserted directly into the command and should be treated as trusted input.
   - Prefer `git_commit_amend()` or another helper that uses `git_arg()` when handling untrusted text.
 */
-export fn git_commit_signoff_amend(message: string) -> string {
-    let cmd = "commit -s --amend -m \"" + message + "\""
-    return git(cmd)
-}
-
+export fn git_commit_signoff_amend(message:string)->string{let cmd="commit -s --amend -m \""+message+"\"";return git(cmd)}
 /**
   Amend the latest commit, preserve its message, and add a signoff.
 
@@ -1357,11 +1107,7 @@ export fn git_commit_signoff_amend(message: string) -> string {
   Notes:
   - The latest commit is rewritten with staged changes and a signoff trailer.
 */
-export fn git_commit_signoff_amend_no_edit() -> string {
-    let cmd = "commit -s --amend --no-edit"
-    return git(cmd)
-}
-
+export fn git_commit_signoff_amend_no_edit()->string{let cmd="commit -s --amend --no-edit";return git(cmd)}
 /**
   Amend the latest commit, preserve its message, and add a signoff trailer explicitly.
 
@@ -1380,11 +1126,7 @@ export fn git_commit_signoff_amend_no_edit() -> string {
   Notes:
   - This operation rewrites the latest commit.
 */
-export fn git_commit_signoff_amend_no_edit_with_signoff() -> string {
-    let cmd = "commit -s --amend --no-edit --signoff"
-    return git(cmd)
-}
-
+export fn git_commit_signoff_amend_no_edit_with_signoff()->string{let cmd="commit -s --amend --no-edit --signoff";return git(cmd)}
 /**
   Generate a commit message from the staged Git changes and optionally create the commit.
 
@@ -1407,13 +1149,13 @@ export fn git_commit_signoff_amend_no_edit_with_signoff() -> string {
   - The user must enter `y` to create the commit.
   - A configured model provider key is required.
 */
-export fn git_commit_ai() -> string {
-    // Current Git status.
-    let status = git_status_short()
-    // Current Git diff.
-    let diff = git_diff_cached()
-    // Generated commit message using AI model.
-    let message = model("gemini-3.5-flash-lite") {thinking: "low", maxT: 300} {"You are generating a git commit message.
+export fn git_commit_ai()->string{
+// Current Git status.
+let status=git_status_short();
+// Current Git diff.
+let diff=git_diff_cached();
+// Generated commit message using AI model.
+let message=model("gemini-3.5-flash-lite"){thinking:"low",maxT:300}{"You are generating a git commit message.
 
     Rules:
     - Return only the commit message.
@@ -1427,25 +1169,10 @@ export fn git_commit_ai() -> string {
     - Do not wrap the response in markdown.
 
     Git status:
-    " status "
+    "status"
     Git diff:
-    " diff }
-
-    show "Generated commit message:
-    " message 
-    let ask = input("Create commit with this message? (y/n): ")
-    if ask == "y" {
-        try {
-            git_commit(message)
-            return "Commit created!"
-        } catch (e) {
-            return "Commit could not be created."
-        }
-    } else {
-        return "Commit not created."
-    }
-}
-
+    "diff}show"Generated commit message:
+    "message;let ask=input("Create commit with this message? (y/n): ");if ask=="y"{try{git_commit(message);return"Commit created!"}catch(e){return"Commit could not be created."}}else{return"Commit not created."}}
 /**
   Display the commit history in compact one-line format.
 
@@ -1461,11 +1188,7 @@ export fn git_commit_ai() -> string {
   show history
   ```
 */
-export fn git_log() -> string {
-    let cmd = "log --oneline"
-    return git(cmd)
-}
-
+export fn git_log()->string{let cmd="log --oneline";return git(cmd)}
 /**
   Display the commit history with per-commit file statistics.
 
@@ -1481,11 +1204,7 @@ export fn git_log() -> string {
   show history
   ```
 */
-export fn git_log_detailed() -> string {
-    let cmd = "log --stat"
-    return git(cmd)
-}
-
+export fn git_log_detailed()->string{let cmd="log --stat";return git(cmd)}
 /**
   List local Git branches.
 
@@ -1501,11 +1220,7 @@ export fn git_log_detailed() -> string {
   show branches
   ```
 */
-export fn git_branch() -> string {
-    let cmd = "branch"
-    return git(cmd)
-}
-
+export fn git_branch()->string{let cmd="branch";return git(cmd)}
 /**
   Return the name of the currently checked-out branch.
 
@@ -1521,11 +1236,7 @@ export fn git_branch() -> string {
   show "Current branch:" current
   ```
 */
-export fn git_branch_current() -> string {
-    let cmd = "rev-parse --abbrev-ref HEAD"
-    return git(cmd)
-}
-
+export fn git_branch_current()->string{let cmd="rev-parse --abbrev-ref HEAD";return git(cmd)}
 /**
   List all local Git tags.
 
@@ -1541,11 +1252,7 @@ export fn git_branch_current() -> string {
   show tags
   ```
 */
-export fn git_tag() -> string {
-    let cmd = "tag"
-    return git(cmd)
-}
-
+export fn git_tag()->string{let cmd="tag";return git(cmd)}
 /**
   Create a Git tag.
 
@@ -1564,11 +1271,7 @@ export fn git_tag() -> string {
   Notes:
   - This creates a lightweight tag at the current commit.
 */
-export fn git_tag_create(tag: string) -> string {
-    let cmd = "tag " + git_arg(tag)
-    return git(cmd)
-}
-
+export fn git_tag_create(tag:string)->string{let cmd="tag "+git_arg(tag);return git(cmd)}
 /**
   Delete a local Git tag.
 
@@ -1587,11 +1290,7 @@ export fn git_tag_create(tag: string) -> string {
   Notes:
   - This removes only the local tag.
 */
-export fn git_tag_delete(tag: string) -> string {
-    let cmd = "tag -d " + git_arg(tag)
-    return git(cmd)
-}
-
+export fn git_tag_delete(tag:string)->string{let cmd="tag -d "+git_arg(tag);return git(cmd)}
 /**
   Push a tag to the default origin remote.
 
@@ -1607,11 +1306,7 @@ export fn git_tag_delete(tag: string) -> string {
   show result
   ```
 */
-export fn git_tag_push(tag: string) -> string {
-    let cmd = "push origin " + git_arg(tag)
-    return git(cmd)
-}
-
+export fn git_tag_push(tag:string)->string{let cmd="push origin "+git_arg(tag);return git(cmd)}
 /**
   Push all local tags to the origin remote.
 
@@ -1627,11 +1322,7 @@ export fn git_tag_push(tag: string) -> string {
   show result
   ```
 */
-export fn git_tag_push_all() -> string {
-    let cmd = "push origin --tags"
-    return git(cmd)
-}
-
+export fn git_tag_push_all()->string{let cmd="push origin --tags";return git(cmd)}
 /**
   Delete a tag from the origin remote.
 
@@ -1650,11 +1341,7 @@ export fn git_tag_push_all() -> string {
   Notes:
   - This removes the tag from the remote repository and does not automatically remove the local tag.
 */
-export fn git_tag_delete_remote(tag: string) -> string {
-    let cmd = "push origin --delete " + git_arg(tag)
-    return git(cmd)
-}
-
+export fn git_tag_delete_remote(tag:string)->string{let cmd="push origin --delete "+git_arg(tag);return git(cmd)}
 /**
   Reset the current branch and working tree to a commit, discarding changes.
 
@@ -1673,11 +1360,7 @@ export fn git_tag_delete_remote(tag: string) -> string {
   Notes:
   - Uncommitted working-tree and staged changes may be permanently discarded.
 */
-export fn git_reset_hard_to_commit(commit: string) -> string {
-    let cmd = "reset --hard " + git_arg(commit)
-    return git(cmd)
-}
-
+export fn git_reset_hard_to_commit(commit:string)->string{let cmd="reset --hard "+git_arg(commit);return git(cmd)}
 /**
   Move the current branch reference to a commit while preserving working-tree changes.
 
@@ -1696,11 +1379,7 @@ export fn git_reset_hard_to_commit(commit: string) -> string {
   Notes:
   - Changes remain staged after the reset.
 */
-export fn git_reset_soft_to_commit(commit: string) -> string {
-    let cmd = "reset --soft " + git_arg(commit)
-    return git(cmd)
-}
-
+export fn git_reset_soft_to_commit(commit:string)->string{let cmd="reset --soft "+git_arg(commit);return git(cmd)}
 /**
   Move the current branch reference to a commit and unstage changes.
 
@@ -1720,11 +1399,7 @@ export fn git_reset_soft_to_commit(commit: string) -> string {
   - This is Git's default reset mode.
   - Working-tree changes are preserved but removed from the index.
 */
-export fn git_reset_mixed_to_commit(commit: string) -> string {
-    let cmd = "reset --mixed " + git_arg(commit)
-    return git(cmd)
-}
-
+export fn git_reset_mixed_to_commit(commit:string)->string{let cmd="reset --mixed "+git_arg(commit);return git(cmd)}
 /**
   Revert a commit by creating a new inverse commit.
 
@@ -1743,11 +1418,7 @@ export fn git_reset_mixed_to_commit(commit: string) -> string {
   Notes:
   - Unlike reset, revert preserves existing history by creating a new commit.
 */
-export fn git_revert(commit: string) -> string {
-    let cmd = "revert " + git_arg(commit)
-    return git(cmd)
-}
-
+export fn git_revert(commit:string)->string{let cmd="revert "+git_arg(commit);return git(cmd)}
 /**
   Revert a commit without opening an editor for the generated message.
 
@@ -1763,11 +1434,7 @@ export fn git_revert(commit: string) -> string {
   show result
   ```
 */
-export fn git_revert_no_edit(commit: string) -> string {
-    let cmd = "revert --no-edit " + git_arg(commit)
-    return git(cmd)
-}
-
+export fn git_revert_no_edit(commit:string)->string{let cmd="revert --no-edit "+git_arg(commit);return git(cmd)}
 /**
   Apply the inverse of a commit without creating the revert commit immediately.
 
@@ -1787,7 +1454,4 @@ export fn git_revert_no_edit(commit: string) -> string {
   - The inverse changes are applied to the working tree and index.
   - Review or modify the changes before creating a commit.
 */
-export fn git_revert_no_commit(commit: string) -> string {
-    let cmd = "revert --no-commit " + git_arg(commit)
-    return git(cmd)
-}
+export fn git_revert_no_commit(commit:string)->string{let cmd="revert --no-commit "+git_arg(commit);return git(cmd)}

@@ -32,7 +32,7 @@ Sesi is built on these core principles:
 ### Core Language Features
 
 - ✅ Variables and bindings (`let`)
-- ✅ Functions (named, anonymous)
+- ✅ Functions (named `fn` declarations, passed around as values; no anonymous `fn(...) {}` expressions)
 - ✅ Class-like object templates (`make`)
 - ✅ Conditionals (`if/else`)
 - ✅ Loops (`while`, `for`)
@@ -161,7 +161,7 @@ export fn multiply(a, b) {show a * b}
 #### If Statement
 
 ```
-if_stmt := 'if' expression block ('else' block)?
+if_stmt := 'if' expression block (NEWLINE* 'else' (block | if_stmt))?
 ```
 
 #### Loops
@@ -294,6 +294,7 @@ config_entry := (STRING | identifier) ':' expression
 | `ratio`         | `image`          | `string`                  | Aspect ratio e.g. `"16:9"`                                                 |
 | `size`          | `image`          | `string`                  | `"512"`, `"1K"`, `"2K"`, `"4K"`                                            |
 | `images`        | `model`, `image` | `string \| array<string>` | Local file path(s) passed as visual input                                  |
+| `audio`         | `model`, `image` | `string \| object`        | Local path, audio data URL, or `{data, mimeType}` Base64 audio input       |
 | `stream`        | `model`          | `bool \| fn`              | Enable real-time streaming to stdout (`true`) or a callback function       |
 | `system`        | `model`, `image` | `string`                  | Provider-native system instruction                                         |
 
@@ -301,8 +302,13 @@ Example:
 
 ```sesi
 let result = model("gemini-3.8-flash") {images: "scan.png", thinkingLevel: "low"} {"Transcribe all visible text."}
+let transcript = model("gemini-3.6-flash") {audio: "recording.wav"} {"Transcribe this audio."}
+let geminiArt = image("gemini-3.1-flash-image") {audio: "recording.wav", ratio: "1:1"} {"Create cover art based on this recording."}
+let openaiArt = image("gpt-image-2") {audio: "recording.mp3", ratio: "1:1"} {"Create cover art based on this recording."}
 let output = model("gemini-3.8-flash") {thinkingLevel: "medium"} {prompt}
 ```
+
+Audio files are read and Base64-encoded at request time. Gemini model and image calls receive inline audio with the detected MIME type. For OpenAI `model()` and `image()` calls, Sesi currently transcribes WAV or MP3 input through OpenAI first and appends the transcript to the model or image prompt. The selected provider model must support the requested operation.
 
 #### Convert Expression
 
@@ -361,7 +367,7 @@ schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.9.0\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.9.1\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -769,7 +775,7 @@ show transcript
 ```
 
 - `speech(text, voice = null, gemini_model = null)` speaks through the operating system's local voice tool, or uses the optional Gemini model.
-- `from_speech(audio_path, language = null, gemini_model = null)` transcribes with `nodejs-whisper`, or the optional Gemini model.
+- `from_speech(audio_path, language = null, model = "gpt-transcribe")` returns transcript text through OpenAI or Gemini. Set `OPENAI_API_KEY` for OpenAI or `GEMINI_API_KEY` for Gemini; pass a model name as the third argument to select the provider.
 
 ### Reasoning with Structured Output
 

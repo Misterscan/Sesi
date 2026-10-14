@@ -3,6 +3,7 @@
 // Plugs into the --check / --dry pipeline alongside dry-checker.ts.
 
 import { type Program, type Statement, type Expression, type TypeAnnotation, type BlockStatement } from './types';
+import { desugarMakeStatement } from './make';
 
 export interface TypeDiagnostic {
   severity: 'error' | 'warning';
@@ -210,6 +211,11 @@ class TypeChecker {
           fnEnv.define(param.name, param.type ?? ANY);
         }
         this.checkBlock(stmt.body, fnEnv, stmt.returnType);
+        break;
+      }
+
+      case 'MakeStatement': {
+        this.checkStatement(desugarMakeStatement(stmt), env, expectedReturn);
         break;
       }
 

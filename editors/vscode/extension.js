@@ -15,32 +15,69 @@ const SESI_MATH_FUNCTION_SIGNATURES = {
 };
 const SESI_MATH_FUNCTIONS = Object.keys(SESI_MATH_FUNCTION_SIGNATURES);
 
-function getModuleSpecifierAtPosition(document, position) {
-    if (isPositionInComment(document, position)) return null;
-    const lineText = stripComments(document.getText()).split('\n')[position.line] || '';
-    const stringRegex = /(["'])(.*?)\1/g;
-    let match;
-    while ((match = stringRegex.exec(lineText)) !== null) {
-        const start = match.index;
-        const end = match.index + match[0].length;
-        if (position.character >= start && position.character <= end) {
-            const specifier = match[2];
-            const beforeString = lineText.substring(0, start).trim();
-            const afterString = lineText.substring(end).trim();
-            
-            const isAllow = /\ballow\s*$/i.test(beforeString) || (beforeString.includes('allow') && afterString.startsWith('in'));
-            const isImport = /\bfrom\s*$/i.test(beforeString);
-            
-            if (isAllow || isImport) {
-                const range = new vscode.Range(
-                    new vscode.Position(position.line, start + 1),
-                    new vscode.Position(position.line, end - 1)
-                );
-                return { specifier, range, isAllow, isImport };
+function getModuleSpecifiers(text) {
+    const tokens = tokenize(text);
+    const specifiers = [];
+
+    const addSpecifier = (token, isAllow, isImport) => {
+        if (!token || token.type !== 'STRING' || token.lexeme.length < 2) return;
+        specifiers.push({
+            specifier: token.lexeme.slice(1, -1),
+            token,
+            isAllow,
+            isImport
+        });
+    };
+
+    for (let index = 0; index < tokens.length; index++) {
+        const token = tokens[index];
+        if (token.type === 'ALLOW') {
+            const specifierToken = tokens[index + 1];
+            const inToken = tokens[index + 2];
+            if (specifierToken?.type === 'STRING' && inToken?.type === 'IN') {
+                addSpecifier(specifierToken, true, false);
+            }
+            continue;
+        }
+
+        if (token.type === 'IMPORT') {
+            for (let cursor = index + 1; cursor < tokens.length; cursor++) {
+                const candidate = tokens[cursor];
+                if (candidate.type === 'FROM') {
+                    addSpecifier(tokens[cursor + 1], false, true);
+                    break;
+                }
+                if (cursor > index + 1 && ['IMPORT', 'ALLOW', 'LET', 'FN', 'MAKE', 'EXPORT'].includes(candidate.type)) {
+                    break;
+                }
             }
         }
     }
-    return null;
+
+    return specifiers;
+}
+
+function moduleSpecifierRange(token) {
+    return new vscode.Range(
+        new vscode.Position(token.line, token.col + 1),
+        new vscode.Position(token.line, token.col + token.length - 1)
+    );
+}
+
+function getModuleSpecifierAtPosition(document, position) {
+    if (isPositionInComment(document, position)) return null;
+    const moduleInfo = getModuleSpecifiers(document.getText()).find(({ token }) => (
+        token.line === position.line &&
+        position.character >= token.col &&
+        position.character <= token.col + token.length
+    ));
+    if (!moduleInfo) return null;
+    return {
+        specifier: moduleInfo.specifier,
+        range: moduleSpecifierRange(moduleInfo.token),
+        isAllow: moduleInfo.isAllow,
+        isImport: moduleInfo.isImport
+    };
 }
 
 function getStringLiteralAtPosition(document, position) {
@@ -138,6 +175,7 @@ function resolveSesiModule(specifier, documentPath, workspaceRoot) {
 
     let filePath = specifier;
     const hasExtension = filePath.endsWith('.sesi');
+    const isDirectoryImport = /[\\\/]$/.test(specifier);
     if (!hasExtension) filePath += '.sesi';
 
     const searchDirs = [];
@@ -181,6 +219,15 @@ function resolveSesiModule(specifier, documentPath, workspaceRoot) {
             if (!hasExtension) {
                 const dirPath = path.resolve(dir, specifier);
                 if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+                    // A trailing slash means "load every .sesi module in this
+                    // directory" at runtime. It does not require index.sesi.
+                    if (isDirectoryImport) {
+                        return {
+                            type: 'directory',
+                            path: dirPath,
+                            searchDir: dir
+                        };
+                    }
                     const indexSesi = path.join(dirPath, 'index.sesi');
                     if (fs.existsSync(indexSesi) && !fs.statSync(indexSesi).isDirectory()) {
                         return {
@@ -225,6 +272,76 @@ function getExportsFromSesiFile(filePath, sourceText = null) {
         // Ignore
     }
     return exports;
+}
+
+function getExportNamesFromSesiSource(sourceText) {
+    const tokens = tokenize(sourceText);
+    const names = [];
+    for (let index = 0; index < tokens.length; index++) {
+        if (tokens[index].type !== 'EXPORT') continue;
+        let cursor = index + 1;
+        if (tokens[cursor]?.type === 'ASYNC') cursor++;
+        if (!['FN', 'MAKE', 'LET'].includes(tokens[cursor]?.type)) continue;
+        const nameToken = tokens[cursor + 1];
+        if (nameToken?.type === 'IDENTIFIER') names.push(nameToken.lexeme);
+    }
+    return names;
+}
+
+function getWildcardImportDeclarations(tokens, documentPath, workspaceRoot) {
+    const declarations = [];
+
+    for (let index = 0; index < tokens.length; index++) {
+        const keywordToken = tokens[index];
+        if (keywordToken.type !== 'ALLOW') continue;
+        const specifierToken = tokens[index + 1];
+        const inToken = tokens[index + 2];
+        const asToken = tokens[index + 3];
+        const starToken = tokens[index + 4];
+        if (
+            specifierToken?.type !== 'STRING' ||
+            inToken?.type !== 'IN' ||
+            asToken?.type !== 'AS' ||
+            starToken?.lexeme !== '*'
+        ) continue;
+
+        const specifier = specifierToken.lexeme.slice(1, -1);
+        const resolved = resolveSesiModule(specifier, documentPath, workspaceRoot);
+        if (!resolved || resolved.type === 'builtin') continue;
+
+        let modulePaths = [];
+        if (resolved.type === 'directory') {
+            try {
+                modulePaths = fs.readdirSync(resolved.path)
+                    .filter(name => name.endsWith('.sesi'))
+                    .map(name => path.join(resolved.path, name));
+            } catch (error) {
+                continue;
+            }
+        } else {
+            modulePaths = [resolved.path];
+        }
+
+        const exportNames = new Set();
+        for (const modulePath of modulePaths) {
+            const sourceText = readSesiModuleSource(modulePath);
+            if (sourceText === null) continue;
+            for (const name of getExportNamesFromSesiSource(sourceText)) exportNames.add(name);
+        }
+        for (const name of exportNames) {
+            declarations.push({
+                name,
+                token: starToken,
+                type: 'import',
+                keywordToken,
+                importSpecifier: specifier,
+                importedName: name,
+                suppressUnused: true
+            });
+        }
+    }
+
+    return declarations;
 }
 
 function cleanDocumentationComment(commentText) {
@@ -278,6 +395,30 @@ function readSesiModuleSource(filePath) {
 }
 
 function appendLocalModuleHover(markdown, specifier, resolved) {
+    if (resolved.type === 'directory') {
+        let moduleFiles = [];
+        try {
+            moduleFiles = fs.readdirSync(resolved.path)
+                .filter(name => name.endsWith('.sesi'))
+                .sort();
+        } catch (error) {
+            // Resolution already verified the directory; tolerate a later
+            // filesystem race and show it as an empty directory import.
+        }
+
+        markdown.appendMarkdown(`### Module directory: \`${specifier}\`\n\n`);
+        markdown.appendMarkdown(`*Type:* Sesi Directory Import  \n`);
+        markdown.appendMarkdown(`*Path:* \`${resolved.path}\`  \n`);
+        markdown.appendMarkdown(`*Resolved in:* \`${resolved.searchDir}\`\n\n`);
+        if (moduleFiles.length > 0) {
+            markdown.appendMarkdown('**Modules:**\n');
+            for (const file of moduleFiles) markdown.appendMarkdown(`* \`${file}\`\n`);
+        } else {
+            markdown.appendMarkdown('*No `.sesi` modules found in directory.*');
+        }
+        return;
+    }
+
     const sourceText = readSesiModuleSource(resolved.path);
     const documentation = getModuleDocumentation(sourceText);
 
@@ -1027,6 +1168,14 @@ function getDeclarationDetails(text, tokens, declaration) {
 function getImportBindingInfo(tokens, declaration) {
     if (!declaration || declaration.type !== 'import' || !declaration.keywordToken) return null;
 
+    if (declaration.importSpecifier && declaration.importedName) {
+        return {
+            specifier: declaration.importSpecifier,
+            bindingName: declaration.importedName,
+            namespace: false
+        };
+    }
+
     const keywordIndex = tokens.indexOf(declaration.keywordToken);
     const bindingIndex = tokens.indexOf(declaration.token);
     if (keywordIndex < 0 || bindingIndex < 0) return null;
@@ -1611,6 +1760,9 @@ function analyzeScope(tokens, decls, refs) {
                     token: d.token,
                     type: 'import',
                     keywordToken: d.keywordToken,
+                    importSpecifier: d.importSpecifier,
+                    importedName: d.importedName,
+                    suppressUnused: d.suppressUnused,
                     readCount: 0
                 });
             }
@@ -1729,41 +1881,17 @@ function analyzeScope(tokens, decls, refs) {
 
 function validateImports(document, workspaceRoot) {
     const diagnostics = [];
-    const text = stripComments(document.getText());
-    const lines = text.split('\n');
-
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-        const lineText = lines[lineIdx];
-        const stringRegex = /(["'])(.*?)\1/g;
-        let match;
-        while ((match = stringRegex.exec(lineText)) !== null) {
-            const specifier = match[2];
-            const start = match.index;
-            const end = match.index + match[0].length;
-            
-            const beforeString = lineText.substring(0, start).trim();
-            const afterString = lineText.substring(end).trim();
-            
-            const isAllow = /\ballow\s*$/i.test(beforeString) || (beforeString.includes('allow') && afterString.startsWith('in'));
-            const isImport = /\bfrom\s*$/i.test(beforeString);
-            
-            if (isAllow || isImport) {
-                const resolved = resolveSesiModule(specifier, document.uri.fsPath, workspaceRoot);
-                if (!resolved) {
-                    const range = new vscode.Range(
-                        new vscode.Position(lineIdx, start),
-                        new vscode.Position(lineIdx, end)
-                    );
-                    const message = `Module not found: "${specifier}". Checked relative paths, SESI_PATH, and ~/.sesi/lib.`;
-                    const diagnostic = new vscode.Diagnostic(
-                        range,
-                        message,
-                        vscode.DiagnosticSeverity.Error
-                    );
-                    diagnostic.code = 'module-not-found';
-                    diagnostics.push(diagnostic);
-                }
-            }
+    for (const moduleInfo of getModuleSpecifiers(document.getText())) {
+        const resolved = resolveSesiModule(moduleInfo.specifier, document.uri.fsPath, workspaceRoot);
+        if (!resolved) {
+            const message = `Module not found: "${moduleInfo.specifier}". Checked relative paths, SESI_PATH, and ~/.sesi/lib.`;
+            const diagnostic = new vscode.Diagnostic(
+                moduleSpecifierRange(moduleInfo.token),
+                message,
+                vscode.DiagnosticSeverity.Error
+            );
+            diagnostic.code = 'module-not-found';
+            diagnostics.push(diagnostic);
         }
     }
     return diagnostics;
@@ -1771,17 +1899,19 @@ function validateImports(document, workspaceRoot) {
 
 const documentScopesCache = new Map();
 
-function getDocumentScopeAnalysis(document) {
+function getDocumentScopeAnalysis(document, workspaceRoot = '') {
     const key = document.uri.toString();
     const cached = documentScopesCache.get(key);
-    if (cached && cached.version === document.version) return cached;
+    if (cached && cached.version === document.version && cached.workspaceRoot === workspaceRoot) return cached;
 
     const text = document.getText();
     const tokens = tokenize(text);
     const { decls, refs } = findDeclarationsAndReferences(tokens);
+    decls.push(...getWildcardImportDeclarations(tokens, document.uri.fsPath, workspaceRoot));
     const diagnostics = analyzeScope(tokens, decls, refs);
     const analysis = {
         version: document.version,
+        workspaceRoot,
         tokens,
         tokenScopes: diagnostics.tokenScopes,
         diagnostics
@@ -1800,7 +1930,7 @@ function getIdentifierTokenAtPosition(tokens, position) {
 }
 
 function resolveImportedSymbolAtPosition(document, position, workspaceRoot) {
-    const analysis = getDocumentScopeAnalysis(document);
+    const analysis = getDocumentScopeAnalysis(document, workspaceRoot);
     const token = getIdentifierTokenAtPosition(analysis.tokens, position);
     if (!token) return null;
 
@@ -1828,7 +1958,7 @@ function resolveImportedSymbolAtPosition(document, position, workspaceRoot) {
 }
 
 function resolveMakeMemberAtPosition(document, position, workspaceRoot) {
-    const analysis = getDocumentScopeAnalysis(document);
+    const analysis = getDocumentScopeAnalysis(document, workspaceRoot);
     const memberToken = getIdentifierTokenAtPosition(analysis.tokens, position);
     if (!memberToken) return null;
 
@@ -2297,10 +2427,10 @@ function activate(context) {
             example: 'speech("Build complete")\nspeech("Bonjour", "Thomas")'
         },
         'from_speech': {
-            signature: 'from_speech(audio_path, language = null, gemini_model = null) -> string',
+            signature: 'from_speech(audio_path, language = null, model = "gpt-transcribe") -> string',
             source: 'Speech Recognition Standard Library',
-            description: 'Transcribes an audio file with nodejs-whisper by default, or with an optional Gemini model. Requires a downloaded model (`npx nodejs-whisper download base.en`).',
-            example: 'let transcript = from_speech("meeting.wav", "en")\nshow transcript'
+            description: 'Transcribes an audio file through OpenAI or Gemini and returns the transcript as text. Defaults to OpenAI gpt-transcribe. The third argument selects the model. Requires OPENAI_API_KEY for OpenAI or GEMINI_API_KEY for Gemini.',
+            example: 'let transcript = from_speech("meeting.wav", "en")\nlet openai = from_speech("meeting.wav", "en", "gpt-4o-mini-transcribe")\nlet gemini = from_speech("meeting.wav", "en", "gemini-3.5-flash-lite")\nshow transcript'
         },
         'encode': {
             signature: 'encode(value, mode = "text")',
@@ -2384,7 +2514,7 @@ function activate(context) {
             signature: 'regex(pattern, text, options = null)',
             source: 'String Utility Standard Library',
             description: 'Matches, tests, replaces, or splits text using a JavaScript-compatible regular expression.',
-            example: 'let matches = regex("[A-Z]+", "ID ABC and XYZ")\nlet valid = regex("^[a-z]+$", "sesi", {"mode": "test", "flags": "i"})'
+            example: 'let matches = regex("[A-Z]+", "ID ABC and XYZ")\nlet valid = regex("^[a-z]+$", "sesi", {mode: "test", flags: "i"})'
         },
         'tokenize': {
             signature: 'tokenize(string, options = null)',
@@ -2396,7 +2526,7 @@ function activate(context) {
             signature: 'count_tokens(string, options = null)',
             source: 'AI Utility Standard Library',
             description: 'Counts request tokens through the native OpenAI or Gemini provider endpoint.',
-            example: 'let count = count_tokens("Hello world", "gemini-3.5-flash")'
+            example: 'let count = count_tokens("Hello world", "gemini-3.7-flash")'
         },
         'estimate_tokens': {
             signature: 'estimate_tokens(string, options = null)',
@@ -2408,7 +2538,7 @@ function activate(context) {
             signature: 'estimate_cost(model, input, output = 0, rates = null)',
             source: 'AI Utility Standard Library',
             description: 'Estimates paid-tier text-token cost in USD from counts or text.',
-            example: 'let cost = estimate_cost("gpt-5.6-terra", promptText, 500)\nshow cost["total_cost_usd"]'
+            example: 'let cost = estimate_cost("gpt-5.6-terra", promptText, 500)\nshow cost.total_cost_usd'
         },
         'model_usage': {
             signature: 'model_usage()',
@@ -2570,7 +2700,7 @@ function activate(context) {
             signature: 'launch(options?)',
             source: 'Browser Standard Library (std/browser)',
             description: 'After importing `std/browser`, launches a Playwright browser instance. Options can configure settings such as headless mode.',
-            example: 'allow "std/browser" in with {launch}\nlet browser = launch({"headless": true})\nlet page = browser.newPage()\npage.goto("https://code-with-sesi.netlify.app")'
+            example: 'allow "std/browser" in with {launch}\nlet browser = launch({headless: true})\nlet page = browser.newPage()\npage.goto("https://code-with-sesi.netlify.app")'
         },
         'sf2': {
             signature: 'sf2(path, options)',
@@ -2777,10 +2907,10 @@ function activate(context) {
             example: 'allow "std/draw" in as Draw\nDraw.pixel_bezier(2, 28, 16, 2, 30, 28, "#4cc9f0")'
         },
         'pixel_text': {
-            signature: 'pixel_text(x, y, text, color, scale = 1)',
+            signature: 'pixel_text(x, y, text, color, scale = 1, font = "classic")',
             source: 'Drawing Standard Library (std/draw)',
-            description: 'Rasterizes text into the pixel buffer with the built-in 5x7 bitmap font.',
-            example: 'allow "std/draw" in as Draw\nDraw.pixel_text(2, 2, "PIXEL ART", "#f72585", 2)'
+            description: 'Rasterizes text into the pixel buffer using the classic 5x7 bitmap face or the smooth antialiased bubble and impact faces.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_text(20, 20, "Bubble Text", "#79e6ff", 12, "bubble")'
         },
         'pixel_grid': {
             signature: 'pixel_grid(grid, palette, scale = 1, x = 0, y = 0)',
@@ -3245,7 +3375,7 @@ function activate(context) {
                                 'pixel_polygon(points, color, filled?)', 'pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled?)',
                                 'pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled?)',
                                 'pixel_ring(cx, cy, radius, thickness, color)', 'pixel_arc(cx, cy, radius, startAngle, endAngle, color)',
-                                'pixel_bezier(x1, y1, cx, cy, x2, y2, color)', 'pixel_text(x, y, text, color, scale?)',
+                                'pixel_bezier(x1, y1, cx, cy, x2, y2, color)', 'pixel_text(x, y, text, color, scale?, font?)',
                                 'line(x1, y1, x2, y2, color, options?)', 'text(x, y, text, size, color, options?)',
                                 'ellipse(cx, cy, rx, ry, fill, options?)', 'polygon(points, fill, options?)',
                                 'path(d, fill, options?)', 'gradient(type, id, stops, options?)',
@@ -3323,7 +3453,7 @@ function activate(context) {
                 return new vscode.Hover(markdown, range);
             }
 
-            const scopeAnalysis = getDocumentScopeAnalysis(document);
+            const scopeAnalysis = getDocumentScopeAnalysis(document, workspaceRoot);
             const identifierToken = getIdentifierTokenAtPosition(scopeAnalysis.tokens, position);
             const namespaceImport = getNamespaceImportAtToken(
                 scopeAnalysis.tokens,
@@ -3363,7 +3493,7 @@ function activate(context) {
 
             // Local symbols take precedence over built-ins so user declarations can
             // intentionally shadow a built-in and still receive the correct hover.
-            const cache = getDocumentScopeAnalysis(document);
+            const cache = getDocumentScopeAnalysis(document, workspaceRoot);
             const localToken = getIdentifierTokenAtPosition(cache.tokens, position);
             if (localToken && (!importedSymbol || importedSymbol.kind !== 'builtin')) {
                 const scope = cache.tokenScopes.get(localToken);
@@ -3456,7 +3586,7 @@ function activate(context) {
             }
 
             // Check local declarations for Go to Definition
-            const cache = getDocumentScopeAnalysis(document);
+            const cache = getDocumentScopeAnalysis(document, workspaceRoot);
             if (cache) {
                 const { tokens, tokenScopes } = cache;
                 const tok = getIdentifierTokenAtPosition(tokens, position);
@@ -3545,7 +3675,7 @@ function activate(context) {
         const diagnostics = validateImports(document, workspaceRoot);
 
         try {
-            const scopeDiagnostics = getDocumentScopeAnalysis(document).diagnostics;
+            const scopeDiagnostics = getDocumentScopeAnalysis(document, workspaceRoot).diagnostics;
             
             for (const d of scopeDiagnostics) {
                 const range = new vscode.Range(
@@ -3722,6 +3852,9 @@ module.exports = {
         stripComments,
         isPositionInComment,
         getModuleSpecifierAtPosition,
+        getModuleSpecifiers,
+        getDocumentScopeAnalysis,
+        getExportNamesFromSesiSource,
         resolveSesiModule,
         validateImports,
         tokenize,

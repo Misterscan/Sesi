@@ -41,25 +41,22 @@ fn show_help() {
   show "  sesi helpers/line-swap.sesi app.sesi \"\\bold_fn\\b\" \"new_fn\" lines 10 50"
   show "  sesi helpers/line-swap.sesi routes.sesi \"\\bGET /v1/\" \"POST /v2/\" flags i"
 }
-
 fn parse_options() {
   let options = {
-    "dry_run": false,
-    "backup": false,
-    "flags": "g",
-    "line_start": null,
-    "line_end": null
+    dry_run: false,
+    backup: false,
+    flags: "g",
+    line_start: null,
+    line_end: null
   }
-
   let i = 3
   while i < len(args) {
     let key = args[i]
-
     if key == "--dry-run" || key == "dry-run" {
       options["dry_run"] = true
       i = i + 1
     } else if key == "--flags" || key == "flags" {
-      if i + 1 < len(args) && regex("^[dgimsuvy]+$", args[i + 1], {"mode": "test"}) {
+      if i + 1 < len(args) && regex("^[dgimsuvy]+$", args[i + 1], {mode: "test"}) {
         options["flags"] = args[i + 1]
         i = i + 2
       } else {
@@ -83,37 +80,21 @@ fn parse_options() {
       i = i + 1
     }
   }
-
   return options
 }
-
 fn in_range(line_number: num, options) -> bool {
-  if options["line_start"] == null {
-    return true
-  }
-
-  if line_number < options["line_start"] {
-    return false
-  }
-
-  if options["line_end"] != null {
-    if line_number > options["line_end"] {
-      return false
-    }
-  }
-
+  if options["line_start"] == null { return true }
+  if line_number < options["line_start"] { return false }
+  if options["line_end"] != null { if line_number > options["line_end"] { return false } }
   return true
 }
-
 fn read_text(path: str) {
-  try {
-    return safe.read(path)
-  } catch (err) {
+  try { return safe.read(path) }
+  catch (err) {
     show "Read failed for" path ":" err
     return null
   }
 }
-
 fn write_text(path: str, text: str) -> bool {
   try {
     safe.write(path, text)
@@ -123,51 +104,32 @@ fn write_text(path: str, text: str) -> bool {
     return false
   }
 }
-
 fn run_swap(path: str, pattern: str, replacement: str, options) {
   let text = read_text(path)
-
-  if text == null {
-    return null
-  }
-
+  if text == null { return null }
   let lines = split(text, "
 ")
-
   let updated_lines = []
   let swap_count = 0
   let line_number = 1
-
   for line in lines {
     if in_range(line_number, options) {
-      let matches = regex(pattern, line, {"mode": "match", "flags": options["flags"], "limit": 1})
-
+      let matches = regex(pattern, line, {mode: "match", flags: options["flags"], limit: 1})
       if len(matches) > 0 {
         let flags = options["flags"]
-        if !contains(flags, "g") {
-          flags = flags + "g"
-        }
-        let new_line = regex(pattern, line, {"mode": "replace", "flags": flags, "replacement": replacement})
-
-        if new_line == line {
-          push(updated_lines, line)
+        if !contains(flags, "g") { flags = flags + "g" }
+        let new_line = regex(pattern, line, {mode: "replace", flags: flags, replacement: replacement})
+        if new_line == line { push(updated_lines, line)
         } else {
           push(updated_lines, new_line)
-
           if options["dry_run"] {
             show "[line " line_number "] -" line
             show "[line " line_number "] +" new_line
           }
-
           swap_count = swap_count + 1
         }
-      } else {
-        push(updated_lines, line)
-      }
-    } else {
-      push(updated_lines, line)
-    }
-
+      } else { push(updated_lines, line) }
+    } else { push(updated_lines, line) }
     line_number = line_number + 1
   }
 
@@ -175,37 +137,24 @@ fn run_swap(path: str, pattern: str, replacement: str, options) {
     show "No matches found for pattern:" pattern
     return null
   }
-
   show "Lines matched:" swap_count
-
   if options["dry_run"] {
     show "[dry-run] No changes written to" path
     return null
   }
-
   if options["backup"] {
     try {
       archive(path)
       show "Backup saved for" path
-    } catch (err) {
-      show "Backup failed:" err
-    }
+    } catch (err) { show "Backup failed:" err }
   }
-
   let result = join(updated_lines, "
 ")
-
   let ok = write_text(path, result)
-
-  if ok {
-    show "Done. Saved:" path
-  }
+  if ok { show "Done. Saved:" path }
 }
-
-if len(args) == 0 {
-  show_help()
-} else if args[0] == "help" {
-  show_help()
+if len(args) == 0 { show_help()
+} else if args[0] == "help" { show_help()
 } else if len(args) < 3 {
   show "Missing arguments."
   show_help()
@@ -214,6 +163,5 @@ if len(args) == 0 {
   let from_text = args[1]
   let to_text = args[2]
   let options = parse_options()
-
   run_swap(path, from_text, to_text, options)
 }

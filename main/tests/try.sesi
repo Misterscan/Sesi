@@ -1,7 +1,8 @@
-try 
-{show "Inside Try Block"
-show noSuchVariable
-show "This should not show"
+try {
+    show "Inside Try Block"
+    show noSuchVariable
+    show "This should not show"
 } catch (e) {
-show "Inside Catch Block!"
-show e}
+    show "Inside Catch Block!"
+    show e.message
+}

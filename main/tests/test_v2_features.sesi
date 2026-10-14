@@ -2,20 +2,20 @@
 
 show "=== 1. Testing Standard Math Module (std/math) ==="
 import { PI, sqrt, pow } from "std/math"
-show "PI:" + str(PI)
-show "sqrt(100):" + str(sqrt(100))
-show "pow(3, 3):" + str(pow(3, 3))
+show "PI:" str(PI)
+show "sqrt(100):" str(sqrt(100))
+show "pow(3, 3):" str(pow(3, 3))
 
 show "\n=== 2. Testing Built-in JSON Conversion ==="
 let data = { "message": "hello from native Sesi", "code": 200 }
 let serialized = to_json(data)
-show "Serialized JSON:" + serialized
+show "Serialized JSON:" serialized
 let parsed = from_json(serialized)
-show "Parsed Message:" + parsed["message"]
+show "Parsed Message:" parsed["message"]
 
 show "\n=== 3. Testing HTTP Client web_get ==="
 let response = web_get("https://jsonplaceholder.typicode.com/posts/1")
-show "Fetched Title:" + from_json(response)["title"]
+show "Fetched Title:" from_json(response)["title"]
 
 show "\n=== 4. Testing Concurrency with multi_req ==="
 import { sleep, now } from "std/time"
@@ -34,14 +34,14 @@ let start_t = now()
 let parallel_results = multi_req([job1, job2])
 let elapsed = now() - start_t
 
-show "Parallel Results:" + str(parallel_results)
-show "Elapsed time for parallel jobs:" + str(elapsed) + "ms"
+show "Parallel Results:" str(parallel_results)
+show "Elapsed time for parallel jobs:" str(elapsed) "ms"
 
 show "\n=== 5. Testing Executable Sesi Module Import/Export ==="
 // Note: Since importing relative path loads and interprets that module,
 // we will import our helper module "tests/temp_math_mod".
 // First, the host test runner will write the temp module file, or we can write a let binding check.
 import { magic_number } from "temp_math_mod"
-show "Imported magic number from local module:" + str(magic_number)
+show "Imported magic number from local module:" str(magic_number)
 
 show "\n=== All Native Sesi Tests Completed Successfully! ==="

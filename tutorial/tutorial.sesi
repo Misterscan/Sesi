@@ -16,9 +16,7 @@ allow "lib/ansi" in as TERM
 let PROGRESS_FILE = "tutorial/.sesi_tutorial_progress"
 // Accessibility setting for the tutorial. Default is `false`/`n`.
 let accessibility = false
-if is_null(accessibility) || accessibility == "" || accessibility == false {
-  accessibility = "n"
-}
+if is_null(accessibility) || accessibility == "" || accessibility == false { accessibility = "n" }
 // Derived boolean flag for enabling accessibility features.
 let enableAccessibility = ""
 
@@ -69,9 +67,9 @@ show \"Expensive?\" expensive",
     ],
     "example": "let stages = [\"lint\", \"test\"]
 push(stages, \"build\")
-let project = {\"name\": \"Sesi\", \"ready\": true}
+let project = {name: \"Sesi\", ready: true}
 show join(stages, \" -> \")
-show project[\"name\"] project[\"ready\"]",
+show project.name project.ready",
     "challenge": "Add a version key to project and show every key by looping over keys(project)."
   },
   {
@@ -130,9 +128,9 @@ show map([1, 2, 3], double)",
       "finally runs for success, failure, and early return paths."
     ],
     "example": "try {
-  raise_error(\"ValidationError\", \"Missing name\", {\"field\": \"name\"})
+  raise_error(\"ValidationError\", \"Missing name\", {field: \"name\"})
 } catch (err) {
-  show err[\"type\"] err[\"data\"][\"field\"]
+  show err.type err.data.field
 } finally {
   show \"Validation finished\"
 }",
@@ -146,10 +144,10 @@ show map([1, 2, 3], double)",
       "allow loads standard or local modules as named bindings or a namespace."
     ],
     "example": "allow \"std/math\" in with Math
-let record = {\"name\": \"Sesi\", \"power\": Math.pow(2, 5)}
+let record = {name: \"Sesi\", power: Math.pow(2, 5)}
 write_file(\"tutorial/.cli_example.json\", to_json(record))
-let loaded = from_json(read_file(\"tutorial/.cli_example.json\"))
-show loaded[\"name\"] loaded[\"power\"]
+let loaded = \"tutorial/.cli_example.json\" | read_file | from_json
+show loaded.name loaded.power
 trash(\"tutorial/.cli_example.json\", true)",
     "challenge": "Save an array as JSON, load it back, show its length, and remove only the temporary file you created."
   },
@@ -194,14 +192,10 @@ try {
 */
 fn load_progress() {
   try {
-    let saved = from_json(safe.read(PROGRESS_FILE + ".json"))
-    if type(saved) == "object" {
-      return saved
-    }
-  } catch (err) {
-    // A missing or invalid progress file simply starts a new course.
-  }
-  return {"step": 0, "name": "Developer", "complete": false}
+    let saved = PROGRESS_FILE + ".json" | safe.read | from_json
+    if type(saved) == "object" { return saved }
+  } catch (err) { /* A missing or invalid progress file simply starts a new course. */ }
+  return {step: 0, name: "Developer", complete: false}
 }
 
 /**
@@ -209,9 +203,8 @@ fn load_progress() {
   Accepts an object with the current step, user name, and completion status.
 */
 fn save_progress(progress) {
-  try {
-    safe.json(PROGRESS_FILE, progress)
-  } catch (err) {
+  try { safe.json(PROGRESS_FILE, progress) }
+  catch (err) {
     TERM.warning("Warning: tutorial progress could not be saved.")
     TERM.error(err)
   }
@@ -260,17 +253,15 @@ fn show_index(progress) {
   show ""
   TERM.header("Sesi CLI Tutorial — Course Index")
   TERM.divider("-", 65)
-  if enableAccessibility {
-    speech("Sey-see   tutorial. Course index.")
-  }
+  if enableAccessibility { speech("Sey-see   tutorial. Course index.") }
   for i = 0 to len(lessons) {
     let marker = " "
-    if i < progress["step"] || progress["complete"] {
+    if i < progress.step || progress.complete {
       marker = "✓"
-    } else if i == progress["step"] {
+    } else if i == progress.step {
       marker = "→"
     }
-    TERM.info(marker + str(i + 1) + "." + lessons[i]["title"])
+    TERM.info(marker + str(i + 1) + "." + lessons[i].title)
   }
   show ""
   show_help()
@@ -286,7 +277,7 @@ fn show_index(progress) {
   None. This function only displays the current lesson.
 */
 fn show_lesson(progress) {
-  let index = progress["step"]
+  let index = progress.step
   // Current lesson index.
   let lesson = lessons[index]
   enableAccessibility = accessibility == "y" || accessibility == "Y" || accessibility == true
@@ -297,13 +288,13 @@ fn show_lesson(progress) {
     speech("Sey-see   tutorial. Lesson " + str(index + 1) + " of " + str(len(lessons)) + ".")
   }
   show ""
-  TERM.info(lesson["title"])
+  TERM.info(lesson.title)
   show ""
   TERM.info("What you will learn")
   if enableAccessibility {
-    speech(lesson["title"] + ". What you will learn:")
+    speech(lesson.title + ". What you will learn:")
   }
-  for item in lesson["learn"] {
+  for item in lesson.learn {
     show "  • " + item
     if enableAccessibility {
       if contains(item, "Sesi") || contains(item, "sesi") {
@@ -318,30 +309,30 @@ fn show_lesson(progress) {
   show ""
   TERM.info("Example")
   TERM.divider("-", 65)
-  show lesson["example"]
+  show lesson.example
   if enableAccessibility {
-    if contains(lesson["example"], "--") {
-      let accessExample = swap(lesson["example"], "--", "dash dash ")
+    if contains(lesson.example, "--") {
+      let accessExample = swap(lesson.example, "--", "dash dash ")
       speech("Example: " + accessExample)
-    } else if contains(lesson["example"], "sesi") || contains(lesson["example"], "Sesi") {
-      let accessSesi = swap(lesson["example"], "sesi", "sey-see")
+    } else if contains(lesson.example, "sesi") || contains(lesson.example, "Sesi") {
+      let accessSesi = swap(lesson.example, "sesi", "sey-see")
       accessSesi = swap(accessSesi, "Sesi", "sey-see")
       speech("Example: " + accessSesi)
-    } else {speech("Example: " + lesson["example"])}
+    } else {speech("Example: " + lesson.example)}
   }
   TERM.divider("-", 65)
   show ""
   TERM.info("Practice")
-  TERM.box(lesson["challenge"])
+  TERM.box(lesson.challenge)
   if enableAccessibility {
-    if contains(lesson["challenge"], "--") {
-      let accessExample = swap(lesson["challenge"], "--", "dash dash ")
+    if contains(lesson.challenge, "--") {
+      let accessExample = swap(lesson.challenge, "--", "dash dash ")
       speech("Practice: " + accessExample)
-    } else if contains(lesson["challenge"], "sesi") || contains(lesson["challenge"], "Sesi") {
-      let accessSesi = swap(lesson["challenge"], "sesi", "sey-see")
+    } else if contains(lesson.challenge, "sesi") || contains(lesson.challenge, "Sesi") {
+      let accessSesi = swap(lesson.challenge, "sesi", "sey-see")
       accessSesi = swap(accessSesi, "Sesi", "sey-see")
       speech("Practice: " + accessSesi)
-    } else {speech("Practice: " + lesson["challenge"])}
+    } else {speech("Practice: " + lesson.challenge)}
   }
   show ""
 
@@ -364,81 +355,62 @@ fn show_lesson(progress) {
 
 // Current progress object.
 let progress = load_progress()
+
 // Command entered by the user.
 let command = ""
-
-if len(args) > 0 {
-  command = args[0]
-}
-
-if progress["step"] < 0 {
-  progress["step"] = 0
-}
-if progress["step"] >= len(lessons) {
-  progress["step"] = len(lessons) - 1
-}
+if len(args) > 0 { command = args[0] }
+if progress.step < 0 { progress.step = 0 }
+if progress.step >= len(lessons) { progress.step = len(lessons) - 1 }
 
 if command == "reset" {
-  progress = {"step": 0, "name": "Developer", "complete": false}
+  progress = {step: 0, name: "Developer", complete: false}
   save_progress(progress)
   TERM.success("Tutorial progress reset.")
-  if enableAccessibility {
-    speech("Tutorial progress reset.")
-  }
+  if enableAccessibility { speech("Tutorial progress reset.") }
   show_lesson(progress)
 } else if command == "name" {
   if len(args) < 2 {
     TERM.info("Usage: npm run tutorial:cli name <your-name>")
-    if enableAccessibility {
-      speech("Usage: npm run tutorial see el eye name `your name`.")
-    }
+    if enableAccessibility { speech("Usage: npm run tutorial see el eye name `your name`.") }
   } else {
     progress["name"] = args[1]
     save_progress(progress)
-    TERM.success("Welcome, " + progress["name"] + ".")
-    if enableAccessibility {
-      speech("Welcome, " + progress["name"] + ".")
-    }
+    TERM.success("Welcome, " + progress.name + ".")
+    if enableAccessibility { speech("Welcome, " + progress.name + ".") }
     show_lesson(progress)
   }
 } else if command == "next" {
-  if progress["step"] < len(lessons) - 1 {
-    progress["step"] = progress["step"] + 1
+  if progress.step < len(lessons) - 1 {
+    progress.step = progress.step + 1
     save_progress(progress)
     show_lesson(progress)
   } else {
-    progress["complete"] = true
+    progress.complete = true
     save_progress(progress)
     show ""
-    TERM.success("Course complete — well done, " + progress["name"] + "!")
+    TERM.success("Course complete — well done, " + progress.name + "!")
     TERM.info("You now have the core tools to build grounded Sesi scripts")
     TERM.warning("Add reasoning only when a problem benefits from it!")
-    if enableAccessibility {
-      speech("Course complete. Well done, " + progress["name"] + "! You now have the core tools to build grounded sey-see scripts and add reasoning only when a problem benefits from it.")
-    }
+    if enableAccessibility { speech("Course complete. Well done, " + progress.name + "! You now have the core tools to build grounded sey-see scripts and add reasoning only when a problem benefits from it.") }
     show ""
     TERM.info("Open the practice lab: npm run tutorial")
     TERM.info("Browse more examples: examples/main/")
     TERM.info("Restart this course: npm run tutorial:cli reset")
   }
 } else if command == "back" {
-  if progress["step"] > 0 {
-    progress["step"] = progress["step"] - 1
-    progress["complete"] = false
+  if progress.step > 0 {
+    progress.step = progress.step - 1
+    progress.complete = false
     save_progress(progress)
   }
   show_lesson(progress)
-} else if command == "list" {
-  show_index(progress)
-} else if command == "help" {
-  show_help()
+} else if command == "list" { show_index(progress)
+} else if command == "help" { show_help()
 } else if command == "" {
   show ""
   TERM.success("Welcome, " + progress["name"] + ".")
   TERM.info("This ten-lesson path teaches Sesi from first principles.")
-  if enableAccessibility {
-    speech("Welcome, " + progress["name"] + ". This ten-lesson path teaches Sesi from first principles.")
-  }
+  if enableAccessibility { speech("Welcome, " + progress.name + ". This ten-lesson path teaches Sesi from first principles.") }
   show_lesson(progress)
 } else if command == "narrate" {
   accessibility = true
@@ -451,12 +423,10 @@ if command == "reset" {
     progress["complete"] = true
     save_progress(progress)
     show ""
-    TERM.success("Course complete — well done, " + progress["name"] + "!")
+    TERM.success("Course complete — well done, " + progress.name + "!")
     TERM.info("You now have the core tools to build grounded Sesi scripts")
     TERM.info("and add reasoning only when a problem benefits from it.")
-    if enableAccessibility {
-      speech("Course complete. Well done, " + progress["name"] + "! You now have the core tools to build grounded sey-see scripts and add reasoning only when a problem benefits from it.")
-    }
+    if enableAccessibility { speech("Course complete. Well done, " + progress.name + "! You now have the core tools to build grounded sey-see scripts and add reasoning only when a problem benefits from it.") }
     show ""
     TERM.info("Open the practice lab: npm run tutorial")
     TERM.info("Browse more examples: examples/main/")
@@ -464,8 +434,6 @@ if command == "reset" {
   }
 } else {
   TERM.error("Unknown tutorial command: " + command)
-  if enableAccessibility {
-    speech("Sorry, don't recognize this command: " + command)
-  }
+  if enableAccessibility { speech("Sorry, don't recognize this command: " + command) }
   show_help()
 }

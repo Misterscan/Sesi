@@ -79,6 +79,27 @@ npm install -g .  # Unlock the `sesi` command locally
 
 ## Quick Start
 
+### Compile Sesi for a browser
+
+Compile the Sesi code that should run after deployment:
+
+```bash
+sesi build path/to/your-file.sesi
+```
+
+This creates minified `path/to/your-file.js`. JavaScript output, including service workers, is minified automatically.
+Your Sesi build code can generate the HTML and other files that deploy with it.
+In the browser, Sesi file writes use persistent storage for that site; `read_file` can also read deployed files.
+For apps using `listen`, the same command also creates a launch page (`your-file.html`), a service worker
+(`your-file.worker.js`), and an asset bundle (`your-file.assets.json`, when files are referenced).
+Deploy those generated files together on HTTPS and open the launch page. Existing Sesi routes run inside the browser,
+including HTML, images, and API responses. Literal authentication headers become credential inputs on the launch page;
+their original values are omitted from generated JavaScript. External APIs must accept requests from your deployed origin.
+Files referenced by literal paths are bundled; deploy any additional files whose paths are computed at runtime alongside the app.
+Browser `model()`, `image()`, and `video()` make requests from the page. Set `globalThis.GEMINI_API_KEY` or
+`globalThis.OPENAI_API_KEY` at runtime before loading the generated script, or supply the key under that name in
+the page's `localStorage`. Never place a private server key in a public page.
+
 Provider-backed reasoning needs an API key. Local reasoning with
 `model("local")` needs no API key. To use Gemini, create
 a `.env` file referencing your key where you run your scripts:

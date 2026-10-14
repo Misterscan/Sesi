@@ -8,6 +8,9 @@
 allow "helpers/safe" in as Safe
 allow "shell-automation" in with {run_command}
 
+// Determines whether OpenAI key is present
+export fn hasGPT() { return $OPENAI_API_KEY != ""}
+
 // Sesi Studio Root Path
 export let SESI_ROOT = ""
 

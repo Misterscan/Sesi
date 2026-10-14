@@ -7,7 +7,7 @@ Sesi uses `if` and `else` for branching. The condition is any expression that ev
 ## Basic `if`
 
 ```
-if_stmt := 'if' expression block ('else' block)?
+if_stmt := 'if' expression block (NEWLINE* 'else' (block | if_stmt))?
 ```
 
 ```sesi
@@ -32,6 +32,13 @@ if ready {
 } else {
   show "not ready yet"
 }
+```
+
+`else` may also start on the line after the closing brace:
+
+```sesi
+if ready { show "starting" }
+else { show "not ready yet" }
 ```
 
 ---

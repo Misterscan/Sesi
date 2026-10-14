@@ -10,8 +10,8 @@
   allow "lib/mpc" in as MPC
   ```
 */
-allow "std/mpc" in as Native
 
+allow "std/mpc" in as Native
 /**
   Get the default pad information for an MPC drum kit.
 
@@ -24,30 +24,30 @@ allow "std/mpc" in as Native
   ```
 */
 fn DefaultPadInfo() -> array<string> {
-  return [{ pad: 1, sound: 'kick', name: 'Bass Drum 1' },
-      { pad: 2, sound: 'rimshot', name: 'Side Stick' },
-      { pad: 3, sound: 'snare', name: 'Acoustic Snare' },
-      { pad: 4, sound: 'clap', name: 'Hand Clap' },
-      { pad: 5, sound: 'hat', name: 'Closed Hi-Hat', mute_group: 1 },
-      { pad: 6, sound: 'tom', name: 'Low Tom' },
-      { pad: 7, sound: 'open_hat', name: 'Open Hi-Hat', mute_group: 1 }, // Choked by closed hat!
-      { pad: 8, sound: 'tom', name: 'Mid Tom' },
-      { pad: 9, sound: 'tom', name: 'High Tom' },
-      { pad: 10, sound: 'crash', name: 'Crash Cymbal' },
-      { pad: 11, sound: 'ride', name: 'Ride Cymbal' },
-      { pad: 12, sound: 'perc', name: 'Shaker/Perc' },
-      { pad: 13, sound: '808', name: '808 Sub Kick' },
-      { pad: 14, sound: 'snare', name: 'Tight Snare' },
-      { pad: 15, sound: 'hat', name: 'Pedal Hi-Hat', mute_group: 1 },
-      { pad: 16, sound: 'perc', name: 'Cowbell/Perc' }]
+  return [
+    { pad: 1, sound: 'kick', name: 'Bass Drum 1' },
+    { pad: 2, sound: 'rimshot', name: 'Side Stick' },
+    { pad: 3, sound: 'snare', name: 'Acoustic Snare' },
+    { pad: 4, sound: 'clap', name: 'Hand Clap' },
+    { pad: 5, sound: 'hat', name: 'Closed Hi-Hat', mute_group: 1 },
+    { pad: 6, sound: 'tom', name: 'Low Tom' },
+    { pad: 7, sound: 'open_hat', name: 'Open Hi-Hat', mute_group: 1 }, // Choked by closed hat!
+    { pad: 8, sound: 'tom', name: 'Mid Tom' },
+    { pad: 9, sound: 'tom', name: 'High Tom' },
+    { pad: 10, sound: 'crash', name: 'Crash Cymbal' },
+    { pad: 11, sound: 'ride', name: 'Ride Cymbal' },
+    { pad: 12, sound: 'perc', name: 'Shaker/Perc' },
+    { pad: 13, sound: '808', name: '808 Sub Kick' },
+    { pad: 14, sound: 'snare', name: 'Tight Snare' },
+    { pad: 15, sound: 'hat', name: 'Pedal Hi-Hat', mute_group: 1 },
+    { pad: 16, sound: 'perc', name: 'Cowbell/Perc' }
+  ]
 }
-
 /**
   Create an MPC project from a configuration object.
 
   Parameters:
-  - `config`: Optional project settings such as `name`, `bars`, `bpm`,
-    `swing`, `vintage`, and `time_signature`.
+  - `config`: Optional project settings such as `name`, `bars`, `bpm`, `swing`, `vintage`, and `time_signature`.
 
   Returns:
   - An MPC sequence object representing the project.
@@ -57,10 +57,7 @@ fn DefaultPadInfo() -> array<string> {
   let project = create({"name": "Beat", "bars": 4, "bpm": 92})
   ```
 */
-export fn create(config: object = null) -> any {
-  return Native.create(config)
-}
-
+export fn create(config: object = null) -> any { return Native.create(config) }
 /**
   Create an MPC project using the `project` alias.
 
@@ -75,10 +72,7 @@ export fn create(config: object = null) -> any {
   let project = project({"name": "Album Session", "bpm": 88, "swing": 57})
   ```
 */
-export fn project(config: object = null) -> any {
-  return Native.project(config)
-}
-
+export fn project(config: object = null) -> any { return Native.project(config) }
 /**
   Create an MPC sequence.
 
@@ -96,10 +90,7 @@ export fn project(config: object = null) -> any {
   let seq = sequence("Boom Bap", 2, 92, "4/4")
   ```
 */
-export fn sequence(name: string, bars: number = 2, bpm: number = 90, time_signature: string = "4/4") -> any {
-  return Native.sequence(name, bars, bpm, time_signature)
-}
-
+export fn sequence(name: string, bars: number = 2, bpm: number = 90, time_signature: string = "4/4") -> any { return Native.sequence(name, bars, bpm, time_signature) }
 /**
   Create a 16-pad MPC drum kit.
 
@@ -114,10 +105,7 @@ export fn sequence(name: string, bars: number = 2, bpm: number = 90, time_signat
   let kit = drum_kit("Boom Bap Kit")
   ```
 */
-export fn drum_kit(name: string = "Akai MPC Kit") -> any {
-  return Native.drum_kit(name)
-}
-
+export fn drum_kit(name: string = "Akai MPC Kit") -> any { return Native.drum_kit(name) }
 /**
   Create an MPC drum program.
 
@@ -135,18 +123,14 @@ export fn drum_kit(name: string = "Akai MPC Kit") -> any {
   Notes:
   - `program` is the program-oriented alias of `drum_kit`.
 */
-export fn program(name: string = "Akai MPC Kit") -> any {
-  return Native.program(name)
-}
-
+export fn program(name: string = "Akai MPC Kit") -> any { return Native.program(name) }
 /**
   Define an MPC pad.
 
   Parameters:
   - `pad_number`: Pad number, normally from `1` through `16`.
   - `sound`: Synthesized sound name or sample reference.
-  - `options`: Optional level, pan, tune, envelope, filter, play-mode, and
-    mute-group settings.
+  - `options`: Optional level, pan, tune, envelope, filter, play-mode, and mute-group settings.
 
   Returns:
   - A pad configuration object.
@@ -156,17 +140,13 @@ export fn program(name: string = "Akai MPC Kit") -> any {
   let kick = pad(1, "kick", {"level": 1.0, "tune": -1})
   ```
 */
-export fn pad(pad_number: number, sound: string = "kick", options: object = null) -> any {
-  return Native.pad(pad_number, sound, options)
-}
-
+export fn pad(pad_number: number, sound: string = "kick", options: object = null) -> any { return Native.pad(pad_number, sound, options) }
 /**
   Spread one pad across the MPC 16 Levels performance layout.
 
   Parameters:
   - `source_pad`: Pad configuration to spread across the sixteen pads.
-  - `mode`: One of `"velocity"`, `"tune"`, `"filter"`, `"decay"`, or
-    `"attack"`.
+  - `mode`: One of `"velocity"`, `"tune"`, `"filter"`, `"decay"`, or `"attack"`.
   - `options`: Optional mode-specific settings.
 
   Returns:
@@ -178,10 +158,7 @@ export fn pad(pad_number: number, sound: string = "kick", options: object = null
   let tuned_bass = sixteen_levels(bass_pad, "tune")
   ```
 */
-export fn sixteen_levels(source_pad: object, mode: string = "velocity", options: object = null) -> any {
-  return Native.sixteen_levels(source_pad, mode, options)
-}
-
+export fn sixteen_levels(source_pad: object, mode: string = "velocity", options: object = null) -> any { return Native.sixteen_levels(source_pad, mode, options) }
 /**
   Generate quantized MPC Note Repeat events.
 
@@ -199,17 +176,13 @@ export fn sixteen_levels(source_pad: object, mode: string = "velocity", options:
   let roll = note_repeat(5, "1/32", 1, {"ramp": "crescendo"})
   ```
 */
-export fn note_repeat(pad_number: number, rate: string = "1/16", bars: number = 1, options: object = null) -> any {
-  return Native.note_repeat(pad_number, rate, bars, options)
-}
-
+export fn note_repeat(pad_number: number, rate: string = "1/16", bars: number = 1, options: object = null) -> any { return Native.note_repeat(pad_number, rate, bars, options) }
 /**
   Apply Roger Linn-style MPC swing offsets to note events.
 
   Parameters:
   - `events`: Array of events containing step positions.
-  - `percent`: Swing amount from `50` for straight timing through `75` for
-    heavy swing.
+  - `percent`: Swing amount from `50` for straight timing through `75` for heavy swing.
   - `grid`: Timing grid used for swing calculation.
 
   Returns:
@@ -221,10 +194,7 @@ export fn note_repeat(pad_number: number, rate: string = "1/16", bars: number = 
   let swung_events = swing(events, 58, "1/16")
   ```
 */
-export fn swing(events: array, percent: number = 58, grid: string = "1/16") -> array {
-  return Native.swing(events, percent, grid)
-}
-
+export fn swing(events: array, percent: number = 58, grid: string = "1/16") -> array { return Native.swing(events, percent, grid) }
 /**
   Chop a WAV file or audio sample into an MPC drum kit.
 
@@ -242,10 +212,7 @@ export fn swing(events: array, percent: number = 58, grid: string = "1/16") -> a
   let chops = chop(sample, 16, {"name": "Break Chops"})
   ```
 */
-export fn chop(source: any, slices: number = 16, options: object = null) -> any {
-  return Native.chop(source, slices, options)
-}
-
+export fn chop(source: any, slices: number = 16, options: object = null) -> any { return Native.chop(source, slices, options) }
 /**
   Chop a WAV file or audio sample using the `slice` alias.
 
@@ -263,18 +230,13 @@ export fn chop(source: any, slices: number = 16, options: object = null) -> any 
   let slices = slice(sample, 8)
   ```
 */
-export fn slice(source: any, slices: number = 16, options: object = null) -> any {
-  return Native.slice(source, slices, options)
-}
-
+export fn slice(source: any, slices: number = 16, options: object = null) -> any { return Native.slice(source, slices, options) }
 /**
   Load a WAV sample or synthesize an MPC drum sound.
 
   Parameters:
-  - `type_or_path`: Drum type such as `"kick"`, `"snare"`, `"hat"`, or
-    `"808"`, or a path to a WAV file.
-  - `options`: Optional synthesis settings such as duration, volume, tuning,
-    and frequency.
+  - `type_or_path`: Drum type such as `"kick"`, `"snare"`, `"hat"`, or `"808"`, or a path to a WAV file.
+  - `options`: Optional synthesis settings such as duration, volume, tuning, and frequency.
 
   Returns:
   - An in-memory audio sample.
@@ -305,16 +267,12 @@ export fn sample(type_or_path: string = "kick", options: object = null) -> any {
   let colored_kick = vintage("mpc60", clean_kick)
   ```
 */
-export fn vintage(mode: string, audio: object) -> any {
-  return Native.vintage(mode, audio)
-}
-
+export fn vintage(mode: string, audio: object) -> any { return Native.vintage(mode, audio) }
 /**
   Define an MPC effect.
 
   Parameters:
-  - `type`: Effect type such as `"filter"`, `"delay"`, `"reverb"`,
-    `"compressor"`, `"lofi"`, or `"eq"`.
+  - `type`: Effect type such as `"filter"`, `"delay"`, `"reverb"`, `"compressor"`, `"lofi"`, or `"eq"`.
   - `params`: Effect-specific parameter object.
 
   Returns:
@@ -325,10 +283,7 @@ export fn vintage(mode: string, audio: object) -> any {
   let delay = effect("delay", {"time_ms": 240, "feedback": 0.35})
   ```
 */
-export fn effect(type: string, params: object = null) -> any {
-  return Native.effect(type, params)
-}
-
+export fn effect(type: string, params: object = null) -> any { return Native.effect(type, params) }
 /**
   Define an MPC effect using the short `fx` alias.
 
@@ -344,10 +299,7 @@ export fn effect(type: string, params: object = null) -> any {
   let filter = fx("filter", {"type": "lowpass", "cutoff": 8000})
   ```
 */
-export fn fx(type: string, params: object = null) -> any {
-  return Native.fx(type, params)
-}
-
+export fn fx(type: string, params: object = null) -> any { return Native.fx(type, params) }
 /**
   Arrange sequences into an MPC song.
 
@@ -365,17 +317,13 @@ export fn fx(type: string, params: object = null) -> any {
   )
   ```
 */
-export fn song(name: string = "MPC Song", steps: array) -> any {
-  return Native.song(steps, name)
-}
-
+export fn song(name: string = "MPC Song", steps: array) -> any { return Native.song(steps, name) }
 /**
   Render a sequence, song, or audio sample to WAV.
 
   Parameters:
   - `target`: MPC sequence, song, or in-memory audio sample.
-  - `path`: Output WAV path. Use `"memory"` to return audio without writing a
-    file.
+  - `path`: Output WAV path. Use `"memory"` to return audio without writing a file.
   - `options`: Optional render settings reserved by the MPC engine.
 
   Returns:
@@ -388,10 +336,7 @@ export fn song(name: string = "MPC Song", steps: array) -> any {
   render_wav(seq, "render-test.wav")
   ```
 */
-export fn render_wav(target: object, path: string = "mpc_render.wav", options: object = null) -> any {
-  return Native.render_wav(target, path, options)
-}
-
+export fn render_wav(target: object, path: string = "mpc_render.wav", options: object = null) -> any { return Native.render_wav(target, path, options) }
 /**
   Render an MPC sequence to a Standard MIDI File.
 
@@ -408,10 +353,7 @@ export fn render_wav(target: object, path: string = "mpc_render.wav", options: o
   render_midi(seq, "midi-export.mid")
   ```
 */
-export fn render_midi(target: object, path: string = "mpc_sequence.mid") -> bool {
-  return Native.render_midi(target, path)
-}
-
+export fn render_midi(target: object, path: string = "mpc_sequence.mid") -> bool { return Native.render_midi(target, path) }
 /**
   Audition a sequence, song, or audio sample through the system audio device.
 
@@ -431,10 +373,7 @@ export fn render_midi(target: object, path: string = "mpc_sequence.mid") -> bool
   Notes:
   - Playback invokes the platform audio player and requires local mode.
 */
-export fn play(target: object, options: object = null) -> any {
-  return Native.play(target, options)
-}
-
+export fn play(target: object, options: object = null) -> any { return Native.play(target, options) }
 /**
   Generate a textual representation of a sequence grid.
 
@@ -489,7 +428,6 @@ export fn sequence_grid(size: string = "") -> string {
   "
   }
 }
-
 /**
   Fill a sequence grid with a specific pattern based on frequency.
 
@@ -507,32 +445,19 @@ export fn sequence_grid(size: string = "") -> string {
   ```
 */
 export fn pattern_fill(freq: number, grid: string) -> string {
-  if freq == null {
-    return grid
-  }
-  if freq <= 0 {
-    return grid
-  }
-
+  if freq == null { return grid }
+  if freq <= 0 { return grid }
   let parts = grid | split("[ ]")
-  if len(parts) <= 1 {
-    return grid
-  }
-
+  if len(parts) <= 1 { return grid }
   let filled = parts[0]
   for i = 1 to len(parts) {
     let step = i - 1
-    if step % freq == 0 {
-      filled = filled + "[x]"
-    } else {
-      filled = filled + "[ ]"
-    }
+    if step % freq == 0 { filled = filled + "[x]"
+    } else { filled = filled + "[ ]" }
     filled = filled + parts[i]
   }
-
   return filled
 }
-
 /**
   Clear all filled steps in a sequence grid.
 
@@ -553,10 +478,7 @@ export fn pattern_fill(freq: number, grid: string) -> string {
   let cleared_grid = pattern_clear(grid)
   ```
 */
-export fn pattern_clear(grid: string) -> string {
-  return grid | swap("[x]", "[ ]")
-}
-
+export fn pattern_clear(grid: string) -> string { return grid | swap("[x]", "[ ]") }
 /**
   Apply a preset pattern to a sequence grid.
 
@@ -583,10 +505,6 @@ export fn pattern_preset(preset: string = "Hip Hop", grid: string = null) -> str
   [ ][ ][x][ ]
   "
   }
-  if preset == "House" {
-    return pattern_fill(2, grid)
-  }
-  if preset == "Rock" {
-    return pattern_fill(1, grid)
-  }
+  if preset == "House" { return pattern_fill(2, grid) }
+  if preset == "Rock" { return pattern_fill(1, grid) }
 }

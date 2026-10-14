@@ -1,0 +1,221 @@
+/*
+  OS Utilities
+  Provides functions to query and interact with the host operating system.
+*/
+/**
+  Executes a system shell command, trims whitespace from the output, and returns the result.
+
+  Parameters:
+  - `command`: The shell command string to be executed on the host system.
+
+  Returns:
+  - The trimmed standard output string if execution succeeds and output is non-empty, or `null` if an error occurs or the output is empty.
+
+  Example:
+  ```sesi
+  let result = system_command("echo Hello")
+  show result
+  ```
+
+  Notes:
+  - Wraps the call to `run()` inside a `try/catch` block to prevent unhandled process exceptions.
+  - Shell execution functions require proper execution permissions and are blocked in Safe Mode.
+*/
+fn system_command(command: string) -> string? {
+  try {
+    let output = trim(run(command))
+    if output { return output }
+  } catch (err) { return null }
+  return null
+}
+/**
+  Retrieves the operating system platform name.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The operating system name string (such as `"Linux"`, `"Darwin"`, or Windows version info), or `null` if detection fails.
+
+  Example:
+  ```sesi
+  let os = platform()
+  show "Platform:" os
+  ```
+
+  Notes:
+  - Attempts `uname -s` first, falling back to `cmd /c ver` for Windows environments.
+*/
+export fn platform() -> string? {
+  let res = system_command("uname -s")
+  if res { return res }
+  return system_command("cmd /c ver")
+}
+/**
+  Retrieves the operating system kernel or release version.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The OS release or kernel version string, or `null` if detection fails.
+
+  Example:
+  ```sesi
+  let ver = release()
+  show "Release:" ver
+  ```
+
+  Notes:
+  - Executes `uname -r` on Unix-like environments and falls back to `cmd /c ver` on Windows.
+*/
+export fn release() -> string? {
+  let res = system_command("uname -r")
+  if res { return res }
+  return system_command("cmd /c ver")
+}
+/**
+  Retrieves the machine hardware and CPU architecture.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The architecture identifier string (e.g., `"x86_64"`, `"arm64"`, `"AMD64"`), or `null` if detection fails.
+
+  Example:
+  ```sesi
+  let arch = architecture()
+  show "Architecture:" arch
+  ```
+
+  Notes:
+  - Tries `uname -m` for POSIX platforms with a fallback querying `%PROCESSOR_ARCHITECTURE%` on Windows.
+*/
+export fn architecture() -> string? {
+  let res = system_command("uname -m")
+  if res { return res }
+  return system_command("cmd /c echo %PROCESSOR_ARCHITECTURE%")
+}
+/**
+  Retrieves the network hostname of the local machine.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The hostname string of the machine, or `null` if execution fails.
+
+  Example:
+  ```sesi
+  let host = hostname()
+  show "Hostname:" host
+  ```
+
+  Notes:
+  - Executes the standard cross-platform `hostname` utility command.
+*/
+export fn hostname() -> string? { return system_command("hostname") }
+/**
+  Retrieves the username of the active user account running the script.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The current username string, or `null` if execution fails.
+
+  Example:
+  ```sesi
+  let user = username()
+  show "Current User:" user
+  ```
+
+  Notes:
+  - Runs the system `whoami` command.
+*/
+export fn username() -> string? { return system_command("whoami") }
+/**
+  Retrieves system uptime and load status from the host OS.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The uptime status string output, or `null` if execution fails or is unsupported.
+
+  Example:
+  ```sesi
+  let up = uptime()
+  show "System Uptime:" up
+  ```
+
+  Notes:
+  - Calls the POSIX `uptime` command; may return `null` on environments lacking the binary.
+*/
+export fn uptime() -> string? { return system_command("uptime") }
+/**
+  Retrieves the absolute path of the current working directory.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - The current working directory path string, or `null` if retrieval fails.
+
+  Example:
+  ```sesi
+  let cwd = current_directory()
+  show "Working Directory:" cwd
+  ```
+
+  Notes:
+  - Uses `pwd` on Unix-like environments with a fallback to `cmd /c cd` on Windows.
+*/
+export fn current_directory() -> string? {
+  let res = system_command("pwd")
+  if res { return res }
+  return system_command("cmd /c cd")
+}
+/**
+  Collects and aggregates all system diagnostic details into a structured information object.
+
+  Parameters:
+  - None.
+
+  Returns:
+  - An object containing platform, release, architecture, hostname, username, uptime, and current working directory information.
+
+  Example:
+  ```sesi
+  let info = system_info()
+  show "OS:" info.platform
+  show "Architecture:" info.architecture
+  show "Hostname:" info.hostname
+  show "User:" info.username
+  show "CWD:" info.current_directory
+  ```
+
+  Fields:
+  - `platform`: Operating system platform identifier string or `null`.
+  - `release`: OS kernel or release version string or `null`.
+  - `architecture`: CPU / machine architecture string or `null`.
+  - `hostname`: Host machine network name or `null`.
+  - `username`: Active user account name or `null`.
+  - `uptime`: System uptime description string or `null`.
+  - `current_directory`: Absolute current working directory path or `null`.
+
+  Notes:
+  - Individual properties evaluate to `null` if the respective system commands fail or produce empty output.
+*/
+export fn system_info() -> object {
+  return {
+    platform: platform(),
+    release: release(),
+    architecture: architecture(),
+    hostname: hostname(),
+    username: username(),
+    uptime: uptime(),
+    current_directory: current_directory()
+  }
+}

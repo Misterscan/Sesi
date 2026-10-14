@@ -1,0 +1,298 @@
+/*
+  Audio Utilities
+  Provides functions to manipulate and process audio files using FFmpeg.
+*/
+/**
+  Trims an audio file to a specified segment defined by a start offset and duration.
+
+  Parameters:
+  - `input`: The file path of the source audio file to trim.
+  - `output`: The destination file path where the trimmed audio will be written.
+  - `start`: The start offset in seconds (must be greater than or equal to 0).
+  - `duration`: The length in seconds of the segment to extract (must be greater than 0).
+
+  Returns:
+  - The process result returned by the `ffmpeg` execution, or `null` if `start < 0` or `duration <= 0`.
+
+  Example:
+  ```sesi
+  allow "audio" in with {trim}
+
+  let result = trim("input.mp3", "clip.mp3", 15, 30)
+  show result
+  ```
+
+  Notes:
+  - Strips video tracks via `-vn` to ensure pure audio output.
+  - Automatically overwrites existing destination files (`-y`).
+*/
+export fn trim(input: string, output: string, start: number, duration: number) {
+  if start < 0 || duration <= 0 { return null }
+  return ffmpeg(["-y", "-ss", str(start), "-i", input, "-t", str(duration), "-vn", output])
+}
+/**
+  Converts an audio file to a different format based on the output file extension.
+
+  Parameters:
+  - `input`: The file path of the source audio file.
+  - `output`: The destination file path for the converted audio.
+
+  Returns:
+  - The process result returned by the `convert` execution.
+
+  Example:
+  ```sesi
+  allow "audio" in with {convert_to}
+
+  let result = convert_to("song.wav", "song.mp3")
+  show result
+  ```
+
+  Notes:
+  - The output format is inferred from the file extension of the `output` path.
+*/
+export fn convert_to(input: string, output: string) {
+  show "Converting" input "to" output
+  return convert(audio) {output_type: get_ext(output)} {input}
+}
+/**
+  Adjusts the volume level of an audio file by a specified scaling factor.
+
+  Parameters:
+  - `input`: The file path of the source audio file.
+  - `output`: The destination file path for the volume-adjusted audio.
+  - `factor`: The volume multiplier (e.g., `0.5` for half volume, `2.0` for double volume; must be greater than or equal to 0).
+
+  Returns:
+  - The process result returned by the `ffmpeg` execution, or `null` if `factor < 0`.
+
+  Example:
+  ```sesi
+  allow "audio" in with {adjust_volume}
+
+  let result = adjust_volume("track.wav", "boosted.wav", 1.5)
+  show result
+  ```
+
+  Notes:
+  - Uses the FFmpeg `volume` audio filter.
+  - Passing a factor of `0` results in complete silence.
+*/
+export fn adjust_volume(input: string, output: string, factor: number) {
+  if factor < 0 { return null }
+  return ffmpeg(["-y", "-i", input, "-vn", "-af", "volume=" + str(factor), output])
+}
+/**
+  Normalizes audio loudness to standard broadcast levels using the EBU R128 loudness normalization filter.
+
+  Parameters:
+  - `input`: The file path of the source audio file to normalize.
+  - `output`: The destination file path for the normalized audio output.
+
+  Returns:
+  - The process result returned by the `ffmpeg` execution.
+
+  Example:
+  ```sesi
+  allow "audio" in with {normalize}
+
+  let result = normalize("podcast_raw.wav", "podcast_normalized.wav")
+  show result
+  ```
+
+  Notes:
+  - Configures the `loudnorm` filter targeting Integrated Loudness `I=-16` LUFS, True Peak `TP=-1.5` dBTP, and Loudness Range `LRA=11` LU.
+*/
+export fn normalize(input: string, output: string) { return ffmpeg(["-y", "-i", input, "-vn", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11", output]) }
+/**
+  Applies an audio fade-in effect starting from the beginning of the audio track.
+
+  Parameters:
+  - `input`: The file path of the source audio file.
+  - `output`: The destination file path for the faded audio.
+  - `duration`: The duration of the fade-in effect in seconds (must be greater than 0).
+
+  Returns:
+  - The process result returned by the `ffmpeg` execution, or `null` if `duration <= 0`.
+
+  Example:
+  ```sesi
+  allow "audio" in with {fade_in}
+
+  let result = fade_in("intro.mp3", "intro_fade.mp3", 3)
+  show result
+  ```
+
+  Notes:
+  - Uses the `afade` filter configured for `type=in` at start time `0`.
+*/
+export fn fade_in(input: string, output: string, duration: number) {
+  if duration <= 0 { return null }
+  return ffmpeg(["-y", "-i", input, "-vn", "-af", "afade=t=in:st=0:d=" + str(duration), output])
+}
+/**
+  Applies an audio fade-out effect starting from a specified timestamp for a given duration.
+
+  Parameters:
+  - `input`: The file path of the source audio file.
+  - `output`: The destination file path for the faded audio.
+  - `start`: The timestamp in seconds at which the fade-out begins (must be greater than or equal to 0).
+  - `duration`: The duration in seconds over which the audio fades to silence (must be greater than 0).
+
+  Returns:
+  - The process result returned by the `ffmpeg` execution, or `null` if `start < 0` or `duration <= 0`.
+
+  Example:
+  ```sesi
+  allow "audio" in with {fade_out}
+
+  let result = fade_out("song.wav", "song_outro.wav", 180, 5)
+  show result
+  ```
+
+  Notes:
+  - Uses the `afade` filter configured for `type=out` at the defined start time.
+*/
+export fn fade_out(input: string, output: string, start: number, duration: number) {
+  if start < 0 || duration <= 0 { return null }
+  let filter = "afade=t=out:st=" + str(start) + ":d=" + str(duration)
+  return ffmpeg(["-y", "-i", input, "-vn", "-af", filter, output])
+}
+/**
+  Changes the playback speed and tempo of an audio file without changing its pitch.
+
+  Parameters:
+  - `input`: The file path of the source audio file.
+  - `output`: The destination file path for the tempo-adjusted audio.
+  - `rate`: The playback speed multiplier (e.g., `0.75` for slower, `1.5` for faster; must be greater than 0).
+
+  Returns:
+  - The process result returned by the `ffmpeg` execution, or `null` if `rate <= 0`.
+
+  Example:
+  ```sesi
+  allow "audio" in with {change_speed}
+
+  let result = change_speed("voice.wav", "voice_fast.wav", 1.25)
+  show result
+  ```
+
+  Notes:
+  - Since FFmpeg's `atempo` filter is limited to values between `0.5` and `2.0`, this function automatically chains multiple `atempo` filters for rates outside that range.
+*/
+export fn change_speed(input: string, output: string, rate: number) {
+  if rate <= 0 { return null }
+  let tempo = rate
+  let filters = []
+  while tempo > 2 {
+    push(filters, "atempo=2")
+    tempo = tempo / 2
+  }
+  while tempo < 0.5 {
+    push(filters, "atempo=0.5")
+    tempo = tempo * 2
+  }
+  push(filters, "atempo=" + str(tempo))
+  return ffmpeg(["-y", "-i", input, "-vn", "-af", join(filters, ","), output])
+}
+/**
+  Reverses an audio file so that it plays backwards.
+
+  Parameters:
+  - `input`: The file path of the source audio file to reverse.
+  - `output`: The destination file path for the reversed audio.
+
+  Returns:
+  - The process result returned by the `ffmpeg` execution.
+
+  Example:
+  ```sesi
+  allow "audio" in with {reverse}
+
+  let result = reverse("sound_effect.wav", "sound_effect_reversed.wav")
+  show result
+  ```
+
+  Notes:
+  - Uses the FFmpeg `areverse` audio filter. Entire audio data is buffered in memory during reversal.
+*/
+export fn reverse(input: string, output: string) { return ffmpeg(["-y", "-i", input, "-vn", "-af", "areverse", output]) }
+/**
+  Concatenates multiple audio files sequentially into a single continuous audio output.
+
+  Parameters:
+  - `inputs`: An array containing file paths of the audio tracks to be concatenated in sequential order.
+  - `output`: The destination file path for the concatenated audio.
+
+  Returns:
+  - The process result returned by the `ffmpeg` execution, or `null` if `inputs` is empty.
+
+  Example:
+  ```sesi
+  allow "audio" in with {concatenate}
+
+  let files = ["chapter1.mp3", "chapter2.mp3", "chapter3.mp3"]
+  let result = concatenate(files, "full_audiobook.mp3")
+  show result
+  ```
+
+  Notes:
+  - Uses a complex filtergraph (`concat=n=N:v=0:a=1`) to merge the audio streams.
+  - All input files should ideally share compatible sample rates and channel layouts.
+*/
+export fn concatenate(inputs: array<string>, output: string) {
+  if len(inputs) == 0 { return null }
+  let command = ["-y"]
+  let filter = ""
+  for i = 0 to len(inputs) {
+    push(command, "-i")
+    push(command, inputs[i])
+    filter = filter + "[" + str(i) + ":a]"
+  }
+  filter = filter + "concat=n=" + str(len(inputs)) + ":v=0:a=1[out]"
+  push(command, "-filter_complex")
+  push(command, filter)
+  push(command, "-map")
+  push(command, "[out]")
+  push(command, output)
+  return ffmpeg(command)
+}
+/**
+  Mixes multiple audio tracks together so that they play simultaneously over one another.
+
+  Parameters:
+  - `inputs`: An array containing file paths of all audio tracks to mix concurrently.
+  - `output`: The destination file path for the mixed audio output.
+
+  Returns:
+  - The process result returned by the `ffmpeg` execution, or `null` if `inputs` is empty.
+
+  Example:
+  ```sesi
+  allow "audio" in with {mix}
+
+  let tracks = ["vocals.wav", "backing_track.wav", "sfx.wav"]
+  let result = mix(tracks, "final_mix.wav")
+  show result
+  ```
+
+  Notes:
+  - Uses the `amix` filter with `duration=longest` and `dropout_transition=0` to ensure the final output lasts until the longest track concludes.
+*/
+export fn mix(inputs: array<string>, output: string) {
+  if len(inputs) == 0 { return null }
+  let command = ["-y"]
+  let filter = ""
+  for i = 0 to len(inputs) {
+    push(command, "-i")
+    push(command, inputs[i])
+    filter = filter + "[" + str(i) + ":a]"
+  }
+  filter = filter + "amix=inputs=" + str(len(inputs)) + ":duration=longest:dropout_transition=0[out]"
+  push(command, "-filter_complex")
+  push(command, filter)
+  push(command, "-map")
+  push(command, "[out]")
+  push(command, output)
+  return ffmpeg(command)
+}

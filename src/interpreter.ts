@@ -11,6 +11,7 @@ import {
   ContinueException,
   type LetStatement,
   type FunctionStatement,
+  type MakeStatement,
   type ExpressionStatement,
   type BlockStatement,
   type IfStatement,
@@ -61,6 +62,7 @@ import { createGameModule } from './game';
 import { createMpcModule } from './mpc';
 import type { Chunk } from './chunk';
 import { documentationSummary, normalizeDocumentation } from './documentation';
+import { desugarMakeStatement } from './make';
 
 export interface BundledBytecodeModule {
   id: string;
@@ -74,9 +76,9 @@ export class Interpreter {
   private currentEnv: Environment;
   private prompts: Map<string, string> = new Map();
   private memory: Map<string, string> = new Map();
-  private modelAliases: Map<string, string> = new Map();
-  private customTools: Map<string, { fn: RuntimeFunction; description?: string }> = new Map();
-  private customToolParent?: Interpreter;
+  public modelAliases: Map<string, string> = new Map();
+  public customTools: Map<string, { fn: RuntimeFunction; description?: string }> = new Map();
+  public customToolParent?: Interpreter;
   public modelUsageState: { lastModelUsage: RuntimeValue };
   private profiler: SesiProfiler;
   private deadlineAt?: number;
@@ -274,6 +276,31 @@ export class Interpreter {
     return null;
   }
 
+  private resolveDirectoryPath(source: string): string | null {
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+    const searchDirs: string[] = [];
+    if (this.scriptDir) searchDirs.push(this.scriptDir);
+    searchDirs.push(process.cwd());
+    searchDirs.push(path.join(process.cwd(), 'sesi_modules'));
+    if (this.safeMode !== true) {
+      const sesiPath = process.env.SESI_PATH || '';
+      if (sesiPath) {
+        const sep = process.platform === 'win32' ? ';' : ':';
+        sesiPath.split(sep).filter(Boolean).forEach((p: string) => searchDirs.push(p));
+      }
+      searchDirs.push(path.join(os.homedir(), '.sesi', 'lib'));
+    }
+    for (const dir of searchDirs) {
+      const dirPath = path.resolve(dir, source);
+      if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+        return dirPath;
+      }
+    }
+    return null;
+  }
+
   async interpret(program: Program): Promise<void> {
     try {
       for (const statement of program.statements) {
@@ -334,18 +361,27 @@ export class Interpreter {
       throw new Error('Model name cannot be empty');
     }
     this.modelAliases.set(aliasKey, modelValue);
+    this.customToolParent?.setModelAlias(aliasKey, modelValue);
+  }
+
+  public getModelAlias(alias: string): string | undefined {
+    return this.modelAliases.get(alias) || this.customToolParent?.getModelAlias(alias);
+  }
+
+  public hasModelAlias(alias: string): boolean {
+    return this.modelAliases.has(alias) || (this.customToolParent?.hasModelAlias(alias) ?? false);
   }
 
   public resolveModelName(name: string): string {
     let current = name;
     const seen = new Set<string>();
 
-    while (this.modelAliases.has(current)) {
+    while (this.hasModelAlias(current)) {
       if (seen.has(current)) {
         throw new Error(`Model alias cycle detected for "${name}"`);
       }
       seen.add(current);
-      current = this.modelAliases.get(current)!;
+      current = this.getModelAlias(current)!;
     }
 
     return current;
@@ -361,15 +397,21 @@ export class Interpreter {
   }
 
   public getCustomTool(name: string): RuntimeFunction | null {
-    return this.customTools.get(name)?.fn || null;
+    return this.customTools.get(name)?.fn || this.customToolParent?.getCustomTool(name) || null;
   }
 
   public getCustomToolDefinition(name: string): { fn: RuntimeFunction; description?: string } | null {
-    return this.customTools.get(name) || null;
+    return this.customTools.get(name) || this.customToolParent?.getCustomToolDefinition(name) || null;
   }
 
   public listCustomToolNames(): string[] {
-    return Array.from(this.customTools.keys());
+    const names = new Set(this.customTools.keys());
+    if (this.customToolParent) {
+      for (const n of this.customToolParent.listCustomToolNames()) {
+        names.add(n);
+      }
+    }
+    return Array.from(names);
   }
 
   private typeAnnotationToToolSchema(annotation?: TypeAnnotation): Record<string, any> {
@@ -444,7 +486,8 @@ export class Interpreter {
 
       if (entry && typeof entry === 'object' && (entry as any).type === 'function' && typeof (entry as any).name === 'string') {
         const fn = entry as RuntimeFunction;
-        const registered = Array.from(this.customTools.entries()).find(([, definition]) => definition.fn === fn);
+        const registered = Array.from(this.customTools.entries()).find(([, definition]) => definition.fn === fn)
+          || (this.customToolParent ? Array.from(this.customToolParent.customTools.entries()).find(([, definition]) => definition.fn === fn) : undefined);
         const toolName = registered?.[0] || fn.name;
         const definition = registered?.[1] || { fn };
         schemas.push(this.customToolDeclaration(toolName, definition));
@@ -632,6 +675,9 @@ export class Interpreter {
           case 'FunctionStatement':
             this.executeFunction(statement);
             return null;
+          case 'MakeStatement':
+            this.executeMake(statement);
+            return null;
           case 'ExpressionStatement':
             return await this.executeExpression(statement);
           case 'BlockStatement':
@@ -698,6 +744,10 @@ export class Interpreter {
       isAsync: stmt.isAsync,
     };
     this.currentEnv.define(stmt.name, fn);
+  }
+
+  private executeMake(stmt: MakeStatement): void {
+    this.executeFunction(desugarMakeStatement(stmt));
   }
 
   private async executeExpression(stmt: ExpressionStatement): Promise<RuntimeValue> {
@@ -1181,7 +1231,6 @@ export class Interpreter {
     const ratioRaw = getConfig('ratio', 'imgRatio', 'imageRatio', 'aspectRatio');
     const sizeRaw = getConfig('size', 'imgSize', 'imageSize');
     const systemPromptRaw = getConfig('system', 'system_prompt', 'systemPrompt');
-
     const response = await aiRuntime.callModel({
       model: this.resolveModelName(rawModelName),
       prompt: promptText,
@@ -1348,6 +1397,12 @@ export class Interpreter {
     const topKRaw = getConfig('top_k', 'topK');
     const topPRaw = getConfig('top_p', 'topP');
     const systemPromptRaw = getConfig('system', 'system_prompt', 'systemPrompt');
+    const modelAudioRaw = getConfig('audio', 'audio_path', 'audioPath');
+    const modelAudio = typeof modelAudioRaw === 'string'
+      ? modelAudioRaw
+      : modelAudioRaw && typeof modelAudioRaw === 'object' && !Array.isArray(modelAudioRaw)
+        ? modelAudioRaw as any
+        : undefined;
 
     const resolvedModelName = this.resolveModelName(rawModelName);
     const response = await this.callModelWithOrchestration({
@@ -1360,6 +1415,7 @@ export class Interpreter {
       systemPrompt: typeof systemPromptRaw === 'string' ? systemPromptRaw : undefined,
       responseSchema,
       images: imagePaths,
+      audio: modelAudio,
       thinkingLevel,
       cache,
       search,
@@ -1458,8 +1514,12 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         deadlineAt: this.deadlineAt,
       });
       if ((vm as any).interpreter) {
+        (vm as any).interpreter.customToolParent = this;
         for (const [k, v] of this.modelAliases.entries()) {
           (vm as any).interpreter.setModelAlias(k, v);
+        }
+        for (const [k, v] of this.customTools.entries()) {
+          (vm as any).interpreter.defineCustomTool(k, v.fn, v.description);
         }
       }
       for (const [k, v] of this.globalEnv.getValues().entries()) {
@@ -1475,6 +1535,11 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       }
       for (const [k, v] of (vm as any).globals.entries()) {
         this.globalEnv.define(k, v);
+      }
+      if ((vm as any).interpreter) {
+        for (const [k, v] of (vm as any).interpreter.customTools.entries()) {
+          this.defineCustomTool(k, v.fn, v.description);
+        }
       }
       return res;
     }
@@ -1496,11 +1561,15 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         deadlineAt: this.deadlineAt,
         modelUsageState: this.modelUsageState,
       });
+      subInterpreter.customToolParent = this;
       for (const [k, v] of this.globalEnv.getValues().entries()) {
         subInterpreter.globalEnv.define(k, v);
       }
       for (const [k, v] of this.modelAliases.entries()) {
         subInterpreter.setModelAlias(k, v);
+      }
+      for (const [k, v] of this.customTools.entries()) {
+        subInterpreter.defineCustomTool(k, v.fn, v.description);
       }
       subInterpreter.prompts = new Map(this.prompts);
       subInterpreter.memory = new Map(this.memory);
@@ -1544,7 +1613,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
 
   private async executeExport(stmt: import('./types').ExportStatement): Promise<void> {
     await this.executeStatement(stmt.statement);
-    const name = stmt.statement.name;
+    const name = (stmt.statement as any).name;
     const val = this.currentEnv.get(name);
     this.exports.set(name, val);
   }
@@ -1576,12 +1645,49 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         bytecodeModuleId: bundled.id,
       });
       await moduleVm.run(bundled.chunk);
+      if ((moduleVm as any).interpreter) {
+        for (const [k, v] of (moduleVm as any).interpreter.modelAliases.entries()) {
+          this.setModelAlias(k, v);
+        }
+        for (const [k, v] of (moduleVm as any).interpreter.customTools.entries()) {
+          this.defineCustomTool(k, v.fn, v.description);
+        }
+      }
       moduleExports = new Map<string, RuntimeValue>();
       for (const exportName of bundled.exports) {
         if (!moduleVm.hasGlobal(exportName)) throw new Error(`Bundled module "${bundled.id}" did not define export "${exportName}".`);
         moduleExports.set(exportName, moduleVm.getGlobal(exportName));
       }
       bundled.runtimeExports = moduleExports;
+    } else if (source.endsWith('/')) {
+      const fs = require('fs');
+      const path = require('path');
+      const resolvedDir = this.resolveDirectoryPath(source);
+      if (!resolvedDir) {
+        throw new Error(`Directory not found: "${source}"`);
+      }
+      if (this.safeMode === true) {
+        const isSafe = (dir: string) => {
+          const relative = path.relative(dir, resolvedDir);
+          return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+        };
+        const allowed = [process.cwd()];
+        if (this.scriptDir) allowed.push(this.scriptDir);
+        if (!allowed.some(isSafe)) {
+          throw new Error(`Security Violation: Import path "${resolvedDir}" lies outside allowed directories.`);
+        }
+      }
+      moduleExports = new Map<string, RuntimeValue>();
+      const files = fs.readdirSync(resolvedDir);
+      for (const file of files) {
+        if (file.endsWith('.sesi')) {
+          const subSource = path.posix.join(source, file);
+          const subExports = await this.getModuleExports(subSource);
+          for (const [k, v] of subExports.entries()) {
+            moduleExports.set(k, v);
+          }
+        }
+      }
     } else {
       const fs = require('fs');
       const resolvedPath = this.resolveModulePath(source);
@@ -1640,6 +1746,12 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         subInterpreter.setModelAlias(k, v);
       }
       await subInterpreter.interpret(program);
+      for (const [k, v] of subInterpreter.modelAliases.entries()) {
+        this.setModelAlias(k, v);
+      }
+      for (const [k, v] of subInterpreter.customTools.entries()) {
+        this.defineCustomTool(k, v.fn, v.description);
+      }
       moduleExports = subInterpreter.exports;
     }
 
@@ -1672,7 +1784,11 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
   private async executeAllow(stmt: import('./types').AllowStatement): Promise<void> {
     const moduleExports = await this.getModuleExports(stmt.source);
 
-    if (typeof stmt.binding === 'string') {
+    if (stmt.binding === '*') {
+      for (const [key, val] of moduleExports.entries()) {
+        this.currentEnv.define(key, val);
+      }
+    } else if (typeof stmt.binding === 'string') {
       const nsObj: any = {};
       for (const [key, val] of moduleExports.entries()) {
         nsObj[key] = val;
@@ -3669,11 +3785,96 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         }
       };
 
-      const drawPixelText = (x: any, y: any, textStr: any, colorVal: RuntimeValue, scaleVal: any = 1) => {
+      const blendPixel = (px: number, py: number, source: [number, number, number, number]) => {
+        if (source[3] === 0) return;
+        const key = `${px},${py}`;
+        const destination = pixels.get(key);
+        if (!destination || source[3] === 255) {
+          pixels.set(key, source);
+          return;
+        }
+
+        const sourceAlpha = source[3] / 255;
+        const destinationAlpha = destination[3] / 255;
+        const outputAlpha = sourceAlpha + destinationAlpha * (1 - sourceAlpha);
+        if (outputAlpha <= 0) return;
+        pixels.set(key, [
+          Math.round((source[0] * sourceAlpha + destination[0] * destinationAlpha * (1 - sourceAlpha)) / outputAlpha),
+          Math.round((source[1] * sourceAlpha + destination[1] * destinationAlpha * (1 - sourceAlpha)) / outputAlpha),
+          Math.round((source[2] * sourceAlpha + destination[2] * destinationAlpha * (1 - sourceAlpha)) / outputAlpha),
+          Math.round(outputAlpha * 255),
+        ]);
+      };
+
+      const escapeSvgText = (value: string): string => value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+
+      const drawStyledPixelText = async (
+        x: number,
+        y: number,
+        text: string,
+        colorVal: RuntimeValue,
+        scale: number,
+        face: 'bubble' | 'impact',
+      ) => {
+        if (text.length === 0 || text.trim().length === 0) return;
+        const [red, green, blue, alpha] = parsePixelColor(colorVal);
+        const fontSize = Math.max(8, scale * 7);
+        const padding = Math.max(6, Math.ceil(fontSize * 0.18));
+        const estimatedWidth = Math.max(1, Math.ceil(text.length * fontSize * 1.15 + padding * 2));
+        const estimatedHeight = Math.max(1, Math.ceil(fontSize * 1.55 + padding * 2));
+        const fill = `rgba(${red},${green},${blue},${(alpha / 255).toFixed(4)})`;
+        const outline = `rgb(${Math.round(red * 0.32)},${Math.round(green * 0.32)},${Math.round(blue * 0.32)})`;
+        const family = face === 'bubble'
+          ? "'Arial Rounded MT Bold','Trebuchet MS','DejaVu Sans',sans-serif"
+          : "Impact,Haettenschweiler,'Arial Narrow Bold','DejaVu Sans Condensed',sans-serif";
+        const strokeWidth = face === 'bubble' ? Math.max(2, fontSize * 0.1) : 0;
+        const letterSpacing = face === 'bubble' ? fontSize * 0.035 : -fontSize * 0.015;
+        const textAttributes = face === 'bubble'
+          ? `stroke="${outline}" stroke-width="${strokeWidth}" stroke-linejoin="round" paint-order="stroke fill"`
+          : 'font-stretch="condensed"';
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${estimatedWidth}" height="${estimatedHeight}">`
+          + `<text x="${padding}" y="${padding + fontSize}" fill="${fill}" font-family="${family}" `
+          + `font-size="${fontSize}" font-weight="900" letter-spacing="${letterSpacing}" ${textAttributes}>`
+          + `${escapeSvgText(text)}</text></svg>`;
+        const { data, info } = await sharp(Buffer.from(svg))
+          .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .ensureAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true });
+
+        for (let row = 0; row < info.height; row++) {
+          for (let column = 0; column < info.width; column++) {
+            const offset = (row * info.width + column) * info.channels;
+            const pixel: [number, number, number, number] = [
+              data[offset],
+              data[offset + 1],
+              data[offset + 2],
+              data[offset + 3],
+            ];
+            blendPixel(x + column, y + row, pixel);
+          }
+        }
+      };
+
+      const drawPixelText = async (x: any, y: any, textStr: any, colorVal: RuntimeValue, scaleVal: any = 1, faceVal: any = 'classic') => {
         const startX = Math.floor(Number(x));
         const startY = Math.floor(Number(y));
         const scale = Math.max(1, Math.floor(Number(scaleVal || 1)));
         const str = String(textStr);
+        const face = String(faceVal ?? 'classic').trim().toLowerCase();
+
+        if (face === 'bubble' || face === 'impact') {
+          await drawStyledPixelText(startX, startY, str, colorVal, scale, face);
+          return;
+        }
+        if (face !== 'classic' && face !== '5x7' && face !== 'bitmap') {
+          throw new Error(`pixel_text unknown font face: ${face}`);
+        }
 
         const font5x7: Record<string, number[]> = {
           'A': [0x0E,0x11,0x11,0x1F,0x11,0x11,0x11], 'B': [0x1E,0x11,0x11,0x1E,0x11,0x11,0x1E],
@@ -3697,10 +3898,19 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           ' ': [0,0,0,0,0,0,0], '-': [0,0,0,0x1F,0,0,0], '+': [0,0,0x04,0x0E,0x04,0,0],
           '!': [0x04,0x04,0x04,0x04,0x04,0,0x04], '?': [0x0E,0x11,0x01,0x02,0x04,0,0x04],
           '.': [0,0,0,0,0,0,0x04], ',': [0,0,0,0,0,0x04,0x08],
+          "'": [0x04,0x04,0x08,0,0,0,0], '"': [0x0A,0x0A,0x0A,0,0,0,0],
           ':': [0,0x04,0,0,0x04,0,0], ';': [0,0x04,0,0,0x04,0x04,0x08],
           '(': [0x02,0x04,0x08,0x08,0x08,0x04,0x02], ')': [0x08,0x04,0x02,0x02,0x02,0x04,0x08],
           '@': [0x0E,0x11,0x17,0x15,0x17,0x10,0x0E], '#': [0x0A,0x0A,0x1F,0x0A,0x1F,0x0A,0x0A],
-          '_': [0,0,0,0,0,0,0x1F]
+          '_': [0,0,0,0,0,0,0x1F], '`': [0x08,0x04,0,0,0,0,0],
+          '~': [0,0,0x09,0x16,0,0,0], '$': [0x04,0x0F,0x14,0x0E,0x05,0x1E,0x04],
+          '%': [0x19,0x1A,0x04,0x08,0x0B,0x13,0], '^': [0x04,0x0A,0x11,0,0,0,0],
+          '&': [0x0C,0x12,0x14,0x08,0x15,0x12,0x0D], '*': [0,0x04,0x15,0x0E,0x15,0x04,0],
+          '=': [0,0x1F,0,0x1F,0,0,0], '<': [0x02,0x04,0x08,0x10,0x08,0x04,0x02],
+          '>': [0x08,0x04,0x02,0x01,0x02,0x04,0x08], '[': [0x0E,0x08,0x08,0x08,0x08,0x08,0x0E],
+          ']': [0x0E,0x02,0x02,0x02,0x02,0x02,0x0E], '{': [0x02,0x04,0x04,0x08,0x04,0x04,0x02],
+          '}': [0x08,0x04,0x04,0x02,0x04,0x04,0x08], '|': [0x04,0x04,0x04,0x04,0x04,0x04,0x04],
+          '/': [0x01,0x02,0x04,0x08,0x10,0,0], '\\': [0x10,0x08,0x04,0x02,0x01,0,0]
         };
 
         let charOffset = 0;
@@ -3862,12 +4072,12 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       exports.set('pixel_text', {
         type: 'function',
         name: 'pixel_text',
-        params: [{ name: 'x' }, { name: 'y' }, { name: 'text' }, { name: 'color' }, { name: 'scale', defaultValue: 1 as any }],
+        params: [{ name: 'x' }, { name: 'y' }, { name: 'text' }, { name: 'color' }, { name: 'scale', defaultValue: 1 as any }, { name: 'font', defaultValue: 'classic' as any }],
         body: {} as any,
         closure: {} as any,
         isBuiltin: true,
-        builtin: (x, y, txt, color, scale): RuntimeValue => {
-          drawPixelText(x, y, txt, color, scale);
+        builtin: async (x, y, txt, color, scale, font): Promise<RuntimeValue> => {
+          await drawPixelText(x, y, txt, color, scale, font);
           return null;
         }
       });

@@ -139,7 +139,7 @@ Pass a local image path to give the model visual input:
 let description = model("gemini-3.5-flash-lite") {images: "photo.png"} {"Describe what you see."}
 
 // Multiple images
-let comparison = model("gemini-3.7-flash") {images: ["before.png", "after.png"]} {"What changed between these two images?"}
+let comparison = model("gemini-3.6-flash") {images: ["before.png", "after.png"]} {"What changed between these two images?"}
 ```
 
 ---
@@ -272,7 +272,7 @@ let r = model("gemini-3.5-flash-lite") {"Hello"}
 let r = model("gemini-3.8-flash") {thinkingLevel: "low"} {"Summarize:" text}
 
 // max_tokens
-let r = model("gemini-3.7-flash") {max_tokens: 200} {"Explain this."}
+let r = model("gemini-3.6-flash") {max_tokens: 200} {"Explain this."}
 
 // Vision input
 let r = model("gemini-3.5-flash-lite") {images: "scan.png"} {"Transcribe all text."}

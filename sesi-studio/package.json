@@ -1,6 +1,6 @@
 {
   "name": "sesi-studio",
-  "version": "2.1.0",
+  "version": "2.1.6",
   "description": "Sesi Studio — IDE for the Sesi Programming Language",
   "main": "studio.sesi",
   "author": "Misterscan",
@@ -14,9 +14,9 @@
     "css:validate": "sesi -l theme-packager.sesi validate"
   },
   "dependencies": {
-    "express": "5.2.1",
+    "express": "5.3.0",
     "node-pty": "1.1.0",
-    "ws": "8.21.0",
+    "ws": "8.22.0",
     "@xterm/xterm": "6.0.0",
     "@xterm/addon-fit": "0.11.0"
   }

@@ -1,273 +1,269 @@
 /*
   AI Agent Module for Sesi
   Implements an intelligent conversational agent with native tool execution capabilities.
+
+  NOTE: `temperature` has been deprecated and removed. Please update your configurations as neccesary.
 */
 allow "helpers/safe" in as safe
-
 /**
-  Lists the descriptions of available tools.
+  Formats a dictionary of registered agent tools into a human-readable bulleted list string.
 
   Parameters:
-  - `tools`: A dictionary of available tools where the key is the tool name and the value is its description.
+  - `tools`: Object containing registered tool functions keyed by their string names.
 
   Returns:
-  A string containing the descriptions of all available tools, formatted as a list.
+  - Formatted string containing each tool name prefixed with a hyphen and followed by a newline.
+
+  Example:
+  ```sesi
+  fn calculator(args) { return "42" }
+  fn web_search(args) { return "Search results" }
+  let my_tools = {
+    "calculator": calculator,
+    "web_search": web_search
+  }
+  let desc = list_tools_description(my_tools)
+  show desc
+  ```
+
+  Notes:
+  - Iterates through keys of the tools object using `keys(tools)` to assemble the list.
+  - Used internally by `run_react` to construct the tool selection prompt for the model.
 */
 fn list_tools_description(tools) {
   let desc = ""
-  for name in keys(tools) {
-    desc = desc + "- " + name + "
-"
-  }
+  for name in keys(tools) { desc = desc + "- " + name + "\n" }
   return desc
 }
-
 /**
-  Calls the specified model with the given parameters.
+  Dispatches prompt requests to specific Sesi model aliases with unified runtime configuration options.
 
   Parameters:
-  - `model_name`: The name of the model to call.
-  - `temp`: The temperature setting for the model.
-  - `thinking`: The thinking level for the model.
-  - `search_flag`: A boolean indicating whether search is enabled.
-  - `stream_val`: The stream value for the model.
-  - `cache_flag`: A boolean indicating whether caching is enabled.
-  - `max_tokens_val`: The maximum number of tokens for the model.
-  - `prompt_val`: The prompt to provide to the model.
+  - `model_name`: String name or alias of the target AI model (e.g. "agent", "gemini-3.6-flash").
+  - `thinking`: String specifying the thinking process level ("minimal", "low", "medium", "high").
+  - `search_flag`: Boolean flag indicating whether live search grounding should be enabled.
+  - `stream_val`: Stream handler function or boolean flag controlling token streaming output.
+  - `cache_flag`: Boolean flag specifying whether Sesi logic caching should be used.
+  - `max_tokens_val`: Maximum number of tokens allowed in model response, or null for default.
+  - `prompt_val`: Text prompt string passed to the underlying model call.
 
   Returns:
-  The response from the model as a string.
+  - Text response string produced by the selected model.
+
+  Example:
+  ```sesi
+  let response = call_model_helper("gemini-3.6-flash", "low", false, null, true, 1000, "Hello, assistant!")
+  show response
+  ```
+
+  Notes:
+  - Compares `model_name` against known aliases including "agent", "workflow_model", "search", "tutor", "developer", "copilot", and various Gemini models.
+  - Falls back to invoking `"gemini-3.8-flash"` if `model_name` does not match any predefined alias.
 */
-fn call_model_helper(model_name: string, temp: number, thinking: string, search_flag: bool, stream_val: any, cache_flag: bool, max_tokens_val: any, prompt_val: string) -> string {
-  if model_name == "agent" {
-    return model("agent") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "agent_model" {
-    return model("agent_model") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "workflow_model" {
-    return model("workflow_model") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "search" {
-    return model("search") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "tutor" {
-    return model("tutor") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "developer" {
-    return model("developer") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "chat" {
-    return model("chat") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "copilot" {
-    return model("copilot") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "gemini-3.6-flash" {
-    return model("gemini-3.6-flash") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "gemini-3.1-pro-preview" {
-    return model("gemini-3.1-pro-preview") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "gemini-3-flash-preview" {
-    return model("gemini-3-flash-preview") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-   if model_name == "gemini-2.5-flash" {
-    return model("gemini-2.5-flash") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "gemini-2.5-pro" {
-    return model("gemini-2.5-pro") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  if model_name == "gemini-3.1-flash-lite" {
-    return model("gemini-3.1-flash-lite") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
-  }
-  return model("gemini-3.5-flash-lite") {temperature: temp, thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val}
+fn call_model_helper(model_name: string, thinking: string, search_flag: bool, stream_val: any, cache_flag: bool, max_tokens_val: any, prompt_val: string) -> string {
+  if model_name == "agent" { return model("agent") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "agent_model" { return model("agent_model") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "workflow_model" { return model("workflow_model") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "search" { return model("search") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "tutor" { return model("tutor") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "developer" { return model("developer") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "chat" { return model("chat") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "copilot" { return model("copilot") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "gemini-3.5-flash" { return model("gemini-3.5-flash") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "gemini-3.6-flash" { return model("gemini-3.6-flash") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "gemini-3.1-pro-preview" { return model("gemini-3.1-pro-preview") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "gemini-3-flash-preview" { return model("gemini-3-flash-preview") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "gemini-2.5-flash" { return model("gemini-2.5-flash") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "gemini-2.5-pro" { return model("gemini-2.5-pro") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "gemini-3.1-flash-lite" { return model("gemini-3.1-flash-lite") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else if model_name == "gemini-3.5-flash-lite" { return model("gemini-3.5-flash-lite") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else { return model("gemini-3.8-flash") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
 }
-
 /**
-  Creates a new AI agent with the specified configuration.
+  Instantiates a new AI agent object with configurable model settings, system prompts, and tool mappings.
 
   Parameters:
-  - `config`: A dictionary containing the configuration for the agent, including model, system prompt, temperature, thinking level, search, stream, cache, max tokens, and tools.
+  - `config`: Configuration object containing optional keys for custom setup:
+    - `model`: Target model string (default `"gemini-3.6-flash"`).
+    - `system`: System prompt instructions string (default `"You are a helpful assistant."`).
+    - `thinkingLevel`: Reasoning intensity string (default `"low"`).
+    - `search`: Boolean search grounding flag (default `false`).
+    - `stream`: Stream callback function or null (default `null`).
+    - `cache`: Boolean caching toggle (default `true`).
+    - `tools`: Object map of executable tool functions (default `{}`).
+    - `max_tokens`: Maximum response token limit (default `null`).
 
   Returns:
-  A dictionary representing the newly created agent.
+  - Agent state object containing model settings, system prompt, tools dictionary, and history list.
+
+  Example:
+  ```sesi
+  let agent = create({
+    "model": "gemini-3.6-flash",
+    system: "You are an expert coder.",
+    thinkingLevel: "medium"
+  })
+  show agent["model"]
+  ```
+
+  Notes:
+  - The returned agent object maintains state in-place across subsequent interactions.
 */
 export fn create(config) {
   let model_name = "gemini-3.6-flash"
-  if config["model"] != null {
-    model_name = config["model"]
-  }
-
+  if config["model"] != null { model_name = config["model"] }
   let system_prompt = "You are a helpful assistant."
-  if config["system"] != null {
-    system_prompt = config["system"]
-  }
-
-  let temperature_val = 0.1
-  if config["temperature"] != null {
-    temperature_val = config["temperature"]
-  }
-
+  if config.system != null { system_prompt = config.system }
   let thinking_level_val = "low"
-  if config["thinkingLevel"] != null {
-    thinking_level_val = config["thinkingLevel"]
-  }
-
+  if config.thinkingLevel != null { thinking_level_val = config.thinkingLevel }
   let search_enabled = false
-  if config["search"] != null {
-    search_enabled = config["search"]
-  }
-
+  if config.search != null { search_enabled = config.search }
   let stream_val = null
-  if config["stream"] != null {
-    stream_val = config["stream"]
-  }
-
+  if config.stream != null { stream_val = config.stream }
   let cache_enabled = true
-  if config["cache"] != null {
-    cache_enabled = config["cache"]
-  }
-
+  if config.cache != null { cache_enabled = config.cache }
   let agent_tools = {}
-  if config["tools"] != null {
-    agent_tools = config["tools"]
-  }
-
+  if config.tools != null { agent_tools = config.tools }
   let max_tokens_val = null
-  if config["max_tokens"] != null {
-    max_tokens_val = config["max_tokens"]
-  }
-
+  if config.max_tokens != null { max_tokens_val = config.max_tokens }
   return {
     "model": model_name,
-    "system": system_prompt,
-    "temperature": temperature_val,
-    "thinkingLevel": thinking_level_val,
-    "search": search_enabled,
-    "stream": stream_val,
-    "cache": cache_enabled,
-    "max_tokens": max_tokens_val,
-    "tools": agent_tools,
-    "history": []
+    system: system_prompt,
+    thinkingLevel: thinking_level_val,
+    search: search_enabled,
+    stream: stream_val,
+    cache: cache_enabled,
+    max_tokens: max_tokens_val,
+    tools: agent_tools,
+    history: []
   }
 }
-
 /**
-  Retrieves the conversation history of the agent as a formatted string.
+  Compiles the conversation history of an agent into a single formatted transcript string.
 
   Parameters:
-  - `agent`: The AI agent whose history is to be retrieved.
+  - `agent`: Agent state object instance.
 
   Returns:
-  A string representing the formatted conversation history of the agent.
+  - Multi-line transcript string formatted with role prefixes (e.g. `user: ...`, `assistant: ...`).
+
+  Example:
+  ```sesi
+  let agent = create()
+  add_message(agent, "user", "What is Sesi?")
+  add_message(agent, "assistant", "Sesi is a scripting language.")
+  let history_text = get_history_string(agent)
+  show history_text
+  ```
+
+  Notes:
+  - Automatically truncates history to the last 20 turns if total history length exceeds 20 elements.
 */
 export fn get_history_string(agent) {
   let h_str = ""
-  let history = agent["history"]
-  
+  let history = agent.history
   // Truncate history to last 20 turns
-  if len(history) > 20 {
-    history = slice(history, len(history) - 20)
-  }
-  
+  if len(history) > 20 { history = slice(history, len(history) - 20) }
   for turn in history {
-    let role = turn["role"]
-    let text = turn["text"]
-    h_str = h_str + role + ": " + text + "
-"
+    let role = turn.role
+    let text = turn.text
+    h_str = h_str + role + ": " + text + "\n"
   }
   return h_str
 }
-
 /**
-  Handles a chat interaction with the AI agent.
+  Sends a user message to the agent, updating history, executing tools if available, and returning the response.
 
   Parameters:
-  - `agent`: The AI agent to interact with.
-  - `message`: The user's message to send to the agent.
-  - `speech_enabled`: A boolean indicating whether speech output is enabled.
+  - `agent`: Agent state object instance.
+  - `message`: Text message string sent by the user.
+  - `speech_enabled`: Boolean flag indicating whether the response should be read aloud using text-to-speech.
 
   Returns:
-  The agent's response as a string.
+  - Assistant response text string.
+
+  Example:
+  ```sesi
+  let agent = create({system: "You are a concise assistant."})
+  let reply = chat(agent, "Tell me a joke", false)
+  show reply
+  ```
+
+  Notes:
+  - Routes execution to `run_react` when tools are registered in `agent["tools"]`.
+  - Appends user and assistant messages to `agent["history"]`.
+  - Retries with plain text prompting if a `MALFORMED_FUNCTION_CALL` or empty output exception occurs.
 */
 export fn chat(agent, message, speech_enabled) {
-  let tools = agent["tools"]
+  let tools = agent.tools
   let res = ""
   if len(keys(tools)) > 0 {
-    let user_turn = {"role": "user", "text": message}
-    push(agent["history"], user_turn)
-
+    let user_turn = {role: "user", text: message}
+    push(agent.history, user_turn)
     if speech_enabled == true {res = run_react(agent, message, 10, true)} else 
     {res = run_react(agent, message, 10)}
-
-    let assistant_turn = {"role": "assistant", "text": res}
-    push(agent["history"], assistant_turn)
-
+    let assistant_turn = {role: "assistant", text: res}
+    push(agent.history, assistant_turn)
     return res
   }
-
-  let user_turn = {"role": "user", "text": message}
-  push(agent["history"], user_turn)
-
-  let sys = agent["system"]
+  let user_turn = {role: "user", text: message}
+  push(agent.history, user_turn)
+  let sys = agent.system
   let hist = get_history_string(agent)
-  let prompt_text = "System: " + sys + "
-
-History:
-" + hist + "
-Assistant:"
-
+  let prompt_text = "System: " + sys + "\n\nHistory:\n" + hist + "\nAssistant:"
   let resp = ""
-  try {
-    resp = call_model_helper(agent["model"], agent["temperature"], agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
-  } catch(model_err) {
+  try { resp = call_model_helper(agent["model"], agent.thinkingLevel, agent.search, agent.stream, agent.cache, agent.max_tokens, prompt_text) }
+  catch(model_err) {
     let err_txt = str(model_err)
     if contains(err_txt, "MALFORMED_FUNCTION_CALL") || contains(err_txt, "Returned no text output") {
       let retry_prompt = prompt_text + "\n\nIMPORTANT: Your previous output was malformed. Reply with plain text only. Do not emit tool/function calls."
-      resp = call_model_helper(agent["model"], agent["temperature"], agent["thinkingLevel"], agent["search"], agent["stream"], false, agent["max_tokens"], retry_prompt)
-    } else {
-      raise_error("RuntimeError", err_txt, null)
-    }
+      resp = call_model_helper(agent["model"], agent.thinkingLevel, agent.search, agent.stream, false, agent.max_tokens, retry_prompt)
+    } else { raise_error("RuntimeError", err_txt, null) }
   }
-
-  let assistant_turn = {"role": "assistant", "text": resp}
-  push(agent["history"], assistant_turn)
-  
-  if speech_enabled == true {
-    try {
-      speech(resp)
-    } catch (e) {
-      show "Agent failed to speak:" e
-    }
-  }
+  let assistant_turn = {role: "assistant", text: resp}
+  push(agent.history, assistant_turn)
+  if speech_enabled == true { try { speech(resp) } catch (e) { show "Agent failed to speak:" e } }
   return resp
 }
-
 /**
-  Runs the agent in a ReAct loop to solve a task step-by-step.
+  Executes a multi-step ReAct (Reasoning and Acting) loop, prompting the model for structured JSON tool calls.
 
   Parameters:
-  - `agent`: The AI agent to run.
-  - `task`: The task description for the agent to solve.
-  - `max_steps`: The maximum number of steps the agent is allowed to take.
-  - `speech_enabled`: A boolean indicating whether speech output is enabled.
+  - `agent`: Agent state object instance.
+  - `task`: Primary goal or task string to accomplish.
+  - `max_steps`: Maximum number of reasoning/action steps allowed before stopping.
+  - `speech_enabled`: Boolean flag enabling text-to-speech rendering for tool observations.
 
   Returns:
-  The final result of the agent's reasoning as a string.
+  - Final response string produced by the agent or error summary if limits are reached.
+
+  Example:
+  ```sesi
+  fn get_weather(args) { return "Sunny, 22C" }
+  let agent = create({
+    tools: {
+      "get_weather": get_weather
+    }
+  })
+  let result = run_react(agent, "Check weather in Tokyo", 5, false)
+  show result
+  ```
+
+  Notes:
+  - Uses `structured_output` to parse step responses into `thought`, `tool_name`, `tool_args_json`, `finished`, and `final_answer`.
+  - Aborts early after 3 consecutive errors or malformed tool invocations to avoid infinite execution loops.
+  - Optional stream callbacks on the agent receive status updates and step observations in real-time.
 */
 export fn run_react(agent, task, max_steps, speech_enabled) {
   let steps_taken = 0
   let react_history = ""
   let final_res = ""
   let error_count = 0
-
-  let tools_desc = list_tools_description(agent["tools"])
+  let tools_desc = list_tools_description(agent.tools)
   let hist = get_history_string(agent)
-
   while steps_taken < max_steps {
-      let sys = agent["system"]
-      prompt prompt_text {sys "
+    let sys = agent.system
+    prompt prompt_text {sys "
 
 Conversation History:
 " hist "
@@ -287,365 +283,378 @@ Task: " task "
 Previous steps and observations:
 " react_history "
 Next Step JSON:"}
-
-      let step_text = ""
-      try {
-        step_text = call_model_helper(agent["model"], 0.1, agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
-      } catch(model_err) {
-        let err_txt = str(model_err)
-        if contains(err_txt, "MALFORMED_FUNCTION_CALL") || contains(err_txt, "Returned no text output") {
-          let retry_prompt = prompt_text + "\n\nIMPORTANT: Return exactly one valid JSON object for this step. Do not emit tool/function calls outside the JSON fields."
-          step_text = call_model_helper(agent["model"], 0.1, agent["thinkingLevel"], agent["search"], agent["stream"], false, agent["max_tokens"], retry_prompt)
-        } else {
-          raise_error("RuntimeError", err_txt, null)
-        }
+  let step_text = ""
+  try { step_text = call_model_helper(agent["model"], agent.thinkingLevel, agent.search, agent.stream, agent.cache, agent.max_tokens, prompt_text) }
+  catch(model_err) {
+    let err_txt = str(model_err)
+    if contains(err_txt, "MALFORMED_FUNCTION_CALL") || contains(err_txt, "Returned no text output") {
+      let retry_prompt = prompt_text + "\n\nIMPORTANT: Return exactly one valid JSON object for this step. Do not emit tool/function calls outside the JSON fields."
+      step_text = call_model_helper(agent["model"], agent.thinkingLevel, agent.search, agent.stream, false, agent.max_tokens, retry_prompt)
+    } else { raise_error("RuntimeError", err_txt, null) }
+  }
+  let step = structured_output({thought: string, tool_name: string, tool_args_json: string, finished: bool, final_answer: string})(step_text)
+  if step == null || len(keys(step)) == 0 {
+    show "Error: Agent returned invalid step format"
+    error_count = error_count + 1
+    // Stream the error message to the user if streaming is enabled.
+    let stream_fn = agent.stream
+    if stream_fn != null {
+      try { stream_fn("❌ *Error:* Invalid JSON response format from model\n\n") } 
+      catch(e_sf_err) {}
+    }
+    react_history = react_history + "\nThought: Failed to parse step response.\nObservation: Invalid JSON format.\n"
+    if error_count >= 3 {
+      final_res = "Error: Task failed due to consecutive tool errors."
+      break
+    }
+  } else {
+    show "💭 Thought:" step.thought
+    // Stream the agent's thought to the user if streaming is enabled.
+    let stream_fn = agent.stream
+    if stream_fn != null {
+      try { stream_fn("💭 *Thought:* " + step.thought + "\n\n") }
+      catch(e_sf) {}
+    }
+    if step.finished {
+      show "🏁 Finished! Final Answer:" step.final_answer
+      if stream_fn != null {
+        try { stream_fn(step.final_answer + "\n") }
+        catch(e_sf2) {}
       }
-      let step = structured_output({
-        thought: string,
-        tool_name: string,
-        tool_args_json: string,
-        finished: bool,
-        final_answer: string
-        })(step_text)
-
-      if step == null || len(keys(step)) == 0 {
-        show "Error: Agent returned invalid step format"
+      final_res = step.final_answer
+      break
+    } else {
+      let tool_name = step.tool_name
+      let tool_args_str = step.tool_args_json
+      let tool_args = null
+      if tool_args_str != null {
+        try { tool_args = from_json(tool_args_str) }
+        catch(e) { tool_args = tool_args_str }
+      }
+      if tool_args == null { tool_args = {} }
+      show "🛠️ Calling tool:" tool_name "with args:" tool_args
+      if stream_fn != null {
+        try { stream_fn("🛠️ *Calling tool:* `" + tool_name + "`\n\n") }
+        catch(e_sf3) {}
+      }
+      let obs = ""
+      let tools = agent.tools
+      let tool_fn = tools[tool_name]
+      if tool_fn == null {
+        obs = "Error: Tool " + tool_name + " is not registered."
+        show "❌ Error: Tool not found"
         error_count = error_count + 1
-        // Stream the error message to the user if streaming is enabled.
-        let stream_fn = agent["stream"]
         if stream_fn != null {
-          try {
-            stream_fn("❌ *Error:* Invalid JSON response format from model\n\n")
-          } catch(e_sf_err) {}
-        }
-        react_history = react_history + "
-Thought: Failed to parse step response.
-Observation: Invalid JSON format.
-"
-        if error_count >= 3 {
-          final_res = "Error: Task failed due to consecutive tool errors."
-          break
+          try { stream_fn("❌ *Error:* Tool `" + tool_name + "` not found\n\n") }
+          catch(e_sf4) {}
         }
       } else {
-        show "💭 Thought:" step["thought"]
-        // Stream the agent's thought to the user if streaming is enabled.
-        let stream_fn = agent["stream"]
-        if stream_fn != null {
-          try {
-            stream_fn("💭 *Thought:* " + step["thought"] + "\n\n")
-          } catch(e_sf) {}
-        }
-
-        if step["finished"] {
-          show "🏁 Finished! Final Answer:" step["final_answer"]
+        try {
+          obs = tool_fn(tool_args)
+          show "📥 Observation:" obs
+          error_count = 0
           if stream_fn != null {
-            try {
-              stream_fn(step["final_answer"] + "\n")
-            } catch(e_sf2) {}
-          }
-          final_res = step["final_answer"]
-          break
-        } else {
-          let tool_name = step["tool_name"]
-          let tool_args_str = step["tool_args_json"]
-          let tool_args = null
-          if tool_args_str != null {
-            try {
-              tool_args = from_json(tool_args_str)
-            } catch(e) {
-              tool_args = tool_args_str
-            }
-          }
-          if tool_args == null {
-            tool_args = {}
-          }
-          show "🛠️ Calling tool:" tool_name "with args:" tool_args
-          if stream_fn != null {
-            try {
-              stream_fn("🛠️ *Calling tool:* `" + tool_name + "`\n\n")
-            } catch(e_sf3) {}
-          }
-
-          let obs = ""
-          let tools = agent["tools"]
-          let tool_fn = tools[tool_name]
-          if tool_fn == null {
-            obs = "Error: Tool " + tool_name + " is not registered."
-            show "❌ Error: Tool not found"
-            error_count = error_count + 1
-            if stream_fn != null {
-              try {
-                stream_fn("❌ *Error:* Tool `" + tool_name + "` not found\n\n")
-              } catch(e_sf4) {}
-            }
-          } else {
-            try {
-              obs = tool_fn(tool_args)
-              show "📥 Observation:" obs
-              error_count = 0
-              if stream_fn != null {
-                try {
-                  stream_fn("📥 *Observation:* " + obs + "\n\n")
-                } catch(e_sf5) {}
-                if speech_enabled == true {
-                  try {
-                    speech("Observation: " + obs)
-                  } catch (e) {
-                    show "Agent failed to speak:" e
-                  }
-                }
-              }
-            } catch(e) {
-              obs = "Error executing tool: " + e
-              show "❌ Tool Error:" e
-              error_count = error_count + 1
-              if stream_fn != null {
-                try {
-                  stream_fn("❌ *Tool Error:* " + str(e) + "\n\n")
-                } catch(e_sf6) {}
-              }
-            }
-          }
-
-          if error_count >= 3 {
-            final_res = "Error: Task failed due to consecutive tool errors."
+            try { stream_fn("📥 *Observation:* " + obs + "\n\n") }
+            catch(e_sf5) {}
             if speech_enabled == true {
-              try {
-                speech(final_res)
-              } catch (e) {
-                show "Agent failed to speak:" e
-              }
+              try { speech("Observation: " + obs) }
+              catch (e) { show "Agent failed to speak:" e }
             }
-            break
           }
-
-          react_history = react_history + "
-Thought: " + step["thought"] + "
-Tool: " + tool_name + "(" + tool_args + ")
-Observation: " + obs + "
-"
+        } catch(e) {
+          obs = "Error executing tool: " + e
+          show "❌ Tool Error:" e
+          error_count = error_count + 1
+          if stream_fn != null {
+            try { stream_fn("❌ *Tool Error:* " + str(e) + "\n\n") }
+            catch(e_sf6) {}
+          }
         }
       }
-
-      steps_taken = steps_taken + 1
+      if error_count >= 3 {
+        final_res = "Error: Task failed due to consecutive tool errors."
+        if speech_enabled == true {
+          try { speech(final_res) }
+          catch (e) { show "Agent failed to speak:" e }
+        }
+        break
+      }
+      react_history = react_history + "\nThought: " + step.thought + "\nTool: " + tool_name + "(" + tool_args + ")\nObservation: " + obs + "\n"
+    }
   }
-
-  if final_res == "" {
-    final_res = "⚠️ Maximum reasoning steps reached (limit: " + str(max_steps) + ") without a final answer. Last observations:\n\n" + react_history
+    steps_taken = steps_taken + 1
   }
+  if final_res == "" { final_res = "⚠️ Maximum reasoning steps reached (limit: " + str(max_steps) + ") without a final answer. Last observations:\n\n" + react_history }
   return final_res
 }
-
 /**
-  Clears the conversation history of the specified agent.
+  Resets and empties the conversation history log stored within an agent object.
 
   Parameters:
-  - `agent`: The AI agent whose history is to be cleared.
+  - `agent`: Agent state object instance.
 
   Returns:
-  None.
+  - None.
+
+  Example:
+  ```sesi
+  let agent = create()
+  add_message(agent, "user", "Hello")
+  clear_history(agent)
+  show len(agent.history) // 0
+  ```
+
+  Notes:
+  - Replaces `agent.history` with an empty array `[]` in-place.
 */
-export fn clear_history(agent) {
-  agent["history"] = []
-}
-
+export fn clear_history(agent) { agent.history = [] }
 /**
-  Runs the AI agent with the given message and returns the response.
+  Executes a single stateless turn with an agent without storing or inspecting conversational history.
 
   Parameters:
-  - `agent`: The AI agent to run.
-  - `message`: The user's message to send to the agent.
+  - `agent`: Agent state object instance.
+  - `message`: Text message string sent to the model.
 
   Returns:
-  The agent's response as a string.
+  - Text response generated by the underlying AI model.
+
+  Example:
+  ```sesi
+  let agent = create({system: "You are a translation bot."})
+  let output = run(agent, "Translate 'hello' to French")
+  show output
+  ```
+
+  Notes:
+  - Constructs a prompt combining `agent.system` and the provided `message` directly.
+  - Does not read from or mutate `agent.history`.
 */
 export fn run(agent, message) {
-  let sys = agent["system"]
-  let prompt_text = "System: " + sys + "
-User: " + message + "
-Assistant:"
-  return call_model_helper(agent["model"], agent["temperature"], agent["thinkingLevel"], agent["search"], agent["stream"], agent["cache"], agent["max_tokens"], prompt_text)
+  let sys = agent.system
+  let prompt_text = "System: " + sys + "\nUser: " + message + "\nAssistant:"
+  return call_model_helper(agent["model"], agent.thinkingLevel, agent.search, agent.stream, agent.cache, agent.max_tokens, prompt_text)
 }
-
 /**
-  Creates a deep clone of the specified AI agent, including its history and tools.
+  Creates an independent deep copy of an existing agent state object, including tools and conversation history.
 
   Parameters:
-  - `agent`: The AI agent to clone.
+  - `agent`: Agent state object instance to duplicate.
 
   Returns:
-  A new AI agent object that is a deep copy of the original agent.
+  - New agent state object with identical settings, duplicated tool dictionary, and cloned history turns.
+
+  Example:
+  ```sesi
+  let original = create({system: "General Assistant"})
+  add_message(original, "user", "Hello")
+  let backup = clone(original)
+  clear_history(original)
+  show len(backup.history) // 1
+  ```
+
+  Notes:
+  - Iterates over `agent.history` and `agent.tools` to ensure mutations on the clone do not affect the original object.
 */
 export fn clone(agent) {
   let cloned_history = []
-  for turn in agent["history"] {
-    push(cloned_history, {
-      "role": turn["role"],
-      "text": turn["text"]
-    })
-  }
+  for turn in agent.history { push(cloned_history, {role: turn.role, text: turn.text }) }
   let cloned_tools = {}
-  for k in keys(agent["tools"]) {
-    cloned_tools[k] = agent["tools"][k]
-  }
+  for k in keys(agent.tools) { cloned_tools[k] = agent.tools[k] }
   return {
     "model": agent["model"],
-    "system": agent["system"],
-    "temperature": agent["temperature"],
-    "thinkingLevel": agent["thinkingLevel"],
-    "search": agent["search"],
-    "stream": agent["stream"],
-    "cache": agent["cache"],
-    "max_tokens": agent["max_tokens"],
-    "tools": cloned_tools,
-    "history": cloned_history
+    system: agent.system,
+    thinkingLevel: agent.thinkingLevel,
+    search: agent.search,
+    stream: agent.stream,
+    cache: agent.cache,
+    max_tokens: agent.max_tokens,
+    tools: cloned_tools,
+    history: cloned_history
   }
 }
-
 /**
-  Saves the state of the AI agent to a specified file path in JSON format.
+  Serializes and writes an agent's configuration and history state to a file on disk.
 
   Parameters:
-  - `agent`: The AI agent to save.
-  - `path`: The file path where the agent's state should be saved.
+  - `agent`: Agent state object instance.
+  - `path`: File path string where the JSON state will be saved.
 
   Returns:
-  `true` if the agent was successfully saved, `false` otherwise.
+  - Boolean success flag or file operation result returned by `safe.json`.
+
+  Example:
+  ```sesi
+  let agent = create({system: "Saved Agent"})
+  add_message(agent, "user", "Remember this")
+  save(agent, "agent_state")
+  ```
+
+  Notes:
+  - Uses `safe.json` helper to write serialized state securely.
+  - Executable tool functions in `agent.tools` are excluded from serialization because functions cannot be represented in JSON.
 */
 export fn save(agent, path) {
   let data = {
     "model": agent["model"],
-    "system": agent["system"],
-    "temperature": agent["temperature"],
-    "thinkingLevel": agent["thinkingLevel"],
-    "search": agent["search"],
-    "stream": agent["stream"],
-    "cache": agent["cache"],
-    "max_tokens": agent["max_tokens"],
-    "history": agent["history"]
+    system: agent.system,
+    thinkingLevel: agent.thinkingLevel,
+    search: agent.search,
+    stream: agent.stream,
+    cache: agent.cache,
+    max_tokens: agent.max_tokens,
+    history: agent.history
   }
-  try {
-    return safe.json(path, data)
-  } catch (err) {
-    show "Error saving agent:" err
-  }
+  try { return safe.json(path, data) }
+  catch (err) { show "Error saving agent:" err }
 }
-
 /**
-  Loads the state of the AI agent from a specified file path in JSON format.
+  Reads a saved JSON agent state file from disk and hydrates an existing agent instance with its properties.
 
   Parameters:
-  - `agent`: The AI agent to load the state into.
-  - `path`: The file path from which to load the agent's state.
+  - `agent`: Existing agent state object instance to update.
+  - `path`: File path string to the saved agent JSON file.
 
   Returns:
-  `true` if the agent was successfully loaded, `false` otherwise.
+  - `true` if state was loaded and applied successfully; `false` if file reading or JSON parsing failed.
+
+  Example:
+  ```sesi
+  let agent = create()
+  let success = load(agent, "agent_state.json")
+  if success {
+    show "Agent loaded successfully with model:" agent["model"]
+  }
+  ```
+
+  Notes:
+  - Updates `model`, `system`, `thinkingLevel`, `search`, `stream`, `cache`, `max_tokens`, and `history` on the target agent in-place.
+  - Registered tool functions in `agent.tools` remain intact after loading.
 */
 export fn load(agent, path) {
   let content = ""
-  try {
-    content = safe.read(path)
-  } catch (err) {
-    show "Error loading agent:" err
-  }
-  if content == null {
-    return false
-  }
+  try { content = safe.read(path) }
+  catch (err) { show "Error loading agent:" err }
+  if content == null { return false }
   let data = from_json(content)
-  if data == null {
-    return false
-  }
+  if data == null { return false }
   agent["model"] = data["model"]
-  agent["system"] = data["system"]
-  agent["temperature"] = data["temperature"]
-  agent["thinkingLevel"] = data["thinkingLevel"]
-  agent["search"] = data["search"]
-  agent["stream"] = data["stream"]
-  agent["cache"] = data["cache"]
-  agent["max_tokens"] = data["max_tokens"]
-  agent["history"] = data["history"]
+  agent.system = data.system
+  agent.thinkingLevel = data.thinkingLevel
+  agent.search = data.search
+  agent.stream = data.stream
+  agent.cache = data.cache
+  agent.max_tokens = data.max_tokens
+  agent.history = data.history
   return true
 }
-
 /**
-  Retrieves the last response from the AI agent's history.
+  Retrieves the most recent assistant response text from an agent's conversation history.
 
   Parameters:
-  - `agent`: The AI agent whose last response is to be retrieved.
-  - `speech_enabled`: A boolean indicating whether speech output is enabled.
+  - `agent`: Agent state object instance.
+  - `speech_enabled`: Boolean flag indicating whether the retrieved response should be spoken aloud via text-to-speech.
 
   Returns:
-  The last response from the agent as a string, or `null` if there is no response.
+  - String containing the last assistant message text, or `null` if history is empty or the last message was not from the assistant.
+
+  Example:
+  ```sesi
+  let agent = create()
+  add_message(agent, "user", "Hello")
+  add_message(agent, "assistant", "Hi there!")
+  let last_reply = get_last_response(agent, false)
+  show last_reply // "Hi there!"
+  ```
+
+  Notes:
+  - Checks the last element in `agent.history` for `role == "assistant"`.
+  - Invokes `speech()` inside a `try/catch` block when `speech_enabled` is set to `true`.
 */
 export fn get_last_response(agent, speech_enabled) {
-  let history = agent["history"]
+  let history = agent.history
   let length = len(history)
-  if length == 0 {
-    return null
-  }
+  if length == 0 { return null }
   let last_turn = history[length - 1]
-  if last_turn["role"] == "assistant" {
+  if last_turn.role == "assistant" {
     if speech_enabled == true {
-      try {
-        speech(last_turn["text"])
-      } catch (e) {
-        show "Agent failed to speak:" e
-      }
+      try { speech(last_turn.text) }
+      catch (e) { show "Agent failed to speak:" e }
     }
-    return last_turn["text"]
+    return last_turn.text
   }
   return null
 }
-
 /**
-  Adds a message to the AI agent's conversation history.
+  Appends a manual conversation turn object with a specified role and text message into an agent's history.
 
   Parameters:
-  - `agent`: The AI agent to which the message should be added.
-  - `role`: The role of the message sender (e.g., "user" or "assistant").
-  - `text`: The content of the message.
+  - `agent`: Agent state object instance.
+  - `role`: String identifier for the message sender (e.g. `"user"`, `"assistant"`, `"system"`).
+  - `text`: String content of the message turn.
 
   Returns:
-  None.
+  - None.
+
+  Example:
+  ```sesi
+  let agent = create({})
+  add_message(agent, "user", "Hello, assistant!")
+  add_message(agent, "assistant", "Hello! How can I assist you?")
+  show len(agent.history) // 2
+  ```
+
+  Notes:
+  - Pushes an object `{ role: role, text: text }` directly onto the `agent.history` array.
 */
-export fn add_message(agent, role, text) {
-  push(agent["history"], {
-    "role": role,
-    "text": text
-  })
-}
+export fn add_message(agent, role, text) { push(agent.history, {role: role, text: text}) }
 /**
-  Adds a tool to the AI agent's set of available tools.
+  Registers an executable tool function into an agent's tools mapping under a specified name.
 
   Parameters:
-  - `agent`: The AI agent to which the tool should be added.
-  - `name`: The name of the tool.
-  - `tool_fn`: The function representing the tool's behavior.
+  - `agent`: Agent state object instance.
+  - `name`: String key name used to identify the tool.
+  - `tool_fn`: Executable function block that accepts an arguments object and returns an observation string.
 
   Returns:
-  None.
+  - None.
+
+  Example:
+  ```sesi
+  let agent = create()
+  fn calc(args) {
+    return args["a"] + args["b"]
+  }
+  add_tool(agent, "add_numbers", calc)
+  ```
+
+  Notes:
+  - Binds `tool_fn` to `agent.tools[name]` in-place.
 */
-export fn add_tool(agent, name, tool_fn) {
-  agent["tools"][name] = tool_fn
-}
-
+export fn add_tool(agent, name, tool_fn) { agent.tools[name] = tool_fn }
 /**
-  Removes a tool from the AI agent's set of available tools.
+  Removes a registered tool function from an agent's tool mapping by its string name.
 
   Parameters:
-  - `agent`: The AI agent from which the tool should be removed.
-  - `name`: The name of the tool to remove.
+  - `agent`: Agent state object instance.
+  - `name`: String name of the tool function to remove.
 
   Returns:
-  None.
+  - None.
+
+  Example:
+  ```sesi
+  fn temp_tool(args) { return "ok" }
+  let agent = create()
+  add_tool(agent, "temp_tool", temp_tool)
+  remove_tool(agent, "temp_tool")
+  ```
+
+  Notes:
+  - Rebuilds `agent.tools` filtering out the specified key `name`.
 */
 export fn remove_tool(agent, name) {
   let new_tools = {}
-  let old_tools = agent["tools"]
-  for k in keys(old_tools) {
-    if k != name {
-      new_tools[k] = old_tools[k]
-    }
-  }
-  agent["tools"] = new_tools
+  let old_tools = agent.tools
+  for k in keys(old_tools) { if k != name { new_tools[k] = old_tools[k] } }
+  agent.tools = new_tools
 }

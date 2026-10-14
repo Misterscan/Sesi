@@ -13,14 +13,14 @@ if (typeof globalThis.File === 'undefined') {
   };
 }
 
-const { runSesiFile, runSesi } = require('../dist/index.js');
+const { runSesiFile, runSesi, compileSesiForBrowser } = require('../dist/index.js');
 const fs = require('fs');
 const path = require('path');
 
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.9.0
+Sesi Programming Language v1.9.1
 
 Usage:
   sesi <file> [options] <args>  Run a Sesi program
@@ -40,6 +40,7 @@ Usage:
   sesi -bd <file>        Print disassembled bytecode
   sesi --timeout <ms>    Abort execution after a deadline
   sesi --profile <file>  Print runtime performance measurements
+  sesi build <file.sesi>  Compile Sesi to minified browser JavaScript
   sesi install           Install all dependencies listed in sesi.json
   sesi install <pkg>     Install a third-party package (e.g. owner/repo#ref)
 
@@ -64,6 +65,7 @@ Usage:
   --timeout <ms>         Abort execution after the given milliseconds
   --profile              Collect and print runtime performance measurements
   -i, install            Install all dependencies listed in sesi.json
+  build                  Compile Sesi to minified browser JavaScript
 
 `;
 
@@ -89,6 +91,7 @@ function parseArgs(args) {
     password: null,
     repl: false,
     studio: false,
+    buildFile: null,
     sesiOptions: {
       safeMode: process.env.SESI_SAFE_MODE !== 'false',
       allowedPaths: [process.cwd()],
@@ -103,7 +106,7 @@ function parseArgs(args) {
     const isHelpFlag = arg === 'help' || arg === '-h';
 
     if (arg === '-v' || arg === 'version') {
-      console.log('Sesi v1.9.0');
+      console.log('Sesi v1.9.1');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -133,6 +136,8 @@ function parseArgs(args) {
     } else if (arg === '-a' || arg === '--allowed-paths') {
       const paths = args[++i].split(',');
       options.sesiOptions.allowedPaths.push(...paths.map(p => path.resolve(p)));
+    } else if (arg === 'build' && i === 0) {
+      options.buildFile = args[++i] || true;
     } else if ((!arg.startsWith('-') || arg === '-') && !options.file && !options.eval && !options.encryptFile && !options.decryptFile) {
       options.file = arg;
     } else if (arg == '-r' || arg == '--raw') {
@@ -179,137 +184,116 @@ function parseArgs(args) {
 }
 
 async function startRepl() {
-  const blessed = require('blessed');
+  const readline = require('readline');
   const { Lexer, Parser, Interpreter } = require('../dist/index.js');
-
-  const screen = blessed.screen({
-    smartCSR: true,
-    title: 'Sesi',
-    autoPadding: true,
-    resizeTimeout: 100
-  });
-
-  const outputBox = blessed.log({
-    parent: screen,
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%-3',
-    border: { type: 'line' },
-    style: {
-      fg: 'white',
-      border: { fg: 'cyan' }
-    },
-    label: ' Sesi Interactive Terminal (v1.9.0) ',
-    scrollable: true,
-    alwaysScroll: true,
-    mouse: true,
-    keys: true,
-    tags: true,
-    scrollbar: {
-      ch: ' ',
-      track: { bg: 'cyan' },
-      style: { inverse: true }
-    }
-  });
-
-  const inputBox = blessed.textbox({
-    parent: screen,
-    bottom: 0,
-    left: 0,
-    width: '100%',
-    height: 3,
-    border: { type: 'line' },
-    style: {
-      fg: 'green',
-      border: { fg: 'cyan' }
-    },
-    label: ' sesi> ',
-    inputOnFocus: true,
-    tags: true
-  });
-
-  screen.key(['escape', 'C-c'], () => {
-    return process.exit(0);
-  });
-
-  screen.key(['pageup'], () => {
-    outputBox.scroll(-10);
-    screen.render();
-  });
-
-  screen.key(['pagedown'], () => {
-    outputBox.scroll(10);
-    screen.render();
-  });
-
-  screen.on('resize', () => {
-    screen.render();
-  });
 
   const interpreter = new Interpreter(process.cwd());
 
-  // Intercept console.log to output to the blessed log box instead
-  const originalLog = console.log;
-  console.log = (...args) => {
-    outputBox.log(args.join(' '));
-    screen.render();
-  };
-
-  globalThis.sesiTerminalClearHandler = () => {
-    outputBox.setContent('');
-    screen.render();
-  };
-
-  globalThis.sesiTerminalCursorHandler = (x, y) => {
-    // For TUI log box, cursor movement is ignored safely
-  };
-
-  inputBox.on('submit', async (text) => {
-    const trimmed = text.trim();
-    if (trimmed === '.exit') {
-      return process.exit(0);
-    }
-
-    inputBox.clearValue();
-    inputBox.focus();
-
-    if (trimmed) {
-      outputBox.log(`{cyan-fg}sesi>{/cyan-fg} ${trimmed}`);
-      try {
-        const lexer = new Lexer(trimmed);
-        const tokens = lexer.scanTokens();
-        const parser = new Parser(tokens);
-
-        const program = parser.parse();
-
-        for (const statement of program.statements) {
-          if (statement.type === 'ExpressionStatement') {
-            const val = await interpreter.evaluateExpression(statement.expression);
-            if (val !== null && val !== undefined) {
-              outputBox.log(`{green-fg}=> ${JSON.stringify(val)}{/green-fg}`);
-            }
-          } else {
-            await interpreter.interpret({ type: 'Program', statements: [statement] });
-          }
-        }
-      } catch (error) {
-        outputBox.log(`{red-fg}Error: ${error.message}{/red-fg}`);
-      }
-    }
-    screen.render();
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: 'sesi> '
   });
 
-  outputBox.log('{bold}Welcome to Sesi!{/bold} Type code and press Enter.');
-  outputBox.log('Type {cyan-fg}.exit{/cyan-fg} or press {cyan-fg}ESC{/cyan-fg} to quit.');
+  console.log('Welcome to Sesi! Type code and press Enter.');
+  console.log('Type .exit or press Ctrl+C to quit.');
+  rl.prompt();
 
-  inputBox.focus();
-  screen.render();
+  // A trailing `if` with no `else` is held so `else` can follow on the next line
+  let pending = null;
+
+  const endsWithOpenIf = (statement) => {
+    if (!statement || statement.type !== 'IfStatement') return false;
+    let node = statement;
+    while (node.elseBranch && node.elseBranch.type === 'IfStatement') node = node.elseBranch;
+    return !node.elseBranch;
+  };
+
+  // Returns true when the code was held back instead of executed
+  const runCode = async (code, canHold) => {
+    try {
+      const program = new Parser(new Lexer(code).scanTokens()).parse();
+      const statements = program.statements;
+
+      if (canHold && endsWithOpenIf(statements[statements.length - 1])) {
+        pending = code;
+        return true;
+      }
+
+      for (const statement of statements) {
+        if (statement.type === 'ExpressionStatement') {
+          const val = await interpreter.evaluateExpression(statement.expression);
+          if (val !== null && val !== undefined) {
+            console.log(`=> ${JSON.stringify(val)}`);
+          }
+        } else {
+          await interpreter.interpret({ type: 'Program', statements: [statement] });
+        }
+      }
+    } catch (error) {
+      console.error(`Error: ${error.message}`);
+    }
+    return false;
+  };
+
+  const flushPending = async () => {
+    if (pending === null) return;
+    const code = pending;
+    pending = null;
+    await runCode(code, false);
+  };
+
+  // Lines are handled one at a time so async network calls finish before the next prompt
+  let queue = Promise.resolve();
+  rl.on('line', (text) => {
+    queue = queue.then(async () => {
+      const trimmed = text.trim();
+      if (trimmed === '.exit') {
+        await flushPending();
+        rl.close();
+        return;
+      }
+
+      let code = trimmed;
+      if (pending !== null) {
+        if (/^else\b/.test(trimmed)) {
+          code = `${pending}\n${trimmed}`;
+          pending = null;
+        } else {
+          await flushPending();
+        }
+      }
+
+      const held = code ? await runCode(code, true) : false;
+      rl.setPrompt(held ? '...> ' : 'sesi> ');
+      rl.prompt();
+    });
+  });
+
+  rl.on('close', () => {
+    queue.then(flushPending).then(() => process.exit(0));
+  });
 }
 
 const parsed = parseArgs(args);
 
 async function main() {
+  if (parsed.buildFile) {
+    try {
+      if (parsed.buildFile === true) throw new Error('build needs a .sesi file path.');
+      const input = path.resolve(parsed.buildFile);
+      const output = input.replace(/\.sesi$/, '.js');
+      const result = compileSesiForBrowser(input, output);
+      console.log(`Compiled JavaScript: ${output}`);
+      if (result.launchPage) console.log(`Browser launch page: ${result.launchPage}`);
+      if (result.worker) console.log(`Browser request handler: ${result.worker}`);
+      if (result.assets) console.log(`Bundled assets: ${result.assets}`);
+    } catch (error) {
+      console.error(`Browser compilation failed: ${error.message}`);
+      process.exitCode = 1;
+    }
+    return;
+  }
   if (parsed.install) {
     const { runInstall } = require('../dist/index.js');
     await runInstall(parsed.installPackage).catch((error) => {

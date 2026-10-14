@@ -283,6 +283,21 @@ if rendered != "Remix:1:1:generated_by_retrorender.png" { raise_error("Assertion
   } finally {
     fs.rmSync(pngFixture, { force: true });
   }
+  const fontFaceFixture = path.join(process.cwd(), 'tests', '.draw_font_face_fixture.png');
+  try {
+    const fontFaceSource = 'allow "std/draw" in as Draw\nDraw.pixel_rect(0, 0, 480, 140, "#101522", true)\nDraw.pixel_text(10, 8, "Bubble", "#79e6ff", 7, "bubble")\nDraw.pixel_text(10, 72, "IMPACT", "#fff1d0", 8, "impact")\nDraw.save_png("tests/.draw_font_face_fixture.png", 480, 140)';
+    const fontFaceProgram = new Parser(new Lexer(fontFaceSource).scanTokens()).parse();
+    await new Interpreter(undefined, { safeMode: false, allowLocalFs: true }).interpret(fontFaceProgram);
+    const png = fs.readFileSync(fontFaceFixture);
+    if (!png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error('invalid font-face PNG signature');
+    if (png.readUInt32BE(16) !== 480 || png.readUInt32BE(20) !== 140) throw new Error('invalid font-face PNG dimensions');
+    console.log('✓ Draw smooth pixel-text font-face rendering');
+  } catch (error: any) {
+    console.error(`✗ Draw smooth pixel-text font-face rendering: ${error.stack || error.message}`);
+    process.exitCode = 1;
+  } finally {
+    fs.rmSync(fontFaceFixture, { force: true });
+  }
   const checkOnlyFixture = path.join(process.cwd(), 'tests', '.sesi_check_only_fixture.sesi');
   fs.writeFileSync(checkOnlyFixture, 'raise_error("AssertionError", "checkOnly must not execute this file")');
   try {

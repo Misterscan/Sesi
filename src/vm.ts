@@ -536,15 +536,24 @@ export class VM {
               };
             }
 
-            const configuredTools = pick('tools', 'toolSchemas', 'tool_schemas');
+            const configuredTools = pick('tools', 'toolSchemas', 'tool_schemas', 'tool_config');
             const maxToolCalls = pick('max_tool_calls', 'maxToolCalls');
-            const rawImages = pick('images');
+            const rawImages = pick('images', 'imgs', 'imgRefs', 'img_refs');
             const rawSystemPrompt = pick('system', 'system_prompt', 'systemPrompt');
+            const rawAudio = pick('audio', 'audio_path', 'audioPath');
             const imagePaths = Array.isArray(rawImages)
               ? rawImages.map(image => stringify(image))
               : typeof rawImages === 'string' && rawImages.trim() !== ''
                 ? [rawImages]
                 : undefined;
+
+            const rawSearch = pick('search', 'grounding');
+            const searchVal: boolean | undefined = typeof rawSearch === 'boolean'
+              ? rawSearch
+              : typeof rawSearch === 'string'
+                ? (rawSearch === 'google' || rawSearch === 'true')
+                : undefined;
+
             const modelRequest = {
               model: resolvedModel,
               prompt: promptStr,
@@ -556,9 +565,14 @@ export class VM {
               responseSchema: pick('__structured_schema') as Record<string, any> | undefined,
               thinkingLevel: pick('thinkingLevel', 'thinking', 'effort', 'reasoning') as any,
               cache: pick('cache', 'cached') as boolean | undefined,
-              search: pick('search', 'grounding') as boolean | undefined,
+              search: searchVal,
               stream: streamVal,
               images: imagePaths,
+              audio: typeof rawAudio === 'string'
+                ? rawAudio
+                : rawAudio && typeof rawAudio === 'object' && !Array.isArray(rawAudio)
+                  ? rawAudio
+                  : undefined,
             };
             const response = this.interpreter && typeof this.interpreter.callModelWithOrchestration === 'function'
               ? await this.interpreter.callModelWithOrchestration(
@@ -622,6 +636,9 @@ export class VM {
                 prompt: typeof promptVal === 'string' ? promptVal : stringify(promptVal),
                 ratio: config?.ratio as string | undefined,
                 size:  config?.size  as string | undefined,
+                images: Array.isArray(config?.images)
+                  ? config.images.map((value: any) => stringify(value))
+                  : typeof config?.images === 'string' ? [config.images] : undefined,
               });
               this.push(response.text);
             }
@@ -762,7 +779,14 @@ export class VM {
             const source = chunk.constants[this.readByte(frame)] as string;
             const binding = chunk.constants[this.readByte(frame)] as any as string | string[];
             const moduleExports = await this.interpreter.getModuleExports(source);
-            if (typeof binding === 'string') {
+            if (binding === '*') {
+              for (const [key, val] of moduleExports.entries()) {
+                this.globals.set(key, val);
+                if (this.interpreter) {
+                  this.interpreter.globalEnv.define(key, val);
+                }
+              }
+            } else if (typeof binding === 'string') {
               const nsObj: any = Object.create(null);
               for (const [key, val] of moduleExports.entries()) {
                 nsObj[key] = val;
@@ -918,8 +942,12 @@ export class VM {
       const { Interpreter } = require('./interpreter');
       const interp = new Interpreter(this.scriptDir, { ...this.options, modelUsageState: (this.interpreter as any)?.modelUsageState });
       if (this.interpreter) {
+        interp.customToolParent = this.interpreter;
         for (const [k, v] of (this.interpreter as any).modelAliases) {
           interp.setModelAlias(k, v);
+        }
+        for (const [k, v] of (this.interpreter as any).customTools.entries()) {
+          interp.defineCustomTool(k, v.fn, v.description);
         }
       }
       for (const [k, v] of this.globals) interp.globalEnv.define(k, v);
@@ -1027,6 +1055,15 @@ export class VM {
         timeoutMs: this.timeoutMs,
         deadlineAt: this.deadlineAt,
       });
+      if (this.interpreter && (vm as any).interpreter) {
+        (vm as any).interpreter.customToolParent = this.interpreter;
+        for (const [k, v] of (this.interpreter as any).modelAliases.entries()) {
+          (vm as any).interpreter.setModelAlias(k, v);
+        }
+        for (const [k, v] of (this.interpreter as any).customTools.entries()) {
+          (vm as any).interpreter.defineCustomTool(k, v.fn, v.description);
+        }
+      }
       for (const [key, value] of this.globals.entries()) {
         (vm as any).globals.set(key, value);
         (vm as any).interpreter.globalEnv.define(key, value);
@@ -1042,6 +1079,14 @@ export class VM {
       }
       for (const [key, value] of (vm as any).memory.entries()) {
         this.memory.set(key, value);
+      }
+      if (this.interpreter && (vm as any).interpreter) {
+        for (const [k, v] of (vm as any).interpreter.modelAliases.entries()) {
+          (this.interpreter as any).setModelAlias(k, v);
+        }
+        for (const [k, v] of (vm as any).interpreter.customTools.entries()) {
+          (this.interpreter as any).defineCustomTool(k, v.fn, v.description);
+        }
       }
       return result ?? null;
     }

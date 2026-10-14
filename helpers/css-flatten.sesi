@@ -8,159 +8,42 @@
   Usage:
     sesi css-flatten.sesi [input_file_or_dir] [output_dir]
 */
-allow "safe" in as safe
-
-let input_target = "style.css"
-let output_dir = "minified"
-
+allow"safe"in as safe
+let input_target="style.css";let output_dir="minified"
 // Parse CLI arguments
-if len(args) > 0 { input_target = args[0] }
-if len(args) > 1 { output_dir = args[1] }
-
+if len(args)>0{input_target=args[0]}if len(args)>1{output_dir=args[1]}
 // Ensure output directory exists safely
-try {
-  safe.newDir(output_dir)
-} catch (err) {}
-
-fn minify_css(css: string) -> string {
-  // 1. Strip standard comments, but extract and protect JSON comments
-  let parts = split(css, "/*")
-  let uncommented = [parts[0]]
-  let preserved_blocks = []
-  
-  if len(parts) > 1 {
-    for i = 1 to len(parts) {
-      let chunk = parts[i]
-      let end_idx = locate(chunk, "*/")
-      
-      if end_idx != -1 {
-        let comment_body = slice(chunk, 0, end_idx)
-        let after_comment = slice(chunk, end_idx + 2)
-        
-        // Inspect the comment: does it start with a JSON bracket?
-        let trimmed_body = trim(comment_body)
-        let first_char = trunc(trimmed_body, 1)
-        
-        if first_char == "{" {
-          // Reconstruct the exact comment and save it securely
-          prompt exact_comment {"/*" comment_body "*/"}
-          push(preserved_blocks, exact_comment)
-          
-          // Drop a safe, minifier-proof placeholder in the CSS
-          let p_idx = len(preserved_blocks) - 1
-          prompt marker {"___PRESERVED_" p_idx "___"}
-          
-          prompt combined {marker after_comment}
-          push(uncommented, combined)
-        } else {
-          // Standard comment - discard the body
-          push(uncommented, after_comment)
-        }
-      } else {
-        // Malformed comment, ignore and preserve
-        push(uncommented, chunk)
-      }
-    }
-  }
-  
-  let clean_css = join(uncommented, "")
-  
-  // 2. Strip newlines and tabs entirely
-  let newline = "
-"
-  clean_css = swap(clean_css, "\r", "")
-  clean_css = swap(clean_css, newline, "")
-  clean_css = swap(clean_css, "\t", " ")
-  
-  // 3. Collapse multiple spaces into a single space
-  let prev_spaces = ""
-  while prev_spaces != clean_css {
-    prev_spaces = clean_css
-    clean_css = swap(clean_css, "  ", " ")
-  }
-  
-  // 4. Remove unnecessary spaces around CSS delimiters
-  let delimiters = ["{", "}", ":", ";", ","]
-  
-  for d in delimiters {
-    prompt space_before {" " d}
-    prompt space_after {d " "}
-    
-    let prev_clean = ""
-    while prev_clean != clean_css {
-      prev_clean = clean_css
-      clean_css = swap(clean_css, space_before, d)
-      clean_css = swap(clean_css, space_after, d)
-    }
-  }
-  
-  // 5. Final byte-shaving: remove trailing semicolons before closing braces
-  clean_css = swap(clean_css, ";}", "}")
-  
-  // 6. Restore preserved JSON comments back into their placeholders
-  let p = 0
-  while p < len(preserved_blocks) {
-    prompt marker {"___PRESERVED_" p "___"}
-    // Re-inject with a trailing newline so the minified CSS starts cleanly on the next line
-    prompt restored {preserved_blocks[p] newline}
-    clean_css = swap(clean_css, marker, restored)
-    p = p + 1
-  }
-  
-  return trim(clean_css)
-}
-
+try{safe.newDir(output_dir)}catch(err){}fn minify_css(css:string)->string{
+// 1. Strip standard comments, but extract and protect JSON comments
+let parts=split(css,"/*");let uncommented=[parts[0]];let preserved_blocks=[];if len(parts)>1{for i=1 to len(parts){let chunk=parts[i];let end_idx=locate(chunk,"*/");if end_idx!=-1{let comment_body=slice(chunk,0,end_idx);let after_comment=slice(chunk,end_idx+2);
+// Inspect the comment: does it start with a JSON bracket?
+let trimmed_body=trim(comment_body);let first_char=trunc(trimmed_body,1);if first_char=="{"{
+// Reconstruct the exact comment and save it securely
+prompt exact_comment{"/*"comment_body"*/"}push(preserved_blocks,exact_comment);
+// Drop a safe, minifier-proof placeholder in the CSS
+let p_idx=len(preserved_blocks)-1;prompt marker{"___PRESERVED_"p_idx"___"}prompt combined{marker after_comment}push(uncommented,combined)}else{
+// Standard comment - discard the body
+push(uncommented,after_comment)}}else{
+// Malformed comment, ignore and preserve
+push(uncommented,chunk)}}}let clean_css=join(uncommented,"");
+// 2. Strip newlines and tabs entirely
+let newline="
+";clean_css=swap(clean_css,"\r","");clean_css=swap(clean_css,newline,"");clean_css=swap(clean_css,"\t"," ");
+// 3. Collapse multiple spaces into a single space
+let prev_spaces="";while prev_spaces!=clean_css{prev_spaces=clean_css;clean_css=swap(clean_css,"  "," ")}
+// 4. Remove unnecessary spaces around CSS delimiters
+let delimiters=["{","}",":",";",","];for d in delimiters{prompt space_before{" "d}prompt space_after{d" "}let prev_clean="";while prev_clean!=clean_css{prev_clean=clean_css;clean_css=swap(clean_css,space_before,d);clean_css=swap(clean_css,space_after,d)}}
+// 5. Final byte-shaving: remove trailing semicolons before closing braces
+clean_css=swap(clean_css,";}","}");
+// 6. Restore preserved JSON comments back into their placeholders
+let p=0;while p<len(preserved_blocks){prompt marker{"___PRESERVED_"p"___"}
+// Re-inject with a trailing newline so the minified CSS starts cleanly on the next line
+prompt restored{preserved_blocks[p]newline}clean_css=swap(clean_css,marker,restored);p=p+1}return trim(clean_css)}
 // Reusable I/O worker block
-fn process_file(in_path: string, out_path: string) {
-  show "Processing:" in_path
-  try {
-    let source_css = safe.read(in_path)
-    show "Original size:" len(source_css) "bytes"
-    let minified_css = minify_css(source_css)
-    let success = safe.write(out_path, minified_css)
-    
-    if success {
-      show "  -> Saved:" out_path "(" len(minified_css) "bytes )"
-    }
-  } catch (err) {
-    show "  -> File I/O Error processing" in_path ":" err
-  }
-}
-
+fn process_file(in_path:string,out_path:string){show"Processing:"in_path;try{let source_css=safe.read(in_path);show"Original size:"len(source_css)"bytes";let minified_css=minify_css(source_css);let success=safe.write(out_path,minified_css);if success{show"  -> Saved:"out_path"("len(minified_css)"bytes )"}}catch(err){show"  -> File I/O Error processing"in_path":"err}}
 // ---------------------------------------------------------
 // Execution Routing
 // ---------------------------------------------------------
-
-if ends_with(input_target, ".css") {
-  show "Running in Single File Mode..."
-  
-  // Cleanly extract the filename in case the user passed a path (e.g. "src/main.css")
-  let path_parts = split(input_target, "/")
-  let filename = pop(path_parts)
-  
-  prompt target_out {output_dir "/" filename}
-  process_file(input_target, target_out)
-  
-} else {
-  show "Running in Batch Directory Mode..."
-  show "Scanning directory:" input_target
-  
-  try {
-    let files = safe.getFiles(input_target)
-    let count = 0
-    
-    for file in files {
-      if ends_with(file, ".css") {
-        prompt target_in {input_target "/" file}
-        prompt target_out {output_dir "/" file}
-        
-        process_file(target_in, target_out)
-        count = count + 1
-      }
-    }
-    
-    show "Batch complete. Processed" count "files."
-  } catch (err) {
-    show "Error reading directory. Ensure the path exists and permissions are valid." err
-  }
-}
+if ends_with(input_target,".css"){show"Running in Single File Mode...";
+// Cleanly extract the filename in case the user passed a path (e.g. "src/main.css")
+let path_parts=split(input_target,"/");let filename=pop(path_parts);prompt target_out{output_dir"/"filename}process_file(input_target,target_out)}else{show"Running in Batch Directory Mode...";show"Scanning directory:"input_target;try{let files=safe.getFiles(input_target);let count=0;for file in files{if ends_with(file,".css"){prompt target_in{input_target"/"file}prompt target_out{output_dir"/"file}process_file(target_in,target_out);count=count+1}}show"Batch complete. Processed"count"files."}catch(err){show"Error reading directory. Ensure the path exists and permissions are valid."err}}

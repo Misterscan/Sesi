@@ -4,6 +4,7 @@ import {
   type Statement,
   type Expression,
   type FunctionStatement,
+  type MakeStatement,
   type LetStatement,
   type IfStatement,
   type WhileStatement,
@@ -37,6 +38,7 @@ import {
   type ConvertExpression,
 } from './types';
 import { normalizeDocumentation } from './documentation';
+import { desugarMakeStatement } from './make';
 
 import {
   OpCode,
@@ -69,7 +71,7 @@ interface LoopInfo {
 }
 
 // Known Sesi built-in names — compiled to CALL_BUILTIN for a speed win
-const BUILTINS = new Set([
+export const BUILTINS = new Set([
   'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
   'speech', 'from_speech', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
   'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
@@ -180,6 +182,7 @@ export class Compiler {
       switch (stmt.type) {
         case 'LetStatement':       return this.compileLet(stmt);
         case 'FunctionStatement':  return this.compileFn(stmt);
+        case 'MakeStatement':      return this.compileMake(stmt);
         case 'ExpressionStatement':return this.compileExprStmt(stmt);
         case 'BlockStatement':     return this.compileBlock(stmt);
         case 'IfStatement':        return this.compileIf(stmt);
@@ -217,6 +220,10 @@ export class Compiler {
     const idx = addConstant(this.chunk, proto);
     emitBytes(this.chunk, OpCode.CLOSURE, idx, stmt.line);
     this.defineVariable(stmt.name, stmt.line);
+  }
+
+  private compileMake(stmt: MakeStatement): void {
+    this.compileFn(desugarMakeStatement(stmt));
   }
 
   private compileExprStmt(stmt: ExpressionStatement): void {

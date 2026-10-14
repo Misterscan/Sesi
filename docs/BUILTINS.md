@@ -63,21 +63,24 @@ Pass a Gemini text-to-speech model as the third argument to return base64-encode
 
 ---
 
-### from_speech(audio_path, language = null, gemini_model = null) -> string
+### from_speech(audio_path, language = null, model = "gpt-transcribe") -> string
 
-Transcribe an audio file using `nodejs-whisper`. `language` is optional (for example, `"en"` or `"fr"`).
+Transcribe an audio file using OpenAI or Gemini. The default is OpenAI's `gpt-transcribe`.
+`language` is optional (for example, `"en"` or `"fr"`).
 
 ```sesi
 let transcript = from_speech("meeting.wav", "en")
+let openai = from_speech("meeting.wav", "en", "gpt-4o-mini-transcribe")
 let lyrics = "song.wav" | from_speech("en", "gemini-3.1-flash-lite")
 
 show transcript
 show lyrics
 ```
 
-**Returns**: the transcript as text. `nodejs-whisper` and a downloaded model must be installed (`npx nodejs-whisper download base.en`).
+**Returns**: the transcript as text. Set `OPENAI_API_KEY` for OpenAI or `GEMINI_API_KEY` for Gemini.
 
-Pass a Gemini model as the third argument to transcribe through Gemini instead of Whisper.
+The third argument selects the provider by model name. Existing Gemini calls keep the same syntax.
+In compiled browser apps, transcription reads the site's stored or deployed audio and calls the selected provider.
 
 ---
 
@@ -615,8 +618,8 @@ Converts all alphabetic characters in a string to uppercase.
 to_upper("hello")      // "HELLO"
 "hello" | to_upper
 
-to_upper("Sesi V1.9.0")  // "SESI V1.9.0"
-"Sesi V1.9.0" | to_upper
+to_upper("Sesi V1.9.1")  // "SESI V1.9.1"
+"Sesi V1.9.1" | to_upper
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -631,8 +634,8 @@ Converts all alphabetic characters in a string to lowercase.
 to_lower("SESI")      // "sesi"
 "SESI" | to_lower
 
-to_lower("Sesi V1.9.0")  // "sesi v1.9.0"
-"Sesi V1.9.0" | to_lower
+to_lower("Sesi V1.9.1")  // "sesi v1.9.1"
+"Sesi V1.9.1" | to_lower
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -2008,7 +2011,7 @@ Draws raster shape primitives directly into the raster pixel buffer:
 - `pixel_ring(cx, cy, radius, thickness, color)`
 - `pixel_arc(cx, cy, radius, startAngle, endAngle, color)`
 - `pixel_bezier(x1, y1, cx, cy, x2, y2, color)`
-- `pixel_text(x, y, text, color, scale = 1)`
+- `pixel_text(x, y, text, color, scale = 1, font = "classic")` — supports `classic`, `bubble`, and `impact` font faces
 
 ### pixel_grid(grid, palette, scale = 1, x = 0, y = 0)
 
@@ -2456,7 +2459,7 @@ Default behavior is automatic and requires no special syntax:
 
 Each step is an object with at minimum a `"prompt"` string. Optional keys include:
 
-- `"model"` (default: `"gemini-3.7-flash"`)
+- `"model"` (default: `"gemini-3.6-flash"`)
 - `"temperature"`, `"max_tokens"`, `"top_k"`, `"top_p"`
 - `"thinkingLevel"`, `"cache"`, `"search"`, `"system"`
 
@@ -3420,7 +3423,7 @@ JSON serialization and parsing are built in as `to_json(value)` and `from_json(t
 ```sesi
 let original = {
   "project": "Sesi",
-  "version": "1.9.0"
+  "version": "1.9.1"
 }
 let encoded = to_json(original)
 show from_json(encoded).project

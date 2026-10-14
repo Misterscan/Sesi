@@ -1,0 +1,137 @@
+/**
+  An exceptional LRU Cache with TTL expiration.
+  
+  Features:
+  - O(N) LRU tracking via array filtering
+  - Time-To-Live (TTL) expiration per item or globally
+  - Cache statistics tracking (hits, misses, ratios)
+  - Pruning of stale records
+*/
+export make Cache {
+  let store = {}
+  let lru_keys = []
+  let max_size = 1000
+  let default_ttl = 60000
+  let hits = 0
+  let misses = 0
+  /**
+  * Initializes the cache instance.
+  *
+  * Parameters:
+  * - `max_size`: Maximum number of items before LRU eviction.
+  * - `default_ttl`: Default Time-To-Live in milliseconds.
+  */
+  fn start(self, max_size = 1000, default_ttl = 60000) {
+    self.max_size = max_size
+    self.default_ttl = default_ttl
+  }
+  /** Internal helper to mark a key as recently used. */
+  fn _touch(self, key) {
+    fn isNotKey(k) { return k != key }
+    self.lru_keys = filter(self.lru_keys, isNotKey)
+    push(self.lru_keys, key)
+  }
+  /** Internal helper to evict the oldest key. */
+  fn _evict(self) {
+    if len(self.lru_keys) > 0 {
+      let oldest = self.lru_keys[0]
+      self.lru_keys = slice(self.lru_keys, 1)
+      self.store[oldest] = null
+    }
+  }
+  /**
+  * Sets a value in the cache.
+  *
+  * Parameters:
+  * - `key`: The cache key (string).
+  * - `value`: The value to store.
+  * - `ttl`: Optional TTL in milliseconds. Overrides default_ttl.
+  */
+  fn set(self, key, value, ttl = null) {
+    let actual_ttl = self.default_ttl
+    if ttl != null { actual_ttl = ttl }
+    let expiresAt = time() + actual_ttl
+    if self.store[key] == null { if len(self.lru_keys) >= self.max_size { self._evict() } }
+    self.store[key] = { value: value, expiresAt: expiresAt }
+    self._touch(key)
+  }
+  /**
+  * Retrieves a value from the cache.
+  *
+  * Returns:
+  * - The stored value, or null if missing or expired.
+  */
+  fn get(self, key) {
+    let record = self.store[key]
+    if record == null {
+      self.misses = self.misses + 1
+      return null
+    }
+    if time() > record["expiresAt"] {
+      self.delete(key)
+      self.misses = self.misses + 1
+      return null
+    }
+    self.hits = self.hits + 1
+    self._touch(key)
+    return record["value"]
+  }
+  /**
+    Checks if a valid, unexpired key exists in the cache.
+  */
+  fn has(self, key) {
+    let record = self.store[key]
+    if record == null { return false }
+    if time() > record["expiresAt"] { return false }
+    return true
+  }
+  /**
+    Deletes a key from the cache.
+  */
+  fn delete(self, key) {
+    if self.store[key] != null {
+      self.store[key] = null
+      fn isNotKey(k) { return k != key }
+      self.lru_keys = filter(self.lru_keys, isNotKey)
+    }
+  }
+  /**
+    Clears all items and resets statistics.
+  */
+  fn clear(self) {
+    self.store = {}
+    self.lru_keys = []
+    self.hits = 0
+    self.misses = 0
+  }
+  /**
+    Removes all expired items from the cache to free up space.
+  */
+  fn prune(self) {
+    let now = time()
+    let valid_keys = []
+    for key in self.lru_keys {
+      let record = self.store[key]
+      if record != null {
+        if now > record["expiresAt"] { self.store[key] = null
+        } else { push(valid_keys, key) }
+      }
+    }
+    self.lru_keys = valid_keys
+  }
+  /**
+    Returns cache statistics.
+  */
+  fn stats(self) {
+    let total_requests = self.hits + self.misses
+    let hit_ratio = 0
+    if total_requests > 0 { hit_ratio = self.hits / total_requests }
+    return {
+      size: len(self.lru_keys),
+      max_size: self.max_size,
+      hits: self.hits,
+      misses: self.misses,
+      hit_ratio: hit_ratio
+    }
+  }
+}

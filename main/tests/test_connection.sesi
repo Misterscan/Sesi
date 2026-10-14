@@ -1,4 +1,6 @@
 // test_connection.sesi
 show "Testing connection..."
-let response = model("gemini-3.1-flash-lite") {"temperature": 0.1} {"Say 'Connection Successful'"}
+let response = model("gemini-3.1-flash-lite") {"temperature": 0.1} {"Say 'Gemini Connection Successful'"}
 show response
+let second_response = model("gpt-4o-mini") {"temperature": 0.1} {"Say 'GPT Connection Successful'"}
+show second_response

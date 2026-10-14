@@ -1,4 +1,7 @@
 import { AIRuntime } from '../src/ai-runtime';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 declare var process: any;
 
@@ -171,8 +174,18 @@ async function main() {
   console.log('\n5. GPT image generation...');
   {
     let seenBody: any = null;
+    let seenEditBody: any = null;
     const rt = new AIRuntime() as any;
+    let seenAudioBody: any = null;
     rt._openAIClient = {
+      chat: {
+        completions: {
+          create: async (body: any) => {
+            seenAudioBody = body;
+            return { choices: [{ message: { content: 'Dark synthesizers, fast drums, and a tense spoken brief about a neon city.' } }] };
+          },
+        },
+      },
       images: {
         generate: async (body: any) => {
           seenBody = body;
@@ -180,6 +193,16 @@ async function main() {
             data: [
               {
                 b64_json: 'mock-image-base64',
+              },
+            ],
+          };
+        },
+        edit: async (body: any) => {
+          seenEditBody = body;
+          return {
+            data: [
+              {
+                b64_json: 'mock-edited-image-base64',
               },
             ],
           };
@@ -198,6 +221,185 @@ async function main() {
     assert('GPT image prompt is forwarded', seenBody?.prompt === 'a neon robot cat', `got ${seenBody?.prompt}`);
     assert('ratio maps to an OpenAI-compatible size', seenBody?.size === '1536x1024', `got ${seenBody?.size}`);
     assert('GPT image response returns base64', res.text === 'mock-image-base64', `got ${res.text}`);
+
+    const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-gpt-image-edit-'));
+    const fixturePath = path.join(fixtureDir, 'reference.png');
+    try {
+      fs.writeFileSync(fixturePath, Buffer.from('mock-reference-image'));
+      const edited = await rt.callModel({
+        model: 'gpt-image-2',
+        prompt: 'Keep the subject and change the background.',
+        images: [fixturePath],
+        ratio: '1:1',
+        cache: false,
+      });
+
+      assert('reference input routes through images.edit', seenEditBody?.model === 'gpt-image-2');
+      assert('edit prompt is forwarded', seenEditBody?.prompt === 'Keep the subject and change the background.');
+      assert('edit size is forwarded', seenEditBody?.size === '1024x1024');
+      assert('local reference is uploaded', Array.isArray(seenEditBody?.image) && seenEditBody.image.length === 1);
+      assert('reference upload preserves filename', seenEditBody?.image?.[0]?.name === 'reference.png');
+      assert('reference upload preserves MIME type', seenEditBody?.image?.[0]?.type === 'image/png');
+      assert('GPT image edit response returns base64', edited.text === 'mock-edited-image-base64', `got ${edited.text}`);
+
+      const audioImage = await rt.callModel({
+        model: 'gpt-image-2',
+        prompt: 'Create cover art from this sound.',
+        audio: { data: 'mock-mp3-base64', mimeType: 'audio/mpeg' },
+        cache: false,
+      });
+      const audioContent = seenAudioBody?.messages?.[0]?.content;
+      assert('GPT image audio uses an audio-understanding model', seenAudioBody?.model === 'gpt-audio-1.5');
+      assert('GPT image audio requests audio-capable modalities', seenAudioBody?.modalities?.includes('audio'));
+      assert('GPT image audio is nested in a Chat Completions user message', audioContent?.[1]?.type === 'input_audio');
+      assert('GPT image audio format is forwarded', audioContent?.[1]?.input_audio?.format === 'mp3');
+      assert('audio analysis includes non-speech sound in the image prompt', seenBody?.prompt?.includes('Dark synthesizers, fast drums'));
+      assert('audio-conditioned GPT image returns base64', audioImage.text === 'mock-image-base64');
+    } finally {
+      fs.rmSync(fixtureDir, { recursive: true, force: true });
+    }
+  }
+
+  // 6) GPT image input
+  console.log('\n6. GPT image input...');
+  {
+    let seenBody: any = null;
+    const rt = new AIRuntime() as any;
+    rt.postOpenAIResponses = async (body: any) => {
+      seenBody = body;
+      return { status: 'completed', output_text: 'a tiny image' };
+    };
+
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgo=';
+    const res = await rt.callModel({
+      model: 'gpt-5.6-sol',
+      prompt: 'Describe this image.',
+      images: [dataUrl, 'https://example.com/reference.webp'],
+      cache: false,
+    });
+
+    const content = seenBody?.input?.[0]?.content;
+    assert('image input uses a user message', seenBody?.input?.[0]?.role === 'user');
+    assert('data URL is sent as input_image', content?.[0]?.type === 'input_image' && content[0]?.image_url === dataUrl);
+    assert(
+      'HTTP image URL is sent as input_image',
+      content?.[1]?.type === 'input_image' && content[1]?.image_url === 'https://example.com/reference.webp'
+    );
+    assert('prompt is sent as input_text', content?.[2]?.type === 'input_text' && content[2]?.text === 'Describe this image.');
+    assert('returns the GPT vision response', res.text === 'a tiny image', `got ${res.text}`);
+
+    const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-gpt-image-'));
+    const fixturePath = path.join(fixtureDir, 'pixel.png');
+    try {
+      fs.writeFileSync(fixturePath, Buffer.from('mock-png-bytes'));
+      await rt.callModel({
+        model: 'gpt-5.6-sol',
+        prompt: 'Inspect the local image.',
+        images: [fixturePath],
+        cache: false,
+      });
+      const localPart = seenBody?.input?.[0]?.content?.[0];
+      assert(
+        'local image is encoded as a PNG data URL',
+        localPart?.type === 'input_image'
+          && localPart?.image_url === `data:image/png;base64,${Buffer.from('mock-png-bytes').toString('base64')}`
+      );
+    } finally {
+      fs.rmSync(fixtureDir, { recursive: true, force: true });
+    }
+  }
+
+  // 7) GPT audio input
+  console.log('\n7. GPT audio input...');
+  {
+    let seenBody: any = null;
+    let seenAudioBody: any = null;
+    let audioAnalysis = 'A spoken greeting over soft piano and room ambience.';
+    const rt = new AIRuntime() as any;
+    rt._openAIClient = {
+      chat: {
+        completions: {
+          create: async (body: any) => {
+            seenAudioBody = body;
+            return { choices: [{ message: { content: audioAnalysis } }] };
+          },
+        },
+      },
+    };
+    rt.postOpenAIResponses = async (body: any) => {
+      seenBody = body;
+      return {
+        status: 'completed',
+        output_text: 'The recording contains a greeting.',
+        usage: { input_tokens: 19, output_tokens: 5 },
+      };
+    };
+
+    const res = await rt.callModel({
+      model: 'gpt-5.6-sol',
+      prompt: 'What is in this recording?',
+      audio: { data: 'mock-wav-base64', mimeType: 'audio/wav' },
+      cache: false,
+    });
+
+    assert('audio analysis is sent through Responses', seenBody?.model === 'gpt-5.6-sol');
+    assert('audio bytes are attached to the audio-model request', seenAudioBody?.messages?.[0]?.content?.[1]?.input_audio?.data === 'mock-wav-base64');
+    assert('audio-model request enables the audio modality', seenAudioBody?.modalities?.includes('audio'));
+    assert('audio analysis is appended to the prompt', seenBody?.input?.includes('soft piano and room ambience'));
+    assert('no unsupported input_audio block is sent', JSON.stringify(seenBody).includes('input_audio') === false);
+    assert('audio-conditioned model response is returned', res.text === 'The recording contains a greeting.', `got ${res.text}`);
+    assert('audio usage maps input tokens', res.usage?.inputTokens === 19);
+
+    audioAnalysis = '';
+    await rt.callModel({
+      model: 'gpt-5.6-sol',
+      prompt: 'React to this recording.',
+      audio: { data: 'silent-wav-base64', mimeType: 'audio/wav' },
+      cache: false,
+    });
+    assert('empty audio analysis is non-fatal', seenBody?.input?.includes('No audible content could be analyzed'));
+  }
+
+  // 8) Native GPT audio model routing
+  console.log('\n8. Native GPT audio model routing...');
+  {
+    let seenAudioBody: any = null;
+    let responsesCalled = false;
+    const rt = new AIRuntime() as any;
+    rt._openAIClient = {
+      chat: {
+        completions: {
+          create: async (body: any) => {
+            seenAudioBody = body;
+            return {
+              choices: [{ finish_reason: 'stop', message: { audio: { transcript: 'A syncopated electronic track with layered percussion.' } } }],
+              usage: { prompt_tokens: 31, completion_tokens: 9 },
+            };
+          },
+        },
+      },
+    };
+    rt.postOpenAIResponses = async () => {
+      responsesCalled = true;
+      throw new Error('Responses must not be called for GPT audio models.');
+    };
+
+    const result = await rt.callModel({
+      model: 'gpt-audio-1.5',
+      prompt: 'Describe the song.',
+      systemPrompt: 'Focus on musical details.',
+      audio: { data: 'native-audio-base64', mimeType: 'audio/mpeg' },
+      cache: false,
+    });
+
+    const messages = seenAudioBody?.messages;
+    assert('native GPT audio uses the requested model', seenAudioBody?.model === 'gpt-audio-1.5');
+    assert('native GPT audio bypasses Responses', responsesCalled === false);
+    assert('native GPT audio forwards the system prompt', messages?.[0]?.role === 'system');
+    assert('native GPT audio attaches the bytes', messages?.[1]?.content?.[1]?.input_audio?.data === 'native-audio-base64');
+    assert('native GPT audio forwards the MP3 format', messages?.[1]?.content?.[1]?.input_audio?.format === 'mp3');
+    assert('native GPT audio returns the audio transcript', result.text.includes('syncopated electronic track'));
+    assert('native GPT audio maps usage', result.usage?.inputTokens === 31 && result.usage?.outputTokens === 9);
   }
 
   console.log('\n=== Summary ===');

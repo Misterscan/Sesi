@@ -1,3 +1,7 @@
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+
 export interface DryRunDiagnostic {
   severity: 'error' | 'warning';
   code: 'undefined-symbol' | 'unused-symbol';
@@ -19,6 +23,83 @@ interface Declaration {
   token: ScopeToken;
   type: string;
   keywordToken?: ScopeToken;
+}
+
+function exportedNames(source: string): string[] {
+  const tokens = tokenize(source);
+  const names: string[] = [];
+  for (let index = 0; index < tokens.length; index++) {
+    if (tokens[index].type !== 'EXPORT') continue;
+    let cursor = index + 1;
+    if (tokens[cursor]?.type === 'ASYNC') cursor++;
+    if (!['FN', 'MAKE', 'LET'].includes(tokens[cursor]?.type)) continue;
+    const name = tokens[cursor + 1];
+    if (name?.type === 'IDENTIFIER') names.push(name.lexeme);
+  }
+  return names;
+}
+
+function wildcardModulePaths(specifier: string, baseDir?: string): string[] {
+  if (specifier.startsWith('std/')) return [];
+  const searchDirs = [
+    ...(baseDir ? [baseDir] : []),
+    process.cwd(),
+    path.join(process.cwd(), 'sesi_modules'),
+  ];
+  const sesiPath = process.env.SESI_PATH || '';
+  if (sesiPath) {
+    const separator = process.platform === 'win32' ? ';' : ':';
+    searchDirs.push(...sesiPath.split(separator).filter(Boolean));
+  }
+  searchDirs.push(path.join(os.homedir(), '.sesi', 'lib'));
+
+  for (const directory of [...new Set(searchDirs)]) {
+    const resolved = path.resolve(directory, specifier);
+    if (/[\\\/]$/.test(specifier) && fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) {
+      return fs.readdirSync(resolved)
+        .filter(name => name.endsWith('.sesi'))
+        .map(name => path.join(resolved, name));
+    }
+
+    const file = specifier.endsWith('.sesi') ? resolved : `${resolved}.sesi`;
+    if (fs.existsSync(file) && fs.statSync(file).isFile()) return [file];
+    if (fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) {
+      for (const entry of ['index.sesi', 'main.sesi']) {
+        const candidate = path.join(resolved, entry);
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return [candidate];
+      }
+    }
+  }
+  return [];
+}
+
+function wildcardImportDeclarations(tokens: ScopeToken[], baseDir?: string): Declaration[] {
+  const declarations: Declaration[] = [];
+  for (let index = 0; index < tokens.length; index++) {
+    const keywordToken = tokens[index];
+    if (
+      keywordToken.type !== 'ALLOW' ||
+      tokens[index + 1]?.type !== 'STRING' ||
+      tokens[index + 2]?.type !== 'IN' ||
+      tokens[index + 3]?.type !== 'AS' ||
+      tokens[index + 4]?.lexeme !== '*'
+    ) continue;
+
+    const specifier = tokens[index + 1].lexeme.slice(1, -1);
+    const starToken = tokens[index + 4];
+    const names = new Set<string>();
+    for (const modulePath of wildcardModulePaths(specifier, baseDir)) {
+      try {
+        for (const name of exportedNames(fs.readFileSync(modulePath, 'utf8'))) names.add(name);
+      } catch {
+        // Module validation reports missing/unreadable paths separately.
+      }
+    }
+    for (const name of names) {
+      declarations.push({ name, token: starToken, type: 'import', keywordToken });
+    }
+  }
+  return declarations;
 }
 
 interface Reference {
@@ -379,9 +460,10 @@ const BUILTINS = new Set([
   'matrix_sigmoid', 'matrix_dsigmoid', 'matrix_sum_rows', 'matrix_mse',
 ]);
 
-export function runDryRunSemanticChecks(source: string): DryRunDiagnostic[] {
+export function runDryRunSemanticChecks(source: string, baseDir?: string): DryRunDiagnostic[] {
   const tokens = tokenize(source);
   const { decls, refs } = findDeclarationsAndReferences(tokens);
+  decls.push(...wildcardImportDeclarations(tokens, baseDir));
   const root = new DryScope();
   let current = root;
   let skipNextBraceScope = false;

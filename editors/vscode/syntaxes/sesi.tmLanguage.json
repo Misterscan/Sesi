@@ -300,7 +300,7 @@
         },
         {
           "name": "constant.other.property.sesi",
-          "match": "\\b(system|system_prompt|systemPrompt|temperature|temp|max_tokens|maxTokens|maxT|top_p|topP|topK|top_k|thinkingLevel|thinking|effort|reasoning|cache|cached|search|grounding|images|imgs|img_refs|imgRefs|imgRatio|imageRatio|ratio|aspectRatio|size|imgSize|image_size|resolution|duration_seconds|negative_prompt|negativePrompt|generate_audio|generateAudio|poll_interval|pollInterval|task|tool|tool_config|tool_schema|toolSchemas|max_tool_calls|maxToolCalls|output_type|file_type|max_retries|stream|stop|seed|summary|tags|base_path|response|title|version|description|browser|editor|viewer|image_viewer|mode)\\b"
+          "match": "\\b(system|system_prompt|systemPrompt|temperature|temp|max_tokens|maxTokens|maxT|top_p|topP|topK|top_k|thinkingLevel|thinking|effort|reasoning|cache|cached|search|grounding|audio|audio_path|audioPath|images|imgs|img_refs|imgRefs|imgRatio|imageRatio|ratio|aspectRatio|size|imgSize|image_size|resolution|duration_seconds|negative_prompt|negativePrompt|generate_audio|generateAudio|poll_interval|pollInterval|task|tools|tool_config|tool_schema|toolSchemas|max_tool_calls|maxToolCalls|output_type|file_type|max_retries|stream|stop|seed|summary|tags|base_path|response|title|version|description|browser|editor|viewer|image_viewer|mode)\\b"
         },
         {
           "name": "keyword.declaration.sesi",

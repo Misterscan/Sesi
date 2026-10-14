@@ -91,11 +91,6 @@ function getOpenAIEncodingAlias(modelName: string): string | null {
   return null;
 }
 
-// Keep ESM-only optional runtime packages compatible with Sesi's CommonJS build.
-async function importEsmModule(specifier: string): Promise<any> {
-  return await (new Function('specifier', 'return import(specifier)'))(specifier);
-}
-
 function getTokenEncoder(modelName: string, encodingName?: string, allowFallback: boolean = false): TokenEncoder {
   const cacheKey = `${modelName}::${encodingName || ''}::${allowFallback}`;
   const cached = tokenEncoderCache.get(cacheKey);
@@ -967,174 +962,36 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
   builtins.set('from_speech', {
     type: 'function',
     name: 'from_speech',
-    params: [{ name: 'audio_path' }, { name: 'language' }, { name: 'gemini_model' }],
+    params: [{ name: 'audio_path' }, { name: 'language' }, { name: 'model' }],
     body: {} as any,
     closure: {} as any,
     isBuiltin: true,
-    builtin: async (audio: RuntimeValue, language: RuntimeValue = null, geminiModel: RuntimeValue = null): Promise<RuntimeValue> => {
+    builtin: async (audio: RuntimeValue, language: RuntimeValue = null, model: RuntimeValue = null): Promise<RuntimeValue> => {
       if (typeof audio !== 'string' || audio.trim() === '') {
         throw new Error('from_speech() expects an audio file path');
       }
       if (language !== null && typeof language !== 'string') {
         throw new Error('from_speech() language must be a string or null');
       }
-      if (geminiModel !== null && (typeof geminiModel !== 'string' || geminiModel.trim() === '')) {
-        throw new Error('from_speech() gemini model must be a non-empty string or null');
+      if (model !== null && (typeof model !== 'string' || model.trim() === '')) {
+        throw new Error('from_speech() model must be a non-empty string or null');
       }
       const safePath = ensureSafePath(audio, interpreter);
       if (!fs.existsSync(safePath)) {
         throw new Error(`from_speech() audio file does not exist: ${audio}`);
       }
-
-      if (typeof geminiModel === 'string') {
-        const extension = path.extname(safePath).toLowerCase();
-        const mimeTypes: Record<string, string> = {
-          '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4',
-          '.ogg': 'audio/ogg', '.flac': 'audio/flac', '.aac': 'audio/aac', '.webm': 'audio/webm',
-        };
-        return await aiRuntime.transcribeSpeech(
-          fs.readFileSync(safePath).toString('base64'),
-          mimeTypes[extension] || 'application/octet-stream',
-          language || undefined,
-          geminiModel
-        );
-      }
-
-      const transcribeWithSmartWhisper = async (): Promise<RuntimeValue> => {
-        const { convertToWavType } = await importEsmModule('nodejs-whisper/dist/utils');
-        const wav = await importEsmModule('node-wav');
-        const { Whisper, manager } = await importEsmModule('smart-whisper');
-
-        const wavPath = await convertToWavType(safePath, console);
-        const buffer = fs.readFileSync(wavPath);
-        const decoded = wav.decode(buffer);
-        if (!decoded?.channelData?.[0]) {
-          throw new Error('smart-whisper failed to decode audio into mono channel data');
-        }
-
-        const modelName = 'base.en';
-        if (!manager.check(modelName)) {
-          await manager.download(modelName);
-        }
-        const modelPath = manager.resolve(modelName);
-        const whisper = new Whisper(modelPath, { gpu: false });
-        try {
-          const task = await whisper.transcribe(decoded.channelData[0], {
-            language: typeof language === 'string' && language.trim() !== '' ? language : 'auto',
-            n_threads: 4,
-            suppress_blank: true,
-            suppress_non_speech_tokens: false,
-          });
-          const results = await task.result;
-          const text = results
-            .map((segment: any) => (segment?.text || '').trim())
-            .filter((segment: string) => segment.length > 0)
-            .join(' ')
-            .trim();
-          if (!text) throw new Error('smart-whisper produced no transcript');
-          return text;
-        } finally {
-          await whisper.free();
-        }
+      const mimeTypes: Record<string, string> = {
+        '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.mp4': 'audio/mp4', '.m4a': 'audio/mp4',
+        '.mpeg': 'audio/mpeg', '.mpga': 'audio/mpeg', '.ogg': 'audio/ogg', '.flac': 'audio/flac',
+        '.aac': 'audio/aac', '.webm': 'audio/webm',
       };
-
-      try {
-        // nodejs-whisper constructs a command before build; pre-create/verify executable first.
-        const { WHISPER_CPP_PATH } = await importEsmModule('nodejs-whisper/dist/constants');
-        const { getCmakeConfigureCommand } = await importEsmModule('nodejs-whisper/dist/buildConfig');
-        const { nodewhisper } = await importEsmModule('nodejs-whisper');
-
-        const execName = process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli';
-        const mainName = process.platform === 'win32' ? 'main.exe' : 'main';
-
-        const expectedExecPaths = [
-          path.join(WHISPER_CPP_PATH, 'build', 'bin', execName),
-          path.join(WHISPER_CPP_PATH, 'build', 'bin', 'Release', execName),
-          path.join(WHISPER_CPP_PATH, 'build', 'bin', 'Debug', execName),
-          path.join(WHISPER_CPP_PATH, 'build', execName),
-          path.join(WHISPER_CPP_PATH, execName),
-        ];
-        const possibleMainPaths = [
-          path.join(WHISPER_CPP_PATH, 'build', 'bin', mainName),
-          path.join(WHISPER_CPP_PATH, 'build', 'bin', 'Release', mainName),
-          path.join(WHISPER_CPP_PATH, 'build', 'bin', 'Debug', mainName),
-          path.join(WHISPER_CPP_PATH, 'build', mainName),
-          path.join(WHISPER_CPP_PATH, mainName),
-        ];
-
-        const findExistingExec = (): string | null => {
-          for (const p of expectedExecPaths) {
-            if (fs.existsSync(p)) return p;
-          }
-          return null;
-        };
-
-        const existingBeforeBuild = findExistingExec();
-        if (!existingBeforeBuild) {
-          try {
-            execSync(getCmakeConfigureCommand(false), { cwd: WHISPER_CPP_PATH, stdio: 'pipe' });
-          } catch {
-            // If already configured, build may still succeed.
-          }
-          execSync('cmake --build build --config Release', { cwd: WHISPER_CPP_PATH, stdio: 'pipe' });
-        }
-
-        let executablePath = findExistingExec();
-        if (!executablePath) {
-          const fallbackMain = possibleMainPaths.find((p) => fs.existsSync(p));
-          if (fallbackMain) {
-            const primaryExecPath = expectedExecPaths[0];
-            fs.mkdirSync(path.dirname(primaryExecPath), { recursive: true });
-            if (process.platform === 'win32') {
-              fs.copyFileSync(fallbackMain, primaryExecPath);
-            } else {
-              fs.writeFileSync(primaryExecPath, `#!/usr/bin/env bash\n\"${fallbackMain}\" \"$@\"\n`, 'utf8');
-              fs.chmodSync(primaryExecPath, 0o755);
-            }
-            executablePath = findExistingExec();
-          }
-        }
-
-        if (!executablePath) {
-          throw new Error(`from_speech() could not prepare whisper-cli. Checked: ${expectedExecPaths.join(', ')}`);
-        }
-
-        if (process.platform !== 'win32') {
-          try {
-            fs.chmodSync(executablePath, 0o755);
-          } catch {
-            // Best effort; if this fails nodejs-whisper will report execution details.
-          }
-        }
-
-        const transcript = await nodewhisper(safePath, {
-          modelName: 'base.en',
-          autoDownloadModelName: 'base.en',
-          whisperOptions: {
-            outputInText: true,
-            ...(typeof language === 'string' && language.trim() !== '' ? { language } : {}),
-          },
-        });
-        if (!transcript) throw new Error('Whisper produced no transcript');
-        return typeof transcript === 'string' ? transcript.trim() : String(transcript).trim();
-      } catch (error: any) {
-        const details = String(error?.message || error || '');
-        if (
-          details.includes('whisper-cli executable not found') ||
-          details.includes('could not prepare whisper-cli') ||
-          details.includes('cmake: command not found') ||
-          details.includes('requires CMake')
-        ) {
-          try {
-            return await transcribeWithSmartWhisper();
-          } catch (smartError: any) {
-            throw new Error(
-              `from_speech() local Whisper failed: ${details}. smart-whisper fallback also failed: ${smartError.message}. Install CMake to build whisper-cli (macOS: brew install cmake), or pass an explicit gemini_model to opt in to remote transcription.`
-            );
-          }
-        }
-        throw new Error(`from_speech() requires nodejs-whisper and a downloaded model. ${error.message}`);
-      }
+      return await aiRuntime.transcribeSpeech(
+        fs.readFileSync(safePath).toString('base64'),
+        mimeTypes[path.extname(safePath).toLowerCase()] || 'application/octet-stream',
+        language?.trim() || undefined,
+        typeof model === 'string' ? model : undefined,
+        path.basename(safePath)
+      );
     },
   });
 
@@ -3161,6 +3018,10 @@ ${bodyText}
         for (const [k, v] of (interpreter as any).modelAliases.entries()) {
           (subInterpreter as any).setModelAlias(k, v);
         }
+        (subInterpreter as any).customToolParent = interpreter;
+        for (const [k, v] of (interpreter as any).customTools.entries()) {
+          (subInterpreter as any).defineCustomTool(k, v.fn, v.description);
+        }
         (subInterpreter as any).prompts = new Map((interpreter as any).prompts);
         (subInterpreter as any).memory = new Map((interpreter as any).memory);
 
@@ -3217,7 +3078,7 @@ ${bodyText}
 
         const modelName = typeof stepObj.model === 'string' && stepObj.model.trim() !== ''
           ? stepObj.model
-          : 'gemini-3.7-flash';
+          : 'gemini-3.6-flash';
         const model = interpreter && typeof (interpreter as any).resolveModelName === 'function'
           ? (interpreter as any).resolveModelName(modelName)
           : modelName;
@@ -3901,6 +3762,10 @@ ${bodyText}
             args: interpreter.args,
             modelUsageState: (interpreter as any).modelUsageState,
           });
+          subInterpreter.customToolParent = interpreter;
+          for (const [k, v] of (interpreter as any).customTools.entries()) {
+            subInterpreter.defineCustomTool(k, v.fn, v.description);
+          }
           await subInterpreter.interpret(program);
 
           const handler = subInterpreter.exports.get(exportNameVal);

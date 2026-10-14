@@ -1,0 +1,609 @@
+/*
+  Chart generation and plotting library for Sesi.
+  Provides rendering utilities for vector SVG and raster PNG charts including
+  bar charts, line charts, scatter plots, and pie charts.
+*/
+
+allow "std/draw" in as Draw
+allow "std/math" in as Math
+/**
+  Default color palette used for chart elements, series, and slices.
+
+  Fields:
+  - `palette`: Array of 7 hex color strings used sequentially when custom colors are omitted.
+
+  Notes:
+  - Colors are indexed modulo length to ensure infinite cycling without bounds errors.
+
+  Output:
+  - An array containing hex color values: `["#2563eb", "#e11d48", "#16a34a", "#d97706", "#7c3aed", "#0891b2", "#db2777"]`.
+*/
+let palette = ["#2563eb", "#e11d48", "#16a34a", "#d97706", "#7c3aed", "#0891b2", "#db2777"]
+/**
+  Determines whether a chart should be rendered as a raster PNG or vector SVG based on output path or options.
+
+  Parameters:
+  - `path`: Output destination file path string.
+  - `options`: Configuration object containing optional format flags.
+
+  Returns:
+  - `true` if target format is PNG; otherwise `false`.
+
+  Example:
+  ```sesi
+  let isRaster = is_png("chart.png", {})
+  show isRaster // true
+  ```
+
+  Notes:
+  - Checks if `options.format == "png"` or if the lowercase file extension contains `".png"`.
+*/
+fn is_png(path, options) { return options.format == "png" || contains(to_lower(path), ".png") }
+/**
+  Retrieves a color for a specific index from custom options or falls back to the default palette.
+
+  Parameters:
+  - `index`: Zero-based numeric index of the item or series.
+  - `options`: Chart configuration object with optional `colors` array.
+
+  Returns:
+  - A hex color string.
+
+  Example:
+  ```sesi
+  let color = color_at(2, {colors: ["#ff0000", "#00ff00", "#0000ff"]})
+  show color // "#0000ff"
+  ```
+
+  Notes:
+  - Cycles cleanly across the length of the chosen color set using modulo math.
+*/
+fn color_at(index, options) {
+  let colors = options.colors || palette
+  if len(colors) == 0 { return "#2563eb" }
+  return colors[index % len(colors)]
+}
+/**
+  Draws a line on the chart canvas supporting both raster and vector modes.
+
+  Parameters:
+  - `x1`: Starting X-coordinate.
+  - `y1`: Starting Y-coordinate.
+  - `x2`: Ending X-coordinate.
+  - `y2`: Ending Y-coordinate.
+  - `color`: Stroke color string.
+  - `png`: Boolean flag indicating if rendering to a raster PNG buffer.
+  - `width`: Stroke width (used in SVG mode; defaults to `1`).
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  chart_line(10, 10, 100, 10, "#334155", false, 2)
+  ```
+
+  Notes:
+  - Coordinates are rounded when rendering to the pixel raster buffer.
+*/
+fn chart_line(x1, y1, x2, y2, color, png, width = 1) {
+  if png { Draw.pixel_line(Math.round(x1), Math.round(y1), Math.round(x2), Math.round(y2), color)
+  } else { Draw.line(x1, y1, x2, y2, color, {"stroke-width": width}) }
+}
+/**
+  Draws a rectangle on the chart canvas supporting both raster and vector modes.
+
+  Parameters:
+  - `x`: Top-left X-coordinate.
+  - `y`: Top-left Y-coordinate.
+  - `width`: Width of the rectangle.
+  - `height`: Height of the rectangle.
+  - `color`: Fill color string.
+  - `png`: Boolean flag indicating if rendering to a raster PNG buffer.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  chart_rect(0, 0, 800, 450, "#ffffff", false)
+  ```
+
+  Notes:
+  - In PNG mode, draws a filled pixel rectangle.
+*/
+fn chart_rect(x, y, width, height, color, png) {
+  if png { Draw.pixel_rect(Math.round(x), Math.round(y), Math.round(width), Math.round(height), color, true)
+  } else { Draw.rect(x, y, width, height, color) }
+}
+/**
+  Draws a circle on the chart canvas supporting both raster and vector modes.
+
+  Parameters:
+  - `x`: Center X-coordinate.
+  - `y`: Center Y-coordinate.
+  - `radius`: Circle radius.
+  - `color`: Fill color string.
+  - `png`: Boolean flag indicating if rendering to a raster PNG buffer.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  chart_circle(150, 150, 5, "#2563eb", false)
+  ```
+
+  Notes:
+  - In PNG mode, draws a solid filled pixel circle with rounded integer coordinates.
+*/
+fn chart_circle(x, y, radius, color, png) {
+  if png { Draw.pixel_circle(Math.round(x), Math.round(y), Math.round(radius), color, true)
+  } else { Draw.circle(x, y, radius, color) }
+}
+/**
+  Renders text onto the chart canvas in SVG or raster PNG format.
+
+  Parameters:
+  - `x`: X-coordinate for text placement.
+  - `y`: Y-coordinate for text placement.
+  - `value`: String or numeric content to display.
+  - `color`: Fill/text color string.
+  - `png`: Boolean flag indicating if rendering to a raster PNG buffer.
+  - `size`: Font size in pixels (SVG mode; defaults to `13`).
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  chart_text(24, 30, "Quarterly Revenue", "#334155", false, 20)
+  ```
+
+  Notes:
+  - In PNG mode, offsets the Y position by `-12` and renders using the built-in bitmap pixel font.
+*/
+fn chart_text(x, y, value, color, png, size = 13) {
+  if png { Draw.pixel_text(Math.round(x), Math.round(y - 12), str(value), color, 1, "classic")
+  } else { Draw.text(x, y, str(value), size, color) }
+}
+/**
+  Initializes a fresh chart frame by clearing draw buffers and applying background color.
+
+  Parameters:
+  - `width`: Canvas width in pixels.
+  - `height`: Canvas height in pixels.
+  - `background`: Background fill color string.
+  - `png`: Boolean flag indicating raster mode.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  begin_chart(800, 450, "#ffffff", false)
+  ```
+
+  Notes:
+  - Resets all internal drawing state before adding the background.
+*/
+fn begin_chart(width, height, background, png) {
+  Draw.clear()
+  chart_rect(0, 0, width, height, background, png)
+}
+/**
+  Saves the rendered chart to a file and resets the drawing buffers.
+
+  Parameters:
+  - `path`: Target file output path.
+  - `width`: Image width in pixels.
+  - `height`: Image height in pixels.
+  - `background`: Background color string (used for PNG encoding).
+  - `png`: Boolean flag indicating whether to save as PNG or SVG.
+
+  Returns:
+  - The destination file path string.
+
+  Example:
+  ```sesi
+  let file = end_chart("output.svg", 800, 450, "#ffffff", false)
+  show "Saved chart to:" file
+  ```
+
+  Notes:
+  - Clears the active draw buffer after saving to prevent leaking drawing operations into subsequent calls.
+*/
+fn end_chart(path, width, height, background, png) {
+  if png { Draw.save_png(path, width, height, background)
+  } else { Draw.save_svg(path, width, height) }
+  Draw.clear()
+  return path
+}
+/**
+  Renders the chart title at the top left of the canvas if provided.
+
+  Parameters:
+  - `title`: Title string to render.
+  - `foreground`: Text color string.
+  - `png`: Boolean flag indicating raster mode.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  draw_title("System Metrics", "#334155", false)
+  ```
+
+  Notes:
+  - Silently skips rendering if `title` is null or empty.
+*/
+fn draw_title(title, _width, foreground, png) { if title { chart_text(24, 30, title, foreground, png, 20) } }
+/**
+  Draws the vertical Y-axis ticks, labels, and tick lines on the left side of the chart area.
+
+  Parameters:
+  - `left`: Left boundary coordinate of the plot area.
+  - `top`: Top boundary coordinate of the plot area.
+  - `bottom`: Bottom boundary coordinate of the plot area.
+  - `maximum`: Maximum numeric data value scaled across the axis.
+  - `grid_color`: Stroke color for the axis tick marks.
+  - `foreground`: Text color for value labels.
+  - `png`: Boolean flag indicating raster mode.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  draw_y_axis(72, 58, 385, 100, "#e2e8f0", "#334155", false)
+  ```
+
+  Notes:
+  - Generates 6 evenly spaced ticks from `0` to `maximum`. Values are rounded to 2 decimal places.
+*/
+fn draw_y_axis(left, top, bottom, maximum, grid_color, foreground, png) {
+  let plot_height = bottom - top
+  for tick = 0 to 6 {
+    let value = maximum * tick / 5
+    let y = bottom - plot_height * tick / 5
+    chart_line(left, y, left + 1, y, grid_color, png)
+    chart_text(8, y + 4, Math.round(value * 100) / 100, foreground, png, 11)
+  }
+}
+/**
+  Internal shared rendering engine for bar and line charts.
+
+  Parameters:
+  - `kind`: Chart type string (`"bar"` or `"line"`).
+  - `labels`: Array of label strings for the X-axis categories.
+  - `values`: Array of numeric values corresponding to each label.
+  - `path`: Output destination file path string.
+  - `options`: Configuration object for chart dimensions, styling, and colors.
+
+  Returns:
+  - The saved file path string.
+
+  Example:
+  ```sesi
+  let file = plot_chart("bar", ["A", "B", "C"], [10, 25, 18], "chart.svg", {title: "Overview"})
+  show file
+  ```
+
+  Notes:
+  - Normalizes chart bounds, computes scales, renders gridlines, axis lines, data series, and category labels.
+*/
+fn plot_chart(kind, labels, values, path, options) {
+  let width = Math.max(240, options.width || 800)
+  let height = Math.max(200, options.height || 450)
+  let png = is_png(path, options)
+  let background = options.background || "#ffffff"
+  let foreground = options.foreground || "#334155"
+  let grid_color = options.grid_color || "#e2e8f0"
+  let left = 72
+  let right = width - 28
+  let top = 58
+  let bottom = height - 65
+  let count = len(values)
+  let maximum = 1
+  for value in values { if value > maximum { maximum = value } }
+  begin_chart(width, height, background, png)
+  draw_title(options.title, width, foreground, png)
+  for tick = 0 to 6 {
+    let y = bottom - (bottom - top) * tick / 5
+    chart_line(left, y, right, y, grid_color, png)
+  }
+  draw_y_axis(left, top, bottom, maximum, grid_color, foreground, png)
+  chart_line(left, top, left, bottom, foreground, png)
+  chart_line(left, bottom, right, bottom, foreground, png)
+  if count > 0 {
+    let step = (right - left) / count
+    let previous_x = null
+    let previous_y = null
+    for i = 0 to count {
+      let value = Math.max(0, values[i])
+      let x = left + step * (i + 0.5)
+      let y = bottom - value / maximum * (bottom - top)
+      let label = labels[i]
+      if label != null { chart_text(x - step * 0.3, bottom + 22, label, foreground, png, 11) }
+      if kind == "bar" {
+        let bar_width = step * 0.65
+        chart_rect(x - bar_width / 2, y, bar_width, bottom - y, color_at(i, options), png)
+      } else {
+        if previous_x != null { chart_line(previous_x, previous_y, x, y, options.line_color || color_at(0, options), png, 2) }
+        chart_circle(x, y, 4, options.point_color || color_at(0, options), png)
+        previous_x = x
+        previous_y = y
+      }
+    }
+  }
+  return end_chart(path, width, height, background, png)
+}
+/**
+  Generates and exports a 2D vertical bar chart to an SVG or PNG file.
+
+  Parameters:
+  - `labels`: Array of strings representing category names on the X-axis.
+  - `values`: Array of numeric values corresponding to each bar.
+  - `path`: Output destination file path (`.svg` or `.png`).
+  - `options`: Optional configuration settings (width, height, background, foreground, colors, title).
+
+  Returns:
+  - The saved file path string.
+
+  Example:
+  ```sesi
+  let file = bar_chart(["Q1", "Q2", "Q3", "Q4"], [120, 190, 300, 250], "sales.svg", {
+    title: "Quarterly Sales",
+    width: 800,
+    height: 400
+  })
+  show "Saved bar chart:" file
+  ```
+
+  Notes:
+  - Automatically adjusts scaling, bar widths, and colors.
+*/
+export fn bar_chart(labels, values, path, options = null) { return plot_chart("bar", labels, values, path, options) }
+/**
+  Generates and exports a 2D line chart with data points and connecting lines.
+
+  Parameters:
+  - `labels`: Array of strings representing category or time labels on the X-axis.
+  - `values`: Array of numeric values for each data point.
+  - `path`: Output destination file path (`.svg` or `.png`).
+  - `options`: Optional configuration settings (title, width, height, line_color, point_color, background).
+
+  Returns:
+  - The saved file path string.
+
+  Example:
+  ```sesi
+  let file = line_chart(["Jan", "Feb", "Mar", "Apr"], [10, 22, 18, 35], "trend.png", {
+    title: "Monthly Growth",
+    line_color: "#2563eb"
+  })
+  show "Saved line chart:" file
+  ```
+
+  Notes:
+  - Automatically handles minimum values, scales axes, and connects consecutive points.
+*/
+export fn line_chart(labels, values, path, options = null) { return plot_chart("line", labels, values, path, options) }
+/**
+  Generates and exports a 2D Cartesian scatter plot with custom X/Y data coordinates.
+
+  Parameters:
+  - `points`: Array of objects each having `{x: number, y: number, color?: string}`.
+  - `path`: Output destination file path (`.svg` or `.png`).
+  - `options`: Optional configuration settings (title, width, height, point_radius, grid_color, background, foreground).
+
+  Returns:
+  - The saved file path string.
+
+  Example:
+  ```sesi
+  let data = [
+    {x: 5, y: 12, color: "#e11d48"},
+    {x: 10, y: 24, color: "#2563eb"},
+    {x: 15, y: 19}
+  ]
+  let file = scatter_chart(data, "scatter.svg", {title: "Correlation Analysis"})
+  show "Saved scatter chart:" file
+  ```
+
+  Notes:
+  - Computes dynamic domain and range bounds from provided coordinates.
+  - Supports custom individual point colors via `point.color` or falls back to the configured palette.
+*/
+export fn scatter_chart(points, path, options = null) {
+  let width = Math.max(240, options.width || 800)
+  let height = Math.max(200, options.height || 450)
+  let png = is_png(path, options)
+  let background = options.background || "#ffffff"
+  let foreground = options.foreground || "#334155"
+  let grid_color = options.grid_color || "#e2e8f0"
+  let left = 72
+  let right = width - 28
+  let top = 58
+  let bottom = height - 55
+  let x_min = 0
+  let x_max = 1
+  let y_min = 0
+  let y_max = 1
+  if len(points) > 0 {
+    x_min = points[0].x
+    x_max = points[0].x
+    y_min = points[0].y
+    y_max = points[0].y
+    for point in points {
+      x_min = Math.min(x_min, point.x)
+      x_max = Math.max(x_max, point.x)
+      y_min = Math.min(y_min, point.y)
+      y_max = Math.max(y_max, point.y)
+    }
+    if x_min == x_max { x_max = x_min + 1 }
+    if y_min == y_max { y_max = y_min + 1 }
+  }
+  begin_chart(width, height, background, png)
+  draw_title(options.title, width, foreground, png)
+  for tick = 0 to 6 {
+    let x = left + (right - left) * tick / 5
+    let y = bottom - (bottom - top) * tick / 5
+    chart_line(x, top, x, bottom, grid_color, png)
+    chart_line(left, y, right, y, grid_color, png)
+    chart_text(x - 8, bottom + 20, Math.round((x_min + (x_max - x_min) * tick / 5) * 100) / 100, foreground, png, 11)
+    chart_text(8, y + 4, Math.round((y_min + (y_max - y_min) * tick / 5) * 100) / 100, foreground, png, 11)
+  }
+  chart_line(left, top, left, bottom, foreground, png)
+  chart_line(left, bottom, right, bottom, foreground, png)
+  for i = 0 to len(points) {
+    let point = points[i]
+    let x = left + (point.x - x_min) / (x_max - x_min) * (right - left)
+    let y = bottom - (point.y - y_min) / (y_max - y_min) * (bottom - top)
+    chart_circle(x, y, options.point_radius || 5, point.color || color_at(i, options), png)
+  }
+  return end_chart(path, width, height, background, png)
+}
+/**
+  Generates and exports a pie chart with slice segments and a color legend.
+
+  Parameters:
+  - `labels`: Array of label strings describing each pie slice.
+  - `values`: Array of positive numeric weights or counts corresponding to each slice.
+  - `path`: Output destination file path (`.svg` or `.png`).
+  - `options`: Optional configuration settings (title, width, height, colors, background, foreground).
+
+  Returns:
+  - The saved file path string.
+
+  Example:
+  ```sesi
+  let file = pie_chart(["Frontend", "Backend", "DevOps"], [40, 45, 15], "distribution.svg", {
+    title: "Resource Allocation"
+  })
+  show "Saved pie chart:" file
+  ```
+
+  Notes:
+  - In SVG mode, renders precise arc path shapes.
+  - In PNG mode, uses angular ray-marching to draw filled raster triangular sectors.
+  - Automatically draws a right-aligned legend key for all slices.
+*/
+export fn pie_chart(labels, values, path, options = null) {
+  let width = Math.max(280, options.width || 800)
+  let height = Math.max(220, options.height || 450)
+  let png = is_png(path, options)
+  let background = options.background || "#ffffff"
+  let foreground = options.foreground || "#334155"
+  let center_x = width * 0.36
+  let center_y = height * 0.53
+  let radius = Math.min(width * 0.27, height * 0.37)
+  let total = 0
+  for value in values { if value > 0 { total = total + value } }
+  begin_chart(width, height, background, png)
+  draw_title(options.title, width, foreground, png)
+  if total > 0 {
+    let angle = -Math.PI / 2
+    for i = 0 to len(values) {
+      let value = Math.max(0, values[i])
+      if value > 0 {
+        let next_angle = angle + value / total * Math.PI * 2
+        let color = color_at(i, options)
+        if png {
+          let segment_angle = angle
+          while segment_angle < next_angle {
+            let end_angle = Math.min(segment_angle + Math.PI / 90, next_angle)
+            Draw.pixel_triangle( Math.round(center_x), Math.round(center_y), Math.round(center_x + radius * Math.cos(segment_angle)), Math.round(center_y + radius * Math.sin(segment_angle)), Math.round(center_x + radius * Math.cos(end_angle)), Math.round(center_y + radius * Math.sin(end_angle)), color, true)
+            segment_angle = end_angle
+          }
+        } else {
+          let x1 = center_x + radius * Math.cos(angle)
+          let y1 = center_y + radius * Math.sin(angle)
+          let x2 = center_x + radius * Math.cos(next_angle)
+          let y2 = center_y + radius * Math.sin(next_angle)
+          let large_arc = 0
+          if next_angle - angle > Math.PI { large_arc = 1 }
+          if value == total { Draw.circle(center_x, center_y, radius, color)
+          } else {
+            let path_data = "M " + str(center_x) + " " + str(center_y) + " L " + str(x1) + " " + str(y1) + " A " + str(radius) + " " + str(radius) + " 0 " + str(large_arc) + " 1 " + str(x2) + " " + str(y2) + " Z"
+            Draw.path(path_data, color)
+          }
+        }
+        angle = next_angle
+      }
+      let legend_y = 70 + i * 25
+      chart_rect(width * 0.69, legend_y - 12, 12, 12, color_at(i, options), png)
+      let label = labels[i]
+      if label == null { label = str(i + 1) }
+      chart_text(width * 0.69 + 20, legend_y, label, foreground, png, 12)
+    }
+  }
+  return end_chart(path, width, height, background, png)
+}
+fn testall() {
+  show bar_chart(["A", "B", "C", "D"], [30, 70, 45, 55], "test_chart.png", {
+    title: "Test Bar Chart",
+    width: 600,
+    height: 400,
+    background: "#ffffff",
+    foreground: "#000000"
+  })
+  show bar_chart(["A", "B", "C", "D"], [30, 70, 45, 55], "test_chart.svg", {
+    title: "Test Bar Chart",
+    width: 600,
+    height: 400,
+    background: "#ffffff",
+    foreground: "#000000"
+  })
+  show line_chart(["A", "B", "C", "D"], [10, 20, 30, 40], "test_line_chart.png", {
+    title: "Test Line Chart",
+    width: 600,
+    height: 400,
+    background: "#ffffff",
+    foreground: "#000000"
+  })
+  show line_chart(["A", "B", "C", "D"], [10, 20, 30, 40], "test_line_chart.svg", {
+    title: "Test Line Chart",
+    width: 600,
+    height: 400,
+    background: "#ffffff",
+    foreground: "#000000"
+  })
+  show scatter_chart([
+    {x: 5, y: 12, color: "#e11d48"},
+    {x: 10, y: 24, color: "#2563eb"},
+    {x: 15, y: 19}
+  ], "test_scatter_chart.png", {
+    title: "Test Scatter Chart",
+    width: 600,
+    height: 400,
+    background: "#ffffff",
+    foreground: "#000000"
+  })
+  show scatter_chart([
+    {x: 5, y: 12, color: "#e11d48"},
+    {x: 10, y: 24, color: "#2563eb"},
+    {x: 15, y: 19}
+  ], "test_scatter_chart.svg", {
+    title: "Test Scatter Chart",
+    width: 600,
+    height: 400,
+    background: "#ffffff",
+    foreground: "#000000"
+  })
+  show pie_chart(["A", "B", "C", "D"], [25, 35, 20, 20], "test_pie_chart.png", {
+    title: "Test Pie Chart",
+    width: 600,
+    height: 400,
+    background: "#ffffff",
+    foreground: "#000000"
+  })
+  show pie_chart(["A", "B", "C", "D"], [25, 35, 20, 20], "test_pie_chart.svg", {
+    title: "Test Pie Chart",
+    width: 600,
+    height: 400,
+    background: "#ffffff",
+    foreground: "#000000"
+  })
+}
