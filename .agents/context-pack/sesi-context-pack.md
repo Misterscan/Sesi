@@ -2596,7 +2596,7 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
       - conditional_expressions
       - await_expressions
     **optimizations**: - Known builtin calls compile to CALL_BUILTIN.
-      - show(...) compiles to PRINT.
+      - show "..." compiles to PRINT.
       - Local variables use stack-slot access.
       - Nested functions capture upvalues.
       - Loop break and continue jumps are back-patched.
@@ -3402,7 +3402,7 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   - **name**: contains
     **pipe_supported**: true
     **signature**: contains(string, sub) -> bool|null
-  - **description**: Returns the first matching index or -1 when not found.
+  - **description**: Returns the first matching index or -1 when not found. Only checks strings, not arrays.
     **name**: locate
     **pipe_supported**: true
     **signature**: locate(string, sub) -> number|null
@@ -3545,7 +3545,7 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
   **name**: show
   **pipe_supported**: true
   **returns**: null
-  **signature**: show(...args) -> null
+  **signature**: show "..."
 - **description**: Displays an optional terminal prompt and waits for user input.
   **name**: input
   **parameters**: **prompt**: Optional prompt text.
@@ -4615,7 +4615,7 @@ Reference for Sesi built-in functions, standard-library modules, normal invocati
 
 ### performance_notes
 
-- show() is unbuffered and flushes on every call.
+- show is unbuffered and flushes on every call.
 - Most array operations are O(n).
 - Object key access is generally O(1).
 - String concatenation with + is O(n).

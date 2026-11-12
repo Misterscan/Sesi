@@ -12,6 +12,46 @@ import * as http from 'http';
 import { estimateTokenCost } from './token-pricing';
 import { isNativeObject, runtimeKeys } from './native-object';
 
+export type StructuredSchema = { [field: string]: string | StructuredSchema };
+
+function isPlainSchemaObject(value: any): boolean {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    && !['function', 'promise', 'lazy'].includes(value.type);
+}
+
+export function normalizeStructuredSchema(value: RuntimeValue, fieldPath = ''): StructuredSchema {
+  if (!isPlainSchemaObject(value)) {
+    throw new Error('structured_output schema must be an object of field type names');
+  }
+  const schema: StructuredSchema = Object.create(null);
+  for (const [key, type] of Object.entries(value as object)) {
+    const fieldName = fieldPath ? `${fieldPath}.${key}` : key;
+    if (isPlainSchemaObject(type)) {
+      // A nested object describes the fields of that object; `{}` means any object.
+      schema[key] = Object.keys(type as object).length === 0 ? 'object' : normalizeStructuredSchema(type as RuntimeValue, fieldName);
+      continue;
+    }
+    if (typeof type !== 'string' || !['string', 'number', 'bool', 'boolean', 'object', 'array', 'any'].includes(type)) {
+      throw new Error(`structured_output schema field "${fieldName}" must be a supported type name or a nested schema object`);
+    }
+    schema[key] = type;
+  }
+  return schema;
+}
+
+export function structuredResponseSchema(schema: StructuredSchema): Record<string, any> {
+  return {
+    type: 'object',
+    properties: Object.fromEntries(Object.entries(schema).map(([key, type]) => [key,
+      typeof type === 'object' ? structuredResponseSchema(type)
+        : type === 'any' ? {} : type === 'array' ? { type: 'array', items: {} }
+        : { type: ({ string: 'string', number: 'number', bool: 'boolean', boolean: 'boolean', object: 'object' } as Record<string, string>)[type] ?? 'string' },
+    ])),
+    required: Object.keys(schema),
+    additionalProperties: false,
+  };
+}
+
 // Browser Hot Reloading State
 let isLiveReloadEnabled = false;
 const liveReloadClients: any[] = [];
@@ -84,10 +124,9 @@ function imageOutputTokens(model: string, size: string): number | null | undefin
 
 function getOpenAIEncodingAlias(modelName: string): string | null {
   const model = String(modelName || '').trim().toLowerCase();
-  // js-tiktoken 1.0.x predates the GPT-5.6 model names. The current GPT-5
-  // text family uses the o200k-compatible vocabulary for local plain-text
-  // tokenization; request-level counting belongs to count_tokens().
-  if (/^gpt-5(?:\.|-|$)/.test(model)) return 'o200k_base';
+  // js-tiktoken 1.0.x predates the current GPT and GPT Image model names.
+  // Use o200k as a local text approximation; count_tokens() uses the provider.
+  if (/^gpt-(?:[56](?:\.|-|$)|image(?:-|$))/.test(model)) return 'o200k_base';
   return null;
 }
 
@@ -326,6 +365,34 @@ function pickAppForFile(filePath: string, options: OpenOptions): string | undefi
 
 export function ensureSafePath(filePath: string, interpreter?: any, baseDir: string = process.cwd()): string {
   const resolved = path.resolve(baseDir, filePath);
+  if (interpreter?.filesystemRoots !== undefined) {
+    // Resolve existing ancestors as well as files so symlinks cannot escape a
+    // capability root, including when the requested output does not yet exist.
+    const canonical = (candidate: string): string => {
+      let ancestor = candidate;
+      const tail: string[] = [];
+      while (true) {
+        try {
+          fs.lstatSync(ancestor);
+          break;
+        } catch (error: any) {
+          if (error.code !== 'ENOENT') throw error;
+        }
+        const parent = path.dirname(ancestor);
+        if (parent === ancestor) break;
+        tail.unshift(path.basename(ancestor));
+        ancestor = parent;
+      }
+      return path.resolve(fs.realpathSync(ancestor), ...tail);
+    };
+    const target = canonical(resolved);
+    const inside = interpreter.filesystemRoots.some((root: string) => {
+      const relative = path.relative(canonical(path.resolve(root)), target);
+      return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+    });
+    if (!inside) throw new Error(`Security Violation: Filesystem capability does not permit access to "${filePath}".`);
+    return resolved;
+  }
   const allowLocalFs = interpreter?.allowLocalFs ?? (process.env.SESI_LOCAL_FS === 'true');
   const safeMode = interpreter?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
 
@@ -1631,7 +1698,28 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         return null;
       };
 
-      const inputTokens = await toTokenCount(inputVal);
+      const toInputCounts = async (value: RuntimeValue): Promise<{ total: number; image: number } | null> => {
+        if (Array.isArray(value)) {
+          const counts = await Promise.all(value.map(toInputCounts));
+          if (counts.some(count => count === null)) return null;
+          return (counts as Array<{ total: number; image: number }>).reduce(
+            (total, count) => ({ total: total.total + count.total, image: total.image + count.image }),
+            { total: 0, image: 0 },
+          );
+        }
+        if (typeof value === 'string') {
+          const image = loadImageForTokenCount(value) ?? decodeImageBase64(value);
+          if (image) {
+            const tokens = await aiRuntime.countImageTokens(modelVal, image.data, image.mimeType);
+            return { total: tokens, image: tokens };
+          }
+        }
+        const tokens = await toTokenCount(value);
+        return tokens === null ? null : { total: tokens, image: 0 };
+      };
+
+      const inputCounts = await toInputCounts(inputVal);
+      const inputTokens = inputCounts?.total ?? null;
       const configuredImageOutputTokens = typeof outputVal === 'string'
         ? imageOutputTokens(modelVal, outputVal)
         : undefined;
@@ -1653,14 +1741,16 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         customRates = { inputPerMillion: inputRate, outputPerMillion: outputRate };
       }
 
-      const estimate = estimateTokenCost(modelVal, inputTokens, outputTokens, customRates);
+      const estimate = estimateTokenCost(modelVal, inputTokens, outputTokens, customRates, inputCounts?.image ?? 0);
       if (!estimate) return null;
       return {
         model: estimate.model,
         input_tokens: estimate.inputTokens,
+        image_input_tokens: estimate.imageInputTokens,
         output_tokens: estimate.outputTokens,
         total_tokens: estimate.totalTokens,
         input_rate_per_million: estimate.inputPerMillion,
+        image_input_rate_per_million: estimate.imageInputPerMillion ?? null,
         output_rate_per_million: estimate.outputPerMillion,
         input_cost_usd: estimate.inputCostUsd,
         output_cost_usd: estimate.outputCostUsd,
@@ -1758,6 +1848,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
   });
 
   builtins.set('contains', {
+    // Checks if the string contains the specified substring. DOES NOT APPLY TO ARRAYS.
     type: 'function',
     name: 'contains',
     params: [{ name: 'string' }, { name: 'sub' }],
@@ -2474,13 +2565,16 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
   builtins.set('sesi', {
     type: 'function',
     name: 'sesi',
-    params: [{ name: 'filePath' }, { name: 'local', defaultValue: false as any }, { name: 'checkOnly', defaultValue: false as any }],
+    params: [{ name: 'filePath' }, { name: 'local', defaultValue: false as any }, { name: 'checkOnly', defaultValue: false as any }, { name: 'args', defaultValue: [] as any }],
     body: {} as any,
     closure: {} as any,
     isBuiltin: true,
-    builtin: async (filePath: RuntimeValue, local: RuntimeValue = false, checkOnly: RuntimeValue = false): Promise<RuntimeValue> => {
+    builtin: async (filePath: RuntimeValue, local: RuntimeValue = false, checkOnly: RuntimeValue = false, args: RuntimeValue = []): Promise<RuntimeValue> => {
       if (typeof filePath !== 'string') {
         throw new Error('sesi expects a Sesi file path');
+      }
+      if (!Array.isArray(args) || !args.every((arg) => typeof arg === 'string')) {
+        throw new Error('sesi expects an array of strings for args');
       }
 
       const absolutePath = ensureSafePath(filePath, interpreter);
@@ -2511,6 +2605,7 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
         safeMode: !allowLocalFs,
         allowLocalFs,
         allowedPaths: interpreter?.allowedPaths || [],
+        args,
       });
       await vm.run(chunk);
       return '';
@@ -2922,6 +3017,19 @@ ${bodyText}
         return (interpreter as any).listCustomToolNames();
       },
     });
+
+  builtins.set('url_encode', {
+    type: 'function',
+    name: 'url_encode',
+    params: [{ name: 'value' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => {
+      if (typeof value !== 'string') return null;
+      try { return encodeURIComponent(value); } catch { return null; }
+    },
+  });
 
   builtins.set('web_get', {
     type: 'function',
@@ -3884,6 +3992,7 @@ ${bodyText}
 
 
   builtins.set('includes', {
+    // Checks if a collection (string or array) includes a specific value.
     type: 'function', name: 'includes', params: [{ name: 'collection' }, { name: 'value' }], body: {} as any, closure: {} as any, isBuiltin: true,
     builtin: (collection: RuntimeValue, value: RuntimeValue): RuntimeValue => {
       if (typeof collection === 'string' && typeof value === 'string') {

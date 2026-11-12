@@ -221,7 +221,10 @@ async function main() {
     assert('GPT image prompt is forwarded', seenBody?.prompt === 'a neon robot cat', `got ${seenBody?.prompt}`);
     assert('ratio maps to an OpenAI-compatible size', seenBody?.size === '1536x1024', `got ${seenBody?.size}`);
     assert('GPT image response returns base64', res.text === 'mock-image-base64', `got ${res.text}`);
+    assert('default image requests omit background', seenBody.background === undefined);
 
+    await rt.callModel({ model: 'gpt-image-2', prompt: 'a sticker', background: 'transparent', cache: false });
+    assert('transparent background reaches generation API', seenBody.background === 'transparent');
     const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-gpt-image-edit-'));
     const fixturePath = path.join(fixtureDir, 'reference.png');
     try {
@@ -229,6 +232,7 @@ async function main() {
       const edited = await rt.callModel({
         model: 'gpt-image-2',
         prompt: 'Keep the subject and change the background.',
+        background: 'transparent',
         images: [fixturePath],
         ratio: '1:1',
         cache: false,
@@ -237,6 +241,7 @@ async function main() {
       assert('reference input routes through images.edit', seenEditBody?.model === 'gpt-image-2');
       assert('edit prompt is forwarded', seenEditBody?.prompt === 'Keep the subject and change the background.');
       assert('edit size is forwarded', seenEditBody?.size === '1024x1024');
+      assert('transparent background reaches edit API', seenEditBody?.background === 'transparent');
       assert('local reference is uploaded', Array.isArray(seenEditBody?.image) && seenEditBody.image.length === 1);
       assert('reference upload preserves filename', seenEditBody?.image?.[0]?.name === 'reference.png');
       assert('reference upload preserves MIME type', seenEditBody?.image?.[0]?.type === 'image/png');

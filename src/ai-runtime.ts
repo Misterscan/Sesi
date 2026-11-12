@@ -11,6 +11,7 @@ import { AIAudioInput, AIRequest, AIResponse, StructuredOutput, RuntimeValue } f
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { normalizeVideoInputs } from './video-input';
 
 export const DEFAULT_LOCAL_MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct';
 export const DEFAULT_LOCAL_MODEL_WARNING_TOKENS = 2048;
@@ -43,6 +44,7 @@ export interface VideoGenerationRequest {
   audio?: boolean;
   task?: string;
   pollInterval?: number;
+  onUsage?: (usage?: AIResponse['usage']) => void;
 }
 
 function stripPrototypes(val: any): any {
@@ -1002,6 +1004,7 @@ export class AIRuntime {
     };
 
     const size = this.resolveOpenAIImageSize(request.size, request.ratio);
+    if (request.background !== undefined) body.background = request.background;
     if (size) {
       body.size = size;
     }
@@ -1027,13 +1030,15 @@ export class AIRuntime {
       throw new Error('GPT image generation failed or returned no image output.');
     }
 
+    const imageUsage = response?.usage;
     return {
       text: base64String,
       finishReason: 'STOP',
-      usage: {
-        inputTokens: 0,
-        outputTokens: 0,
-      },
+      usage: imageUsage ? {
+        inputTokens: imageUsage.input_tokens ?? 0,
+        outputTokens: imageUsage.output_tokens ?? 0,
+        imageInputTokens: imageUsage.input_tokens_details?.image_tokens ?? 0,
+      } : undefined,
     };
   }
 
@@ -1072,7 +1077,7 @@ export class AIRuntime {
     if (request.topP !== undefined) body.top_p = request.topP;
     if (effort) body.reasoning = { effort };
     if (request.responseSchema) {
-      body.text = { format: { type: 'json_schema', name: 'sesi_response', schema: request.responseSchema, strict: true } };
+      body.text = { format: { type: 'json_schema', name: 'sesi_response', schema: request.responseSchema, strict: this.isStrictCompatibleSchema(request.responseSchema) } };
     }
     if (request.tools && request.tools.length > 0) body.tools = this.normalizeOpenAITools(request.tools);
     if (request.search) body.tools = [...(body.tools ?? []), { type: 'web_search' }];
@@ -1330,7 +1335,14 @@ export class AIRuntime {
         params.generation_config = { video_config: { task: request.task } };
       }
       const interaction = await client.interactions.create(params);
-      return downloadAsBase64(interaction?.output_video);
+      const video = await downloadAsBase64(interaction?.output_video);
+      const metadata = interaction?.usageMetadata ?? interaction?.usage_metadata ?? interaction?.usage;
+      request.onUsage?.(metadata ? {
+        inputTokens: metadata.promptTokenCount ?? metadata.input_tokens ?? 0,
+        outputTokens: metadata.candidatesTokenCount ?? metadata.output_tokens ?? 0,
+        thinkingTokens: metadata.thoughtsTokenCount ?? 0,
+      } : undefined);
+      return video;
     }
 
     const source: any = { prompt: request.prompt };
@@ -1352,7 +1364,15 @@ export class AIRuntime {
       throw new Error(`Video generation failed: ${JSON.stringify(operation.error)}`);
     }
     const generated = operation.response?.generatedVideos?.[0]?.video;
-    return downloadAsBase64(generated);
+    const video = await downloadAsBase64(generated);
+    const metadata = operation.response?.usageMetadata ?? operation.response?.usage_metadata ?? operation.response?.usage
+      ?? operation.usageMetadata ?? operation.usage_metadata ?? operation.usage;
+    request.onUsage?.(metadata ? {
+      inputTokens: metadata.promptTokenCount ?? metadata.input_tokens ?? 0,
+      outputTokens: metadata.candidatesTokenCount ?? metadata.output_tokens ?? 0,
+      thinkingTokens: metadata.thoughtsTokenCount ?? 0,
+    } : undefined);
+    return video;
   }
 
   private getCacheFile(): string {
@@ -1406,7 +1426,14 @@ export class AIRuntime {
       topP: request.topP,
       ratio: request.ratio,
       size: request.size,
+      background: request.background,
       images: request.images,
+      videos: normalizeVideoInputs(request.videos)?.map(input => {
+        if (typeof input === 'object' && 'data' in input) {
+          return { mimeType: input.mimeType, dataHash: crypto.createHash('sha256').update(input.data).digest('hex') };
+        }
+        return input;
+      }),
       audio: request.audio
         ? {
           pipelineVersion: 4,
@@ -1442,6 +1469,47 @@ export class AIRuntime {
       parts.push({ inlineData: { mimeType, data } });
     }
     return parts;
+  }
+
+  private resolveVideoInputs(request: AIRequest): AIRequest {
+    const inputs = normalizeVideoInputs(request.videos);
+    if (!inputs?.length) return request;
+    if (this.isGPTModel(request.model) || this.isLocalModel(request.model)) {
+      throw new Error(`Video input is not supported for model "${request.model}". Use a Gemini model that supports video input, or extract frames and pass them through images.`);
+    }
+    const mimeTypes: Record<string, string> = {
+      '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.avi': 'video/avi',
+      '.webm': 'video/webm', '.mpeg': 'video/mpeg', '.mpg': 'video/mpeg',
+      '.wmv': 'video/wmv', '.flv': 'video/x-flv', '.3gp': 'video/3gpp',
+    };
+    const videos = inputs.map(input => {
+      if (typeof input !== 'string') return input;
+      if (/^https?:\/\//i.test(input)) return { uri: input };
+      if (/^data:/i.test(input)) {
+        const match = input.match(/^data:(video\/[a-z0-9.+-]+);base64,([a-z0-9+/\s]+={0,2})$/i);
+        if (!match) throw new Error('Video data URLs require a video MIME type and non-empty base64 data.');
+        return { mimeType: match[1].toLowerCase(), data: match[2] };
+      }
+      const mimeType = mimeTypes[path.extname(input).toLowerCase()];
+      if (!mimeType) throw new Error(`Could not infer the video MIME type for "${input}". Use {data, mimeType} instead.`);
+      const file = path.resolve(input);
+      if (!fs.existsSync(file) || !fs.statSync(file).isFile()) throw new Error(`Video input file was not found: ${input}`);
+      // Large videos should be uploaded using Gemini's Files API and supplied as a URI.
+      if (fs.statSync(file).size > 14_000_000) throw new Error('Inline video input is too large. Upload it using the Gemini Files API and pass {uri, mimeType}.');
+      return { mimeType, data: fs.readFileSync(file).toString('base64') };
+    });
+    const inlineSize = videos.reduce((size, input) => size + ('data' in input ? input.data.length : 0), 0);
+    if (inlineSize > 19_000_000) throw new Error('Inline video input is too large. Upload it using the Gemini Files API and pass {uri, mimeType}.');
+    return { ...request, videos };
+  }
+
+  private resolveVideoParts(request: AIRequest): any[] {
+    return normalizeVideoInputs(request.videos)?.map(input => {
+      if (typeof input === 'string') throw new Error('Video input was not resolved.');
+      return 'data' in input
+        ? { inlineData: { mimeType: input.mimeType, data: input.data } }
+        : { fileData: { fileUri: input.uri, ...(input.mimeType ? { mimeType: input.mimeType } : {}) } };
+    }) ?? [];
   }
 
   async synthesizeSpeech(text: string, voice: string = 'Vindemiatrix', model: string = 'gemini-2.5-flash-preview-tts'): Promise<string> {
@@ -1526,6 +1594,7 @@ export class AIRuntime {
   }
 
   async callModel(request: AIRequest): Promise<AIResponse> {
+    request = this.resolveVideoInputs(request);
     if (request.audio) {
       request = { ...request, audio: this.resolveAudioInput(request.audio) };
     }
@@ -1646,8 +1715,8 @@ export class AIRuntime {
           : [];
         const response = await client.models.generateContent({
           model: resolvedModel,
-          contents: imageParts.length > 0 || imageAudioParts.length > 0
-            ? [{ role: 'user', parts: [...imageParts, ...imageAudioParts, { text: request.prompt }] }]
+          contents: imageParts.length > 0 || imageAudioParts.length > 0 || request.videos
+            ? [{ role: 'user', parts: [...imageParts, ...imageAudioParts, ...this.resolveVideoParts(request), { text: request.prompt }] }]
             : request.prompt,
           config: configObj
         });
@@ -1675,10 +1744,11 @@ export class AIRuntime {
         const resObj: AIResponse = {
           text: base64String, // Return the base64 string directly
           finishReason: 'STOP',
-          usage: {
-            inputTokens: 0,
-            outputTokens: 0,
-          },
+          usage: response.usageMetadata ? {
+            inputTokens: response.usageMetadata.promptTokenCount ?? 0,
+            outputTokens: response.usageMetadata.candidatesTokenCount ?? 0,
+            thinkingTokens: response.usageMetadata.thoughtsTokenCount ?? 0,
+          } : undefined,
         };
 
         if (useCache) {
@@ -1715,13 +1785,13 @@ export class AIRuntime {
 
       contents.push({
         role: 'user',
-        parts: [...imageParts, ...audioParts, { text: request.prompt }],
+        parts: [...imageParts, ...audioParts, ...this.resolveVideoParts(request), { text: request.prompt }],
       });
 
       while (!isComplete && currentPoll < maxPolls) {
         const genConfig: any = {
-            temperature: request.temperature ?? 0.3,
-            maxOutputTokens: request.maxTokens ?? 8192,
+            temperature: request.temperature ?? 0.5,
+            maxOutputTokens: request.maxTokens ?? 10000,
             topK: request.topK,
             topP: request.topP,
         };
@@ -1898,6 +1968,28 @@ export class AIRuntime {
     }
   }
 
+  // Strict mode requires every node to have a type, objects to list their properties, and arrays to
+  // describe their items. Loose fields ("any", "array", bare "object") can only run non-strict.
+  private isStrictCompatibleSchema(schema: any): boolean {
+    if (!schema || typeof schema !== 'object' || typeof schema.type !== 'string') return false;
+    if (schema.type === 'object') {
+      return !!schema.properties && Object.values(schema.properties).every(child => this.isStrictCompatibleSchema(child));
+    }
+    if (schema.type === 'array') return this.isStrictCompatibleSchema(schema.items);
+    return true;
+  }
+
+  private projectStructuredFields(parsed: any, schema: Record<string, any>): StructuredOutput {
+    const result: StructuredOutput = Object.create(null);
+    for (const [key, type] of Object.entries(schema)) {
+      const value = parsed?.[key];
+      const nested = typeof type === 'object' && type !== null
+        && value !== null && typeof value === 'object' && !Array.isArray(value);
+      result[key] = nested ? this.projectStructuredFields(value, type) : value;
+    }
+    return result;
+  }
+
   async parseStructuredOutput(
     response: string,
     schema: Record<string, any>
@@ -1908,11 +2000,7 @@ export class AIRuntime {
       if (jsonMatch) {
         const parsed = stripPrototypes(JSON.parse(jsonMatch[0]));
         // Validate against schema
-        const result: StructuredOutput = Object.create(null);
-        for (const [key] of Object.entries(schema)) {
-          result[key] = parsed[key];
-        }
-        return result;
+        return this.projectStructuredFields(parsed, schema);
       }
 
       // If no JSON found, try to prompt model for structured output
@@ -1920,7 +2008,7 @@ export class AIRuntime {
       const structuredResponse = await this.callModel({
         model: 'gemini-3.5-flash-lite',
         prompt: structuredPrompt,
-        temperature: 0,
+        thinkingLevel: "minimal",
       });
 
       const jsonMatch2 = structuredResponse.text.match(/\{[\s\S]*\}/);

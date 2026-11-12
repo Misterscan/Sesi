@@ -191,7 +191,9 @@ function tokenize(text: string): ScopeToken[] {
     'export', 'to', 'allow', 'as', 'with', 'convert', 'memory', 'structured_output', 'tool_call',
   ]);
   const stripped = stripComments(text);
-  const tokenRegex = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\$[a-zA-Z_][a-zA-Z0-9_]*|\b[a-zA-Z_][a-zA-Z0-9_]*\b|[{}[\](),;.:=+\-*/%&|!<>]/g;
+  // Keep the entire literal opaque, even while its closing quote is being
+  // edited. Otherwise the matcher resumes inside it and invents code tokens.
+  const tokenRegex = /"(?:[^"\\]|\\(?:[\s\S]|$))*(?:"|$)|'(?:[^'\\]|\\(?:[\s\S]|$))*(?:'|$)|\$[a-zA-Z_][a-zA-Z0-9_]*|\b[a-zA-Z_][a-zA-Z0-9_]*\b|[{}[\](),;.:=+\-*/%&|!<>]/g;
   const lineOffsets: number[] = [];
   let currentOffset = 0;
   for (const line of text.split('\n')) {
@@ -274,6 +276,33 @@ function isConfigBlockKey(index: number, tokens: ScopeToken[]): boolean {
   return false;
 }
 
+// Defaults may contain calls and collections. Only commas in the outer
+// parameter list separate parameters; its first object is not the body.
+function functionSignature(tokens: ScopeToken[], index: number): { parameters: ScopeToken[]; bodyIndex: number } {
+  const parameters: ScopeToken[] = [];
+  let cursor = index + 2;
+  if (tokens[cursor]?.lexeme === '(') {
+    const closing = [')'];
+    let expectParameter = true;
+    for (cursor++; cursor < tokens.length && closing.length > 0; cursor++) {
+      const token = tokens[cursor];
+      if (closing.length === 1) {
+        if (expectParameter && token.type === 'IDENTIFIER') {
+          parameters.push(token);
+          expectParameter = false;
+        }
+        if (token.lexeme === ',') expectParameter = true;
+      }
+      if (token.lexeme === '(') closing.push(')');
+      else if (token.lexeme === '[') closing.push(']');
+      else if (token.lexeme === '{') closing.push('}');
+      else if (token.lexeme === closing[closing.length - 1]) closing.pop();
+    }
+  }
+  while (cursor < tokens.length && tokens[cursor].lexeme !== '{') cursor++;
+  return { parameters, bodyIndex: cursor };
+}
+
 function findDeclarationsAndReferences(tokens: ScopeToken[]): { decls: Declaration[]; refs: Reference[] } {
   const decls: Declaration[] = [];
   const refs: Reference[] = [];
@@ -292,19 +321,9 @@ function findDeclarationsAndReferences(tokens: ScopeToken[]): { decls: Declarati
         decls.push({ name: next.lexeme, token: next, type: 'function' });
         declared.add(next);
       }
-      let cursor = i + 2;
-      while (cursor < tokens.length && tokens[cursor].lexeme !== '(' && tokens[cursor].lexeme !== '{') cursor++;
-      if (tokens[cursor]?.lexeme === '(') {
-        cursor++;
-        while (cursor < tokens.length && tokens[cursor].lexeme !== ')') {
-          const candidate = tokens[cursor];
-          const previous = tokens[cursor - 1];
-          if (candidate.type === 'IDENTIFIER' && (previous?.lexeme === '(' || previous?.lexeme === ',')) {
-            decls.push({ name: candidate.lexeme, token: candidate, type: 'parameter' });
-            declared.add(candidate);
-          }
-          cursor++;
-        }
+      for (const candidate of functionSignature(tokens, i).parameters) {
+        decls.push({ name: candidate.lexeme, token: candidate, type: 'parameter' });
+        declared.add(candidate);
       }
     } else if (token.type === 'ALLOW') {
       let cursor = i + 1;
@@ -449,7 +468,7 @@ const BUILTINS = new Set([
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call', 'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env',
   'range', 'push', 'append', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs',
   'pow', 'log', 'workflow', 'set_alias', 'define_tool', 'list_tools', 'memory_config', 'error_type', 'raise_error', 'multi_req', 'web_get',
-  'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter',
+  'url_encode', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower', 'trim', 'slice', 'swap', 'retry', 'map', 'filter',
   'reduce', 'find', 'format', 'db_open', 'args', 'input', 'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
   'lazy', 'force', 'timeout', 'profile', 'profile_start', 'profile_end', 'profile_report',
   'string', 'number', 'object', 'null', 'any', 'name', 'arity', 'is_function', 'is_array', 'is_object', 'is_string', 'is_number', 'is_bool', 'is_null',
@@ -467,6 +486,7 @@ export function runDryRunSemanticChecks(source: string, baseDir?: string): DryRu
   const root = new DryScope();
   let current = root;
   let skipNextBraceScope = false;
+  let functionBodyIndex: number | null = null;
   const pushedScopes: boolean[] = [];
   const tokenScopes = new Map<ScopeToken, DryScope>();
 
@@ -483,21 +503,13 @@ export function runDryRunSemanticChecks(source: string, baseDir?: string): DryRu
       if (name?.type === 'IDENTIFIER') current.declare(name.lexeme, { token: name, type: 'function', readCount: 0 });
       current = new DryScope(current, token.type === 'MAKE');
       skipNextBraceScope = true;
-      let cursor = i + 2;
-      while (cursor < tokens.length && tokens[cursor].lexeme !== '(' && tokens[cursor].lexeme !== '{') cursor++;
-      if (tokens[cursor]?.lexeme === '(') {
-        cursor++;
-        while (cursor < tokens.length && tokens[cursor].lexeme !== ')') {
-          const candidate = tokens[cursor];
-          const previous = tokens[cursor - 1];
-          if (candidate.type === 'IDENTIFIER' && (previous?.lexeme === '(' || previous?.lexeme === ',')) {
-            current.declare(candidate.lexeme, {
-              token: candidate, type: 'parameter', readCount: 0,
-              suppressUnused: isMakeMethod && candidate.lexeme === 'self',
-            });
-          }
-          cursor++;
-        }
+      const signature = functionSignature(tokens, i);
+      functionBodyIndex = signature.bodyIndex;
+      for (const candidate of signature.parameters) {
+        current.declare(candidate.lexeme, {
+          token: candidate, type: 'parameter', readCount: 0,
+          suppressUnused: isMakeMethod && candidate.lexeme === 'self',
+        });
       }
     } else if (token.type === 'FOR') {
       current = new DryScope(current);
@@ -510,8 +522,9 @@ export function runDryRunSemanticChecks(source: string, baseDir?: string): DryRu
       const variable = tokens[i + 2];
       if (tokens[i + 1]?.lexeme === '(' && variable?.type === 'IDENTIFIER') current.declare(variable.lexeme, { token: variable, type: 'catch_variable', readCount: 0 });
     } else if (token.lexeme === '{') {
-      if (skipNextBraceScope) {
+      if (skipNextBraceScope && (functionBodyIndex === null || i === functionBodyIndex)) {
         skipNextBraceScope = false;
+        functionBodyIndex = null;
         pushedScopes.push(true);
       } else if (shouldPushScope(i, tokens)) {
         current = new DryScope(current);

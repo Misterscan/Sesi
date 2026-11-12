@@ -1,0 +1,464 @@
+/**
+  Finds an option definition object by its name or short single-character flag.
+
+  Parameters:
+  - `definitions`: An array of option definition objects to search through.
+  - `name`: The option identifier or single-letter short flag name to look up.
+  - `shortName`: A boolean indicating whether to search against the `short` field (`true`) or the long `name` field (`false`). Defaults to `false`.
+
+  Returns:
+  - The matching option definition object if found, or `null` if no match exists.
+
+  Example:
+  ```sesi
+  let defs = [
+    {name: "port", short: "p", type: "number"},
+    {name: "verbose", short: "v", type: "bool"}
+  ]
+  let match = cli_find(defs, "p", true)
+  show match.name // port
+  ```
+
+  Notes:
+  - Performs a linear search across the definitions array and returns on first match.
+*/
+fn cli_find(definitions, name, shortName = false) {
+  for definition in definitions {
+    if shortName {
+      if definition.short == name { return definition }
+    } else {
+      if definition.name == name { return definition }
+    }
+  }
+  return null
+}
+
+/**
+  Coerces a raw command-line string value into a typed representation based on the expected type.
+
+  Parameters:
+  - `raw`: The raw string or input value from the command line.
+  - `type`: The target data type name (`"boolean"`, `"bool"`, `"number"`, `"num"`, or `"string"`).
+
+  Returns:
+  - An object containing `{ok: bool, value: any}` where `ok` indicates if the conversion succeeded and `value` holds the coerced value.
+
+  Example:
+  ```sesi
+  let res = cli_convert("8080", "number")
+  if res.ok {
+    show "Parsed port:" res.value
+  }
+  ```
+
+  Notes:
+  - Boolean conversion accepts `"true"`, `"1"`, `"yes"`, and `"on"` as `true`, and `"false"`, `"0"`, `"no"`, and `"off"` as `false` (case-insensitive).
+  - Number conversion checks for empty strings and invalid numeric values (`NaN`).
+  - Unrecognized types default to returning `{ok: true, value: str(raw)}`.
+*/
+fn cli_convert(raw, type) {
+  if type == "boolean" || type == "bool" {
+    let value = to_lower(str(raw))
+    if value == "true" || value == "1" || value == "yes" || value == "on" {
+      return {ok: true, value: true}
+    }
+    if value == "false" || value == "0" || value == "no" || value == "off" {
+      return {ok: true, value: false}
+    }
+    return {ok: false, value: null}
+  }
+
+  if type == "number" || type == "num" {
+    if trim(str(raw)) == "" { return {ok: false, value: null} }
+    let value = num(raw)
+    if value == null || value != value { return {ok: false, value: null} }
+    return {ok: true, value: value}
+  }
+
+  return {ok: true, value: str(raw)}
+}
+
+/**
+  Expands combined short-flag tokens into normalized individual command-line tokens.
+
+  Parameters:
+  - `argv`: An array of raw argument tokens passed into the program.
+  - `definitions`: An array of option definition objects used to determine flag types and value requirements.
+
+  Returns:
+  - An array of normalized string tokens with combined short flags unpacked.
+
+  Example:
+  ```sesi
+  let defs = [
+    {name: "all", short: "a", type: "bool"},
+    {name: "force", short: "f", type: "bool"},
+    {name: "output", short: "o", type: "string"}
+  ]
+  let expanded = cli_expand(["-afo", "out.txt"], defs)
+  show expanded // ["-a", "-f", "-o", "out.txt"]
+  ```
+
+  Notes:
+  - Handles grouped boolean flags (e.g., `-xzf` expands to `["-x", "-z", "-f"]`).
+  - Supports inline non-boolean argument values attached to short flags (e.g., `-oFile` expands to `"-o=File"`).
+*/
+fn cli_expand(argv, definitions) {
+  let expanded = []
+
+  for token in argv {
+    let characters = split(token, "")
+    if len(characters) < 3 || characters[0] != "-" || characters[1] == "-" {
+      push(expanded, token)
+      continue
+    }
+
+    let first = cli_find(definitions, characters[1], true)
+    if first == null {
+      push(expanded, token)
+      continue
+    }
+
+    let index = 1
+    while index < len(characters) {
+      let shortName = characters[index]
+      let definition = cli_find(definitions, shortName, true)
+
+      if definition == null {
+        push(expanded, "-" + shortName)
+        index = index + 1
+        continue
+      }
+
+      let type = definition.type || "string"
+      if type == "boolean" || type == "bool" {
+        push(expanded, "-" + shortName)
+        index = index + 1
+        continue
+      }
+
+      let remainder = join(slice(characters, index + 1, len(characters)), "")
+      if remainder == "" {
+        push(expanded, "-" + shortName)
+      } else if split(remainder, "")[0] == "=" {
+        push(expanded, "-" + shortName + remainder)
+      } else {
+        push(expanded, "-" + shortName + "=" + remainder)
+      }
+      break
+    }
+  }
+
+  return expanded
+}
+
+/**
+  Parses raw CLI arguments into options, positional arguments, and validation error messages according to provided schemas.
+
+  Parameters:
+  - `argv`: An array of raw command-line string arguments (such as the global `args`).
+  - `definitions`: An array of option definition objects containing flags and configuration schema.
+  - `positionalDefinitions`: An optional array of schema definitions for positional arguments. Defaults to `[]`.
+
+  Returns:
+  - An object containing parsed CLI state:
+    - `options`: Key-value map of parsed option flags.
+    - `positionals`: Array of positional argument strings in order.
+    - `namedPositionals`: Key-value map of bound positional arguments based on `positionalDefinitions`.
+    - `errors`: Array of validation or parsing error strings encountered.
+    - `ok`: Boolean indicating whether parsing completed without errors (`len(errors) == 0`).
+    - `help`: Boolean indicating if `--help` or `-h` was present.
+
+  Example:
+  ```sesi
+  let optDefs = [
+    {name: "port", short: "p", type: "number", default: 8080},
+    {name: "verbose", short: "v", type: "bool"}
+  ]
+  let posDefs = [
+    {name: "file", required: true}
+  ]
+
+  let parsed = parse(args, optDefs, posDefs)
+  if !parsed.ok {
+    show "Parse error:" parsed.errors[0]
+  } else {
+    show "Port:" parsed.options.port
+    show "Target file:" parsed.namedPositionals.file
+  }
+  ```
+
+  Notes:
+  - Terminates option parsing when encountering the standard `--` separator token.
+  - Supports `--key=value` and `--key value` formats, as well as multiple values for options flagged with `multiple: true`.
+  - Automatically verifies required options and positional parameters unless `help` is triggered.
+*/
+export fn parse(argv, definitions, positionalDefinitions = []) {
+  let options = {}
+  let positionals = []
+  let errors = []
+  let help = false
+  let tokens = cli_expand(argv, definitions)
+  for definition in definitions {
+    if definition.multiple { options[definition.name] = []
+    } else if includes(keys(definition), "default") { options[definition.name] = definition.default
+    } else if definition.type == "boolean" || definition.type == "bool" { options[definition.name] = false
+    } else { options[definition.name] = null }
+  }
+  let index = 0
+  let endOfOptions = false
+  while index < len(tokens) {
+    let token = tokens[index]
+    let characters = split(token, "")
+    if !endOfOptions && token == "--" {
+      endOfOptions = true
+      index = index + 1
+      continue
+    }
+    if !endOfOptions && (token == "--help" || token == "-h") {
+      help = true
+      index = index + 1
+      continue
+    }
+    if endOfOptions || len(characters) < 2 || characters[0] != "-" || token == "-" {
+      push(positionals, token)
+      index = index + 1
+      continue
+    }
+    let isLong = characters[1] == "-"
+    let prefixLength = 1
+    if isLong { prefixLength = 2 }
+    let body = join(slice(characters, prefixLength, len(characters)), "")
+    let parts = split(body, "=")
+    let name = parts[0]
+    let definition = cli_find(definitions, name, !isLong)
+    if definition == null {
+      push(errors, "Unknown option: " + token)
+      index = index + 1
+      continue
+    }
+    let type = definition.type || "string"
+    let raw = any
+    if len(parts) > 1 { raw = join(slice(parts, 1, len(parts)), "=")
+    } else if type == "boolean" || type == "bool" { raw = "true"
+    } else if index + 1 < len(tokens) {
+      index = index + 1
+      raw = tokens[index]
+    } else {
+      push(errors, "Missing value for --" + definition.name)
+      index = index + 1
+      continue
+    }
+    let converted = cli_convert(raw, type)
+    if !converted.ok { push(errors, "Invalid " + type + " value for --" + definition.name + ": " + str(raw))
+    } else if definition.multiple { push(options[definition.name], converted.value)
+    } else { options[definition.name] = converted.value }
+    index = index + 1
+  }
+  for definition in definitions {
+    if definition.required && !help {
+      let value = options[definition.name]
+      if value == null || (definition.multiple && len(value) == 0) { push(errors, "Missing required option: --" + definition.name) }
+    }
+  }
+  let namedPositionals = {}
+  for position = 0 to len(positionalDefinitions) {
+    let definition = positionalDefinitions[position]
+    let raw = positionals[position]
+    if raw == null {
+      if contains(keys(definition), "default") { namedPositionals[definition.name] = definition.default
+      } else {
+        namedPositionals[definition.name] = null
+        if definition.required && !help { push(errors, "Missing positional argument: " + definition.name) }
+      }
+      continue
+    }
+    let type = definition.type || "string"
+    let converted = cli_convert(raw, type)
+    if converted.ok { namedPositionals[definition.name] = converted.value
+    } else {
+      namedPositionals[definition.name] = null
+      push(errors, "Invalid " + type + " value for " + definition.name + ": " + raw)
+    }
+  }
+  return {
+    options: options,
+    positionals: positionals,
+    namedPositionals: namedPositionals,
+    errors: errors,
+    ok: len(errors) == 0,
+    help: help
+  }
+}
+/**
+  Generates a formatted CLI help and usage string from program details and definition schemas.
+
+  Parameters:
+  - `program`: The executable or script command name.
+  - `description`: A brief summary of what the CLI tool does.
+  - `definitions`: An array of option definitions detailing flags, types, defaults, and descriptions.
+  - `positionalDefinitions`: An optional array of positional parameter definitions. Defaults to `[]`.
+
+  Returns:
+  - A formatted multiline string suitable for printing to stdout when `--help` or `-h` is passed.
+
+  Example:
+  ```sesi
+  let optDefs = [
+    {name: "port", short: "p", type: "number", default: 3000, description: "Port to bind"},
+    {name: "host", type: "string", description: "Bind host address"}
+  ]
+  let posDefs = [
+    {name: "config", required: true, description: "Path to config file"}
+  ]
+  let helpText = help("myserver", "Runs the application server", optDefs, posDefs)
+  show helpText
+  ```
+
+  Notes:
+  - Distinguishes between required positionals (`<arg>`) and optional positionals (`[arg]`).
+  - Automatically appends `-h, --help` option line to the end of the options section.
+*/
+export fn help(program, description, definitions, positionalDefinitions = []) {
+  let lines = []
+  let usage = "Usage: " + program + " [options]"
+  for definition in positionalDefinitions {
+    if definition.required { usage = usage + " <" + definition.name + ">"
+    } else { usage = usage + " [" + definition.name + "]" }
+  }
+  push(lines, usage)
+  if description {
+    push(lines, "")
+    push(lines, description)
+  }
+  if len(positionalDefinitions) > 0 {
+    push(lines, "")
+    push(lines, "Arguments:")
+    for definition in positionalDefinitions {
+      let detail = definition.description || ""
+      push(lines, "  " + definition.name + "  " + detail)
+    }
+  }
+  push(lines, "")
+  push(lines, "Options:")
+  for definition in definitions {
+    let label = "  --" + definition.name
+    if definition.short { label = label + ", -" + definition.short }
+    let type = definition.type || "string"
+    if type != "boolean" && type != "bool" { label = label + " <" + type + ">" }
+    let detail = definition.description || ""
+    if definition.required { detail = detail + " (required)" }
+    if includes(keys(definition), "default") { detail = detail + " (default: " + str(definition.default) + ")" }
+    push(lines, label + "  " + trim(detail))
+  }
+  push(lines, "  --help, -h  Show this help")
+  let newline = "
+"
+  return join(lines, newline)
+}
+/**
+  Prompts the user interactively via standard input with an optional default value.
+
+  Parameters:
+  - `label`: The prompt message or question displayed to the user.
+  - `defaultValue`: An optional fallback value returned if the user presses enter with no input. Defaults to `null`.
+
+  Returns:
+  - The trimmed string entered by the user, or `defaultValue` if the user provided empty input.
+
+  Example:
+  ```sesi
+  let username = ask("Enter your name", "guest")
+  show "Hello," username
+  ```
+
+  Notes:
+  - Displays the default value in brackets `[default]` when provided.
+*/
+export fn ask(label, defaultValue = null) {
+  let _prompt = label
+  if defaultValue != null { _prompt = _prompt + " [" + str(defaultValue) + "]" }
+  let answer = trim(input(_prompt + ": "))
+  if answer == "" { return defaultValue }
+  return answer
+}
+/**
+  Displays an interactive yes/no confirmation prompt and blocks until a valid answer is provided.
+
+  Parameters:
+  - `label`: The prompt message or question displayed to the user.
+  - `defaultValue`: The default boolean returned if the user presses enter without typing an answer. Defaults to `false`.
+
+  Returns:
+  - `true` if the user confirms with yes/y, or `false` if the user rejects with no/n.
+
+  Example:
+  ```sesi
+  let proceed = confirm("Do you want to continue?", false)
+  if proceed {
+    show "Proceeding with deployment..."
+  } else {
+    show "Aborted."
+  }
+  ```
+
+  Notes:
+  - Appends `[Y/n]: ` when `defaultValue` is `true`, and `[y/N]: ` when `defaultValue` is `false`.
+  - Re-prompts continuously until a recognizable answer (`"y"`, `"yes"`, `"n"`, `"no"`, or empty for default) is entered.
+*/
+export fn confirm(label, defaultValue = false) {
+  let suffix = " [y/N]: "
+  if defaultValue { suffix = " [Y/n]: " }
+  while true {
+    let answer = to_lower(trim(input(label + suffix)))
+    if answer == "" { return defaultValue }
+    if answer == "y" || answer == "yes" { return true }
+    if answer == "n" || answer == "no" { return false }
+    show "Please enter yes or no."
+  }
+}
+/**
+  Presents a numbered menu of options to the user and waits for a valid selection.
+
+  Parameters:
+  - `label`: The heading or prompt question displayed above the choices.
+  - `choices`: An array of choices, which can be plain strings or objects with `{label, value}` keys.
+
+  Returns:
+  - The selected choice value or object. Returns `null` if the `choices` array is empty.
+
+  Example:
+  ```sesi
+  let environments = [
+    {label: "Development", value: "dev"},
+    {label: "Staging", value: "stage"},
+    {label: "Production", value: "prod"}
+  ]
+  let selected = choose("Select target environment:", environments)
+  show "Selected environment:" selected
+  ```
+
+  Notes:
+  - Re-prompts the user until an integer within the 1-based index range `[1, len(choices)]` is entered.
+  - Extracts and returns the `.value` field if the selected item is an object with a `value` key; otherwise returns the choice element directly.
+*/
+export fn choose(label, choices) {
+  if len(choices) == 0 { return null }
+  show label
+  for index = 0 to len(choices) {
+    let choice = choices[index]
+    let display = choice
+    if includes(keys(choice), "label") { display = choice.label }
+    show index + 1 ")" display
+  }
+  while true {
+    let answer = trim(input("Choose a number: "))
+    let selection = num(answer)
+    if answer != "" && selection != null && selection == floor(selection) && selection >= 1 && selection <= len(choices) {
+      let choice = choices[selection - 1]
+      if includes(keys(choice), "value") { return choice.value }
+      return choice
+    }
+    show "Please choose a number from 1 to" len(choices)
+  }
+}

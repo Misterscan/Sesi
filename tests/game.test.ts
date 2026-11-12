@@ -15,6 +15,8 @@ import { resolveGameHostCoreRoot } from '../src/game';
 import type { RuntimeFunction } from '../src/types';
 
 const root = path.resolve(__dirname, '..');
+const testRoot = process.env.SESI_GAME_TEST_ROOT;
+if (!testRoot) throw new Error('Run through scripts/run-game-tests.cjs.');
 
 function compile(source: string) {
   const parser = new Parser(new Lexer(source).scanTokens());
@@ -27,13 +29,13 @@ function compile(source: string) {
 }
 
 async function runVm(source: string, safeMode = false): Promise<VM> {
-  const vm = new VM(root, { safeMode, allowLocalFs: !safeMode, allowedPaths: [root] });
+  const vm = new VM(root, { safeMode, allowLocalFs: !safeMode, allowedPaths: [root, testRoot!] });
   await vm.run(compile(source));
   return vm;
 }
 
 async function runTree(source: string, safeMode = false): Promise<Interpreter> {
-  const interpreter = new Interpreter(root, { safeMode, allowLocalFs: !safeMode, allowedPaths: [root] });
+  const interpreter = new Interpreter(root, { safeMode, allowLocalFs: !safeMode, allowedPaths: [root, testRoot!] });
   const parser = new Parser(new Lexer(source).scanTokens());
   const program = parser.parse();
   assert.equal(parser.errors.length, 0);
@@ -42,6 +44,7 @@ async function runTree(source: string, safeMode = false): Promise<Interpreter> {
 }
 
 async function testVmNamespaceAndNativeObjects() {
+  assert.equal(require('../dist/game').createGameModule(new Interpreter(root, { safeMode: false })).get('VERSION'), '2.0.3', 'compiled CommonJS module retains its reported version');
   const vm = await runVm(`
     allow "std/game" in as Game
     let version = Game.VERSION
@@ -79,7 +82,7 @@ async function testVmNamespaceAndNativeObjects() {
     try { hud.horizontal_alignment = "up" } catch (error) { invalid_gui_alignment_blocked = true }
     game.dispose()
   `);
-  assert.equal(vm.getGlobal('version'), '2.0.1');
+  assert.equal(vm.getGlobal('version'), '2.0.3');
   assert.equal(vm.getGlobal('nested'), 7);
   assert.equal(vm.getGlobal('stable_binding'), true);
   assert.equal(vm.getGlobal('same_identity'), true);
@@ -94,7 +97,7 @@ async function testVmNamespaceAndNativeObjects() {
   assert.equal(vm.getGlobal('invalid_gui_alignment_blocked'), true);
 
   const namedVm = await runVm('import { VERSION, vec2 } from "std/game"\nlet named_version = VERSION\nlet point = vec2(3, 4)');
-  assert.equal(namedVm.getGlobal('named_version'), '2.0.1');
+  assert.equal(namedVm.getGlobal('named_version'), '2.0.3');
   assert.equal((namedVm.getGlobal('point') as any).getProperty('y'), 4);
 }
 
@@ -164,9 +167,114 @@ async function testSafeMode() {
   );
 }
 
+async function testOwnedHandleLifetimes() {
+  const source = `
+    allow "std/game" in as Game
+    let game = Game.create()
+    let scene = game.create_scene("main")
+    let mesh = scene.box("shared")
+    let material = scene.standard_material("shared")
+    let control = scene.gui_text("shared")
+    material.dispose()
+    let mesh_after_material = scene.get("shared") == mesh
+    let replacement = scene.standard_material("shared")
+    control.dispose()
+    let mesh_after_control = scene.get("shared") == mesh
+    let replacement_control = scene.gui_text("shared")
+    let assets = game.assets
+    let input = game.input
+    let storage = game.storage
+    let cached_box = scene.box
+    let cached_names = assets.names
+    game.dispose()
+    let blocked = 0
+    try { let value = scene.name } catch (error) { blocked = blocked + 1 }
+    try { let value = mesh.position } catch (error) { blocked = blocked + 1 }
+    try { let value = replacement.alpha } catch (error) { blocked = blocked + 1 }
+    try { let value = replacement_control.text } catch (error) { blocked = blocked + 1 }
+    try { assets.names() } catch (error) { blocked = blocked + 1 }
+    try { input.down("KeyA") } catch (error) { blocked = blocked + 1 }
+    try { storage.get("key") } catch (error) { blocked = blocked + 1 }
+    try { cached_box("orphan") } catch (error) { blocked = blocked + 1 }
+    try { cached_names() } catch (error) { blocked = blocked + 1 }
+    let next = Game.create()
+    next.dispose()
+  `;
+  const vm = await runVm(source);
+  const tree = await runTree(source);
+  for (const get of [(key: string) => vm.getGlobal(key), (key: string) => (tree as any).currentEnv.get(key)]) {
+    assert.equal(get('mesh_after_material'), true);
+    assert.equal(get('mesh_after_control'), true);
+    assert.equal(get('blocked'), 9);
+  }
+}
+
+async function testPackagedFilesystemCapabilities() {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-game-capabilities-'));
+  const assets = path.join(temporary, 'assets');
+  fs.mkdirSync(assets);
+  const permitted = path.join(assets, 'allowed.data');
+  const denied = path.join(temporary, 'private.data');
+  fs.writeFileSync(permitted, 'allowed');
+  fs.writeFileSync(denied, 'private');
+  const options = {
+    safeMode: true, allowLocalFs: false, allowedPaths: [temporary],
+    filesystemRoots: [assets], packagedGame: true,
+  };
+  try {
+    for (const vmMode of [false, true]) {
+      const source = `
+        allow "std/game" in as Game
+        let game = Game.create()
+        game.dispose()
+        let allowed = read_file(${JSON.stringify(permitted)})
+        let denied = false
+        try { read_file(${JSON.stringify(denied)}) } catch (error) { denied = true }
+        let process_denied = false
+        try { exec("unused") } catch (error) { process_denied = true }
+        async fn read_private() { return read_file(${JSON.stringify(denied)}) }
+        let async_denied = false
+        try { let result = await read_private() } catch (error) { async_denied = true }
+      `;
+      const runtime = vmMode ? new VM(temporary, options) : new Interpreter(temporary, options);
+      if (runtime instanceof VM) await runtime.run(compile(source));
+      else await runtime.interpret(new Parser(new Lexer(source).scanTokens()).parse());
+      const get = (key: string) => runtime instanceof VM ? runtime.getGlobal(key) : (runtime as any).currentEnv.get(key);
+      assert.equal(get('allowed'), 'allowed');
+      assert.equal(get('denied'), true);
+      assert.equal(get('process_denied'), true);
+      assert.equal(get('async_denied'), true);
+    }
+    const runBundle = (entrySource: string, filesystemRoots = [assets]) => runSesiBytecodeBundle({
+      format: 'sesi-bytecode-bundle-v1', entry: 'entry.sesi', modules: [
+        { id: 'entry.sesi', chunk: compile(entrySource), exports: [] },
+        { id: 'reader.sesi', chunk: compile(`export fn read_private() { return read_file(${JSON.stringify(denied)}) }`), exports: ['read_private'] },
+      ],
+    }, temporary, { ...options, filesystemRoots });
+    await assert.rejects(() => runBundle('import { read_private } from "./reader"\nread_private()'), /Filesystem capability/);
+    await assert.rejects(() => runBundle(`read_file(${JSON.stringify(permitted)})`, []), /Filesystem capability/);
+    const output = path.join(assets, 'nested', 'output.data');
+    await runBundle(`make_dir(${JSON.stringify(path.dirname(output))})\nwrite_file(${JSON.stringify(output)}, "written")`);
+    assert.equal(fs.readFileSync(output, 'utf8'), 'written');
+    if (process.platform !== 'win32') {
+      const link = path.join(assets, 'escape');
+      fs.symlinkSync(temporary, link, 'dir');
+      await assert.rejects(() => runBundle(`read_file(${JSON.stringify(path.join(link, 'private.data'))})`), /Filesystem capability/);
+      await assert.rejects(() => runBundle(`write_file(${JSON.stringify(path.join(link, 'new.data'))}, "blocked")`), /Filesystem capability/);
+      assert.equal(fs.existsSync(path.join(temporary, 'new.data')), false);
+      const dangling = path.join(assets, 'dangling.data');
+      fs.symlinkSync(path.join(temporary, 'missing.data'), dangling);
+      await assert.rejects(() => runBundle(`write_file(${JSON.stringify(dangling)}, "blocked")`));
+      assert.equal(fs.existsSync(path.join(temporary, 'missing.data')), false);
+    }
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+}
+
 async function testPackagedGeneratedAssetsDoNotWrite() {
-  const png = path.join(root, 'tests', '.packaged-generated-asset.png');
-  const wav = path.join(root, 'tests', '.packaged-generated-asset.wav');
+  const png = path.join(testRoot!, 'packaged-generated-asset.png');
+  const wav = path.join(testRoot!, 'packaged-generated-asset.wav');
   fs.rmSync(png, { force: true });
   fs.rmSync(wav, { force: true });
   const previous = process.env.SESI_GAME_PACKAGED;
@@ -176,8 +284,8 @@ async function testPackagedGeneratedAssetsDoNotWrite() {
       allow "std/draw" in as Draw
       allow "std/audio" in as Audio
       Draw.pixel(0, 0, "#ffffff")
-      Draw.save_png("tests/.packaged-generated-asset.png", 1, 1)
-      Audio.save("tests/.packaged-generated-asset.wav", "A4", 20, "sine")
+      Draw.save_png(${JSON.stringify(png)}, 1, 1)
+      Audio.save(${JSON.stringify(wav)}, "A4", 20, "sine")
     `;
     await runVm(source);
     await runTree(source);
@@ -192,13 +300,17 @@ async function testPackagedGeneratedAssetsDoNotWrite() {
 }
 
 async function testGeneratedAssetUsesWorkingDirectoryRoot() {
-  const asset = path.join(root, 'tests', '.generated-game-asset.txt');
+  const working = path.join(testRoot!, 'working');
+  fs.mkdirSync(path.join(working, 'tests', 'fixtures'), { recursive: true });
+  const previousWorking = process.cwd();
+  process.chdir(working);
+  const asset = path.join(working, 'tests', '.generated-game-asset.txt');
   fs.rmSync(asset, { force: true });
   try {
-    const interpreter = new Interpreter(path.join(root, 'tests', 'fixtures'), {
+    const interpreter = new Interpreter(path.join(working, 'tests', 'fixtures'), {
       safeMode: false,
       allowLocalFs: true,
-      allowedPaths: [root],
+      allowedPaths: [working],
     });
     const parser = new Parser(new Lexer(`
       allow "std/game" in as Game
@@ -215,6 +327,7 @@ async function testGeneratedAssetUsesWorkingDirectoryRoot() {
     assert.equal(fs.readFileSync(asset, 'utf8'), 'generated');
   } finally {
     fs.rmSync(asset, { force: true });
+    process.chdir(previousWorking);
   }
 }
 
@@ -231,8 +344,9 @@ async function testCallbackVmOwnership() {
 }
 
 async function testBytecodeOnlyModuleGraph() {
-  const dependencySource = 'export fn answer() { return 42 }';
-  const entrySource = 'import { answer } from "./dependency"\nlet result = answer()';
+  const dependencySource = 'allow "std/math" in as Math\nlet offset = 7\nexport fn answer() { return Math.floor(35.5) + offset }';
+  const proof = path.join(testRoot!, 'module-scope.data');
+  const entrySource = `import { answer } from "./dependency"\nlet offset = 100\nlet result = answer()\nwrite_file(${JSON.stringify(proof)}, to_json(result))`;
   const dependencyParser = new Parser(new Lexer(dependencySource).scanTokens());
   const dependencyProgram = dependencyParser.parse();
   const dependencyCompiler = new Compiler();
@@ -246,10 +360,11 @@ async function testBytecodeOnlyModuleGraph() {
     root,
     { safeMode: false, allowLocalFs: true, allowedPaths: [root], gameHost: true },
   );
+  assert.equal(JSON.parse(fs.readFileSync(proof, 'utf8')), 42, 'imported compiled functions retain their module namespace and private globals');
 }
 
 async function testBuildOnlyStageAndAssets() {
-  const output = path.join(root, 'tests', '.game-build-fixture');
+  const output = path.join(testRoot!, 'game-build-fixture');
   fs.rmSync(output, { recursive: true, force: true });
   try {
     await runTree(`
@@ -260,7 +375,7 @@ async function testBuildOnlyStageAndAssets() {
       let camera = scene.orbit_camera("camera")
       let light = scene.hemispheric_light("light")
       let triangle = scene.load_model("triangle", "triangle")
-      game.build("tests/.game-build-fixture", {"overwrite": true, "stage_only": true})
+      game.build(${JSON.stringify(output)}, {"overwrite": true, "stage_only": true})
       game.dispose()
     `);
     const manifest = JSON.parse(fs.readFileSync(path.join(output, 'game.manifest.json'), 'utf8'));
@@ -273,6 +388,42 @@ async function testBuildOnlyStageAndAssets() {
     assert.equal(fs.existsSync(path.join(output, 'node_modules', 'sharp', 'package.json')), true);
     const stagedCore = require(path.join(output, 'node_modules', '@misterscan', 'sesi'));
     assert.equal(typeof stagedCore.runSesiBytecodeBundle, 'function');
+    const stagedAddon = require(path.join(output, 'node_modules', '@misterscan', 'sesi-game'));
+    assert.equal(typeof stagedAddon.createRuntime, 'function');
+    await stagedCore.runSesiBytecodeBundle({
+      format: 'sesi-bytecode-bundle-v1', entry: 'entry.sesi', modules: [{
+        id: 'entry.sesi', exports: [],
+        chunk: compile('allow "std/game" in as Game\nlet game = Game.create()\ngame.dispose()'),
+      }],
+    }, output, { safeMode: true, filesystemRoots: [], packagedGame: true, gameHost: true });
+    if (process.env.SESI_GAME_GUI_SMOKE === '1') {
+      const proof = path.join(output, 'assets', 'capability-smoke.data');
+      const source = `
+        allow "std/game" in as Game
+        let denied = false
+        try { read_file(${JSON.stringify(path.join(root, 'package.json'))}) } catch (error) { denied = true }
+        write_file(${JSON.stringify(proof)}, to_json({ denied: denied }))
+        let game = Game.create({ title: "Packaged Regression Smoke", webgpu: false })
+        let scene = game.create_scene("main")
+        scene.orbit_camera("camera")
+        scene.hemispheric_light("light")
+        let box = scene.box("box", { position: Game.vec3(0, 3, 0) })
+        scene.enable_physics()
+        scene.add_body(box, { type: "dynamic" })
+        game.run({ auto_close_ms: 350 })
+      `;
+      fs.writeFileSync(path.join(output, 'game.bytecode.json'), JSON.stringify({
+        format: 'sesi-bytecode-bundle-v1', entry: 'entry.sesi', modules: [
+          { id: 'entry.sesi', exports: [], chunk: compile(source) },
+        ],
+      }));
+      const env = { ...process.env };
+      delete env.ELECTRON_RUN_AS_NODE;
+      const result = spawnSync(require('electron'), [output], { env, encoding: 'utf8', timeout: 30000 });
+      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      assert.equal(JSON.parse(fs.readFileSync(proof, 'utf8')).denied, true);
+    }
     const packagedFiles = fs.readdirSync(output, { recursive: true }) as string[];
     assert.equal(packagedFiles.some(file => file.endsWith('.sesi')), false);
   } finally {
@@ -300,7 +451,7 @@ async function testRemoteAssetPackagingGuards() {
   const address = server.address();
   assert.ok(address && typeof address === 'object');
   const origin = `http://127.0.0.1:${address.port}`;
-  const output = path.join(root, 'tests', '.game-remote-build-fixture');
+  const output = path.join(testRoot!, 'game-remote-build-fixture');
   fs.rmSync(output, { recursive: true, force: true });
   try {
     await runTree(`
@@ -310,7 +461,7 @@ async function testRemoteAssetPackagingGuards() {
       let scene = game.create_scene("main")
       let camera = scene.orbit_camera("camera")
       let light = scene.hemispheric_light("light")
-      game.build("tests/.game-remote-build-fixture", {"overwrite": true, "stage_only": true})
+      game.build(${JSON.stringify(output)}, {"overwrite": true, "stage_only": true})
       game.dispose()
     `);
     const manifest = JSON.parse(fs.readFileSync(path.join(output, 'game.manifest.json'), 'utf8'));
@@ -322,14 +473,14 @@ async function testRemoteAssetPackagingGuards() {
       let game = Game.create({"title": "Guard Fixture"})
       game.assets.add("large", "audio", "${origin}/large")
       let rejected = false
-      try { game.build("tests/.game-remote-failure", {"overwrite": true, "stage_only": true, "max_asset_bytes": 8}) } catch (error) { rejected = true }
+      try { game.build(${JSON.stringify(path.join(testRoot!, 'game-remote-failure'))}, {"overwrite": true, "stage_only": true, "max_asset_bytes": 8}) } catch (error) { rejected = true }
       game.dispose()
     `);
     assert.equal((failed as any).currentEnv.get('rejected'), true);
   } finally {
-    server.close();
+    await new Promise<void>(resolve => server.close(() => resolve()));
     fs.rmSync(output, { recursive: true, force: true });
-    fs.rmSync(path.join(root, 'tests', '.game-remote-failure'), { recursive: true, force: true });
+    fs.rmSync(path.join(testRoot!, 'game-remote-failure'), { recursive: true, force: true });
   }
 }
 
@@ -393,6 +544,8 @@ async function main() {
   await testVmNamespaceAndNativeObjects();
   await testTreeNamedBindingsAndSceneFacade();
   await testSafeMode();
+  await testOwnedHandleLifetimes();
+  await testPackagedFilesystemCapabilities();
   await testPackagedGeneratedAssetsDoNotWrite();
   await testGeneratedAssetUsesWorkingDirectoryRoot();
   await testCallbackVmOwnership();

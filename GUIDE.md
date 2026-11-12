@@ -20,7 +20,7 @@ Sesi is a **clean, minimal, side-effect-oriented** scripting language. It is:
 ```sesi
 let name    = "Sesi"
 let retries: number = 3
-let version = 1.9.1
+let version = 1.9.2
 let active  = true
 let missing         // null (uninitialized)
 ```
@@ -67,7 +67,7 @@ Never use `parseInt`, `Number()`, or JS-style coercions.
 ```sesi
 fn greet(name: str, title: str?) { ... }   // title may be null (optional type)
 fn find(id: num) -> object? { ... }        // optional return type
-fn show(val: number | string) { ... }      // union type
+fn display(val: number | string) { ... }      // union type
 ```
 
 ### Optional Chaining
@@ -341,10 +341,10 @@ Sesi's unique string-composition primitive. Replaces template literals.
 
 ```sesi
 let name = "Ada"
-let ver  = "1.9.1"
+let ver  = "1.9.2"
 
 prompt header {"Welcome to Sesi "ver". Hello, "name}
-// header = "Welcome to Sesi 1.9.1. Hello, Ada"
+// header = "Welcome to Sesi 1.9.2. Hello, Ada"
 
 show header
 write_file("out.txt", header)
@@ -389,7 +389,7 @@ show "Hello, " + name + " version " + str(version)
 
 ```sesi
 export fn add(a, b) { return a + b }
-export let VERSION = "1.9.1"
+export let VERSION = "1.9.2"
 ```
 
 ### Importing — `import` (named)
@@ -455,6 +455,18 @@ try {
 ```sesi
 allow "std/draw" in as Draw
 ```
+
+### Text Sizing
+
+`Draw.text` takes a font size in pixels. `Draw.pixel_text` takes a scale: smooth faces use `7 * scale` pixels, with an 8px minimum. Use `font_px / 7` to specify a pixel size. Smooth faces preserve fractional scales and whitespace; `classic` uses whole bitmap cells.
+
+```sesi
+Draw.text(24, 40, "SVG: 16px", 16, "white")
+Draw.pixel_text(24, 24, "Raster: 14px", "white", 2, "sans")
+Draw.pixel_text(24, 52, "Raster: 16px", "white", 16 / 7, "sans")
+```
+
+Save SVG text with `save_svg` and raster text with `save_png`. See [SVG and Pixels](getting-started/SVG-AND-PIXELS.md#raster-text-sizing-and-layout) for text positioning and helper examples.
 
 ### Shapes
 
@@ -1060,6 +1072,7 @@ run_test_suite("Math Tests", results)
 3. **Fix in file only** — never use `sed`, `awk`, or shell manipulation on `.sesi` files
 4. **Run the full script** — `npm run sesi <file>.sesi` only after eval passes
 5. **File-aware help** — `node bin/sesi.js -h <file>.sesi "question"` when stuck
+6. **Inspect drawings** — check the saved output at its intended display size for text size, alignment, clipping, and overlap.
 
 > **ABSOLUTE RULE:** Never edit `.sesi` files via terminal shell tools. Always use the IDE editor directly.
 

@@ -102,7 +102,7 @@ prompt greeting {"Hello, "name"!"}
 **Structured Output**
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.9.1\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.9.2\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -175,7 +175,7 @@ Memory bindings automatically summarize older content after an update crosses th
 
 ### I/O
 
-- `show(...args)` - Output to stdout
+- `show "...args"` - Output to stdout
 - `read_file(path)` - Read file contents
 - `write_file(path, content)` - Write file contents
 - `write_image(path, content)` - Write base64 image data to file

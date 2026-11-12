@@ -1,0 +1,93 @@
+allow "std/web" in as Web
+allow "sesi-icons/search" in with {Search}
+allow "sesi-icons/document" in with {Document}
+allow "sesi-icons/image" in with {Image}
+allow "sesi-icons/trash" in with {Trash}
+allow "sesi-icons/add-circle" in with {AddCircle}
+
+/** A file row composes your icon components with ordinary Sesi actions. */
+fn FileRow(props) {
+  let file = props.file
+  let TypeIcon = Document
+  if file.kind == "image" { TypeIcon = Image }
+  fn select() { props.select(file.id) }
+  fn remove() { props.remove(file.id) }
+  return Web.element("li", {}, [
+    Web.element("button", {class: "file", type: "button", "aria-pressed": props.selected == file.id, on_click: select}, [
+      Web.child(TypeIcon, {size: 32}),
+      Web.element("span", {}, [file.name])
+    ]),
+    Web.element("button", {class: "delete", type: "button", "aria-label": "Delete " + file.name, on_click: remove}, [
+      Web.child(Trash, {size: 20})
+    ])
+  ])
+}
+
+/** An in-memory file browser with search, creation, selection, and deletion. */
+fn Workspace(_props, ui) {
+  let query = ui.state("query", "")
+  let store = ui.state("files", {
+    next_id: 4,
+    selected: null,
+    items: [
+      {id: 1, name: "Project brief.md", kind: "document"},
+      {id: 2, name: "Homepage concepts.png", kind: "image"},
+      {id: 3, name: "Meeting notes.md", kind: "document"}
+    ]
+  })
+  fn search(event) { query.set(event.target.value) }
+  fn create() {
+    fn add(current) {
+      let file = {id: current.next_id, name: "Untitled " + str(current.next_id) + ".md", kind: "document"}
+      return {next_id: current.next_id + 1, selected: file.id, items: current.items + [file]}
+    }
+    store.update(add)
+    query.set("")
+  }
+  fn select(id) {
+    fn choose(current) { return {next_id: current.next_id, selected: id, items: current.items} }
+    store.update(choose)
+  }
+  fn remove(id) {
+    fn erase(current) {
+      let items = []
+      for file in current.items { if file.id != id { items = items + [file] } }
+      let selected = current.selected
+      if selected == id { selected = null }
+      return {next_id: current.next_id, selected: selected, items: items}
+    }
+    store.update(erase)
+  }
+
+  let rows = []
+  let selection = "Select a file"
+  for file in store.value.items {
+    if file.id == store.value.selected { selection = file.name }
+    if contains(to_lower(file.name), to_lower(query.value)) {
+      rows = rows + [Web.child(FileRow, {file: file, selected: store.value.selected, select: select, remove: remove}, file.id)]
+    }
+  }
+  if len(rows) == 0 { rows = [Web.element("li", {class: "empty"}, ["No matching files"])] }
+
+  return Web.element("main", {}, [
+    Web.element("header", {}, [
+      Web.element("div", {}, [
+        Web.element("p", {class: "eyebrow"}, ["SESI WORKSPACE"]),
+        Web.element("h1", {}, ["Your files"])
+      ]),
+      Web.element("button", {class: "create", type: "button", on_click: create}, [
+        Web.child(AddCircle, {size: 24}),
+        Web.element("span", {}, ["New document"])
+      ])
+    ]),
+    Web.element("label", {class: "search"}, [
+      Web.child(Search, {size: 24}),
+      Web.element("input", {type: "search", "aria-label": "Search files", placeholder: "Search files", value: query.value, on_input: search})
+    ]),
+    Web.element("ul", {}, rows),
+    Web.element("p", {class: "selection", role: "status"}, [selection]),
+    Web.element("p", {class: "note"}, ["Example files are kept in this session."])
+  ])
+}
+
+Web.mount("#app", Workspace, {})

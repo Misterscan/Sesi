@@ -286,14 +286,15 @@ config_entry := (STRING | identifier) ':' expression
 
 | Key             | Applies to       | Type                      | Description                                                                |
 | --------------- | ---------------- | ------------------------- | -------------------------------------------------------------------------- |
-| `thinkingLevel` | `model`          | `string \| object`        | **Recommended**: Effort level (`"minimal"`, `"low"`, `"medium"`, `"high"`) |
-| `temperature`   | `model`, `image` | `number`                  | \*Will be deprecated in Gemini 3.x+\_ (Sampling temperature)               |
+| `thinkingLevel` | `model`          | `string \| object`        | Effort level (`"minimal"`, `"low"`, `"medium"`, `"high"`) |
+| `temperature`   | `model`, `image` | `number`                  | \*Deprecated, use `thinkingLevel` instead\_             |
 | `max_tokens`    | `model`          | `number`                  | Max output token count                                                     |
-| `top_k`         | `model`          | `number`                  | \*Will be deprecated in Gemini 3.x+\_                                      |
-| `top_p`         | `model`          | `number`                  | \*Will be deprecated in Gemini 3.x+\_                                      |
+| `top_k`         | `model`          | `number`                  | \*Deprecated\_                                      |
+| `top_p`         | `model`          | `number`                  | \*Deprecated\_                                      |
 | `ratio`         | `image`          | `string`                  | Aspect ratio e.g. `"16:9"`                                                 |
 | `size`          | `image`          | `string`                  | `"512"`, `"1K"`, `"2K"`, `"4K"`                                            |
 | `images`        | `model`, `image` | `string \| array<string>` | Local file path(s) passed as visual input                                  |
+| `videos` (`video`) | `model`, `image` | `string \| object \| array` | Gemini video input: local paths, HTTP(S) URLs, video data URLs, `{data, mimeType}`, or `{uri, mimeType?}` |
 | `audio`         | `model`, `image` | `string \| object`        | Local path, audio data URL, or `{data, mimeType}` Base64 audio input       |
 | `stream`        | `model`          | `bool \| fn`              | Enable real-time streaming to stdout (`true`) or a callback function       |
 | `system`        | `model`, `image` | `string`                  | Provider-native system instruction                                         |
@@ -309,6 +310,8 @@ let output = model("gemini-3.8-flash") {thinkingLevel: "medium"} {prompt}
 ```
 
 Audio files are read and Base64-encoded at request time. Gemini model and image calls receive inline audio with the detected MIME type. For OpenAI `model()` and `image()` calls, Sesi currently transcribes WAV or MP3 input through OpenAI first and appends the transcript to the model or image prompt. The selected provider model must support the requested operation.
+
+Video input requires a Gemini model that accepts video, such as `gemini-4-argon` for text output or `gemini-3.1-flash-image` for image output. OpenAI and local models reject video input; Sesi does not automatically extract frames. See [video input](REASONING.md#passing-videos-as-input) for formats, size limits, and examples.
 
 #### Convert Expression
 
@@ -361,13 +364,22 @@ let greeting = await p // blocks and resolves to "Hello, Alice"
 
 ```
 structured_output := 'structured_output' '('schema')' '('expression')'
-schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}'
+schema := '{' (identifier ':' type (',' identifier ':' type)*)? '}' | expression
 ```
+
+Reusable schemas are objects with string type names, for example
+`let schema = {title: "string", completed: "bool"}` followed by
+`structured_output(schema)(rawJson)`. Schema expressions are evaluated once,
+before the input expression. Inline schemas continue to use unquoted types.
+Reusable field types are `"string"`, `"number"`, `"bool"` (or `"boolean"`),
+`"object"`, `"array"`, and `"any"`. A reusable field may also be a nested schema
+object (for example `{metadata: {shape: "string", size: "number"}}`) to describe
+the fields of an object value; nested schemas are not available for inline schemas.
 
 Example:
 
 ```sesi
-let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.9.1\", \"status\": \"active\"}"
+let rawJson = "{\"projectName\": \"Sesi\", \"version\": \"1.9.2\", \"status\": \"active\"}"
 let parsedRegistry = structured_output({projectName: string, version: string, status: string})(rawJson)
 ```
 
@@ -530,7 +542,7 @@ In `"auto"` mode, Sesi uses the requested image viewer for image extensions, the
 ## 8. Built-in Functions
 
 ```
-show(any)                    // Output to stdout
+show 'any'                    // Output to stdout
 debug()                       // Pauses and opens interactive REPL debugger
 len(array | string | object)  // Length
 range(number) -> array        // [0, 1, ..., n-1]
@@ -601,7 +613,7 @@ run(string) -> string             // Exact alias of exec
 get_ext(string) -> string         // Lowercase extension without a dot
 exists(string) -> bool            // Sandbox-aware path existence check
 zip(source, destination?, operation?) // Create, list, or extract archives
-sesi(string, bool?, bool?) -> string // Synchronous in-process Sesi execution or compile check
+sesi(string, bool?, bool?, array<string>?) -> string // Synchronous in-process Sesi execution or compile check
 python(string, args) -> string    // Inline Python code execution
 js(strings, args) -> string       // In-proccess Javascript execution
 time() -> number                  // Current Unix timestamp
@@ -761,8 +773,8 @@ show "Image written to logo.png"
 - **`images`**: `string` or `array<string>` (paths to multimodal vision input files)
 - **`cache`**: `bool` (set to `false` to explicitly bypass Sesi Logic Caching)
 - **`stream`**: `bool | fn` (set to `true` to stream tokens to standard output, or pass a Sesi function reference to handle incoming chunks)
-- **`temperature`**: _ Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
-- **`top_k` / `top_p`**: _ Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
+- **`temperature`**: _ Deprecated, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
+- **`top_k` / `top_p`**: _ Deprecated, use thinkingLevel instead._ — reasoning is pre-optimized for defaults.
 
 ### Speech and Transcription
 

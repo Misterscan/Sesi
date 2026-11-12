@@ -22,6 +22,23 @@ The examples below use `Draw` as a readable convention.
 
 ---
 
+## Before Drawing an Interface: Choose the Output and Text Units
+
+For UI mockups, dashboards, editors, and terminals, establish the text units before placing labels and code. `Draw.text` accepts a font size in pixels; `Draw.pixel_text` accepts a scale. Keep those units explicit in helpers and use the actual font when checking spacing.
+
+| Output | Shapes and text | Text size argument | Text Y coordinate | Save with |
+| --- | --- | --- | --- | --- |
+| SVG | `Draw.rect`, `Draw.text`, etc. | Font size in pixels, e.g. `14` | Baseline | `Draw.save_svg` |
+| Raster PNG | `Draw.pixel_rect`, `Draw.pixel_text`, etc. | Scale, e.g. `2`; smooth faces preserve fractional values | Font origin at the top of a line; baseline is `y + font_size` for smooth faces | `Draw.save_png` |
+
+The SVG and raster buffers are separate. `save_png` does not rasterize `Draw.text` or other SVG shapes. Match the shapes, text, and save function to the selected output.
+
+**For smooth `Draw.pixel_text` faces, nominal font size is `max(8, 7 * max(1, scale))` pixels.** Fractional scales are preserved: `1.8` gives a 12.6px nominal font. To request a 16px font, pass `16 / 7` as the scale. Passing `16` directly means 112px. The `classic` bitmap face still floors its scale to whole pixels.
+
+Read [Raster text sizing and layout](#raster-text-sizing-and-layout) for sizing, indentation, and baseline rules. Render a small typography specimen before repeating text across an interface, then inspect the saved output at its intended display size.
+
+---
+
 ## Drawing Shapes
 
 Every draw call appends a shape to an internal buffer. Nothing is rendered or saved until you call `render` or `save_svg`. This only applies to SVG output; pixel-based drawings are handled differently. Do not call `save_png` for SVG shapes — only use it when using `Draw.pixel()`, `Draw.pixel_grid()`, or `Draw.pixel_<shape>()` functions.
@@ -380,6 +397,19 @@ Draw.save_png("pixel_polygon.png", 100, 100)
 
 ---
 
+### Pixel Path — `Draw.pixel_path`
+
+Rasterizes SVG-style path data directly into the pixel buffer. It accepts `M`, `L`, `H`, `V`, `Q`, `T`, `C`, `S`, `A`, and `Z` commands, including lowercase relative forms. Multiple subpaths use even-odd fill. Set `filled` to `false` to draw only the path outline.
+
+```sesi
+allow "std/draw" in as Draw
+
+Draw.pixel_path("M 10 80 Q 50 10 90 80 L 10 80 Z", "#06d6a0", true)
+Draw.save_png("pixel_path.png", 100, 100)
+```
+
+---
+
 ### Pixel Triangle — `Draw.pixel_triangle`
 
 Rasterizes a triangle into the pixel buffer.
@@ -507,8 +537,10 @@ Draw.save_png("pixel_bezier.png", 100, 100)
 ### Pixel Text — `Draw.pixel_text`
 
 Rasterizes text directly into the pixel buffer. The default `classic` face uses
-the built-in 5x7 bitmap font. The `bubble` and `impact` faces render smooth,
-antialiased, full-scale lettering.
+the built-in 5x7 bitmap font. All other faces (`bubble`, `impact`, `sans`,
+`light`, `serif`, `mono`, `script`, `comic`, `marker`, `wide`, `italic`, and
+`outline`) render smooth, antialiased, full-scale lettering using system fonts
+with fallbacks, so exact glyphs vary by machine.
 
 ```
 Draw.pixel_text(x, y, text, color, scale = 1, font = "classic")
@@ -517,11 +549,11 @@ Draw.pixel_text(x, y, text, color, scale = 1, font = "classic")
 | Parameter | Type | Description |
 | --------- | ---- | ----------- |
 | `x` | `number` | Left X position |
-| `y` | `number` | Top Y position |
+| `y` | `number` | Line origin Y; smooth text uses a baseline at `y + nominal_font_size` |
 | `text` | `string` | Text string to render |
 | `color` | `string` | Text color |
-| `scale` | `number` | Text scale; multiplies bitmap cells for `classic` and controls rendered size for smooth faces |
-| `font` | `string` | Font face: `"classic"`, `"bubble"`, or `"impact"` |
+| `scale` | `number` | Smooth faces preserve fractional scales (minimum `1`); `classic` floors to an integer (minimum `1`) |
+| `font` | `string` | Font face: `"classic"` (default), `"bubble"`, `"impact"`, `"sans"`, `"light"`, `"serif"`, `"mono"`, `"script"`, `"comic"`, `"marker"`, `"wide"`, `"italic"`, or `"outline"`. An unknown face throws an error listing the available ones |
 
 ```sesi
 allow "std/draw" in as Draw
@@ -539,6 +571,65 @@ Draw.pixel_text(30, 125, "IMPACT STYLE", "#fff1d0", 12, "impact")
 Draw.save_png("font_faces.png", 900, 240)
 ```
 
+#### Raster text sizing and layout
+
+Smooth faces preserve fractional scales and use a nominal font size of `max(8, 7 * max(1, scale))` pixels (a formula, not Sesi code). `classic` uses `max(1, floor(scale))` for whole bitmap cells. Nominal font size describes the font's size, not the height or width of its visible glyphs.
+
+| Passed scale | Smooth nominal font size | `classic` glyph cell size / character advance |
+| --- | --- | --- |
+| `1` | 8px | 5×7px / 6px |
+| `1.4` | 9.8px | 5×7px / 6px |
+| `1.8` | 12.6px | 5×7px / 6px |
+| `2` | 14px | 10×14px / 12px |
+| `16 / 7` | 16px | 10×14px / 12px |
+| `3` | 21px | 15×21px / 18px |
+
+For a desktop interface drawn near its intended display resolution, 14–16px nominal fonts are useful starting points for readable labels and code. Use `font_px / 7` as the smooth font scale when expressing the intended size in pixels (sizes of at least 8px are supported). Inspect the result at its intended display size.
+
+`Draw.pixel_text` always takes a **scale** as its fifth argument. Optional script helpers can expose either scale units or pixel font sizes:
+
+| Helper defined in the example | Size argument | Example call | Scale passed to `Draw.pixel_text` | Nominal smooth font size |
+| --- | --- | --- | --- | --- |
+| `text_scale` | Scale multiplier | `text_scale(24, 20, "Hello", 2)` | `2` | 14px |
+| `text_px` | Font size in pixels | `text_px(24, 84, "Hello", 14)` | `14 / 7`, which is `2` | 14px |
+
+Both helpers use the smooth `light` face. `text_scale` passes its size argument unchanged; `text_px` divides its size argument by seven. Fractional values remain intact in both cases.
+
+```sesi
+allow "std/draw" in as Draw
+
+// Accept a scale multiplier, such as 2 or 1.8.
+fn text_scale(x, y, text, scale) {
+  Draw.pixel_text(x, y, text, "#dce6f5", scale, "light")
+}
+
+// Accept a pixel font size, such as 14 or 16.
+fn text_px(x, y, text, font_px) {
+  Draw.pixel_text(x, y, text, "#dce6f5", font_px / 7, "light")
+}
+
+Draw.pixel_rect(0, 0, 640, 160, "#1d2533")
+text_scale(24, 20, "Scale 2: nominal 14px", 2)
+text_scale(24, 52, "Scale 1.8: nominal 12.6px", 1.8)
+text_px(24, 84, "Pixel font size: 14px", 14)
+text_px(24, 116, "Pixel font size: 16px", 16)
+
+try {
+  Draw.save_png("ui-type-probe.png", 640, 160, "#1d2533")
+} catch (err) {
+  show "Unable to save typography probe:" err
+}
+```
+
+Use `light` or `sans` for interface labels and `mono` for code and terminals. The current `sans` and `mono` faces use bold font weights; `light` uses a lighter weight. The `classic` bitmap face has different metrics and a deliberately pixelated appearance.
+
+**Layout must follow the rendered font:**
+
+- **Width:** The `6 * scale` character advance belongs to `classic`. Smooth `mono` uses a system monospace font with fallbacks. An estimate such as `0.6 * nominal_font_size` (about 8.4px at scale `2`) needs calibration against the actual output; it is not an API guarantee. Proportional faces cannot use a fixed advance for every character. Never copy an advance from another face or scale.
+- **Whitespace:** Leading and repeated spaces are preserved for smooth faces. Pass an indented code line directly; do not also add a manual indentation offset. A string containing only whitespace paints no pixels.
+- **Baseline:** Smooth text retains its font origin and side bearings. Calls with the same Y and nominal font size share the baseline `y + font_size`; punctuation and descenders keep their normal positions. Y is the line origin, not the topmost visible pixel of each token. Prefer complete lines when possible. For colored tokens, calibrate horizontal advances for the selected font instead of copying bitmap metrics.
+- **Multiple lines:** Smooth text honors explicit newline characters, with baselines separated by `1.4 * nominal_font_size`. Blank lines retain that spacing. Choose text line breaks and panel dimensions explicitly, and check the longest label against panel edges. Increasing PNG dimensions alone does not resize existing content.
+
 ---
 
 ### Saving PNG Output — `Draw.save_png`
@@ -554,7 +645,7 @@ Encodes all raster pixels in the buffer to a PNG image file. Coordinates are flo
 ### Key Differences When Working With Full Resolutions:
 1. **Canvas Allocation**: `Draw.save_png(path, width, height, "transparent")` instructs the raster engine to write a complete width×height viewport. Any primitives placed outside that bounding box are clipped, and undefined pixels receive the specified background color (or transparency).
 2. **Scale Multipliers**:
-   - `Draw.pixel_text(x, y, text, color, scale, font)`: For the `classic` face, `scale = 2` or `scale = 3` enlarges bitmap glyph cells. The smooth `bubble` and `impact` faces use the same value to control their rendered size.
+   - `Draw.pixel_text(x, y, text, color, scale, font)`: Smooth faces preserve fractional scales and use a nominal font size of `max(8, 7 * max(1, scale))` pixels. `classic` floors the scale to enlarge whole bitmap cells.
    - `Draw.pixel_grid(grid, palette, scale)`: When using palette grids on an HD canvas, set `scale` (e.g., `32`, `64`, or `128`) so that character cells map to sizable multi-pixel blocks rather than single 1px dots.
 3. **Primitive Sizing**: Coordinates for `pixel_polygon`, `pixel_triangle`, `pixel_star`, `pixel_circle`, and `pixel_rect` must scale with the destination dimensions. Radius values of `40` to `100` and heights of `300` to `600` fill out a 720p or 1080p frame proportionally for reference.
 
@@ -684,6 +775,7 @@ Draw.pixel_circle(cx, cy, r, color, filled = true)
 Draw.pixel_line(x1, y1, x2, y2, color)
 Draw.pixel_ellipse(cx, cy, rx, ry, color, filled = true)
 Draw.pixel_polygon(points, color, filled = true)
+Draw.pixel_path(d, color, filled = true)
 Draw.pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled = true)
 Draw.pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled = true)
 Draw.pixel_ring(cx, cy, radius, thickness, color)

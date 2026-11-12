@@ -176,7 +176,6 @@ show cheap
 - Set `OPENAI_API_KEY` in your environment to enable GPT calls.
 - GPT calls support streaming, `system` instructions, local image files via `images`, and web search via `search: true`.
 - GPT tool schemas can be passed via `tools` in model config.
-- Sesi audio input currently requires a Gemini model.
 
 ```sesi
 let answer = model("gpt-6-luna") {"Summarize this document in 3 bullets."}
@@ -237,6 +236,29 @@ write_file("transcript.txt", result)
 
 See [Image Generation & Input](IMAGE_GENERATION.md) for the full reference.
 
+### Passing Videos as Input
+
+Use `videos` (or the alias `video`) with a Gemini model that supports video input:
+
+```sesi
+let summary = model("gemini-4-argon") {videos: "clip.mp4", cache: false} {"Summarize the events in this video."}
+show summary
+
+let comparison = model("gemini-4-argon") {videos: ["before.mp4", "after.mp4"]} {"What changed between these clips?"}
+show comparison
+
+let linked = model("gemini-4-argon") {video: "https://www.youtube.com/watch?v=UTdfxFyOQTI"} {"Describe this video."}
+show linked
+```
+
+Each input can be a local path, an HTTP(S) URL accepted by Gemini (including YouTube URLs), a `data:video/mp4;base64,...` URL, a `{data: encodedVideo, mimeType: "video/mp4"}` object, or a `{uri: uploadedFileUri, mimeType: "video/mp4"}` object. `mimeType` is optional for URI objects. Arrays may mix these forms. Existing `images`, audio, streaming, and structured output can be combined with video input.
+
+Local formats are MP4, MOV, AVI, WebM, MPEG/MPG, WMV, FLV, and 3GP. Sesi reads local files and sends inline video parts with their detected MIME types. Paths follow Sesi's filesystem access rules. Local files are limited to 14 MB each and combined Base64 video data to 19 MB, leaving room under Gemini's 20 MB inline request limit; other inputs and prompt text also count toward the provider's total request limit. For larger videos, upload through the Gemini Files API, wait until processing completes, and pass the resulting URI. Sesi does not upload large files automatically. URI content and access are handled by Gemini. Use `cache: false` when content at a URL changes; local-video cache keys include the video's content.
+
+OpenAI and local models return an unsupported-video-input error. They do not receive video bytes or an automatic frame extraction fallback. The selected Gemini model must support the operation; model-specific duration and modality restrictions are enforced by the provider. Compiled browser apps support the same configuration using stored/deployed video assets, URLs, data URLs, and Base64 objects.
+
+This supplies an existing video as input. The separate `video()` primitive generates a new video.
+
 ## 3. Structured Output
 
 Get typed responses from Reasoning with field validation.
@@ -258,7 +280,7 @@ show analysis.summary      // "..."
 
 ```sesi
 // Schema is a record with field types
-let schema = {title: string, author: string, pageCount: number, tags: string, isFiction: bool}
+let schema = {title: "string", author: "string", pageCount: "number", tags: "string", isFiction: "bool"}
 let bookInfo = structured_output(schema)(model("gemini-3-flash-preview") {"Extract book metadata as JSON from: "description})
 show bookInfo.title
 ```

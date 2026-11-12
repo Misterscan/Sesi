@@ -14,6 +14,21 @@ assets to `your-file.assets.json`. Deploy these generated files together on HTTP
 The service worker runs the existing Sesi request handler in the browser. Authentication-header constants are replaced
 with runtime credentials entered on the launch page.
 
+Use [std/web](BUILTINS.md#stdweb) to build interactive browser applications. The [issue board](../examples/ui/issue-board.sesi) shows components, local state, and keyed lists.
+
+## Package a Sesi web app for desktop
+
+With Node.js 22.12 or later, install the optional packaging tools in your app directory, then build the Sesi entry point:
+
+```sh
+npm install -D electron @electron/packager
+sesi build app.sesi --desktop
+```
+
+Put `index.html` beside the entry file and load the compiled script with `<script type="module" src="/app.js"></script>`. Put assets in `public/` and reference them from the root, such as `/styles.css`. The build writes an unsigned application for the current OS and architecture under `dist/desktop/` and prints the path to launch.
+
+The desktop window loads the packaged frontend and supports route refreshes and bundled assets offline. The entry and its imports use the same Sesi compiler as a browser build.
+
 ---
 
 ## 🗺️ CLI Command Reference Matrix
@@ -22,6 +37,7 @@ with runtime credentials entered on the launch page.
 | :------------------------------------- | :--------------------- | :-------------------------------- | :---------------------------------------------------------------------------------- |
 | `sesi <file>`                          | **Standard Execution** | Yes                               | Runs the Sesi script file to standard output stream.                                |
 | `sesi build <file.sesi>`               | Browser build          | Yes                               | Compiles the Sesi file and its imports to a JavaScript file beside it.              |
+| `sesi build <file.sesi> --desktop`     | Desktop build          | Yes                               | Packages the compiled frontend, HTML shell, and public assets for the current OS. |
 | `sesi <file> <args...>`                | **Parametric Script**  | Yes                               | Runs the script and exposes trailing parameters in `args`.                          |
 | `sesi -e "<code>"`                     | Inline Eval            | **No (Fileless)**                 | Evaluates the string of Sesi code directly in-memory.                               |
 | `sesi -e "<code>" <args...>`           | **Parametric Eval**    | **No (Fileless)**                 | Evaluates inline code and populates `args` array with inputs.                       |
@@ -217,7 +233,7 @@ sesi
 Inside the REPL, any **Expression Statement** (like mathematical equations, string variables, or expressions) will auto-show its evaluated result to the terminal.
 
 ```sesi
-┌─ Sesi Interactive Terminal (v1.9.1) ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+┌─ Sesi Interactive Terminal (v1.9.2) ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │Welcome to Sesi! Type code and press Enter.                                                                                                                                                         │
 │Type .exit or press ESC to quit.                                                                                                                                                                    │
 │sesi> let x = 10                                                                                                                                                                                    │

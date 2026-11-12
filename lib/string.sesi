@@ -64,7 +64,7 @@ export fn quote(content: any) -> string {
   Notes:
   - Ampersands are escaped before the other entities to prevent double interpretation.
 */
-export fn escapeSvgText(text: any) -> string{
+export fn escapeSvgText(text: any) -> string {
   let s = str(text)
   s = swap(s, "&", "&amp;")
   s = swap(s, "<", "&lt;")
@@ -72,6 +72,15 @@ export fn escapeSvgText(text: any) -> string{
   s = swap(s, "\"", "&quot;")
   s = swap(s, "'", "&apos;")
   return s
+}
+export fn escape_html(value) -> string {
+  if value == null { return "" }
+  let text = str(value)
+  text = join(split(text, "&"), "&amp;")
+  text = join(split(text, "<"), "&lt;")
+  text = join(split(text, ">"), "&gt;")
+  text = join(split(text, "\""), "&quot;")
+  return join(split(text, "'"), "&#39;")
 }
 /**
   Sanitize a value for use as a short, filesystem-friendly name.

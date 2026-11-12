@@ -11,13 +11,13 @@ allow "std/terminal" in with { color }
 
 show color("=== 1. Defining Concurrently Run Closures ===", "magenta")
 fn slowTask1() {
-  show "Starting Task 1 (sleeping 150ms)..."
+  show "Starting Task 1 (sleeping 1.5s)..."
   150 | Time.sleep
   show "Task 1 complete!"
   return "result_from_task_1"
 }
 fn slowTask2() {
-  show "Starting Task 2 (sleeping 150ms)..."
+  show "Starting Task 2 (sleeping 1.5s)..."
   150 | Time.sleep
   show "Task 2 complete!"
   return "result_from_task_2"
@@ -37,20 +37,20 @@ fn runParallel() {
 show "=== 2. Sequential Execution (Demonstration) ==="
 let seq_start = Time.now()
 let sequentialResults = "sequential tasks" | profile(runSequential)
-let seq_elapsed = Time.now() - seq_start
+let seq_elapsed = (Time.now() - seq_start) / 100
 
 show "Sequential Results:"
 show str(sequentialResults)
-show "Sequential took:" str(seq_elapsed) "ms (should be >= 300ms)"
+show "Sequential took:" str(seq_elapsed) "s (should be >= 3s)"
 
 show "=== 3. Parallel Execution via multi_req ==="
 let start_time = Time.now()
 let results = "parallel tasks" | profile(runParallel)
-let elapsed = Time.now() - start_time
+let elapsed = (Time.now() - start_time) / 100
 
 show "Returned Results array:"
 show str(results)
-show "Parallel took:" str(elapsed) "ms (should be faster than sequential execution)"
+show "Parallel took:" str(elapsed) "s (should be faster than sequential execution)"
 
 if elapsed < seq_elapsed {
   show "✓ Success! Native Sesi concurrency verified: jobs ran in parallel."

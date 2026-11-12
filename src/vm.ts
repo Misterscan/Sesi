@@ -14,7 +14,8 @@ import {
   SesiRuntimeError,
 } from './types';
 
-import { getBuiltins, isTruthy, isEqual, stringify, compareValues } from './builtins';
+import { getBuiltins, isTruthy, isEqual, stringify, compareValues, normalizeStructuredSchema, structuredResponseSchema, ensureSafePath } from './builtins';
+import { normalizeVideoInputs } from './video-input';
 import { aiRuntime } from './ai-runtime';
 import { formatProfileReport } from './profiler';
 import { getRuntimeProperty, setRuntimeProperty } from './native-object';
@@ -78,6 +79,8 @@ export class VM {
   private stack: RuntimeValue[] = [];
   private frames: CallFrame[] = [];
   private globals: Map<string, RuntimeValue> = new Map();
+  // Callback VMs share the lexical module identity of the VM they isolate.
+  private globalOwner: VM = this;
   private prompts: Map<string, string> = new Map();
   private interpreter: any;
   private memory: Map<string, string> = new Map();
@@ -90,7 +93,7 @@ export class VM {
 
   constructor(
     private scriptDir?: string,
-    private options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; args?: string[]; profile?: boolean; timeoutMs?: number; deadlineAt?: number; modelUsageState?: any; bytecodeModules?: Map<string, BundledBytecodeModule>; bytecodeModuleId?: string },
+    private options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; filesystemRoots?: string[]; packagedGame?: boolean; args?: string[]; profile?: boolean; timeoutMs?: number; deadlineAt?: number; modelUsageState?: any; bytecodeModules?: Map<string, BundledBytecodeModule>; bytecodeModuleId?: string },
   ) {
     this.timeoutMs = options?.timeoutMs;
     this.deadlineAt = options?.deadlineAt ?? (this.timeoutMs ? Date.now() + this.timeoutMs : undefined);
@@ -110,6 +113,15 @@ export class VM {
     this.globals.set('args', options?.args ?? []);
 
     // Internal builtins that the compiler emits as CALL_BUILTIN names
+    for (const [name, builtin] of [
+      ['__structured_schema__', normalizeStructuredSchema],
+      ['__structured_response_schema__', structuredResponseSchema],
+    ] as const) {
+      this.globals.set(name, {
+        type: 'function', name, params: [], body: {} as any, closure: {} as any,
+        isBuiltin: true, builtin: builtin as any,
+      } as RuntimeFunction);
+    }
     this.globals.set('__structured_output__', {
       type: 'function',
       name: '__structured_output__',
@@ -119,10 +131,10 @@ export class VM {
       isBuiltin: true,
       builtin: async (schema: RuntimeValue, input: RuntimeValue): Promise<RuntimeValue> => {
         if (typeof input !== 'string') return input;
-        const schemaObj: Record<string, string> = {};
+        const schemaObj: Record<string, any> = {};
         if (typeof schema === 'object' && schema !== null) {
           for (const [k, v] of Object.entries(schema as any)) {
-            schemaObj[k] = typeof v === 'string' ? v : 'string';
+            schemaObj[k] = typeof v === 'string' || (typeof v === 'object' && v !== null) ? v : 'string';
           }
         }
         return await aiRuntime.parseStructuredOutput(input as string, schemaObj);
@@ -557,6 +569,7 @@ export class VM {
             const modelRequest = {
               model: resolvedModel,
               prompt: promptStr,
+              background: pick('background') as import('./types').AIRequest['background'],
               temperature: pick('temperature', 'temp') as number | undefined,
               maxTokens: pick('max_tokens', 'maxTokens', 'maxT') as number | undefined,
               topK: pick('top_k', 'topK') as number | undefined,
@@ -568,6 +581,7 @@ export class VM {
               search: searchVal,
               stream: streamVal,
               images: imagePaths,
+              videos: normalizeVideoInputs(pick('videos', 'video'), source => ensureSafePath(source, this.interpreter)),
               audio: typeof rawAudio === 'string'
                 ? rawAudio
                 : rawAudio && typeof rawAudio === 'object' && !Array.isArray(rawAudio)
@@ -636,11 +650,19 @@ export class VM {
                 prompt: typeof promptVal === 'string' ? promptVal : stringify(promptVal),
                 ratio: config?.ratio as string | undefined,
                 size:  config?.size  as string | undefined,
+                background: config?.background,
+                videos: normalizeVideoInputs(config?.videos ?? config?.video, source => ensureSafePath(source, this.interpreter)),
                 images: Array.isArray(config?.images)
                   ? config.images.map((value: any) => stringify(value))
                   : typeof config?.images === 'string' ? [config.images] : undefined,
               });
-              this.push(response.text);
+              this.interpreter?.recordMediaUsage(resolvedModel, 'image', response.usage, response.cached === true);
+              this.push(config?.response === 'full' ? {
+                text: response.text,
+                model: resolvedModel,
+                ...(this.interpreter?.getLastModelUsage() as Record<string, any> | null ?? {}),
+                finish_reason: response.finishReason ?? null,
+              } : response.text);
             }
             break;
           }
@@ -937,6 +959,13 @@ export class VM {
     }
 
     const proto: FunctionProto | null = (fn as any)._proto ?? null;
+    const owner = fn.ownerVm;
+    if (proto && owner instanceof VM && owner.globalOwner !== this.globalOwner) {
+      const args = this.stack.splice(this.stack.length - argc, argc);
+      this.pop();
+      this.push(await owner.invokeNativeCallback(fn, args));
+      return;
+    }
     if (!proto) {
       // Fallback: user-defined function compiled by tree-walker — delegate to interpreter
       const { Interpreter } = require('./interpreter');
@@ -1055,6 +1084,7 @@ export class VM {
         timeoutMs: this.timeoutMs,
         deadlineAt: this.deadlineAt,
       });
+      vm.globalOwner = this.globalOwner;
       if (this.interpreter && (vm as any).interpreter) {
         (vm as any).interpreter.customToolParent = this.interpreter;
         for (const [k, v] of (this.interpreter as any).modelAliases.entries()) {

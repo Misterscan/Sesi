@@ -2,12 +2,14 @@ allow "lib/ansi" in as TERM
 
 try {
     let geminiKey = $GEMINI_API_KEY // or GEMINI_API_KEY | env
+    let openAIKey = $OPENAI_API_KEY // or OPENAI_API_KEY | env
     let isSafeMode = $SESI_SAFE_MODE // or SESI_SAFE_MODE | env
     let sesiPass = $SESI_PASSWORD // or SESI_PASSWORD | env
 
-    TERM.badge("Gemini API Key (encrypted)", ": " + geminiKey)
-    TERM.badge("Sesi Safe Mode ?", ": " + isSafeMode)
-    TERM.badge("Sesi Password", ": " + sesiPass)
+    TERM.key_value("Gemini API Key", geminiKey)
+    TERM.key_value("OpenAI API Key", openAIKey)
+    TERM.key_value("Sesi Safe Mode?", isSafeMode)
+    TERM.key_value("Sesi Password", sesiPass)
 } catch (e) {
     TERM.warning("Environment variables could not be read.")
     TERM.error(str(e))

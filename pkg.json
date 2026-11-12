@@ -5,6 +5,7 @@
   "pkg": {
     "scripts": [],
     "assets": [
+      "bin/web-desktop-host.cjs",
       "node_modules/sharp/**/*",
       "node_modules/onnxruntime-node/bin/**/*",
       "node_modules/@img/**/*",

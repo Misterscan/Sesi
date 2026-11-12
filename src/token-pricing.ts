@@ -1,5 +1,6 @@
 export interface TokenRates {
   inputPerMillion: number;
+  imageInputPerMillion?: number;
   outputPerMillion: number;
   source: string;
   asOf: string;
@@ -8,6 +9,7 @@ export interface TokenRates {
 export interface TokenCostEstimate extends TokenRates {
   model: string;
   inputTokens: number;
+  imageInputTokens: number;
   outputTokens: number;
   totalTokens: number;
   inputCostUsd: number;
@@ -25,11 +27,14 @@ interface PricingRule {
   source: string;
 }
 
-const PRICING_AS_OF = '2026-10-13';
+const PRICING_AS_OF = '2026-10-29';
 const GEMINI_PRICING_SOURCE = 'https://ai.google.dev/gemini-api/docs/pricing';
 const OPENAI_PRICING_SOURCE = 'https://developers.openai.com/api/docs/pricing';
 
-// Standard, paid-tier text-token rates in USD per one million tokens.
+// Standard, paid-tier token rates in USD per one million tokens.
+// Multimodal models use their listed input and generated-media output rates.
+// These rates do not include cached input, tool fees, or provider processing
+// tiers beyond Standard.
 // Keep longer/more-specific model names before their family prefixes.
 const PRICING_RULES: PricingRule[] = [
   {
@@ -38,7 +43,7 @@ const PRICING_RULES: PricingRule[] = [
     source: GEMINI_PRICING_SOURCE,
   },
   {
-    models: ['gemini-3.1-flash-image-lite', 'gemini-3.1-flash-lite-image'],
+    models: ['gemini-3.1-flash-lite-image'],
     standard: { inputPerMillion: 0.25, outputPerMillion: 30 },
     source: GEMINI_PRICING_SOURCE,
   },
@@ -69,17 +74,47 @@ const PRICING_RULES: PricingRule[] = [
   },
   {
     models: ['gemini-3.6-flash'],
-    standard: { inputPerMillion: 1.5, outputPerMillion: 7.5 },
+    standard: { inputPerMillion: 0.75, outputPerMillion: 3.75 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-3-flash-preview'],
+    standard: { inputPerMillion: 0.5, outputPerMillion: 3 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-omni-1.1-flash'],
+    standard: { inputPerMillion: 1.5, outputPerMillion: 17.5 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-3.8-flash-tts'],
+    standard: { inputPerMillion: 0.5, outputPerMillion: 9 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-3.8-flash-lite-tts'],
+    standard: { inputPerMillion: 0.5, outputPerMillion: 6 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-3.5-transcribe'],
+    standard: { inputPerMillion: 2, outputPerMillion: 12 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-3.5-transcribe-live'],
+    standard: { inputPerMillion: 3.5, outputPerMillion: 21 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
+    models: ['gemini-robotics-er-2-preview', 'gemini-robotics-er-2-streaming-preview'],
+    standard: { inputPerMillion: 1, outputPerMillion: 5 },
     source: GEMINI_PRICING_SOURCE,
   },
   {
     models: ['gemini-3.5-flash-lite'],
     standard: { inputPerMillion: 0.3, outputPerMillion: 2.5 },
-    source: GEMINI_PRICING_SOURCE,
-  },
-  {
-    models: ['gemini-3.5-flash'],
-    standard: { inputPerMillion: 1.5, outputPerMillion: 9 },
     source: GEMINI_PRICING_SOURCE,
   },
   {
@@ -116,13 +151,8 @@ const PRICING_RULES: PricingRule[] = [
     source: GEMINI_PRICING_SOURCE,
   },
   {
-    models: ['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'chatgpt-image-latest'],
-    standard: { inputPerMillion: 5, outputPerMillion: 30 },
-    source: OPENAI_PRICING_SOURCE,
-  },
-  {
-    models: ['gpt-image-1.5'],
-    standard: { inputPerMillion: 5, outputPerMillion: 32 },
+    models: ['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'],
+    standard: { inputPerMillion: 5, imageInputPerMillion: 8, outputPerMillion: 30 },
     source: OPENAI_PRICING_SOURCE,
   },
   {
@@ -144,6 +174,15 @@ const PRICING_RULES: PricingRule[] = [
     source: OPENAI_PRICING_SOURCE,
   },
   {
+    models: ['gpt-6.1-terra'],
+    standard: { inputPerMillion: 1, outputPerMillion: 5 },
+    longContext: {
+      aboveInputTokens: 272_000,
+      rates: { inputPerMillion: 2, outputPerMillion: 7.5 },
+    },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
     models: ['gpt-6-luna'],
     standard: { inputPerMillion: 0.1, outputPerMillion: 0.5 },
     longContext: {
@@ -154,6 +193,47 @@ const PRICING_RULES: PricingRule[] = [
   },
   {
     models: ['gpt-5.6-sol', 'gpt-5.6'],
+    standard: { inputPerMillion: 4, outputPerMillion: 20 },
+    longContext: {
+      aboveInputTokens: 272_000,
+      rates: { inputPerMillion: 8, outputPerMillion: 30 },
+    },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
+    models: ['gpt-5.6-terra'],
+    standard: { inputPerMillion: 2, outputPerMillion: 12 },
+    longContext: {
+      aboveInputTokens: 272_000,
+      rates: { inputPerMillion: 4, outputPerMillion: 18 },
+    },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
+    models: ['gpt-5.6-luna'],
+    standard: { inputPerMillion: 0.2, outputPerMillion: 1.2 },
+    longContext: {
+      aboveInputTokens: 272_000,
+      rates: { inputPerMillion: 0.4, outputPerMillion: 1.8 },
+    },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
+    models: ['gpt-5.5-pro'],
+    standard: { inputPerMillion: 30, outputPerMillion: 180 },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
+    models: ['gpt-5.4-pro'],
+    standard: { inputPerMillion: 30, outputPerMillion: 180 },
+    longContext: {
+      aboveInputTokens: 272_000,
+      rates: { inputPerMillion: 60, outputPerMillion: 270 },
+    },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
+    models: ['gpt-5.5'],
     standard: { inputPerMillion: 5, outputPerMillion: 30 },
     longContext: {
       aboveInputTokens: 272_000,
@@ -162,7 +242,12 @@ const PRICING_RULES: PricingRule[] = [
     source: OPENAI_PRICING_SOURCE,
   },
   {
-    models: ['gpt-5.6-terra'],
+    models: ['gpt-5.4-mini'],
+    standard: { inputPerMillion: 0.75, outputPerMillion: 4.5 },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
+    models: ['gpt-5.4'],
     standard: { inputPerMillion: 2.5, outputPerMillion: 15 },
     longContext: {
       aboveInputTokens: 272_000,
@@ -171,12 +256,8 @@ const PRICING_RULES: PricingRule[] = [
     source: OPENAI_PRICING_SOURCE,
   },
   {
-    models: ['gpt-5.6-luna'],
-    standard: { inputPerMillion: 1, outputPerMillion: 6 },
-    longContext: {
-      aboveInputTokens: 272_000,
-      rates: { inputPerMillion: 2, outputPerMillion: 9 },
-    },
+    models: ['gpt-5.2'],
+    standard: { inputPerMillion: 1.75, outputPerMillion: 14 },
     source: OPENAI_PRICING_SOURCE,
   },
 ];
@@ -192,8 +273,8 @@ function matchesModel(model: string, candidate: string): boolean {
   if (model === candidate) return true;
   if (!model.startsWith(`${candidate}-`)) return false;
   const suffix = model.slice(candidate.length + 1);
-  // Match dated/preview snapshots, but not distinct model tiers.
-  return /^(?:\d|preview(?:-|$)|latest$)/.test(suffix);
+  // Match dated snapshots, but not deprecated preview IDs or distinct tiers.
+  return /^20\d{2}-\d{2}-\d{2}$/.test(suffix);
 }
 
 export function resolveTokenRates(modelName: string, inputTokens: number): TokenRates | null {
@@ -217,9 +298,11 @@ export function estimateTokenCost(
   inputTokens: number,
   outputTokens: number,
   customRates?: { inputPerMillion: number; outputPerMillion: number },
+  imageInputTokens: number = 0,
 ): TokenCostEstimate | null {
   const normalizedInput = Math.max(0, Math.floor(inputTokens));
   const normalizedOutput = Math.max(0, Math.floor(outputTokens));
+  const normalizedImageInput = Math.min(normalizedInput, Math.max(0, Math.floor(imageInputTokens)));
   const rates = customRates
     ? {
         ...customRates,
@@ -229,11 +312,13 @@ export function estimateTokenCost(
     : resolveTokenRates(modelName, normalizedInput);
   if (!rates) return null;
 
-  const inputCostUsd = normalizedInput * rates.inputPerMillion / 1_000_000;
+  const inputCostUsd = ((normalizedInput - normalizedImageInput) * rates.inputPerMillion
+    + normalizedImageInput * (rates.imageInputPerMillion ?? rates.inputPerMillion)) / 1_000_000;
   const outputCostUsd = normalizedOutput * rates.outputPerMillion / 1_000_000;
   return {
     model: normalizeModelName(modelName),
     inputTokens: normalizedInput,
+    imageInputTokens: normalizedImageInput,
     outputTokens: normalizedOutput,
     totalTokens: normalizedInput + normalizedOutput,
     inputCostUsd,

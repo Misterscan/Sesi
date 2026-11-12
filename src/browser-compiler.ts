@@ -7,6 +7,7 @@ import { Parser } from './parser';
 import { Compiler } from './compiler';
 import { SesiJavaScriptEmitter } from './js-emitter';
 import { browserJsRuntime } from './browser-js-runtime';
+import { createBrowserUi } from './browser-ui';
 import { browserLaunchPage, browserServiceWorker, collectBrowserAssets, externalizeBrowserCredentials,
   hasBrowserServer, type BrowserAsset } from './browser-deployment';
 import type { Program, Statement } from './types';
@@ -105,10 +106,12 @@ export function compileSesiForBrowser(entryFile: string, outputFile: string): {
   const worker = stem + '.worker.js', launchPage = stem + '.html', assetFile = stem + '.assets.json';
   const options = { assetsUrl: Object.keys(assets).length ? './' + path.basename(assetFile) : undefined,
     workerUrl: server ? './' + path.basename(worker) : undefined };
+  const uiFactory = [...modules.values()].some(module => module.references.some(reference => reference.source === 'std/web'))
+    ? `, (${createBrowserUi.toString()})` : '';
   const body = [
     `// Generated from Sesi source: ${path.basename(entry)}`,
     'const __name = target => target;',
-    `const __sesi = (${browserJsRuntime.toString()})({ ...${JSON.stringify(options)}, baseUrl: __sesiBase });`,
+    `const __sesi = (${browserJsRuntime.toString()})({ ...${JSON.stringify(options)}, baseUrl: __sesiBase }${uiFactory});`,
     'const __sesiModules = Object.create(null);',
     'const __sesiCache = Object.create(null);',
     'function __sesiLoad(id) { return __sesiCache[id] ??= __sesiModules[id](); }',

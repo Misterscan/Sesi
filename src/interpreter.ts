@@ -42,7 +42,8 @@ import {
   SesiRuntimeError,
 } from './types';
 
-import { getBuiltins, isTruthy, isEqual, stringify, compareValues, stripPrototypes, ensureSafePath } from './builtins';
+import { getBuiltins, isTruthy, isEqual, stringify, compareValues, stripPrototypes, ensureSafePath, normalizeStructuredSchema, structuredResponseSchema, type StructuredSchema } from './builtins';
+import { normalizeVideoInputs } from './video-input';
 import { aiRuntime } from './ai-runtime';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -63,6 +64,223 @@ import { createMpcModule } from './mpc';
 import type { Chunk } from './chunk';
 import { documentationSummary, normalizeDocumentation } from './documentation';
 import { desugarMakeStatement } from './make';
+
+interface PixelPathSubpath {
+  points: Array<[number, number]>;
+  closed: boolean;
+}
+
+const pathToken = /[AaCcHhLlMmQqSsTtVvZz]|[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/g;
+const commandToken = /^[AaCcHhLlMmQqSsTtVvZz]$/;
+
+function curveSteps(length: number): number {
+  return Math.min(512, Math.max(8, Math.ceil(length / 4)));
+}
+
+function distance(x1: number, y1: number, x2: number, y2: number): number {
+  return Math.hypot(x2 - x1, y2 - y1);
+}
+
+function arcPoints(
+  x1: number, y1: number, x2: number, y2: number,
+  radiusX: number, radiusY: number, rotation: number,
+  largeArc: boolean, sweep: boolean
+): Array<[number, number]> {
+  let rx = Math.abs(radiusX);
+  let ry = Math.abs(radiusY);
+  if (rx === 0 || ry === 0 || (x1 === x2 && y1 === y2)) return [[x2, y2]];
+
+  const phi = rotation * Math.PI / 180;
+  const cosPhi = Math.cos(phi);
+  const sinPhi = Math.sin(phi);
+  const dx = (x1 - x2) / 2;
+  const dy = (y1 - y2) / 2;
+  const x1p = cosPhi * dx + sinPhi * dy;
+  const y1p = -sinPhi * dx + cosPhi * dy;
+  const radiusScale = Math.sqrt(x1p * x1p / (rx * rx) + y1p * y1p / (ry * ry));
+  if (radiusScale > 1) {
+    rx *= radiusScale;
+    ry *= radiusScale;
+  }
+
+  const rx2 = rx * rx;
+  const ry2 = ry * ry;
+  const numerator = Math.max(0, rx2 * ry2 - rx2 * y1p * y1p - ry2 * x1p * x1p);
+  const denominator = rx2 * y1p * y1p + ry2 * x1p * x1p;
+  const sign = largeArc === sweep ? -1 : 1;
+  const factor = denominator === 0 ? 0 : sign * Math.sqrt(numerator / denominator);
+  const cxp = factor * rx * y1p / ry;
+  const cyp = -factor * ry * x1p / rx;
+  const cx = cosPhi * cxp - sinPhi * cyp + (x1 + x2) / 2;
+  const cy = sinPhi * cxp + cosPhi * cyp + (y1 + y2) / 2;
+
+  const ux = (x1p - cxp) / rx;
+  const uy = (y1p - cyp) / ry;
+  const vx = (-x1p - cxp) / rx;
+  const vy = (-y1p - cyp) / ry;
+  const startAngle = Math.atan2(uy, ux);
+  let sweepAngle = Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+  if (!sweep && sweepAngle > 0) sweepAngle -= 2 * Math.PI;
+  if (sweep && sweepAngle < 0) sweepAngle += 2 * Math.PI;
+
+  const steps = curveSteps(Math.abs(sweepAngle) * Math.max(rx, ry));
+  const points: Array<[number, number]> = [];
+  for (let step = 1; step <= steps; step++) {
+    const angle = startAngle + sweepAngle * step / steps;
+    const px = rx * Math.cos(angle);
+    const py = ry * Math.sin(angle);
+    points.push([cosPhi * px - sinPhi * py + cx, sinPhi * px + cosPhi * py + cy]);
+  }
+  points[points.length - 1] = [x2, y2];
+  return points;
+}
+
+function parsePixelPath(data: string): PixelPathSubpath[] {
+  const tokens = data.match(pathToken) ?? [];
+  const leftover = data.replace(pathToken, '').replace(/[\s,]/g, '');
+  if (leftover) throw new Error(`pixel_path contains an unsupported path token: ${leftover}`);
+
+  const subpaths: PixelPathSubpath[] = [];
+  let points: Array<[number, number]> = [];
+  let index = 0;
+  let command = '';
+  let previousCommand = '';
+  let x = 0;
+  let y = 0;
+  let startX = 0;
+  let startY = 0;
+  let moved = false;
+  let cubicControl: [number, number] | null = null;
+  let quadraticControl: [number, number] | null = null;
+
+  const readNumber = (): number => {
+    const token = tokens[index++];
+    if (token === undefined || commandToken.test(token)) {
+      throw new Error('pixel_path has an incomplete path command');
+    }
+    const value = Number(token);
+    if (!Number.isFinite(value)) throw new Error('pixel_path expects finite coordinates');
+    return value;
+  };
+  const append = (nextX: number, nextY: number): void => {
+    if (points.length === 0) points.push([x, y]);
+    points.push([nextX, nextY]);
+    x = nextX;
+    y = nextY;
+  };
+  const finish = (closed: boolean): void => {
+    if (points.length > 0) subpaths.push({ points, closed });
+    points = [];
+  };
+
+  while (index < tokens.length) {
+    if (commandToken.test(tokens[index])) command = tokens[index++];
+    if (!command) throw new Error('pixel_path must begin with M or m');
+    const relative = command === command.toLowerCase();
+    const kind = command.toUpperCase();
+    if (!moved && kind !== 'M') throw new Error('pixel_path must begin with M or m');
+
+    if (kind === 'Z') {
+      finish(true);
+      x = startX;
+      y = startY;
+      command = '';
+      previousCommand = 'Z';
+      cubicControl = null;
+      quadraticControl = null;
+      continue;
+    }
+
+    if (kind === 'M') {
+      const nextX = readNumber() + (relative ? x : 0);
+      const nextY = readNumber() + (relative ? y : 0);
+      finish(false);
+      x = nextX;
+      y = nextY;
+      startX = x;
+      startY = y;
+      points.push([x, y]);
+      moved = true;
+      command = relative ? 'l' : 'L';
+      previousCommand = 'M';
+      cubicControl = null;
+      quadraticControl = null;
+      continue;
+    }
+
+    const originX = x;
+    const originY = y;
+    if (kind === 'L') {
+      append(readNumber() + (relative ? originX : 0), readNumber() + (relative ? originY : 0));
+    } else if (kind === 'H') {
+      append(readNumber() + (relative ? originX : 0), originY);
+    } else if (kind === 'V') {
+      append(originX, readNumber() + (relative ? originY : 0));
+    } else if (kind === 'Q' || kind === 'T') {
+      let controlX = originX;
+      let controlY = originY;
+      if (kind === 'Q') {
+        controlX = readNumber() + (relative ? originX : 0);
+        controlY = readNumber() + (relative ? originY : 0);
+      } else if ((previousCommand === 'Q' || previousCommand === 'T') && quadraticControl) {
+        controlX = 2 * originX - quadraticControl[0];
+        controlY = 2 * originY - quadraticControl[1];
+      }
+      const endX = readNumber() + (relative ? originX : 0);
+      const endY = readNumber() + (relative ? originY : 0);
+      const steps = curveSteps(distance(originX, originY, controlX, controlY) + distance(controlX, controlY, endX, endY));
+      for (let step = 1; step <= steps; step++) {
+        const t = step / steps;
+        const oneMinusT = 1 - t;
+        append(oneMinusT * oneMinusT * originX + 2 * oneMinusT * t * controlX + t * t * endX,
+          oneMinusT * oneMinusT * originY + 2 * oneMinusT * t * controlY + t * t * endY);
+      }
+      quadraticControl = [controlX, controlY];
+    } else if (kind === 'C' || kind === 'S') {
+      let control1X = originX;
+      let control1Y = originY;
+      if (kind === 'C') {
+        control1X = readNumber() + (relative ? originX : 0);
+        control1Y = readNumber() + (relative ? originY : 0);
+      } else if ((previousCommand === 'C' || previousCommand === 'S') && cubicControl) {
+        control1X = 2 * originX - cubicControl[0];
+        control1Y = 2 * originY - cubicControl[1];
+      }
+      const control2X = readNumber() + (relative ? originX : 0);
+      const control2Y = readNumber() + (relative ? originY : 0);
+      const endX = readNumber() + (relative ? originX : 0);
+      const endY = readNumber() + (relative ? originY : 0);
+      const steps = curveSteps(distance(originX, originY, control1X, control1Y)
+        + distance(control1X, control1Y, control2X, control2Y) + distance(control2X, control2Y, endX, endY));
+      for (let step = 1; step <= steps; step++) {
+        const t = step / steps;
+        const oneMinusT = 1 - t;
+        append(oneMinusT ** 3 * originX + 3 * oneMinusT ** 2 * t * control1X
+          + 3 * oneMinusT * t ** 2 * control2X + t ** 3 * endX,
+        oneMinusT ** 3 * originY + 3 * oneMinusT ** 2 * t * control1Y
+          + 3 * oneMinusT * t ** 2 * control2Y + t ** 3 * endY);
+      }
+      cubicControl = [control2X, control2Y];
+    } else if (kind === 'A') {
+      const radiusX = readNumber();
+      const radiusY = readNumber();
+      const rotation = readNumber();
+      const largeArc = readNumber() !== 0;
+      const sweep = readNumber() !== 0;
+      const endX = readNumber() + (relative ? originX : 0);
+      const endY = readNumber() + (relative ? originY : 0);
+      for (const point of arcPoints(originX, originY, endX, endY, radiusX, radiusY, rotation, largeArc, sweep)) {
+        append(point[0], point[1]);
+      }
+    }
+
+    previousCommand = kind;
+    if (kind !== 'C' && kind !== 'S') cubicControl = null;
+    if (kind !== 'Q' && kind !== 'T') quadraticControl = null;
+  }
+  finish(false);
+  return subpaths;
+}
 
 export interface BundledBytecodeModule {
   id: string;
@@ -91,18 +309,22 @@ export class Interpreter {
   public safeMode: boolean = true;
   public allowLocalFs: boolean = false;
   public allowedPaths: string[] = [];
+  public filesystemRoots?: string[];
+  public packagedGame: boolean = false;
   public encrypt: boolean = false;
   public decrypt: boolean = false;
   public password: string = '';
   public raw: boolean = false;
   public args: string[] = [];
 
-  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; encrypt?: boolean; decrypt?: boolean; password?: string; raw?: boolean; args?: string[]; profile?: boolean; timeoutMs?: number; deadlineAt?: number; modelUsageState?: { lastModelUsage: RuntimeValue }; bytecodeModules?: Map<string, BundledBytecodeModule>; bytecodeModuleId?: string }) {
+  constructor(scriptDir?: string, options?: { safeMode?: boolean; allowLocalFs?: boolean; allowedPaths?: string[]; filesystemRoots?: string[]; packagedGame?: boolean; encrypt?: boolean; decrypt?: boolean; password?: string; raw?: boolean; args?: string[]; profile?: boolean; timeoutMs?: number; deadlineAt?: number; modelUsageState?: { lastModelUsage: RuntimeValue }; bytecodeModules?: Map<string, BundledBytecodeModule>; bytecodeModuleId?: string }) {
     this.modelUsageState = options?.modelUsageState || { lastModelUsage: null };
     this.safeMode = options?.safeMode ?? (process.env.SESI_SAFE_MODE !== 'false');
     this.allowLocalFs = options?.allowLocalFs ?? (process.env.SESI_LOCAL_FS === 'true');
     this.raw = options?.raw ?? false;
     this.allowedPaths = options?.allowedPaths || [process.cwd()];
+    this.filesystemRoots = options?.filesystemRoots?.map(root => path.resolve(root));
+    this.packagedGame = options?.packagedGame === true;
     this.encrypt = options?.encrypt ?? false;
     this.decrypt = options?.decrypt ?? false;
     this.password = options?.password ?? (process.env.SESI_PASSWORD ?? '');
@@ -135,23 +357,25 @@ export class Interpreter {
 
   public recordModelUsage(
     model: string,
-    usage?: { inputTokens?: number; outputTokens?: number; thinkingTokens?: number },
+    usage?: { inputTokens?: number; outputTokens?: number; thinkingTokens?: number; imageInputTokens?: number },
     cached: boolean = false,
   ): void {
     const inputTokens = Math.max(0, Math.floor(usage?.inputTokens ?? 0));
     const outputTokens = Math.max(0, Math.floor(usage?.outputTokens ?? 0));
     const thinkingTokens = Math.max(0, Math.floor(usage?.thinkingTokens ?? 0));
     const billableOutputTokens = outputTokens + thinkingTokens;
-    const estimate = estimateTokenCost(model, inputTokens, billableOutputTokens);
+    const estimate = estimateTokenCost(model, inputTokens, billableOutputTokens, undefined, usage?.imageInputTokens);
     this.modelUsageState.lastModelUsage = {
       model: String(model).replace(/^models\//, ''),
       input_tokens: inputTokens,
+      image_input_tokens: Math.min(inputTokens, Math.max(0, Math.floor(usage?.imageInputTokens ?? 0))),
       output_tokens: outputTokens,
       thinking_tokens: thinkingTokens,
       billable_output_tokens: billableOutputTokens,
       total_tokens: inputTokens + billableOutputTokens,
       cached,
       input_rate_per_million: estimate?.inputPerMillion ?? null,
+      image_input_rate_per_million: estimate?.imageInputPerMillion ?? null,
       output_rate_per_million: estimate?.outputPerMillion ?? null,
       input_cost_usd: estimate?.inputCostUsd ?? null,
       output_cost_usd: estimate?.outputCostUsd ?? null,
@@ -159,6 +383,39 @@ export class Interpreter {
       pricing_source: estimate?.source ?? null,
       pricing_as_of: estimate?.asOf ?? null,
     };
+  }
+
+  public recordMediaUsage(
+    model: string,
+    mediaType: 'image' | 'video',
+    usage?: { inputTokens?: number; outputTokens?: number; thinkingTokens?: number; imageInputTokens?: number },
+    cached: boolean = false,
+  ): void {
+    if (usage) {
+      this.recordModelUsage(model, usage, cached);
+    } else {
+      this.modelUsageState.lastModelUsage = {
+        model: String(model).replace(/^models\//, ''),
+        input_tokens: null,
+        image_input_tokens: null,
+        output_tokens: null,
+        thinking_tokens: null,
+        billable_output_tokens: null,
+        total_tokens: null,
+        cached,
+        input_rate_per_million: null,
+        image_input_rate_per_million: null,
+        output_rate_per_million: null,
+        input_cost_usd: null,
+        output_cost_usd: null,
+        total_cost_usd: null,
+        pricing_source: null,
+        pricing_as_of: null,
+      };
+    }
+    (this.modelUsageState.lastModelUsage as any).media_type = mediaType;
+    (this.modelUsageState.lastModelUsage as any).generated_images = mediaType === 'image' ? 1 : 0;
+    (this.modelUsageState.lastModelUsage as any).generated_videos = mediaType === 'video' ? 1 : 0;
   }
 
   public getScriptDirectory(): string | undefined {
@@ -1230,9 +1487,11 @@ export class Interpreter {
     const topPRaw = getConfig('top_p', 'topP');
     const ratioRaw = getConfig('ratio', 'imgRatio', 'imageRatio', 'aspectRatio');
     const sizeRaw = getConfig('size', 'imgSize', 'imageSize');
+    const backgroundRaw = getConfig('background');
     const systemPromptRaw = getConfig('system', 'system_prompt', 'systemPrompt');
+    const model = this.resolveModelName(rawModelName);
     const response = await aiRuntime.callModel({
-      model: this.resolveModelName(rawModelName),
+      model,
       prompt: promptText,
       temperature: typeof temperatureRaw === 'number' ? temperatureRaw : undefined,
       maxTokens: typeof maxTokensRaw === 'number' ? maxTokensRaw : undefined,
@@ -1240,12 +1499,22 @@ export class Interpreter {
       topP: typeof topPRaw === 'number' ? topPRaw : undefined,
       ratio: typeof ratioRaw === 'string' ? ratioRaw : undefined,
       size: typeof sizeRaw === 'string' ? sizeRaw : undefined,
+      background: typeof backgroundRaw === 'string' ? backgroundRaw as AIRequest['background'] : undefined,
       images: imagePaths,
+      videos: normalizeVideoInputs(getConfig('videos', 'video'), source => ensureSafePath(source, this)),
       systemPrompt: typeof systemPromptRaw === 'string' ? systemPromptRaw : undefined,
       thinkingLevel,
       cache,
     });
 
+    this.recordMediaUsage(model, 'image', response.usage, response.cached === true);
+    if (getConfig('response') === 'full') {
+      return {
+        text: response.text,
+        ...(this.getLastModelUsage() as Record<string, RuntimeValue>),
+        finish_reason: response.finishReason ?? null,
+      };
+    }
     return response.text;
   }
 
@@ -1277,8 +1546,9 @@ export class Interpreter {
         ? [ensureSafePath(rawImages, this)]
         : undefined;
 
+    const model = this.resolveModelName(rawModelName);
     return await aiRuntime.callVideo({
-      model: this.resolveModelName(rawModelName),
+      model,
       prompt,
       images,
       ratio: typeof pick('ratio', 'aspectRatio', 'aspect_ratio') === 'string'
@@ -1293,6 +1563,7 @@ export class Interpreter {
       task: typeof pick('task') === 'string' ? pick('task') as string : undefined,
       pollInterval: typeof pick('poll_interval', 'pollInterval') === 'number'
         ? pick('poll_interval', 'pollInterval') as number : undefined,
+      onUsage: (usage) => this.recordMediaUsage(model, 'video', usage),
     });
   }
 
@@ -1408,6 +1679,7 @@ export class Interpreter {
     const response = await this.callModelWithOrchestration({
       model: resolvedModelName,
       prompt: promptText,
+      background: typeof getConfig('background') === 'string' ? getConfig('background') as AIRequest['background'] : undefined,
       temperature: typeof temperatureRaw === 'number' ? temperatureRaw : undefined,
       maxTokens: typeof maxTokensRaw === 'number' ? maxTokensRaw : undefined,
       topK: typeof topKRaw === 'number' ? topKRaw : undefined,
@@ -1416,6 +1688,7 @@ export class Interpreter {
       responseSchema,
       images: imagePaths,
       audio: modelAudio,
+      videos: normalizeVideoInputs(getConfig('videos', 'video'), source => ensureSafePath(source, this)),
       thinkingLevel,
       cache,
       search,
@@ -1444,21 +1717,15 @@ export class Interpreter {
   }
 
   private async evaluateStructuredOutput(expr: StructuredOutputExpression): Promise<RuntimeValue> {
-    const schemaObj: any = {};
+    const schemaObj: StructuredSchema = expr.schemaExpression
+      ? normalizeStructuredSchema(await this.evaluateExpression(expr.schemaExpression))
+      : Object.create(null);
 
     for (const [key, typeAnnotation] of Object.entries(expr.schema)) {
       schemaObj[key] = (typeAnnotation as any).name || 'string';
     }
 
-    const schemaTypes: Record<string, string> = { string: 'string', number: 'number', bool: 'boolean' };
-    const responseSchema = {
-      type: 'object',
-      properties: Object.fromEntries(Object.entries(schemaObj).map(([key, type]) => [key, {
-        type: schemaTypes[type as string] ?? 'string',
-      }])),
-      required: Object.keys(schemaObj),
-      additionalProperties: false,
-    };
+    const responseSchema = structuredResponseSchema(schemaObj);
     const inputVal = expr.modelCall.type === 'ModelCallExpression'
       ? await this.evaluateModelCall(expr.modelCall, responseSchema)
       : await this.evaluateExpression(expr.modelCall);
@@ -1508,6 +1775,8 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         safeMode: this.safeMode,
         allowLocalFs: this.allowLocalFs,
         allowedPaths: this.allowedPaths,
+        filesystemRoots: this.filesystemRoots,
+        packagedGame: this.packagedGame,
         args: this.args,
         profile: this.profiler.enabled,
         timeoutMs: this.timeoutMs,
@@ -1555,6 +1824,8 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         allowLocalFs: this.allowLocalFs,
         raw: this.raw,
         allowedPaths: [...this.allowedPaths],
+        filesystemRoots: this.filesystemRoots,
+        packagedGame: this.packagedGame,
         args: [...this.args],
         profile: this.profiler.enabled,
         timeoutMs: this.timeoutMs,
@@ -1632,13 +1903,14 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       if (!bundled) throw new Error(`Bundled module not found: "${source}"`);
       if (bundled.runtimeExports) return bundled.runtimeExports;
       const { VM } = require('./vm');
-      const moduleDirectory = this.scriptDir
-        ? path.resolve(this.scriptDir, path.posix.dirname(bundled.id))
-        : process.cwd();
-      const moduleVm = new VM(moduleDirectory, {
+      // Bundle IDs resolve imports virtually. The physical runtime/assets root
+      // stays fixed even when an imported module has a nested ID.
+      const moduleVm = new VM(this.scriptDir ?? process.cwd(), {
         safeMode: this.safeMode,
         allowLocalFs: this.allowLocalFs,
         allowedPaths: this.allowedPaths,
+        filesystemRoots: this.filesystemRoots,
+        packagedGame: this.packagedGame,
         args: this.args,
         modelUsageState: this.modelUsageState,
         bytecodeModules: this.bytecodeModules,
@@ -1737,6 +2009,8 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         safeMode: this.safeMode,
         allowLocalFs: this.allowLocalFs,
         allowedPaths: this.allowedPaths,
+        filesystemRoots: this.filesystemRoots,
+        packagedGame: this.packagedGame,
         args: this.args,
         modelUsageState: this.modelUsageState,
         bytecodeModules: this.bytecodeModules,
@@ -1845,7 +2119,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     } catch (e: any) {
       // Re-throw security violations with a clear message
       if (e.message && e.message.includes('Security Violation')) {
-        throw new Error(`${e.message}\n\nHint: Run with -l flag and -a <directory> to allow access to paths outside the workspace.\nExample: sesi ${process.argv[2] || 'script.sesi'} -l -a ${require('path').dirname(require('path').resolve(fileInput))}`);
+        throw new Error(`${e.message}\n\nHint: Run with -l flag and -a <directory> to allow access to paths outside the workspace.\nExample: sesi -l ${process.argv[2] || 'script.sesi'} -a ${require('path').dirname(require('path').resolve(fileInput))}`);
       }
       // Otherwise the input is just raw text content, not a file path — that's fine
     }
@@ -1873,7 +2147,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       const trimmed = fileInput.trim();
       if (trimmed.startsWith('<svg') || trimmed.includes('<svg') || (trimmed.startsWith('<?xml') && trimmed.includes('<svg'))) {
         fileType = 'svg';
-      } else if (trimmed.startsWith('<!DOCTYPE html') || trimmed.startsWith('<!doctype html') || trimmed.toLowerCase().startsWith('<html')) {
+      } else if (trimmed.toLowerCase().startsWith('<!doctype html') || trimmed.toLowerCase().startsWith('<html')) {
         fileType = 'html';
       } else if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
         fileType = 'json';
@@ -3706,6 +3980,49 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         }
       };
 
+      const drawPixelPath = (dataVal: RuntimeValue, colorVal: RuntimeValue, filled: boolean = true) => {
+        if (typeof dataVal !== 'string') throw new Error('pixel_path expects a path string');
+        const subpaths = parsePixelPath(dataVal);
+
+        if (filled) {
+          const contours = subpaths.filter(subpath => subpath.points.length >= 3);
+          if (contours.length > 0) {
+            const allPoints = contours.flatMap(contour => contour.points);
+            const minY = Math.floor(Math.min(...allPoints.map(point => point[1])));
+            const maxY = Math.floor(Math.max(...allPoints.map(point => point[1])));
+            for (let py = minY; py <= maxY; py++) {
+              const intersections: number[] = [];
+              for (const contour of contours) {
+                const points = contour.points;
+                for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+                  const from = points[j];
+                  const to = points[i];
+                  if ((to[1] < py && from[1] >= py) || (from[1] < py && to[1] >= py)) {
+                    intersections.push(to[0] + (py - to[1]) / (from[1] - to[1]) * (from[0] - to[0]));
+                  }
+                }
+              }
+              intersections.sort((a, b) => a - b);
+              for (let i = 0; i + 1 < intersections.length; i += 2) {
+                for (let px = Math.ceil(intersections[i]); px <= Math.floor(intersections[i + 1]); px++) {
+                  drawPixel(px, py, colorVal);
+                }
+              }
+            }
+          }
+        }
+
+        for (const subpath of subpaths) {
+          const points = subpath.points;
+          for (let i = 1; i < points.length; i++) {
+            drawPixelLine(points[i - 1][0], points[i - 1][1], points[i][0], points[i][1], colorVal);
+          }
+          if ((filled || subpath.closed) && points.length > 2) {
+            drawPixelLine(points[points.length - 1][0], points[points.length - 1][1], points[0][0], points[0][1], colorVal);
+          }
+        }
+      };
+
       const drawPixelTriangle = (x1: any, y1: any, x2: any, y2: any, x3: any, y3: any, colorVal: RuntimeValue, filled: boolean = true) => {
         drawPixelPolygon([[Number(x1), Number(y1)], [Number(x2), Number(y2)], [Number(x3), Number(y3)]], colorVal, filled);
       };
@@ -3813,36 +4130,68 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
 
+      type StyledFace = {
+        family: string;
+        weight: number | string;
+        style?: 'italic';
+        letterSpacing: number;
+        stroke?: number;
+        hollow?: boolean;
+        stretch?: string;
+      };
+
+      // Each face lists fallbacks so it still renders where a system font is missing.
+      const styledFaces: Record<string, StyledFace> = {
+        bubble: { family: "'Arial Rounded MT Bold','Trebuchet MS','DejaVu Sans',sans-serif", weight: 900, letterSpacing: 0.035, stroke: 0.1 },
+        impact: { family: "Impact,Haettenschweiler,'Arial Narrow Bold','DejaVu Sans Condensed',sans-serif", weight: 900, letterSpacing: -0.015, stretch: 'condensed' },
+        sans: { family: "'Helvetica Neue',Helvetica,Arial,'DejaVu Sans',sans-serif", weight: 700, letterSpacing: 0 },
+        light: { family: "'Helvetica Neue',Helvetica,Arial,'DejaVu Sans',sans-serif", weight: 300, letterSpacing: 0.02 },
+        serif: { family: "Georgia,'Times New Roman',Times,'DejaVu Serif',serif", weight: 700, letterSpacing: 0 },
+        mono: { family: "Menlo,'SF Mono','Courier New',Courier,'DejaVu Sans Mono',monospace", weight: 700, letterSpacing: 0 },
+        script: { family: "'Snell Roundhand','Apple Chancery','Brush Script MT','Lucida Handwriting',cursive", weight: 700, letterSpacing: 0 },
+        comic: { family: "'Comic Sans MS','Chalkboard SE','Comic Neue','DejaVu Sans',sans-serif", weight: 700, letterSpacing: 0.01 },
+        marker: { family: "'Marker Felt','Chalkduster','Bradley Hand','Comic Sans MS',cursive", weight: 700, letterSpacing: 0.01 },
+        wide: { family: "'Arial Black','Gadget','Verdana','DejaVu Sans',sans-serif", weight: 900, letterSpacing: 0.08 },
+        italic: { family: "'Helvetica Neue',Helvetica,Arial,'DejaVu Sans',sans-serif", weight: 700, style: 'italic', letterSpacing: 0.01 },
+        outline: { family: "Impact,Haettenschweiler,'Arial Narrow Bold','DejaVu Sans Condensed',sans-serif", weight: 900, letterSpacing: 0.02, stroke: 0.06, hollow: true, stretch: 'condensed' },
+      };
+
       const drawStyledPixelText = async (
         x: number,
         y: number,
         text: string,
         colorVal: RuntimeValue,
         scale: number,
-        face: 'bubble' | 'impact',
+        face: string,
       ) => {
         if (text.length === 0 || text.trim().length === 0) return;
+        const spec = styledFaces[face];
         const [red, green, blue, alpha] = parsePixelColor(colorVal);
         const fontSize = Math.max(8, scale * 7);
         const padding = Math.max(6, Math.ceil(fontSize * 0.18));
-        const estimatedWidth = Math.max(1, Math.ceil(text.length * fontSize * 1.15 + padding * 2));
-        const estimatedHeight = Math.max(1, Math.ceil(fontSize * 1.55 + padding * 2));
+        const lines = text.replace(/\r\n?/g, '\n').split('\n');
+        const lineHeight = fontSize * 1.4;
+        const estimatedWidth = Math.max(1, Math.ceil(Math.max(...lines.map(line => line.length)) * fontSize * 1.5 + padding * 2));
+        const estimatedHeight = Math.max(1, Math.ceil(lines.length * lineHeight + padding * 2));
         const fill = `rgba(${red},${green},${blue},${(alpha / 255).toFixed(4)})`;
-        const outline = `rgb(${Math.round(red * 0.32)},${Math.round(green * 0.32)},${Math.round(blue * 0.32)})`;
-        const family = face === 'bubble'
-          ? "'Arial Rounded MT Bold','Trebuchet MS','DejaVu Sans',sans-serif"
-          : "Impact,Haettenschweiler,'Arial Narrow Bold','DejaVu Sans Condensed',sans-serif";
-        const strokeWidth = face === 'bubble' ? Math.max(2, fontSize * 0.1) : 0;
-        const letterSpacing = face === 'bubble' ? fontSize * 0.035 : -fontSize * 0.015;
-        const textAttributes = face === 'bubble'
-          ? `stroke="${outline}" stroke-width="${strokeWidth}" stroke-linejoin="round" paint-order="stroke fill"`
-          : 'font-stretch="condensed"';
+        // Bubble keeps its darker outline; hollow faces stroke with the text color itself.
+        const outline = spec.hollow
+          ? fill
+          : `rgb(${Math.round(red * 0.32)},${Math.round(green * 0.32)},${Math.round(blue * 0.32)})`;
+        const strokeWidth = spec.stroke ? Math.max(spec.hollow ? 1 : 2, fontSize * spec.stroke) : 0;
+        const letterSpacing = fontSize * spec.letterSpacing;
+        const attributes: string[] = [];
+        if (strokeWidth > 0) {
+          attributes.push(`stroke="${outline}" stroke-width="${strokeWidth}" stroke-linejoin="round" paint-order="stroke fill"`);
+        }
+        if (spec.stretch) attributes.push(`font-stretch="${spec.stretch}"`);
+        if (spec.style) attributes.push(`font-style="${spec.style}"`);
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${estimatedWidth}" height="${estimatedHeight}">`
-          + `<text x="${padding}" y="${padding + fontSize}" fill="${fill}" font-family="${family}" `
-          + `font-size="${fontSize}" font-weight="900" letter-spacing="${letterSpacing}" ${textAttributes}>`
-          + `${escapeSvgText(text)}</text></svg>`;
+          + `<text x="${padding}" y="${padding + fontSize}" fill="${spec.hollow ? 'none' : fill}" font-family="${spec.family}" `
+          + `font-size="${fontSize}" font-weight="${spec.weight}" letter-spacing="${letterSpacing}" xml:space="preserve" style="white-space:pre" ${attributes.join(' ')}>`
+          + lines.map((line, index) => `<tspan x="${padding}" y="${padding + fontSize + index * lineHeight}">${escapeSvgText(line)}</tspan>`).join('')
+          + '</text></svg>';
         const { data, info } = await sharp(Buffer.from(svg))
-          .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } })
           .ensureAlpha()
           .raw()
           .toBuffer({ resolveWithObject: true });
@@ -3856,7 +4205,10 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
               data[offset + 2],
               data[offset + 3],
             ];
-            blendPixel(x + column, y + row, pixel);
+            // Preserve the font origin instead of moving each token's ink to
+            // (x, y). This retains indentation and a common baseline, including
+            // punctuation, descenders and the font's own side bearings.
+            if (pixel[3]) blendPixel(x + column - padding, y + row - padding, pixel);
           }
         }
       };
@@ -3864,17 +4216,23 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       const drawPixelText = async (x: any, y: any, textStr: any, colorVal: RuntimeValue, scaleVal: any = 1, faceVal: any = 'classic') => {
         const startX = Math.floor(Number(x));
         const startY = Math.floor(Number(y));
-        const scale = Math.max(1, Math.floor(Number(scaleVal || 1)));
+        const requestedScale = Number(scaleVal ?? 1);
+        if (!Number.isFinite(startX) || !Number.isFinite(startY) || !Number.isFinite(requestedScale)) {
+          throw new Error('pixel_text expects finite coordinates and scale');
+        }
+        const smoothScale = Math.max(1, requestedScale);
         const str = String(textStr);
         const face = String(faceVal ?? 'classic').trim().toLowerCase();
 
-        if (face === 'bubble' || face === 'impact') {
-          await drawStyledPixelText(startX, startY, str, colorVal, scale, face);
+        if (Object.prototype.hasOwnProperty.call(styledFaces, face)) {
+          await drawStyledPixelText(startX, startY, str, colorVal, smoothScale, face);
           return;
         }
         if (face !== 'classic' && face !== '5x7' && face !== 'bitmap') {
-          throw new Error(`pixel_text unknown font face: ${face}`);
+          throw new Error(`pixel_text unknown font face: ${face}. Available: classic, ${Object.keys(styledFaces).join(', ')}`);
         }
+        // Bitmap cells remain integral; smooth fonts retain fractional scales.
+        const scale = Math.max(1, Math.floor(requestedScale));
 
         const font5x7: Record<string, number[]> = {
           'A': [0x0E,0x11,0x11,0x1F,0x11,0x11,0x11], 'B': [0x1E,0x11,0x11,0x1E,0x11,0x11,0x1E],
@@ -3910,12 +4268,25 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           '>': [0x08,0x04,0x02,0x01,0x02,0x04,0x08], '[': [0x0E,0x08,0x08,0x08,0x08,0x08,0x0E],
           ']': [0x0E,0x02,0x02,0x02,0x02,0x02,0x0E], '{': [0x02,0x04,0x04,0x08,0x04,0x04,0x02],
           '}': [0x08,0x04,0x04,0x02,0x04,0x04,0x08], '|': [0x04,0x04,0x04,0x04,0x04,0x04,0x04],
-          '/': [0x01,0x02,0x04,0x08,0x10,0,0], '\\': [0x10,0x08,0x04,0x02,0x01,0,0]
+          '/': [0x01,0x02,0x04,0x08,0x10,0,0], '\\': [0x10,0x08,0x04,0x02,0x01,0,0],
+          '¡': [0x04,0,0x04,0x04,0x04,0x04,0x04], '™': [0x1F,0x0D,0x0F,0x0D,0,0,0],
+          '£': [0x06,0x09,0x08,0x1C,0x08,0x08,0x1F], '¢': [0x04,0x0F,0x14,0x14,0x14,0x0F,0x04],
+          '∞': [0,0,0x0A,0x15,0x15,0x0A,0], '•': [0,0,0x0E,0x1F,0x1F,0x0E,0],
+          'º': [0x0E,0x0A,0x0E,0,0,0,0], '–': [0,0,0,0x1F,0,0,0],
+          '≠': [0,0x1F,0x02,0x1F,0x08,0,0], 'Ω': [0x0E,0x11,0x11,0x11,0x0A,0x1B,0x1B],
+          '≈': [0,0x09,0x16,0,0x09,0x16,0], 'π': [0,0x1F,0x0A,0x0A,0x0A,0x0A,0x0A],
+          'ø': [0x0F,0x13,0x15,0x19,0x11,0x11,0x1E], '©': [0x0E,0x11,0x17,0x14,0x17,0x11,0x0E],
+          '¥': [0x11,0x11,0x0A,0x1F,0x04,0x1F,0x04], '®': [0x0E,0x11,0x1D,0x1B,0x1D,0x11,0x0E],
+          '∑': [0x1F,0x10,0x08,0x04,0x08,0x10,0x1F], '†': [0x04,0x04,0x1F,0x04,0x04,0x04,0x04],
+          '÷': [0x04,0,0x1F,0,0x04,0,0], '≥': [0x10,0x08,0x04,0x08,0x10,0,0x1F],
+          '≤': [0x01,0x02,0x04,0x02,0x01,0,0x1F], '…': [0,0,0,0,0,0,0x15],
+          '“': [0x0A,0x0A,0x05,0,0,0,0], '‘': [0x04,0x04,0x02,0,0,0,0],
+          '«': [0,0x05,0x0A,0x14,0x0A,0x05,0]
         };
 
         let charOffset = 0;
-        for (const ch of str.toUpperCase()) {
-          const glyph = font5x7[ch] || font5x7['?'];
+        for (const ch of str) {
+          const glyph = font5x7[ch] || font5x7[ch.toUpperCase()] || font5x7['?'];
           for (let row = 0; row < 7; row++) {
             const bits = glyph[row];
             for (let col = 0; col < 5; col++) {
@@ -4006,6 +4377,18 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         isBuiltin: true,
         builtin: (points, color, filled): RuntimeValue => {
           drawPixelPolygon(points, color, filled !== false && filled !== 'false');
+          return null;
+        }
+      });
+      exports.set('pixel_path', {
+        type: 'function',
+        name: 'pixel_path',
+        params: [{ name: 'd' }, { name: 'color' }, { name: 'filled', defaultValue: true as any }],
+        body: {} as any,
+        closure: {} as any,
+        isBuiltin: true,
+        builtin: (d, color, filled): RuntimeValue => {
+          drawPixelPath(d, color, filled !== false && filled !== 'false');
           return null;
         }
       });
@@ -4152,7 +4535,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         closure: {} as any,
         isBuiltin: true,
         builtin: (x, y, txt, size, color, opts): RuntimeValue => {
-          elements.push(`<text x="${x}" y="${y}" font-size="${size || 16}" fill="${stringify(color) || 'black'}"${formatOptions(opts)}>${stringify(txt)}</text>`);
+          elements.push(`<text x="${x}" y="${y}" font-size="${size || 16}" fill="${stringify(color) || 'black'}"${formatOptions(opts)}>${stringify(txt).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')}</text>`);
           return null;
         }
       });

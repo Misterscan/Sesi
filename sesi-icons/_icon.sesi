@@ -1,0 +1,64 @@
+allow "std/web" in as Web
+
+fn paint(original, role, palette) {
+  if palette == null { return original }
+  if palette[original] != null { return palette[original] }
+  if role != null && palette[role] != null { return palette[role] }
+  return original
+}
+
+/**
+  Render an icon's authored shapes as an accessible SVG.
+
+  Shape geometry and colors come directly from the source SVG. Palette
+  overrides can address named roles or an exact source color.
+*/
+export fn icon(name, view_box, shapes, colors, props) {
+  let size = props.size
+  if size == null { size = 24 }
+  if !is_number(size) || size <= 0 {
+    raise_error("IconError", "Icon size must be a positive number.")
+  }
+  let stroke_width = props.stroke_width
+  if stroke_width != null && (!is_number(stroke_width) || stroke_width < 0) {
+    raise_error("IconError", "Icon stroke_width must be a nonnegative number.")
+  }
+  let children = []
+  for shape in shapes {
+    let attributes = {}
+    for key in keys(shape.attributes) { attributes[key] = shape.attributes[key] }
+    let fill = attributes.fill
+    if fill != null && fill != "none" {
+      let role = "accent"
+      if fill == colors.surface { role = "surface" }
+      if fill == colors.outline { role = "outline" }
+      attributes.fill = paint(fill, role, props.palette)
+    }
+    let stroke = attributes.stroke
+    if stroke != null {
+      let role = null
+      if stroke == colors.outline { role = "outline" }
+      attributes.stroke = paint(stroke, role, props.palette)
+      if stroke_width != null {
+        attributes["stroke-width"] = stroke_width
+        attributes["vector-effect"] = "non-scaling-stroke"
+      }
+    }
+    children = children + [Web.element(shape.tag, attributes)]
+  }
+  let attributes = {
+    viewBox: view_box,
+    width: size,
+    height: size,
+    "data-sesi-icon": name,
+    focusable: "false",
+    "aria-hidden": true
+  }
+  if props.class != null { attributes.class = props.class }
+  if is_string(props.label) && len(trim(props.label)) > 0 {
+    attributes["aria-hidden"] = null
+    attributes["aria-label"] = props.label
+    attributes.role = "img"
+  }
+  return Web.element("svg", attributes, children)
+}

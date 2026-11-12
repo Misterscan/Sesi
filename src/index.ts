@@ -59,6 +59,8 @@ export interface SesiOptions {
   safeMode?: boolean;
   allowLocalFs?: boolean;
   allowedPaths?: string[];
+  filesystemRoots?: string[]; // authoritative roots for packaged filesystem capabilities
+  packagedGame?: boolean;    // internal: allow std/game while retaining safe-mode restrictions
   encrypt?: boolean;
   decrypt?: boolean;
   password?: string;

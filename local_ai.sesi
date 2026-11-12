@@ -28,22 +28,21 @@ let savedSettings = memoryDB.collection("saved-settings")
   - question: The question asked by the `USER`.
 
   Returns:
-  A string indicating the success or failure of the update.
+  - A string indicating the success or failure of the update.
 */
 fn updateMemoryUSER(question: str) -> str {
-    try {
-        let users = conversations.find({"name": "USER"})
-        if len(users) == 0 {
-            conversations.insert({"name": "USER", "messages": [question], "date": timestamp.localTime("in_ms")})
-        } else {
-            let messages = users[0]["messages"]
-            push(messages, question)
-            conversations.update({"_id": users[0]["_id"]}, {"messages": messages, "date": timestamp.localTime("in_ms")})
-        }
-        return "Updated user messages."
-    } catch (e) {
-        return "Error updating user messages: " + e
+  try {
+    let users = conversations.find({"name": "USER"})
+    if len(users) == 0 { conversations.insert({"name": "USER", "messages": [question], "date": timestamp.localTime("in_ms")}) }
+    else {
+      let messages = users[0]["messages"]
+      push(messages, question)
+      conversations.update({"_id": users[0]["_id"]}, {"messages": messages, "date": timestamp.localTime("in_ms")})
     }
+    return "Updated user messages."
+  } catch (e) {
+    raise_error("UpdateError","Error updating user messages: " + e)
+  }
 }
 
 /**
@@ -53,71 +52,64 @@ fn updateMemoryUSER(question: str) -> str {
   - answer: The answer provided by `SESIRA`.
 
   Returns:
-  A string indicating the success or failure of the update.
+  - A string indicating the success or failure of the update.
 */
 fn updateMemorySESIRA(answer: str) -> str {
-    try {
-        let sesira = conversations.find({"name": "SESIRA"})
-        if len(sesira) == 0 {
-            conversations.insert({"name": "SESIRA", "messages": [answer], "date": timestamp.localTime("in_ms")})
-        } else {
-            let messages = sesira[0]["messages"]
-            push(messages, answer)
-            conversations.update({"_id": sesira[0]["_id"]}, {"messages": messages, "date": timestamp.localTime("in_ms")})
-        }
-        return "Updated Sesira messages."
-    } catch (e) {
-        return "Error updating sesira messages: " + e
+  try {
+    let sesira = conversations.find({"name": "SESIRA"})
+    if len(sesira) == 0 { conversations.insert({"name": "SESIRA", "messages": [answer], "date": timestamp.localTime("America/New_York", "en-US", "in_ms")}) }
+    else {
+      let messages = sesira[0]["messages"]
+      push(messages, answer)
+      conversations.update({"_id": sesira[0]["_id"]}, {"messages": messages, "date": timestamp.localTime("America/New_York", "en-US", "in_ms")})
     }
+    return "Updated Sesira messages."
+    } catch (e) { raise_error("UpdateError","Error updating sesira messages: " + e) }
 }
 
 /**
   Retrieves the recent conversation memory between the `USER` and `SESIRA`.
 
   Returns:
-  A string containing the recent conversation history.
+  - A string containing the recent conversation history.
 */
 fn getConversationMemory() -> str {
-    try {
-        let users = conversations.find({"name": "USER"})
-        let sesiraRecords = conversations.find({"name": "SESIRA"})
-        let userMessages = []
-        let sesiraMessages = []
-        if len(users) > 0 {userMessages = users[0]["messages"]}
-        if len(sesiraRecords) > 0 {sesiraMessages = sesiraRecords[0]["messages"]}
+  try {
+    let users = conversations.find({"name": "USER"})
+    let sesiraRecords = conversations.find({"name": "SESIRA"})
+    let userMessages = []
+    let sesiraMessages = []
+    if len(users) > 0 {userMessages = users[0]["messages"]}
+    if len(sesiraRecords) > 0 {sesiraMessages = sesiraRecords[0]["messages"]}
 
-        let messageCount = len(userMessages)
-        if len(sesiraMessages) > messageCount {messageCount = len(sesiraMessages)}
-        let start = 0
-        if messageCount > 10 {start = messageCount - 10}
+    let messageCount = len(userMessages)
+    if len(sesiraMessages) > messageCount {messageCount = len(sesiraMessages)}
+    let start = 0
+    if messageCount > 10 {start = messageCount - 10}
 
-        let history = ""
-        let i = start
-        while i < messageCount {
-            if i < len(userMessages) {history = history + "USER: " + userMessages[i] + "\n"}
-            if i < len(sesiraMessages) {history = history + "SESIRA: " + sesiraMessages[i] + "\n"}
-            i = i + 1
-        }
-        return history
-    } catch (e) {
-        return ""
+    let history = ""
+    let i = start
+    while i < messageCount {
+      if i < len(userMessages) {history = history + "USER: " + userMessages[i] + "\n"}
+      if i < len(sesiraMessages) {history = history + "SESIRA: " + sesiraMessages[i] + "\n"}
+      i = i + 1
     }
+    return history
+  } catch (e) { raise_error("RetrieveError","Error retrieving conversation memory: " + e) }
 }
 
 /**
   Loads the most recently saved system prompt from the local database.
 
   Returns:
-  A string containing the saved system prompt, or an empty string if none is found.
+  - A string containing the saved system prompt, or an empty string if none is found.
 */
 fn loadSavedSystemPrompt() -> str {
-    try {
-        let prompts = savedSettings.find({"type": "system-prompt"})
-        if len(prompts) == 0 {return ""}
-        return prompts[len(prompts) - 1]["value"]
-    } catch (e) {
-        return ""
-    }
+  try {
+    let prompts = savedSettings.find({"type": "system-prompt"})
+    if len(prompts) == 0 {return ""}
+    return prompts[len(prompts) - 1]["value"]
+  } catch (e) { raise_error("RetrieveError","Error loading saved system prompt: " + e) }
 }
 
 /**
@@ -127,220 +119,195 @@ fn loadSavedSystemPrompt() -> str {
   - arg: The argument to check.
 
   Returns:
-  A boolean indicating whether the argument is a mode argument.
+  - A boolean indicating whether the argument is a mode argument.
 */
 fn isModeArg(arg: str) -> bool {
-    return arg == "speak" || arg == "on" || arg == "true" || arg == "text" || arg == "custom" || arg == "edit" || arg == "system" || arg == "basic" || arg == "default" || arg == "load" || arg == "save" || arg == "gemini" || arg == "help"
+  return arg == "speak" || arg == "on" || arg == "true" || arg == "text" || arg == "custom" || arg == "edit" || arg == "system" || arg == "basic" || arg == "default" || arg == "load" || arg == "save" || arg == "gemini" || arg == "help"
 }
 
 // Displays the help information for using the local AI script.
 fn help() {
-    show color("Usage:", "green");
-    show color("    npm run local_ai                    - Run interactive mode", "green")
-    show color("    npm run local_ai \"prompt\"         - Ask a question", "green")
-    show color("    npm run local_ai \"prompt\" custom  - Asks for a custom system prompt", "green")
-    show color("    npm run local_ai \"prompt\" load    - Use the most recently saved custom or AI system prompt", "green")
-    show color("    npm run local_ai \"prompt\" default - Use the default system prompt", "green")
-    show color("    npm run local_ai \"prompt\" speak   - Read the answer aloud", "green")
-    show color("    npm run local_ai \"prompt\" save    - Save the answer as audio", "green")
-    show color("    npm run local_ai text               - Print the answer without reading it aloud", "green")
-    show color("    npm run local_ai speak              - Skips interactive input", "green")
-    show color("    npm run local_ai save               - Skips interactive input", "green")
-    show color("    npm run local_ai custom             - Asks for custom system prompt. Presets are 'basic' and 'default', or 'ai' for AI-generated prompts", "green")
-    show color("    npm run local_ai default            - Skips interactive input", "green")
-    show ""
+  show color("Usage:", "green");
+  show color("    npm run local_ai                    - Run interactive mode", "green")
+  show color("    npm run local_ai \"prompt\"         - Ask a question", "green")
+  show color("    npm run local_ai \"prompt\" custom  - Asks for a custom system prompt", "green")
+  show color("    npm run local_ai \"prompt\" load    - Use the most recently saved custom or AI system prompt", "green")
+  show color("    npm run local_ai \"prompt\" default - Use the default system prompt", "green")
+  show color("    npm run local_ai \"prompt\" speak   - Read the answer aloud", "green")
+  show color("    npm run local_ai \"prompt\" save    - Save the answer as audio", "green")
+  show color("    npm run local_ai text               - Print the answer without reading it aloud", "green")
+  show color("    npm run local_ai speak              - Skips interactive input", "green")
+  show color("    npm run local_ai save               - Skips interactive input", "green")
+  show color("    npm run local_ai custom             - Asks for custom system prompt. Presets are 'basic' and 'default', or 'ai' for AI-generated prompts", "green")
+  show color("    npm run local_ai default            - Skips interactive input", "green")
+  show ""
 }
 
 let helpMode = false
 
 if len(args) > 0 {
-    let i = 0
-    while i < len(args) {
-        if args[i] == "help" {helpMode = true}
-        i = i + 1
-    }
+  let i = 0
+  while i < len(args) {
+    if args[i] == "help" {helpMode = true}
+    i = i + 1
+  }
 }
+if helpMode { help() } else {
+  // User input.
+  let question = ""
 
-if helpMode {
-
-help()
-
-} else {
-// User input.
-let question = ""
-
-if len(args) > 0 && !isModeArg(args[0]) {
+  if len(args) > 0 && !isModeArg(args[0]) {
     let promptParts = []
     let i = 0
     while i < len(args) {
-        if !isModeArg(args[i]) {
-            push(promptParts, args[i])
-        }
-        i = i + 1
+      if !isModeArg(args[i]) { push(promptParts, args[i]) }
+      i = i + 1
     }
-    question = join(promptParts, " ")
-} else {
-    question = input(color("[You]: ", "magenta"))
-}
+    question = join(promptParts, " ") }
+  else { question = input(color("[You]: ", "magenta")) }
 
-// Recent conversation memory between the USER and SESIRA.
-let conversationMemory = getConversationMemory()
-updateMemoryUSER(question)
+  // Recent conversation memory between the USER and SESIRA.
+  let conversationMemory = getConversationMemory()
+  updateMemoryUSER(question)
 
-// The answer provided by SESIRA in response to the user's question.
-let answer = ""
-// Indicates whether a custom system prompt is being used.
-let customSystem = false
-// The system prompt that will guide SESIRA's responses.
-let ask = ""
+  // The answer provided by SESIRA in response to the user's question.
+  let answer = ""
+  // Indicates whether a custom system prompt is being used.
+  let customSystem = false
+  // The system prompt that will guide SESIRA's responses.
+  let ask = ""
 
-let i = 0; let customArg = ""
+  let i = 0; let customArg = ""
 
-while i < len(args) {
-    if args[i] == "custom" || args[i] == "edit" || args[i] == "system" || args[i] == "basic" || args[i] == "default" || args[i] == "load" || args[i] == "y" || args[i] == "n" {
-        customArg = args[i]
-    }
+  while i < len(args) {
+    if args[i] == "custom" || args[i] == "edit" || args[i] == "system" || args[i] == "basic" || args[i] == "default" || args[i] == "load" || args[i] == "y" || args[i] == "n" { customArg = args[i] }
     i = i + 1
-}
+  }
 
-if customArg != "" {
-    ask = customArg
-} else {
-    ask = input(color("Custom system prompt? (y/n): ", "yellow"))
-}
+  if customArg != "" { ask = customArg }
+  else { ask = input(color("Custom system prompt? (y/n): ", "yellow")) }
 
-if ask == "y" || ask == "custom" || ask == "edit" || ask == "load" {
-    customSystem = true
-} else if ask == "n" || ask == "system" || ask == "basic" || ask == "default" {
-    customSystem = false
-} else {show color("Invalid input. Using default system prompt.", "red"); customSystem = false}
+  if ask == "y" || ask == "custom" || ask == "edit" || ask == "load" { customSystem = true }
+  else if ask == "n" || ask == "system" || ask == "basic" || ask == "default" { customSystem = false }
+  else {show color("Invalid input. Using default system prompt.", "red"); customSystem = false}
 
-if customSystem == true {
+  if customSystem == true {
     // Indicates if the system prompt is being loaded from storage.
     let loadedSystemPrompt = ask == "load"
     // The system prompt that will be used for this session, either loaded from storage or entered by the user.
     let systemPrompt = ""
 
-    if loadedSystemPrompt {
+    if loadedSystemPrompt { systemPrompt = loadSavedSystemPrompt()
+      if systemPrompt == "" {
+        show color("No saved system prompt found. Enter a new prompt.", "yellow")
+        loadedSystemPrompt = false
+        systemPrompt = input("Enter your custom system prompt: ")
+      }
+    } else { systemPrompt = input("Enter your custom system prompt (or type 'load'): ")
+      if systemPrompt == "load" {
         systemPrompt = loadSavedSystemPrompt()
-        if systemPrompt == "" {
-            show color("No saved system prompt found. Enter a new prompt.", "yellow")
-            loadedSystemPrompt = false
-            systemPrompt = input("Enter your custom system prompt: ")
-        }
-    } else {
-        systemPrompt = input("Enter your custom system prompt (or type 'load'): ")
+        loadedSystemPrompt = systemPrompt != ""
 
-        if systemPrompt == "load" {
-            systemPrompt = loadSavedSystemPrompt()
-            loadedSystemPrompt = systemPrompt != ""
-
-            if !loadedSystemPrompt {
-                show color("No saved system prompt found. Enter a new prompt.", "yellow")
-                systemPrompt = input("Enter your custom system prompt: ")
-            }
+        if !loadedSystemPrompt {
+          show color("No saved system prompt found. Enter a new prompt.", "yellow")
+          systemPrompt = input("Enter your custom system prompt: ")
         }
+      }
     }
 
     // Indicates if the system prompt was generated by the AI.
     let generatedSystemPrompt = systemPrompt == "ai"
 
-    if systemPrompt == "" || systemPrompt == "default" || systemPrompt == "basic" {
-        systemPrompt = "You are an experienced ELI5 translator."
-    } else if systemPrompt == "ai" {
-        systemPrompt = await model("gemini-3.5-flash-lite") {thinking: "medium", cache: true} {"Write a clear and detailed system instruction for an experienced and efficient coding assistant AI named 'Sesira'. Begin your response with '# SYSTEM INSTRUCTION: Your name is `Sesira`...'. Please respond in under 300 characters and all on one line."}
+    if systemPrompt == "" || systemPrompt == "default" || systemPrompt == "basic" { systemPrompt = "You are an experienced ELI5 translator." }
+    else if systemPrompt == "ai" {
+      systemPrompt = await model("gemini-3.5-flash-lite") {thinking: "medium", cache: true} {"Write a clear and detailed system instruction for an experienced and efficient coding assistant AI named 'Sesira'. Begin your response with '# SYSTEM INSTRUCTION: Your name is `Sesira`...'. Please respond in under 300 characters and all on one line."}
     }
 
     if !loadedSystemPrompt {
-        try {
-            // Custom system prompt source.
-            let source = "custom"
+      try {
+        // Custom system prompt source.
+        let source = "custom"
 
-            if generatedSystemPrompt {source = "ai"}
-            savedSettings.insert({"type": "system-prompt", "source": source, "value": systemPrompt, "date": timestamp.localTime("in_ms")})
-        } catch (e) {}
+        if generatedSystemPrompt {source = "ai"}
+        savedSettings.insert({"type": "system-prompt", "source": source, "value": systemPrompt, "date": timestamp.localTime("America/New_York", "en-US", "in_ms")})
+      } catch (e) { raise_error("SaveError","Error saving system prompt: " + e) }
     }
 
     if generatedSystemPrompt {
-        try {
-            safe.txt("local-ai-sys-prompt", "SESI_LOCAL_SYSTEM_PROMPT=\"" + systemPrompt + "\"")
-        } catch (e) {}
+      try { safe.txt("local-ai-sys-prompt", "SESI_LOCAL_SYSTEM_PROMPT=\"" + systemPrompt + "\"") }
+      catch (e) { raise_error("SaveError","Error saving system prompt to file: " + e) }
     }
-        show color("Sesira is thinking...", "cyan")
-        // System instruction for the AI model, including the current system prompt and previous conversation.
-        let sys = "# SYSTEM INSTRUCTION: " + systemPrompt + "\n\nPrevious conversation:\n" + conversationMemory
-        answer = model("local") {max_tokens: 2048, temperature: 0.3, stream: false, system: sys} {question}
-        updateMemorySESIRA(answer)
-        show ""
-} else {customSystem = false}
+    show color("Sesira is thinking...", "cyan")
+    // System instruction for the AI model, including the current system prompt and previous conversation.
+    let sys = "# SYSTEM INSTRUCTION: " + systemPrompt + "\n\nPrevious conversation:\n" + conversationMemory
+    answer = model("local") {max_tokens: 2048, temperature: 0.3, stream: false, system: sys} {question}
+    updateMemorySESIRA(answer)
+    show ""
+  } else {customSystem = false}
 
-if customSystem == false {show color("Sesira is thinking...", "cyan")
-// System instruction for the AI model when no custom system prompt is used, including only the previous conversation.
-let sys = "Previous conversation:\n" + conversationMemory
-answer = model("local") {max_tokens: 2048, temperature: 0.5, thinkingLevel: "medium", stream: false, system: sys} {question} updateMemorySESIRA(answer); show ""}
+  if customSystem == false {show color("Sesira is thinking...", "cyan")
+  // System instruction for the AI model when no custom system prompt is used, including only the previous conversation.
+  let sys = "Previous conversation:\n" + conversationMemory
+  answer = model("local") {max_tokens: 2048, temperature: 0.5, thinkingLevel: "medium", stream: false, system: sys} {question} updateMemorySESIRA(answer); show ""}
 
-/**
-    Speaks the given answer using text-to-speech if enabled.
+  /**
+  Speaks the given answer using text-to-speech if enabled.
 
- Parameters:
- - answer: The text to be spoken.
- - on: Boolean indicating if text-to-speech should be used.
- - options: Optional dictionary containing voice and modelName for TTS.
+  Parameters:
+  - answer: The text to be spoken.
+  - on: Boolean indicating if text-to-speech should be used.
+  - options: Optional dictionary containing voice and modelName for TTS.
 
- Returns:
- Boolean indicating if the text-to-speech operation was successful.
-*/
-fn speak(answer: str, on: bool = false, options = null) -> bool {
+  Returns:
+  - Boolean indicating if the text-to-speech operation was successful.
+  */
+  fn speak(answer: str, on: bool = false, options = null) -> bool {
     if on == true && !is_null(options) {
-        if is_null(options.voice) {options.voice = "Kore"}
-        if is_null(options.modelName) {options.modelName = "gemini-2.5-flash-preview-tts"}
+      if is_null(options.voice) {options.voice = "Kore"}
+      if is_null(options.modelName) {options.modelName = "gemini-2.5-flash-preview-tts"}
 
-        if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
-        try {
-            safe.saveMedia("ai-response.wav", speech(answer, options.voice, options.modelName))
-            show color("Saved to ai-response.wav!", "green")
-        } catch (e) {
-            show e
-        }
+      if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
+      try {
+        safe.saveMedia("ai-response.wav", speech(answer, options.voice, options.modelName))
+        show color("Saved to ai-response.wav!", "green")
+      } catch (e) { raise_error("SaveError","Error saving audio: " + e) }
     } else {
-        show color("\nSpeaking...", "green")
+      show color("\nSpeaking...", "green")
 
-        if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
-        speech(answer)
+      if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
+      speech(answer)
     }
-}
+  }
 
-let shouldSpeakMode = false
-let isSaveMode = false
-let isTextOnlyMode = false
-let helpMode = false
+  let shouldSpeakMode = false
+  let isSaveMode = false
+  let isTextOnlyMode = false
+  let helpMode = false
 
-if len(args) > 0 {
+  if len(args) > 0 {
     let i = 0
     while i < len(args) {
-        let arg = args[i]
-        if arg == "speak" || arg == "on" || arg == "true" {shouldSpeakMode = true}
-        if arg == "save" || arg == "gemini" {isSaveMode = true}
-        if arg == "text" && !isTextOnlyMode {isTextOnlyMode = true}
-        if arg == "help" {helpMode = true}
-        i = i + 1
+      let arg = args[i]
+      if arg == "speak" || arg == "on" || arg == "true" {shouldSpeakMode = true}
+      if arg == "save" || arg == "gemini" {isSaveMode = true}
+      if arg == "text" && !isTextOnlyMode {isTextOnlyMode = true}
+      if arg == "help" {helpMode = true}
+      i = i + 1
     }
-}
+  }
 
-if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
+  if contains(answer, "<think>") {answer = trim(split(answer, "</think>")[1])}
 
-if shouldSpeakMode {
+  if shouldSpeakMode {
     show color("[SESIRA]: " + answer, "cyan")
-    speak(answer, true)
-} else if isSaveMode {
+    speak(answer, true) }
+  else if isSaveMode {
     show color("[SESIRA]: " + answer, "cyan")
-    speak(answer, true, {"voice": "Vindemiatrix", "modelName": "gemini-2.5-flash-preview-tts"})
-} else if isTextOnlyMode {
+    speak(answer, true, {"voice": "Vindemiatrix", "modelName": "gemini-2.5-flash-preview-tts"}) }
+  else if isTextOnlyMode { show color("[SESIRA]: " + answer, "cyan") }
+  else {
     show color("[SESIRA]: " + answer, "cyan")
-} else {
-    show color("[SESIRA]: " + answer, "cyan")
-
     let reqSpeak = input(color("Read answer aloud? (y/n): ", "yellow"))
     if reqSpeak == "y" {speak(answer, true)}
-    }
+  }
 }

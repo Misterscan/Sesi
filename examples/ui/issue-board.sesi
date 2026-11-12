@@ -1,0 +1,118 @@
+/**
+  An issue board rendered by std/web. The board owns the editor draft so it
+  survives a move between columns. Each card owns its own details toggle.
+*/
+allow "std/web" in as UI
+
+fn move_last(items, id, column) {
+  let rest = []
+  let selected = null
+  for item in items {
+    if item.id == id { selected = item } else { rest = rest + [item] }
+  }
+  if selected == null { return items }
+  return rest + [{id: selected.id, title: selected.title, column: column}]
+}
+
+fn IssueCard(props, ui) {
+  let issue = props.issue
+  let expanded = ui.state("expanded", false)
+  let other = "done"
+  if issue.column == "done" { other = "open" }
+
+  fn toggle(value) { return !value }
+  fn show_details() { expanded.update(toggle) }
+  fn edit() { props.edit(issue) }
+  fn reorder() { props.move(issue.id, issue.column) }
+  fn move() { props.move(issue.id, other) }
+
+  let details = null
+  if expanded.value {
+    details = UI.element("p", {class: "details"}, ["Issue " + issue.id])
+  }
+
+  return UI.element("li", {"data-issue": issue.id}, [
+    UI.element("h3", {}, [issue.title]),
+    UI.element("button", {type: "button", on_click: edit}, ["Edit"]),
+    UI.element("button", {type: "button", "aria-expanded": expanded.value, on_click: show_details}, ["Details"]),
+    UI.element("button", {type: "button", on_click: reorder}, ["Move to end"]),
+    UI.element("button", {type: "button", on_click: move}, ["Move to " + other]),
+    details
+  ])
+}
+
+fn Column(props) {
+  let cards = []
+  for issue in props.items {
+    if issue.column == props.id {
+      cards = cards + [UI.child(IssueCard, {issue: issue, edit: props.edit, move: props.move}, issue.id)]
+    }
+  }
+  return UI.element("section", {"data-column": props.id}, [
+    UI.element("h2", {}, [props.title]),
+    UI.element("ul", {}, cards)
+  ])
+}
+
+fn IssueBoard(props, ui) {
+  let issues = ui.state("issues", props.issues)
+  let search = ui.state("search", "")
+  let editor = ui.state("editor", null)
+
+  fn filter(event) { search.set(event.target.value) }
+  fn edit(issue) { editor.set({id: issue.id, title: issue.title}) }
+  fn close() { editor.set(null) }
+  fn move(id, column) {
+    fn update(items) { return move_last(items, id, column) }
+    issues.update(update)
+  }
+
+  let visible = []
+  let query = to_lower(search.value)
+  for issue in issues.value {
+    if contains(to_lower(issue.title), query) { visible = visible + [issue] }
+  }
+
+  let editor_view = null
+  let draft = editor.value
+  if draft != null {
+    fn type_title(event) { editor.set({id: draft.id, title: event.target.value}) }
+    fn save() {
+      fn rename(items) {
+        let result = []
+        for issue in items {
+          if issue.id == draft.id {
+            result = result + [{id: issue.id, title: draft.title, column: issue.column}]
+          } else { result = result + [issue] }
+        }
+        return result
+      }
+      issues.update(rename)
+      editor.set(null)
+    }
+    editor_view = UI.element("section", {class: "editor"}, [
+      UI.element("label", {"for": "draft"}, ["Editing " + draft.id]),
+      UI.element("input", {id: "draft", value: draft.title, on_input: type_title}),
+      UI.element("button", {type: "button", on_click: save}, ["Save"]),
+      UI.element("button", {type: "button", on_click: close}, ["Cancel"])
+    ])
+  }
+
+  return UI.element("main", {}, [
+    UI.element("h1", {}, ["Issue board"]),
+    UI.element("label", {"for": "search"}, ["Filter issues"]),
+    UI.element("input", {id: "search", type: "search", value: search.value, on_input: filter}),
+    editor_view,
+    UI.element("div", {class: "columns"}, [
+      UI.child(Column, {id: "open", title: "Open", items: visible, edit: edit, move: move}),
+      UI.child(Column, {id: "done", title: "Done", items: visible, edit: edit, move: move})
+    ])
+  ])
+}
+
+let issues = [
+  {id: "UI-101", title: "Keyboard shortcuts", column: "open"},
+  {id: "UI-102", title: "Loading states", column: "open"},
+  {id: "UI-103", title: "Accessible navigation", column: "done"}
+]
+UI.mount("#app", IssueBoard, {issues: issues})

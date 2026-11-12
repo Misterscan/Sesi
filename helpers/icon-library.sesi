@@ -1,0 +1,140 @@
+/**
+  Generate Sesi components from the original flat SVGs in sesi-icons/.
+
+  Source geometry, colors, and view boxes are preserved. The shared
+  icon renderer supplies sizing, palettes, and accessible labels.
+*/
+
+fn read_source(path) {
+  let attempt = 0
+  while attempt < 3 {
+    try { return read_file(path) }
+    catch (error) {
+      attempt = attempt + 1
+      if attempt == 3 { raise_error("IconBuildError", "Could not read " + path) }
+      sleep(25)
+    }
+  }
+}
+
+fn write_component(path, source) {
+  let attempt = 0
+  while attempt < 3 {
+    try {
+      if exists(path) && read_file(path) == source { return }
+      write_file(path, source)
+      return
+    } catch (error) {
+      attempt = attempt + 1
+      if attempt == 3 { raise_error("IconBuildError", "Could not write " + path) }
+      sleep(25)
+    }
+  }
+}
+
+fn attributes(tag) {
+  let values = {}
+  let matches = regex('([a-zA-Z_:][a-zA-Z0-9_.:-]*)="([^"]*)"', tag)
+  for match in matches {
+    let value = match.captures[1]
+    if contains(value, "&") { raise_error("IconBuildError", "SVG entities require explicit support.") }
+    values[match.captures[0]] = value
+  }
+  return values
+}
+
+fn brightness(color) {
+  let digits = "0123456789abcdef"
+  let channels = []
+  for offset in [1, 3, 5] {
+    let value = 0
+    for character in split(slice(to_lower(color), offset, offset + 2), "") {
+      for index in range(16) {
+        if slice(digits, index, index + 1) == character { value = value * 16 + index }
+      }
+    }
+    channels = channels + [value]
+  }
+  return channels[0] * 299 + channels[1] * 587 + channels[2] * 114
+}
+
+fn component_name(name) {
+  let result = ""
+  for part in split(name, "-") {
+    if part == "ai" { result = result + "AI" }
+    else { result = result + to_upper(slice(part, 0, 1)) + slice(part, 1) }
+  }
+  return result
+}
+
+fn component(file) {
+  let source = read_source("sesi-icons/" + file)
+  let tags = regex("<[^>]+>", source)
+  let remainder = regex("<[^>]+>", source, {mode: "replace", flags: "g", replacement: ""})
+  if trim(remainder) != "" || len(tags) < 3 || !starts_with(tags[0].match, "<svg ") || trim(tags[len(tags) - 1].match) != "</svg>" {
+    raise_error("IconBuildError", "Expected a flat SVG in " + file)
+  }
+  let root = attributes(tags[0].match)
+  if root.viewBox == null { raise_error("IconBuildError", "Missing viewBox in " + file) }
+  let shapes = []
+  let strokes = {}
+  let fills = []
+  for index in range(len(tags) - 2) {
+    let tag = tags[index + 1].match
+    let match = regex("^<([a-zA-Z]+) ", tag)
+    if len(match) == 0 || !ends_with(trim(tag), "/>") {
+      raise_error("IconBuildError", "Expected a self-closing shape in " + file)
+    }
+    let name = match[0].captures[0]
+    if !includes(["path", "rect", "circle", "line", "ellipse"], name) {
+      raise_error("IconBuildError", "Unsupported shape " + name + " in " + file)
+    }
+    let values = attributes(tag)
+    shapes = shapes + [{tag: name, attributes: values}]
+    if values.stroke != null { strokes[values.stroke] = (strokes[values.stroke] || 0) + 1 }
+    if values.fill != null && values.fill != "none" && !includes(fills, values.fill) { fills = fills + [values.fill] }
+  }
+  let outline = null
+  let maximum = 0
+  for color in keys(strokes) {
+    if strokes[color] > maximum {
+      outline = color
+      maximum = strokes[color]
+    }
+  }
+  let surface = null
+  let lightest = -1
+  for color in fills {
+    if color != outline && brightness(color) > lightest {
+      surface = color
+      lightest = brightness(color)
+    }
+  }
+  let name = slice(file, 0, len(file) - 4)
+  let exported = component_name(name)
+  let code = "allow \"_icon\" in with {icon}
+
+let shapes = " + to_json(shapes) + "
+let colors = " + to_json({outline: outline, surface: surface}) + "
+
+/**
+  " + exported + " icon, generated from " + file + ".
+
+  Parameters:
+  - props: Optional size (default 24), class, label, palette, and stroke_width.
+
+  Authored geometry and colors are preserved by default.
+*/
+export fn " + exported + "(props = {}) {
+  return icon(" + to_json(name) + ", " + to_json(root.viewBox) + ", shapes, colors, props)
+}
+"
+  return {path: "sesi-icons/" + name + ".sesi", source: code}
+}
+
+let components = []
+for file in list_dir("sesi-icons") {
+  if ends_with(file, ".svg") { components = components + [component(file)] }
+}
+for generated in components { write_component(generated.path, generated.source) }
+show "Generated" len(components) "Sesi icon components."

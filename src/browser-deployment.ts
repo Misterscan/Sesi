@@ -11,6 +11,8 @@ const mimeTypes: Record<string, string> = {
   '.woff': 'font/woff', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.mp4': 'video/mp4',
   '.m4a': 'audio/mp4', '.ogg': 'audio/ogg', '.flac': 'audio/flac', '.aac': 'audio/aac',
   '.mpeg': 'audio/mpeg', '.mpga': 'audio/mpeg', '.webm': 'audio/webm',
+  '.mov': 'video/quicktime', '.avi': 'video/avi', '.mpg': 'video/mpeg',
+  '.wmv': 'video/wmv', '.flv': 'video/x-flv', '.3gp': 'video/3gpp',
 };
 
 function walk(value: any, visit: (node: any) => void): void {

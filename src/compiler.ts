@@ -79,7 +79,7 @@ export const BUILTINS = new Set([
   'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split',
   'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs', 'pow', 'log',
   'workflow', 'set_alias', 'define_tool', 'list_tools', 'memory_config', 'error_type', 'raise_error', 'multi_req',
-  'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
+  'url_encode', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
   'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input',
   'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim',
   'lazy', 'force', 'timeout', 'profile', 'profile_start', 'profile_end', 'profile_report',
@@ -737,7 +737,7 @@ export class Compiler {
     const line = expr.line;
     const callee = expr.callee;
 
-    // show(...) — special PRINT opcode
+    // show "..." — special PRINT opcode for displaying output
     if (callee.type === 'Identifier' && (callee as Identifier).name === 'show') {
       for (const arg of expr.arguments) this.compileExpression(arg);
       emitBytes(this.chunk, OpCode.PRINT, expr.arguments.length, line);
@@ -827,34 +827,38 @@ export class Compiler {
     emitBytes(this.chunk, OpCode.GET_GLOBAL, promptNameIdx, expr.line);
   }
 
-  private compileModelCall(expr: ModelCallExpression, responseSchema?: Record<string, any>): void {
+  private compileModelCall(expr: ModelCallExpression, responseSchema?: Record<string, any>, emitSchema?: () => void): void {
     // Push model name, then prompt, then arg count → CALL_MODEL
     const line = expr.line;
     this.compileExpression(expr.modelName);
     this.compileExpression(expr.prompt);
     // Config is passed as an object literal if present
-    if (expr.config || responseSchema) {
+    if (expr.config || responseSchema || emitSchema) {
       const props = Object.entries(expr.config ?? {});
       for (const [k, v] of props) {
         const kidx = addConstant(this.chunk, k);
         emitBytes(this.chunk, OpCode.CONSTANT, kidx, line);
         this.compileExpression(v);
       }
-      if (responseSchema) {
+      if (responseSchema || emitSchema) {
         const schemaKeyIdx = addConstant(this.chunk, '__structured_schema');
         emitBytes(this.chunk, OpCode.CONSTANT, schemaKeyIdx, line);
-        const schemaIdx = addConstant(this.chunk, {
-          type: 'object',
-          properties: Object.fromEntries(Object.entries(responseSchema).map(([key, annotation]) => [
-            key,
-            { type: ({ string: 'string', number: 'number', bool: 'boolean' } as Record<string, string>)[(annotation as any).name] ?? 'string' },
-          ])),
-          required: Object.keys(responseSchema),
-          additionalProperties: false,
-        });
-        emitBytes(this.chunk, OpCode.CONSTANT, schemaIdx, line);
+        if (emitSchema) {
+          emitSchema();
+        } else {
+          const schemaIdx = addConstant(this.chunk, {
+            type: 'object',
+            properties: Object.fromEntries(Object.entries(responseSchema!).map(([key, annotation]) => [
+              key,
+              { type: ({ string: 'string', number: 'number', bool: 'boolean' } as Record<string, string>)[(annotation as any).name] ?? 'string' },
+            ])),
+            required: Object.keys(responseSchema!),
+            additionalProperties: false,
+          });
+          emitBytes(this.chunk, OpCode.CONSTANT, schemaIdx, line);
+        }
       }
-      emitBytes(this.chunk, OpCode.BUILD_OBJECT, props.length + (responseSchema ? 1 : 0), line);
+      emitBytes(this.chunk, OpCode.BUILD_OBJECT, props.length + (responseSchema || emitSchema ? 1 : 0), line);
     } else {
       this.emitOp(OpCode.NIL, line);
     }
@@ -866,6 +870,39 @@ export class Compiler {
   private compileStructuredOutput(expr: StructuredOutputExpression): void {
     // Delegate to the interpreter by pushing a __structured_output__ builtin call
     const line = expr.line;
+    if (expr.schemaExpression) {
+      // A closure keeps the evaluated schema in a private slot, including when
+      // structured_output is nested in another expression or a recursive call.
+      const inner = new Compiler();
+      inner.enclosing = this;
+      inner.scopeDepth = 1;
+      inner.locals.push({ name: '', depth: 1, isCaptured: false });
+      emitBytes(inner.chunk, OpCode.GET_LOCAL, 0, line);
+      if (expr.modelCall.type === 'ModelCallExpression') {
+        inner.compileModelCall(expr.modelCall, undefined, () => {
+          emitBytes(inner.chunk, OpCode.GET_LOCAL, 0, line);
+          emitBytes(inner.chunk, OpCode.CALL_BUILTIN, addConstant(inner.chunk, '__structured_response_schema__'), line);
+          emitByte(inner.chunk, 1, line);
+        });
+      } else {
+        inner.compileExpression(expr.modelCall);
+      }
+      emitBytes(inner.chunk, OpCode.CALL_BUILTIN, addConstant(inner.chunk, '__structured_output__'), line);
+      emitByte(inner.chunk, 2, line);
+      inner.emitOp(OpCode.RETURN, line);
+      const proto: FunctionProto = {
+        kind: 'FunctionProto', name: '<structured_output>', arity: 1,
+        params: [{ name: '', hasDefault: false }], chunk: inner.chunk,
+        isAsync: false, upvalues: inner.upvalues,
+      };
+      this.errors.push(...inner.errors);
+      emitBytes(this.chunk, OpCode.CLOSURE, addConstant(this.chunk, proto), line);
+      this.compileExpression(expr.schemaExpression);
+      emitBytes(this.chunk, OpCode.CALL_BUILTIN, addConstant(this.chunk, '__structured_schema__'), line);
+      emitByte(this.chunk, 1, line);
+      emitBytes(this.chunk, OpCode.CALL, 1, line);
+      return;
+    }
     // Build schema object
     const schemaPairs = Object.entries(expr.schema);
     for (const [k, typeAnn] of schemaPairs) {

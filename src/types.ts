@@ -386,6 +386,7 @@ export interface VideoCallExpression {
 export interface StructuredOutputExpression {
   type: 'StructuredOutputExpression';
   schema: Record<string, TypeAnnotation>;
+  schemaExpression?: Expression;
   modelCall: Expression;
   line: number;
 }
@@ -571,6 +572,8 @@ export interface AIAudioInput {
   mimeType: string;
 }
 
+export type AIVideoInput = string | { data: string; mimeType: string } | { uri: string; mimeType?: string };
+
 export interface AIRequest {
   model: string;
   prompt: string;
@@ -580,8 +583,10 @@ export interface AIRequest {
   topP?: number;
   ratio?: string;
   size?: string;
+  background?: 'transparent' | 'opaque' | 'auto';
   tools?: any[];
   images?: string[]; // base64-encoded image data URIs or file paths resolved at runtime
+  videos?: AIVideoInput | AIVideoInput[];
   // A local path/data URL is resolved by AIRuntime. The object form contains
   // base64-encoded audio and is useful to embedders and Sesi read_file calls.
   audio?: string | AIAudioInput;
@@ -601,6 +606,7 @@ export interface AIResponse {
     inputTokens: number;
     outputTokens: number;
     thinkingTokens?: number;
+    imageInputTokens?: number;
   };
 }
 

@@ -425,7 +425,7 @@ export fn badge(label: string, msg: string, colorName: string = "blue") {
   Print a styled key-value pair.
 
   Displays a key followed by a colon and its associated value. The key and colon
-  are rendered in dim gray, while the value is rendered in white.
+  are rendered in the specified color and dim bold style, while the value is rendered in white.
 
   Parameters:
   - `key`: The name or label of the value.
@@ -436,16 +436,16 @@ export fn badge(label: string, msg: string, colorName: string = "blue") {
 
   Example:
   ```sesi
-  key_value("Environment", "Production")
+  key_value("Environment", "Production", "green")
   ```
 
   Notes:
   - Both parameters are strings.
   - The key is formatted before the value so each portion can use independent styling.
 */
-export fn key_value(key: string, val: string) {
-  // Display the key in dim gray and the value in white.
-  prompt keyPrompt {key | Term.color("gray") | Term.style("dim")":"}
+export fn key_value(key: string, val: string, colorName: string = "cyan") {
+  // Display the key in the specified color and dim bold style, and the value in white.
+  prompt keyPrompt {key + ":" | Term.color(colorName) | Term.style("dim") | Term.style("bold")}
   prompt valPrompt {val | Term.color("white")}
   show keyPrompt valPrompt
 }

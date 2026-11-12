@@ -20,7 +20,7 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 const argsHeader = `
-Sesi Programming Language v1.9.1
+Sesi Programming Language v1.9.2
 
 Usage:
   sesi <file> [options] <args>  Run a Sesi program
@@ -41,6 +41,7 @@ Usage:
   sesi --timeout <ms>    Abort execution after a deadline
   sesi --profile <file>  Print runtime performance measurements
   sesi build <file.sesi>  Compile Sesi to minified browser JavaScript
+  sesi build <file.sesi> --desktop  Package a Sesi web app for desktop
   sesi install           Install all dependencies listed in sesi.json
   sesi install <pkg>     Install a third-party package (e.g. owner/repo#ref)
 
@@ -92,6 +93,7 @@ function parseArgs(args) {
     repl: false,
     studio: false,
     buildFile: null,
+    desktopBuild: false,
     sesiOptions: {
       safeMode: process.env.SESI_SAFE_MODE !== 'false',
       allowedPaths: [process.cwd()],
@@ -106,7 +108,7 @@ function parseArgs(args) {
     const isHelpFlag = arg === 'help' || arg === '-h';
 
     if (arg === '-v' || arg === 'version') {
-      console.log('Sesi v1.9.1');
+      console.log('Sesi v1.9.2');
       process.exit(0);
     } else if (isHelpFlag && i === 0 && !options.file && !options.eval) {
       if (args[i + 1] && !args[i + 1].startsWith('-')) {
@@ -138,6 +140,8 @@ function parseArgs(args) {
       options.sesiOptions.allowedPaths.push(...paths.map(p => path.resolve(p)));
     } else if (arg === 'build' && i === 0) {
       options.buildFile = args[++i] || true;
+    } else if (arg === '--desktop' && options.buildFile) {
+      options.desktopBuild = true;
     } else if ((!arg.startsWith('-') || arg === '-') && !options.file && !options.eval && !options.encryptFile && !options.decryptFile) {
       options.file = arg;
     } else if (arg == '-r' || arg == '--raw') {
@@ -282,6 +286,12 @@ async function main() {
     try {
       if (parsed.buildFile === true) throw new Error('build needs a .sesi file path.');
       const input = path.resolve(parsed.buildFile);
+      if (parsed.desktopBuild) {
+        const { buildDesktop } = require('./web-desktop-build.cjs');
+        const output = await buildDesktop(input, compileSesiForBrowser);
+        console.log(`Desktop application: ${output}`);
+        return;
+      }
       const output = input.replace(/\.sesi$/, '.js');
       const result = compileSesiForBrowser(input, output);
       console.log(`Compiled JavaScript: ${output}`);
@@ -289,7 +299,7 @@ async function main() {
       if (result.worker) console.log(`Browser request handler: ${result.worker}`);
       if (result.assets) console.log(`Bundled assets: ${result.assets}`);
     } catch (error) {
-      console.error(`Browser compilation failed: ${error.message}`);
+      console.error(`${parsed.desktopBuild ? 'Desktop build' : 'Browser compilation'} failed: ${error.message}`);
       process.exitCode = 1;
     }
     return;

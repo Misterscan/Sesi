@@ -1,4 +1,5 @@
 // Recursive descent parser for Sesi
+import { Lexer } from './lexer';
 import {
   type Token,
   type TokenType,
@@ -44,6 +45,26 @@ import {
   type UnionType,
   type OptionalType,
 } from './types';
+
+/** Collect literal module paths from actual statements, including nested blocks. */
+export function literalModuleSpecifiers(source: string): string[] {
+  const specifiers: string[] = [];
+  const program = new Parser(new Lexer(source).scanTokens()).parse();
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+    } else if (node !== null && typeof node === 'object') {
+      const value = node as Record<string, unknown>;
+      if ((value.type === 'AllowStatement' || value.type === 'ImportStatement') && typeof value.source === 'string') {
+        specifiers.push(value.source);
+      } else {
+        Object.values(value).forEach(visit);
+      }
+    }
+  };
+  visit(program);
+  return specifiers;
+}
 
 export class Parser {
   private tokens: Token[];
@@ -1036,6 +1057,7 @@ export class Parser {
     if (!this.check('RIGHT_BRACKET')) {
       do {
         this.skipNewlines();
+        if (this.check('RIGHT_BRACKET')) break;
         elements.push(this.assignment());
         this.skipNewlines();
       } while (this.match('COMMA'));
@@ -1059,10 +1081,12 @@ export class Parser {
     if (!this.check('RIGHT_BRACE')) {
       do {
         this.skipNewlines();
+        if (this.check('RIGHT_BRACE')) break;
         const key = this.match('STRING')
           ? this.previous().literal
           : this.consume('IDENTIFIER', 'Expected string or identifier key').lexeme;
         this.consume('COLON', 'Expected : after object key');
+        this.skipNewlines();
         const value = this.assignment();
         properties.push({ key: key as string, value });
         this.skipNewlines();
@@ -1344,22 +1368,28 @@ export class Parser {
   private structuredOutput(): StructuredOutputExpression {
     const line = this.previous().line;
     this.consume('LEFT_PAREN', 'Expected ( after structured_output');
-    this.consume('LEFT_BRACE', 'Expected { for schema');
+    this.skipNewlines();
+    let schemaExpression: Expression | undefined;
 
     const schema: Record<string, TypeAnnotation> = {};
-    this.skipNewlines();
-    if (!this.check('RIGHT_BRACE')) {
-      while (!this.check('RIGHT_BRACE') && !this.isAtEnd()) {
-        const key = this.consume('IDENTIFIER', 'Expected field name').lexeme;
-        this.consume('COLON', 'Expected : after field name');
-        schema[key] = this.typeAnnotation();
-        this.skipNewlines();
-        if (!this.match('COMMA')) break;
-        this.skipNewlines();
+    if (this.match('LEFT_BRACE')) {
+      this.skipNewlines();
+      if (!this.check('RIGHT_BRACE')) {
+        while (!this.check('RIGHT_BRACE') && !this.isAtEnd()) {
+          const key = this.consume('IDENTIFIER', 'Expected field name').lexeme;
+          this.consume('COLON', 'Expected : after field name');
+          schema[key] = this.typeAnnotation();
+          this.skipNewlines();
+          if (!this.match('COMMA')) break;
+          this.skipNewlines();
+        }
       }
-    }
 
-    this.consume('RIGHT_BRACE', 'Expected } after schema');
+      this.consume('RIGHT_BRACE', 'Expected } after schema');
+    } else {
+      schemaExpression = this.expression();
+    }
+    this.skipNewlines();
     this.consume('RIGHT_PAREN', 'Expected ) after schema');
 
     this.skipNewlines();
@@ -1371,6 +1401,7 @@ export class Parser {
     return {
       type: 'StructuredOutputExpression',
       schema,
+      schemaExpression,
       modelCall,
       line,
     };

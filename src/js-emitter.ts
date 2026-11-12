@@ -242,7 +242,11 @@ export class SesiJavaScriptEmitter {
         return `(await __sesi.host(${quote(operation)}, [${this.expression(expression.modelName)}, `
           + `${this.expression(expression.prompt)}, ${config}, ${expression.images ? this.expression(expression.images) : 'null'}]))`;
       }
-      case 'StructuredOutputExpression': return `(await __sesi.host("structured_output", [`
+      case 'StructuredOutputExpression':
+        if (expression.schemaExpression) return `(await (async (__schema) => __sesi.host("structured_output", [`
+          + `${this.expression(expression.modelCall)}, __schema]))(`
+          + `await __sesi.host("structured_schema", [${this.expression(expression.schemaExpression)}])))`;
+        return `(await __sesi.host("structured_output", [`
         + `${this.expression(expression.modelCall)}, ${JSON.stringify(expression.schema)}]))`;
       case 'ToolCallExpression': {
         const callee = this.known(expression.functionName) ? symbol(expression.functionName)

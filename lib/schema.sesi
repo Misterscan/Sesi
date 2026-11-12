@@ -1,0 +1,442 @@
+/**
+  Determines the runtime type name of a value.
+
+  Parameters:
+  - `val`: The value to inspect.
+
+  Returns:
+  - A string representing the value's type (`"null"`, `"bool"`, `"number"`, `"string"`, `"array"`, `"object"`, or `"any"`).
+*/
+export fn get_type(val: any) -> string {
+  if val == null { return "null" }
+  let json = to_json(val)
+  if json == "true" || json == "false" { return "bool" }
+  let first = slice(json, 0, 1)
+  if first == "\"" { return "string" }
+  if first == "[" { return "array" }
+  if first == "{" { return "object" }
+  return "number"
+}
+
+/**
+  Reusable schema field descriptor for validating values and applying defaults.
+*/
+// All validation failures use {path, code, message}; paths use JSON bracket notation.
+fn add_error(errors: array, path: string, code: string, message: string) {
+  push(errors, {path: path, code: code, message: message})
+}
+
+export make Field {
+  let expected_type = "any"
+  let is_required = true
+  let default_value = null
+  let has_default = false
+  let is_nullable = false
+  let is_integer = false
+  let min_val = null
+  let max_val = null
+  let allowed_values = null
+  let pattern = null
+  let item_schema = null
+  let nested_schema = null
+  let custom_validator = null
+  let description = ""
+
+  fn start(self, expected_type: string = "any", options: object? = null) {
+    self.expected_type = expected_type
+    if options {
+      if options.required != null { self.is_required = options.required }
+      if options.nullable != null { self.is_nullable = options.nullable }
+      if options.integer != null { self.is_integer = options.integer }
+      if includes(keys(options), "default") {
+        self.has_default = true
+        self.default_value = options.default
+        self.is_required = false
+      }
+      if options.min != null { self.min_val = options.min }
+      if options.max != null { self.max_val = options.max }
+      if options.enum != null { self.allowed_values = options.enum }
+      if options.pattern != null { self.pattern = options.pattern }
+      if options.items != null { self.item_schema = options.items }
+      if options.schema != null { self.nested_schema = options.schema }
+      if options.validator != null { self.custom_validator = options.validator }
+      if options.description != null { self.description = options.description }
+    }
+  }
+
+  fn optional(self, default_val: any = null) {
+    self.is_required = false
+    self.default_value = default_val
+    self.has_default = default_val != null
+    return self
+  }
+
+  fn required(self) {
+    self.is_required = true
+    return self
+  }
+
+  fn nullable(self, enabled: bool = true) {
+    self.is_nullable = enabled
+    return self
+  }
+
+  fn integer(self, enabled: bool = true) {
+    self.is_integer = enabled
+    return self
+  }
+
+  fn min(self, n: number) {
+    self.min_val = n
+    return self
+  }
+
+  fn max(self, n: number) {
+    self.max_val = n
+    return self
+  }
+
+  fn one_of(self, values: array) {
+    self.allowed_values = values
+    return self
+  }
+
+  fn matches(self, regex_pattern: string) {
+    self.pattern = regex_pattern
+    return self
+  }
+
+  fn describe(self, text: string) {
+    self.description = text
+    return self
+  }
+
+  /** Export model-facing rules. Custom validators still run only in check(). */
+  fn to_json_schema(self, strict: bool = false) -> object {
+    let output = {}
+    let json_type = self.expected_type
+    if json_type == "bool" { json_type = "boolean" }
+    if json_type == "number" && self.is_integer { json_type = "integer" }
+
+    if strict && json_type == "any" {
+      raise_error("SchemaExportError", "Strict tool fields must have an explicit type")
+    }
+    if strict && !self.is_required && !self.is_nullable {
+      raise_error("SchemaExportError", "Strict optional tool fields must explicitly allow null; defaults apply only to missing fields")
+    }
+
+    if json_type != "any" { output.type = json_type }
+    if self.description != "" { output.description = self.description }
+    if self.has_default && !strict { output.default = self.default_value }
+    if self.allowed_values != null {
+      output.enum = slice(self.allowed_values, 0, len(self.allowed_values))
+      if self.is_nullable && !includes(output.enum, null) { push(output.enum, null) }
+    }
+
+    if self.expected_type == "number" {
+      if self.min_val != null { output.minimum = self.min_val }
+      if self.max_val != null { output.maximum = self.max_val }
+    }
+    if self.expected_type == "string" {
+      if self.min_val != null { output.minLength = self.min_val }
+      if self.max_val != null { output.maxLength = self.max_val }
+      if self.pattern != null { output.pattern = self.pattern }
+    }
+    if self.expected_type == "array" {
+      if self.min_val != null { output.minItems = self.min_val }
+      if self.max_val != null { output.maxItems = self.max_val }
+      if self.item_schema != null {
+        output.items = self.item_schema.to_json_schema(strict)
+      } else {
+        if strict { raise_error("SchemaExportError", "Strict array fields require an item schema") }
+        output.items = {}
+      }
+    }
+    if self.expected_type == "object" {
+      if self.nested_schema != null {
+        let nested = self.nested_schema.to_json_schema(strict)
+        output.properties = nested.properties
+        output.required = nested.required
+        output.additionalProperties = nested.additionalProperties
+      } else {
+        if strict { raise_error("SchemaExportError", "Strict object fields require a nested schema") }
+      }
+    }
+    if self.is_nullable && json_type != "any" {
+      output.type = [json_type, "null"]
+    }
+    return output
+  }
+
+  // Direct checks treat null as explicitly supplied. Schema.validate passes presence.
+  fn check(self, val: any, path: string = "$", present: bool = true) -> object {
+    let errors = []
+
+    if !present {
+      if self.has_default {
+        val = self.default_value
+      } else {
+        if self.is_required {
+          add_error(errors, path, "required", "Required field is missing")
+        }
+        return {valid: len(errors) == 0, value: null, errors: errors}
+      }
+    }
+
+    if val == null {
+      if !self.is_nullable {
+        add_error(errors, path, "null", "Null is not allowed")
+      }
+      return {valid: len(errors) == 0, value: null, errors: errors}
+    }
+
+    let actual_type = get_type(val)
+    if self.expected_type != "any" && actual_type != self.expected_type {
+      add_error(errors, path, "type", "Expected " + self.expected_type + ", received " + actual_type)
+      return {valid: false, value: val, errors: errors}
+    }
+
+    if self.allowed_values != null {
+      if !includes(self.allowed_values, val) {
+        add_error(errors, path, "choices", "Value must be one of " + to_json(self.allowed_values))
+      }
+    }
+
+    if actual_type == "number" {
+      if self.is_integer && floor(val) != val {
+        add_error(errors, path, "integer", "Expected an integer")
+      }
+      if self.min_val != null && val < self.min_val {
+        add_error(errors, path, "min", "Value must be >= " + str(self.min_val))
+      }
+      if self.max_val != null && val > self.max_val {
+        add_error(errors, path, "max", "Value must be <= " + str(self.max_val))
+      }
+    }
+
+    if actual_type == "string" {
+      if self.min_val != null && len(val) < self.min_val {
+        add_error(errors, path, "min_length", "Length must be >= " + str(self.min_val))
+      }
+      if self.max_val != null && len(val) > self.max_val {
+        add_error(errors, path, "max_length", "Length must be <= " + str(self.max_val))
+      }
+      if self.pattern != null {
+        if !regex(self.pattern, val, {mode: "test"}) {
+          add_error(errors, path, "pattern", "Value does not match pattern " + self.pattern)
+        }
+      }
+    }
+
+    if actual_type == "array" {
+      if self.min_val != null && len(val) < self.min_val {
+        add_error(errors, path, "min_length", "Expected at least " + str(self.min_val) + " items")
+      }
+      if self.max_val != null && len(val) > self.max_val {
+        add_error(errors, path, "max_length", "Expected at most " + str(self.max_val) + " items")
+      }
+      if self.item_schema != null {
+        let normalized_items = []
+        for i = 0 to len(val) {
+          let item_res = self.item_schema.check(val[i], path + "[" + str(i) + "]")
+          push(normalized_items, item_res.value)
+          for err in item_res.errors {
+            push(errors, err)
+          }
+        }
+        val = normalized_items
+      }
+    }
+
+    if actual_type == "object" && self.nested_schema != null {
+      let nested_res = self.nested_schema.validate(val, path)
+      val = nested_res.data
+      for err in nested_res.errors {
+        push(errors, err)
+      }
+    }
+
+    if self.custom_validator != null {
+      let custom_res = self.custom_validator(val)
+      if custom_res != true {
+        if get_type(custom_res) == "string" {
+          add_error(errors, path, "custom", custom_res)
+        } else {
+          add_error(errors, path, "custom", "Custom validation failed")
+        }
+      }
+    }
+
+    return {
+      valid: len(errors) == 0,
+      value: val,
+      errors: errors
+    }
+  }
+}
+
+/**
+  Schema container for validating structured configuration objects and API payloads.
+*/
+export make Schema {
+  /** Mapping of field names to `Field` instances. */
+  let fields = {}
+  let allow_unknown = false
+
+  fn start(self, fields: object = null, options: object? = null) {
+    self.fields = fields
+    if options && options.allow_unknown != null {
+      self.allow_unknown = options.allow_unknown
+    }
+  }
+
+  /**
+    Export JSON Schema. Strict mode requires closed objects and all keys present.
+    Optional fields must be nullable in strict mode; explicit null does not apply defaults.
+  */
+  fn to_json_schema(self, strict: bool = false) -> object {
+    if strict && self.allow_unknown {
+      raise_error("SchemaExportError", "Strict tool schemas cannot allow unknown fields")
+    }
+    let properties = {}
+    let required_fields = []
+    for key in keys(self.fields) {
+      let field = self.fields[key]
+      properties[key] = field.to_json_schema(strict)
+      if strict || field.is_required { push(required_fields, key) }
+    }
+    return {
+      type: "object",
+      properties: properties,
+      required: required_fields,
+      additionalProperties: self.allow_unknown
+    }
+  }
+
+  /** Sesi adds the OpenAI function type and matches this name to define_tool(). */
+  fn to_tool(self, name: string, description: string, strict: bool = true) -> object {
+    return {
+      name: name,
+      description: description,
+      strict: strict,
+      parameters: self.to_json_schema(strict)
+    }
+  }
+
+  fn validate(self, payload: any, prefix: string = "$") -> object {
+    let errors = []
+    let output = {}
+
+    if get_type(payload) != "object" {
+      let label = prefix
+      if label == "" { label = "payload" }
+      return {
+        valid: false,
+        data: null,
+        errors: [{path: label, code: "type", message: "Expected an object"}]
+      }
+    }
+
+    let schema_keys = keys(self.fields)
+    for key in schema_keys {
+      let field_def = self.fields[key]
+      let field_path = prefix + "[" + to_json(key) + "]"
+
+      let raw_val = payload[key]
+      let present = includes(keys(payload), key)
+      let res = field_def.check(raw_val, field_path, present)
+      if present || field_def.has_default {
+        output[key] = res.value
+      }
+      for err in res.errors {
+        push(errors, err)
+      }
+    }
+
+    let payload_keys = keys(payload)
+    for pkey in payload_keys {
+      if !includes(schema_keys, pkey) {
+        if self.allow_unknown {
+          output[pkey] = payload[pkey]
+        } else {
+          let unknown_path = prefix + "[" + to_json(pkey) + "]"
+          add_error(errors, unknown_path, "unknown", "Unknown field")
+        }
+      }
+    }
+
+    return {
+      valid: len(errors) == 0,
+      data: output,
+      errors: errors
+    }
+  }
+
+  fn parse_json(self, json_text: string) -> object {
+    try {
+      let parsed = from_json(json_text)
+      if parsed == null && trim(json_text) != "null" {
+        return {valid: false, data: null, errors: [{path: "$", code: "json", message: "Invalid JSON"}]}
+      }
+      return self.validate(parsed)
+    } catch (err) {
+      return {
+        valid: false,
+        data: null,
+        errors: [{path: "$", code: "json", message: str(err)}]
+      }
+    }
+  }
+
+  fn load_config(self, file_path: string) -> object {
+    try {
+      let raw = read_file(file_path)
+      return self.parse_json(raw)
+    } catch (err) {
+      return {
+        valid: false,
+        data: null,
+        errors: [{path: "$", code: "io", message: "Failed to read config file " + file_path + ": " + str(err)}]
+      }
+    }
+  }
+}
+
+/** Creates a string field validator. */
+export fn string_field(options: object? = null) {
+  return Field("string", options)
+}
+
+/** Creates a number field validator. */
+export fn number_field(options: object? = null) {
+  return Field("number", options)
+}
+
+/** Creates a boolean field validator. */
+export fn bool_field(options: object? = null) {
+  return Field("bool", options)
+}
+
+/** Creates an array field validator. */
+export fn array_field(item_field: any = null, options: object? = null) {
+  let opts = options || {}
+  if item_field != null { opts.items = item_field }
+  return Field("array", opts)
+}
+
+/** Creates a nested object field validator. */
+export fn object_field(nested_schema: any = null, options: object? = null) {
+  let opts = options || {}
+  if nested_schema != null { opts.schema = nested_schema }
+  return Field("object", opts)
+}
+
+/** Creates an unrestricted field validator. */
+export fn any_field(options: object? = null) {
+  return Field("any", options)
+}
+
+/** Creates a new Schema definition for a set of field rules. */
+export fn define_schema(fields: object, options: object? = null) {
+  return Schema(fields, options)
+}

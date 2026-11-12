@@ -306,13 +306,14 @@ async fn handleRequest(req) {
 }
 
 let port = 8080
-show "Starting Sesi server on http://localhost:" port
+prompt site {"http://localhost:" port}
+show "Starting Sesi server at" site
 let server = listen(port, handleRequest)
 
 try {
-  open("http://localhost:" + port)
+  open(site)
 } catch (e) {
-  show "Could not automatically open browser. Please visit http://localhost:" port
+  show "Could not automatically open browser. Please visit" site
 }
 
 let end = input("Press Enter to stop the server...\n")

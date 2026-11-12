@@ -42,7 +42,7 @@ fn analyzeFile(fullPath: string) -> object {
     let fullPath = targetDir + "/" + file
     let parts = file | split(".")
     if (parts | length) > 1 {
-        let ext = parts[(parts | length) - 1]
+        let ext = get_ext(file)
         if ext == "md" {
             show "Analyzing:" fullPath
             let report = fullPath | analyzeFile

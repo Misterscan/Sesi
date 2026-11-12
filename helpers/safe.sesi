@@ -527,6 +527,72 @@ export fn freshFile(path:string,content:string="",mode:string="text")->any{if fi
   ```
 */
 export fn fresh(path:string,content:string="",mode:string="text")->any{return freshFile(path,content,mode)}
+
+/**
+  Evaluates Sesi code and returns the result as a string.
+
+  Parameters:
+  - code: The Sesi code to evaluate.
+
+  Returns:
+  - The result of the code execution.
+
+  Example:
+  ```sesi
+  eval("show 1 + 1")
+  ```
+*/
+export fn eval(code: string) -> string {
+  let result = ""
+  try { result = run("sesi -e '" + code + "'") }
+  catch (e) { show e | str; return }
+  show result
+}
+/**
+  Provides alternative aliases for the `eval` function.
+
+  Parameters:
+  - code: The Sesi code to evaluate.
+
+  Returns:
+  - The result of the code execution.
+
+  Example:
+  ```sesi
+  evaluate("show 1 + 1")
+  ```
+*/
+export fn evaluate(code: string) -> string { return eval(code) }
+/**
+  Provides an alternative alias for the `eval` function.
+
+  Parameters:
+  - code: The Sesi code to evaluate.
+
+  Returns:
+  - The result of the code execution.
+
+  Example:
+  ```sesi
+  evalCode("show 1 + 1")
+  ```
+*/
+export fn evalCode(code: string) -> string { return eval(code) }
+/**
+  Provides an alternative alias for the `eval` function.
+
+  Parameters:
+  - code: The Sesi code to evaluate.
+
+  Returns:
+  - The result of the code execution.
+
+  Example:
+  ```sesi
+  testCode("show 1 + 1")
+  ```
+*/
+export fn testCode(code: string) -> string { return eval(code) }
 /**
   Writes Base64 image data with retry handling.
 

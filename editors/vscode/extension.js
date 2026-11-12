@@ -14,6 +14,13 @@ const SESI_MATH_FUNCTION_SIGNATURES = {
     sinh: 'sinh(x)', sqrt: 'sqrt(x)', tan: 'tan(x)', tanh: 'tanh(x)', trunc: 'trunc(x)'
 };
 const SESI_MATH_FUNCTIONS = Object.keys(SESI_MATH_FUNCTION_SIGNATURES);
+const SESI_WEB_EXPORTS = new Map(Object.entries({
+    element: { signature: 'element(tag, props = null, children = [])', description: 'Describe an HTML element with attributes, event handlers, and child views.', example: 'Web.element("h1", {}, ["Weather"])' },
+    child: { signature: 'child(component, props = null, key = null)', description: 'Describe a nested component. A stable sibling key preserves its state when the list reorders.', example: 'Web.child(IssueCard, {issue: issue}, issue.id)' },
+    mount: { signature: 'mount(selector, component, props = null)', description: 'Mount a component into a browser element. The returned handle exposes unmount().', example: 'Web.mount("#app", WeatherApp, {})' },
+    app: { signature: 'app(selector, config)', description: 'Mount a routed app. Config accepts routes, an optional layout, and an optional not_found component.', example: 'Web.app("#app", {routes: [{path: "/", component: Home}]})' },
+    link: { signature: 'link(to, props = null, children = [])', description: 'Create a link to a root-relative path in a routed app.', example: 'Web.link("/issues", {}, ["Issues"])' },
+}));
 
 function getModuleSpecifiers(text) {
     const tokens = tokenize(text);
@@ -258,15 +265,24 @@ function getExportsFromSesiFile(filePath, sourceText = null) {
     const exports = [];
     try {
         const content = typeof sourceText === 'string' ? sourceText : fs.readFileSync(filePath, 'utf-8');
-        const exportFnRegex = /\bexport\s+(async\s+)?fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/g;
-        const exportLetRegex = /\bexport\s+let\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
-
-        let match;
-        while ((match = exportFnRegex.exec(content)) !== null) {
-            exports.push({ type: 'function', name: match[2], params: match[3].trim(), isAsync: !!match[1] });
-        }
-        while ((match = exportLetRegex.exec(content)) !== null) {
-            exports.push({ type: 'variable', name: match[1] });
+        const tokens = tokenize(content);
+        for (let index = 0; index < tokens.length; index++) {
+            if (tokens[index].type !== 'EXPORT') continue;
+            let cursor = index + 1;
+            const isAsync = tokens[cursor]?.type === 'ASYNC';
+            if (isAsync) cursor++;
+            const keyword = tokens[cursor];
+            const name = tokens[cursor + 1];
+            if (name?.type !== 'IDENTIFIER') continue;
+            if (keyword?.type === 'LET') {
+                exports.push({ type: 'variable', name: name.lexeme });
+            } else if (keyword?.type === 'FN' && tokens[cursor + 2]?.lexeme === '(') {
+                const opening = cursor + 2;
+                const closing = findMatchingToken(tokens, opening, '(', ')');
+                if (closing < 0) continue;
+                const params = content.slice(tokens[opening].offset + 1, tokens[closing].offset).trim();
+                exports.push({ type: 'function', name: name.lexeme, params, isAsync });
+            }
         }
     } catch (e) {
         // Ignore
@@ -614,7 +630,9 @@ function tokenize(text) {
     ]);
 
     const stripped = stripComments(text);
-    const tokenRegex = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b\d+(?:\.\d+)?\b|\$[a-zA-Z_][a-zA-Z0-9_]*|\b[a-zA-Z_][a-zA-Z0-9_]*\b|->|[{}[\](),;.:?=+\-*/%&|!<>]/g;
+    // An unfinished literal still owns its contents; never diagnose its text
+    // as declarations, imports, references, or scope delimiters.
+    const tokenRegex = /"(?:[^"\\]|\\(?:[\s\S]|$))*(?:"|$)|'(?:[^'\\]|\\(?:[\s\S]|$))*(?:'|$)|\b\d+(?:\.\d+)?\b|\$[a-zA-Z_][a-zA-Z0-9_]*|\b[a-zA-Z_][a-zA-Z0-9_]*\b|->|[{}[\](),;.:?=+\-*/%&|!<>]/g;
     let match;
     const lineOffsets = [];
     
@@ -1310,6 +1328,32 @@ function getMakeMemberTargetAtToken(tokens, tokenScopes, memberToken) {
     return null;
 }
 
+// Track nested defaults so object braces cannot be mistaken for the body.
+function functionSignature(tokens, index) {
+    const parameters = [];
+    let cursor = index + 2;
+    if (tokens[cursor]?.lexeme === '(') {
+        const closing = [')'];
+        let expectParameter = true;
+        for (cursor++; cursor < tokens.length && closing.length > 0; cursor++) {
+            const token = tokens[cursor];
+            if (closing.length === 1) {
+                if (expectParameter && token.type === 'IDENTIFIER') {
+                    parameters.push(token);
+                    expectParameter = false;
+                }
+                if (token.lexeme === ',') expectParameter = true;
+            }
+            if (token.lexeme === '(') closing.push(')');
+            else if (token.lexeme === '[') closing.push(']');
+            else if (token.lexeme === '{') closing.push('}');
+            else if (token.lexeme === closing[closing.length - 1]) closing.pop();
+        }
+    }
+    while (cursor < tokens.length && tokens[cursor].lexeme !== '{') cursor++;
+    return { parameters, bodyIndex: cursor };
+}
+
 function findDeclarationsAndReferences(tokens) {
     const decls = [];
     const refs = [];
@@ -1333,23 +1377,9 @@ function findDeclarationsAndReferences(tokens) {
                 declaredTokenSet.add(next);
             }
             
-            let temp = i + 2;
-            while (temp < tokens.length && tokens[temp].lexeme !== '(' && tokens[temp].lexeme !== '{') {
-                temp++;
-            }
-            if (temp < tokens.length && tokens[temp].lexeme === '(') {
-                temp++;
-                while (temp < tokens.length && tokens[temp].lexeme !== ')') {
-                    const paramTok = tokens[temp];
-                    if (paramTok.type === 'IDENTIFIER') {
-                        const prev = tokens[temp - 1];
-                        if (prev && (prev.lexeme === '(' || prev.lexeme === ',')) {
-                            decls.push({ name: paramTok.lexeme, token: paramTok, type: 'parameter' });
-                            declaredTokenSet.add(paramTok);
-                        }
-                    }
-                    temp++;
-                }
+            for (const paramTok of functionSignature(tokens, i).parameters) {
+                decls.push({ name: paramTok.lexeme, token: paramTok, type: 'parameter' });
+                declaredTokenSet.add(paramTok);
             }
         }
         else if (tok.type === 'ALLOW') {
@@ -1653,6 +1683,7 @@ function analyzeScope(tokens, decls, refs) {
     const rootScope = new Scope();
     let currentScope = rootScope;
     let skipNextBraceScope = false;
+    let functionBodyIndex = null;
     const pushedScopeStack = [];
     
     const tokenScopes = new Map();
@@ -1684,27 +1715,15 @@ function analyzeScope(tokens, decls, refs) {
             currentScope = new Scope(currentScope, tok.type === 'MAKE');
             skipNextBraceScope = true;
             
-            let temp = i + 2;
-            while (temp < tokens.length && tokens[temp].lexeme !== '(' && tokens[temp].lexeme !== '{') {
-                temp++;
-            }
-            if (temp < tokens.length && tokens[temp].lexeme === '(') {
-                temp++;
-                while (temp < tokens.length && tokens[temp].lexeme !== ')') {
-                    const paramTok = tokens[temp];
-                    if (paramTok.type === 'IDENTIFIER') {
-                        const prev = tokens[temp - 1];
-                        if (prev && (prev.lexeme === '(' || prev.lexeme === ',')) {
-                            currentScope.declare(paramTok.lexeme, {
-                                token: paramTok,
-                                type: 'parameter',
-                                readCount: 0,
-                                suppressUnused: isMakeMethod && paramTok.lexeme === 'self'
-                            });
-                        }
-                    }
-                    temp++;
-                }
+            const signature = functionSignature(tokens, i);
+            functionBodyIndex = signature.bodyIndex;
+            for (const paramTok of signature.parameters) {
+                currentScope.declare(paramTok.lexeme, {
+                    token: paramTok,
+                    type: 'parameter',
+                    readCount: 0,
+                    suppressUnused: isMakeMethod && paramTok.lexeme === 'self'
+                });
             }
         }
         else if (tok.type === 'FOR') {
@@ -1733,8 +1752,9 @@ function analyzeScope(tokens, decls, refs) {
             }
         }
         else if (tok.lexeme === '{') {
-            if (skipNextBraceScope) {
+            if (skipNextBraceScope && (functionBodyIndex === null || i === functionBodyIndex)) {
                 skipNextBraceScope = false;
+                functionBodyIndex = null;
                 pushedScopeStack.push(true);
             } else if (shouldPushScope(i, tokens)) {
                 currentScope = new Scope(currentScope);
@@ -1806,7 +1826,7 @@ function analyzeScope(tokens, decls, refs) {
   'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env', 'range', 'push', 'append', 'pop', 'join', 'split',
   'keys', 'values', 'array', ...SESI_MATH_CONSTANTS, ...SESI_MATH_FUNCTIONS,
   'workflow', 'set_alias', 'define_tool', 'list_tools', 'error_type', 'raise_error', 'multi_req',
-  'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
+  'url_encode', 'web_get', 'web_send', 'listen', 'live', 'convert', 'api', 'prompt', 'debug', 'to_upper', 'to_lower',
   'trim', 'slice', 'swap', 'retry', 'map', 'filter', 'reduce', 'find', 'format', 'db_open', 'args', 'input',
     'contains', 'locate', 'doc', 'media', 'audio', 'launch', 'memory_search', 'memory_trim', 'memory_config',
   'lazy', 'force', 'timeout', 'profile', 'profile_start', 'profile_end', 'profile_report',
@@ -1957,6 +1977,28 @@ function resolveImportedSymbolAtPosition(document, position, workspaceRoot) {
     };
 }
 
+function getNamespaceExports(document, position, workspaceRoot) {
+    const prefix = document.lineAt(position.line).text.slice(0, position.character);
+    const member = /(?<![\w.])([a-zA-Z_]\w*)\.\w*$/.exec(prefix);
+    if (!member) return null;
+    const { tokens, tokenScopes } = getDocumentScopeAnalysis(document, workspaceRoot);
+    const token = getIdentifierTokenAtPosition(tokens, { line: position.line, character: member.index });
+    const imported = getNamespaceImportAtToken(tokens, tokenScopes, token);
+    if (imported?.specifier === 'std/web') return SESI_WEB_EXPORTS;
+    if (!imported) return null;
+    const resolved = resolveSesiModule(imported.specifier, document.uri.fsPath, workspaceRoot);
+    if (!resolved || resolved.type !== 'local') return null;
+    const source = readSesiModuleSource(resolved.path);
+    if (source === null) return null;
+    return new Map(getExportNamesFromSesiSource(source).map(name => {
+        const definition = findExportDefinitionInText(source, name);
+        return [name, {
+            signature: definition?.details.signature || name,
+            description: definition?.details.documentation || '',
+        }];
+    }));
+}
+
 function resolveMakeMemberAtPosition(document, position, workspaceRoot) {
     const analysis = getDocumentScopeAnalysis(document, workspaceRoot);
     const memberToken = getIdentifierTokenAtPosition(analysis.tokens, position);
@@ -2052,25 +2094,25 @@ function activate(context) {
             signature: 'make identifier { ... }',
             source: 'Sesi Core Primitives',
             description: 'Declares a callable, class-like object template. Calling its name creates a fresh object.',
-            example: 'make Person {\n   let kind = "person"\n\n   fn start(self, name) {\n      self.name = name\n   }\n\n   fn greet(self) {\n      return "Hello, " + self.name\n   }\n}'
+            example: 'make Person {\n   let kind = "person"\n\n   fn start(self, name) { self.name = name }\n\n   fn greet(self) { return "Hello, " + self.name }\n}'
         },
         'fn': {
             signature: 'fn name(param1, param2) { ... }',
             source: 'Sesi Core Primitives',
             description: 'Declares a reusable block of code with optional parameters and return values. Inside Sesi functions, `return` is used to output a value.',
-            example: 'fn multiply(a, b) {\n  return a * b\n}\n\nlet result = multiply(5, 10)'
+            example: 'fn multiply(a, b) { return a * b }\n\nlet result = multiply(5, 10)'
         },
         'if': {
             signature: 'if condition { ... } else { ... }',
             source: 'Sesi Control Flow',
             description: 'Executes the first code block if the condition evaluates to `true`. Supports optional nested `else` statements.',
-            example: 'let value = random()\nif value > 0.5 {\n  show "Greater than 0.5"\n} else {\n  show "Less than or equal to 0.5"\n}'
+            example: 'let value = random()\nif value > 0.5 { show "Greater than 0.5 "}\nelse { show "Less than or equal to 0.5" }'
         },
         'else': {
             signature: 'else { ... }',
             source: 'Sesi Control Flow',
             description: 'Specifies a block of code to be executed if the corresponding `if` condition evaluates to `false`.',
-            example: 'if status == "success" {\n  show "Done"\n} else {\n  show "Failed"\n}'
+            example: 'if status == "success" { show "Done" }\nelse { show "Failed" }'
         },
         'while': {
             signature: 'while condition { ... }',
@@ -2082,43 +2124,43 @@ function activate(context) {
             signature: 'for element in iterable { ... }',
             source: 'Sesi Loops',
             description: 'Iterates over elements of an array, a range, or an object collection.',
-            example: 'let items = ["apple", "banana", "cherry"]\nfor item in items {\n  show item\n}'
+            example: 'let items = ["apple", "banana", "cherry"]\nfor item in items { show item }'
         },
         'in': {
             signature: 'element in collection',
             source: 'Sesi Operators',
             description: 'Used inside `for` loops to specify the sequence being iterated over, or as a membership test operator.',
-            example: 'for i in range(5) {\n  show i\n}'
+            example: 'for i in range(5) { show i }'
         },
         'to': {
             signature: 'start to end',
             source: 'Sesi Operators',
             description: 'Specifies a range boundary operator or transition sequence specifier in Sesi structures.',
-            example: 'for i = 0 to 5 {\n  show i\n}\n '
+            example: 'for i = 0 to 5 { show i }'
         },
         'return': {
             signature: 'return value',
             source: 'Sesi Core Primitives',
             description: 'Terminates function execution and returns a value. Required inside of a `fn` block to output data.',
-            example: 'fn add(a, b) {\n  return a + b\n}'
+            example: 'fn add(a, b) { return a + b }'
         },
         'try': {
             signature: 'try { ... } catch (error) { ... }',
             source: 'Sesi Resilience',
             description: 'Encloses a block of code that may raise a filesystem or execution error, pairing with a `catch` block to handle exceptions.',
-            example: 'try {\n  let content = read_file("missing.txt")\n} catch (e) {\n  show "Caught filesystem error: " e\n}'
+            example: 'let content =  ""\ntry { content = read_file("missing.txt") }\ncatch (e) { show "Caught filesystem error:" e }'
         },
         'catch': {
             signature: 'catch (error) { ... }',
             source: 'Sesi Resilience',
             description: 'Handles exceptions thrown within the preceding `try` block, binding the error metadata to the specified identifier.',
-            example: 'try {\n  write_file("readonly.txt", "data")\n} catch (e) {\n  show e\n}'
+            example: 'try { write_file("readonly.txt", "data") }\ncatch (e) { show e }'
         },
         'finally': {
             signature: 'finally { ... }',
             source: 'Sesi Resilience',
             description: 'Defines a block of code that will always execute after a `try` block, regardless of whether an exception was thrown.',
-            example: 'try {\n  write_file("readonly.txt", "data")\n} catch (e) {\n  show e\n} finally {\n  show "Cleanup actions"\n}'
+            example: 'try { write_file("readonly.txt", "data") }\ncatch (e) { show e }\nfinally { show "Cleanup actions" }'
         },
         'break': {
             signature: 'break',
@@ -2136,13 +2178,13 @@ function activate(context) {
             signature: 'import { item } from "module"',
             source: 'Sesi Modules',
             description: 'Loads a reusable module or configuration file into the current execution space.',
-            example: 'import { add, multiply } from "math"'
+            example: 'import { min, max } from "std/math"'
         },
         'from': {
             signature: 'import { item } from "module"',
             source: 'Sesi Modules',
             description: 'Extracts specific functions or definitions from an external module file.',
-            example: 'import { now } from "std/time"'
+            example: 'import { format, now } from "std/time"'
         },
         'export': {
             signature: 'export let variable',
@@ -2190,13 +2232,13 @@ function activate(context) {
             signature: 'model("model-name") { ... }',
             source: 'Sesi AI',
             description: 'Reasoning model evaluation primitive. Calls a specified LLM configuration block to generate a reasoning response.',
-            example: 'model("gemini-3.7-flash") {"Outline the systems architecture for a compiler pipeline."}'
+            example: 'show model("gemini-4-argon") {"Outline the systems architecture for a compiler pipeline."}\nshow model("gpt-6.1-sol") {"Explain coding to a new developer."}'
         },
         'image': {
             signature: 'image("prompt")',
             source: 'Sesi AI',
             description: 'Generates a synthetic image using advanced text-to-image models based on the prompt parameter.',
-            example: 'let graphic = image("gemini-3.1-flash-image") {ratio: "16:9", size: "1K"} {"A dark, technical isometric blueprint of a compiler lexer graph."}'
+            example: 'let graphic = image("gemini-nano-banana-2.1") {ratio: "16:9", size: "1K"} {"A dark, technical isometric blueprint of a compiler lexer graph."}\nwrite_image("blueprint.png", graphic)'
         },
         'memory': {
             signature: 'memory',
@@ -2208,31 +2250,31 @@ function activate(context) {
             signature: 'set_alias(alias, model)',
             source: 'Sesi AI',
             description: 'Register a custom local name for a model string.',
-            example: 'set_alias("fast", "gemini-3.5-flash-lite")\nlet answer = model("fast") {"Summarize this paragraph."}'
+            example: 'set_alias("fast", "gemini-3.5-flash-lite")\nset_alias("detail", "gpt-6-luna")\nlet answer = model("fast") {"Summarize this paragraph."}\nlet explanation = model("detail") {"Explain this paragraph in detail."}'
         },
         'workflow': {
             signature: 'workflow(steps, initialContext)',
             source: 'Sesi AI',
             description: 'Chains sequential model executions, transformations, and processing scripts into a unified pipeline.',
-            example: 'let context = read_file("system_performance.txt")\nlet steps = [\n   {prompt: "Summarize the findings." },\n   {prompt: "Provide recommendations based on the analysis."},\n   {prompt: "Create a comprehensive report: " + context}\n]\nlet final = workflow(steps, "Analyze the system performance based on the following: " + context)\nshow final'
+            example: 'let context = read_file("system_performance.txt")\nlet steps = [\n   {"prompt": "Summarize the findings." },\n   {"prompt": "Provide recommendations based on the analysis."},\n   {"prompt": "Create a comprehensive report: " + context}\n]\nlet final = workflow(steps, "Analyze the system performance based on the following: " + context)\nshow final'
         },
         'structured_output': {
             signature: 'structured_output(schema)(expression)',
             source: 'Serialization Standard Library',
             description: 'Creates strongly typed, schema-validated structured data from the result of any Sesi expression.',
-            example: 'let rawJson = "{\\"projectName\\": \\"Sesi\\", \\"version\\": \\"1.9.0\\"}"\nlet parsed = structured_output({projectName: string, version: string})(rawJson)'
+            example: 'let rawJson = "{\\"projectName\\": \\"Sesi\\", \\"version\\": \\"1.9.2\\"}"\nlet parsed = structured_output({projectName: string, version: string})(rawJson)'
         },
         'prompt': {
-            signature: 'prompt { ... }',
+            signature: 'prompt `identifier` { ... }',
             source: 'Sesi Compostion',
             description: 'Constructs highly dynamic and concise template prompts. Safe from literal string hardcoding and concatenations.',
-            example: 'let task = "audit logs"\nprompt {"Analyze the system performance regarding: " task}'
+            example: 'let task = "audit logs"\nprompt audit {"Analyze the system performance regarding: " task}'
         },
         'define_tool': {
             signature: 'define_tool("tool_name", function, description)',
             source: 'Sesi Tooling Integration',
             description: 'Declares a custom system tool schema. This makes standard Sesi functions or scripts discoverable as tool call actions for LLMs.',
-            example: 'fn read_config(file: string) -> string {\n  return read_file(file)\n}\ndefine_tool("read", read_config, "Reads a configuration file from disk.")'
+            example: 'fn read_config(file: string) -> string {\n  let content = ""\n  try { content =  read_file(file) }\n  catch(e) { return str(e) }\n}\ndefine_tool("read", read_config, "Reads a configuration file from disk.")'
         },
         'list_tools': {
             signature: 'list_tools()',
@@ -2241,10 +2283,10 @@ function activate(context) {
             example: 'let tools = list_tools()\nshow tools'
         },
         'tool_call': {
-            signature: 'tool_call(tool_name, tool_params)',
+            signature: 'tool_call(tool_name)(tool_params)',
             source: 'Sesi Tooling Integration',
             description: 'Invokes a predefined custom tool dynamically by its name and passes the argument payload.',
-            example: 'let output = tool_call(read_config, "config.json")'
+            example: 'let output = tool_call(read_config)("config.json")'
         },
         'multi_req': {
             signature: 'multi_req(functions_array)',
@@ -2274,7 +2316,7 @@ function activate(context) {
             signature: 'write_image(path, img_data)',
             source: 'System I/O Standard Library',
             description: 'Saves raw image canvas data or generated image model outputs directly to a file path as an image file (e.g. PNG).',
-            example: 'let banner = image("gemini-3.1-flash-image") {ratio: "16:9", size: "1K"} {"Sleek minimal blueprint logo"}\nwrite_image("output/banner.png", banner)'
+            example: 'let icon = image("gpt-image-2.5-sunburst") {ratio: "1:1", size: "1K"} {"Sleek minimal coding logo"}\nwrite_image("output/icon.png", icon)'
         },
         'open': {
             signature: 'open(target, options = null)',
@@ -2292,7 +2334,7 @@ function activate(context) {
             signature: 'list_dir(path)',
             source: 'System I/O Standard Library',
             description: 'Retrieves an array containing the names of all files and folders located inside the target directory path.',
-            example: 'let files = list_dir("main")\nfor file in files {\n  show file\n}'
+            example: 'let files = list_dir("main")\nfor file in files { show file }'
         },
         'get_ext': {
             signature: 'get_ext(path)',
@@ -2346,37 +2388,43 @@ function activate(context) {
             signature: 'exec(command_line)',
             source: 'Process Orchestration Standard Library',
             description: 'Spawns a shell environment command synchronously. Returns the full stdout response of the executed process.',
-            example: 'let git_log = exec("git log -n 1 --oneline")\nshow "Latest commit: " git_log'
+            example: 'let version = exec("sesi version")\nshow "Current version:" version'
         },
         'run': {
             signature: 'run(command_line)',
             source: 'Process Orchestration Standard Library',
             description: 'Exact alias of exec(). Executes a shell command synchronously and returns stdout. Disabled in safe mode.',
-            example: 'let branch = run("git branch --show-current")\nshow branch'
+            example: 'let sesi_help = run("sesi help")\nshow sesi_help'
         },
         'sesi': {
-            signature: 'sesi(file_path, local = false, check_only = false)',
+            signature: 'sesi(file_path, local = false, check_only = false, args = [])',
             source: 'Process Orchestration Standard Library',
-            description: 'Parses and compiles a Sesi file synchronously in the current process without launching a child process. Set local to true to enable local file access, or check_only to true to validate without executing the file.',
-            example: 'sesi("examples/main/01_hello.sesi")\nsesi("examples/main/25_webpage_server.sesi", true)\nsesi("main/check.sesi", false, true)'
+            description: 'Parses and compiles a Sesi file synchronously in the current process without launching a child process. Set local to true to enable local file access, check_only to true to validate without executing the file, and args to pass arguments to the script.',
+            example: 'sesi("examples/main/01_hello.sesi")\nsesi("examples/main/25_webpage_server.sesi", true)\nsesi("main/check.sesi", false, true)\nsesi("main/run_with_args.sesi", false, false, ["arg1", "arg2"])'
         },
         'python': {
             signature: 'python(code, args)',
             source: 'Process Orchestration Standard Library',
             description: 'Executes arbitrary Python code synchronously via stdin and returns its standard output. The optional second parameter `args` is serialized to JSON and stored in the environment variable `SESI_ARGS`. If `args` is an array, elements are also passed as command line arguments (via sys.argv).',
-            example: 'let result = python("show(\'Hello from Python!\')")\nshow result'
+            example: 'let code = "print(\'Hello from Python!\')"\nlet result = python(code)\nshow result'
         },
         'js': {
             signature: 'js(code, args)',
             source: 'Process Orchestration Standard Library',
             description: 'Executes arbitrary JavaScript code synchronously with the current Node.js runtime and returns its standard output. The optional second parameter `args` is serialized to JSON and stored in the environment variable `SESI_ARGS`. If `args` is an array, elements are also passed as command line arguments.',
-            example: 'let result = js("console.log(\'Hello from JavaScript!\')")\nshow result'
+            example: 'let code = "console.log(\'Hello from JavaScript!\')"\nlet result = js(code)\nshow result'
         },
         'html': {
             signature: 'html(body, options)',
             source: 'HTML Document Standard Library',
             description: 'Wraps body markup in a complete HTML document string. Optional `options` may include `title`, `head`, and `lang`.',
             example: 'let page = html("<main>Hello</main>", {title: "Demo"})\nwrite_file("index.html", page)'
+        },
+        'url_encode': {
+            signature: 'url_encode(value) -> string|null',
+            source: 'HTTP Client Standard Library',
+            description: 'Percent-encodes a single URL component, such as a query value. Returns null for non-string input or malformed Unicode.',
+            example: 'url_encode("São Paulo & region")  // "S%C3%A3o%20Paulo%20%26%20region"'
         },
         'web_get': {
             signature: 'web_get(url, headers = {})',
@@ -2430,7 +2478,7 @@ function activate(context) {
             signature: 'from_speech(audio_path, language = null, model = "gpt-transcribe") -> string',
             source: 'Speech Recognition Standard Library',
             description: 'Transcribes an audio file through OpenAI or Gemini and returns the transcript as text. Defaults to OpenAI gpt-transcribe. The third argument selects the model. Requires OPENAI_API_KEY for OpenAI or GEMINI_API_KEY for Gemini.',
-            example: 'let transcript = from_speech("meeting.wav", "en")\nlet openai = from_speech("meeting.wav", "en", "gpt-4o-mini-transcribe")\nlet gemini = from_speech("meeting.wav", "en", "gemini-3.5-flash-lite")\nshow transcript'
+            example: 'let transcript = from_speech("meeting.wav", "en")\nlet openai = from_speech("meeting.wav", "en", "gpt-transcribe")\nlet gemini = from_speech("meeting.wav", "en", "gemini-3.5-flash-lite")\nshow transcript'
         },
         'encode': {
             signature: 'encode(value, mode = "text")',
@@ -2448,31 +2496,31 @@ function activate(context) {
             signature: 'time()',
             source: 'Utility Standard Library',
             description: 'Returns the current high-resolution system timestamp in epoch milliseconds.',
-            example: 'let start = time()\n// Run process...\nlet elapsed = (time() - start) / 1000\nshow "Completed in: " elapsed " s"'
+            example: 'let start = time()\n// Run process...\nlet end = time()\nlet elapsed = (end - start) / 1000\nshow "Completed in:" elapsed "s"'
         },
         'random': {
             signature: 'random()',
             source: 'Utility Standard Library',
             description: 'Generates a pseudo-random floating-point decimal value between 0.0 (inclusive) and 1.0 (exclusive).',
-            example: 'let rand_val = random()\nif rand_val < 0.2 {\n  show "Critical failure trigger"\n}'
+            example: 'let rand_val = random()\nif rand_val < 0.2 { show "Critical failure trigger" }'
         },
         'raise_error': {
             signature: 'raise_error(message)',
             source: 'Exception Handling Standard Library',
             description: 'Aborts current execution flow and raises a custom error message exception to be caught in a try-catch block.',
-            example: 'if path == "" {\n  raise_error("Directory path cannot be empty")\n}'
+            example: 'if path == "" { raise_error("Directory path cannot be empty") }'
         },
         'error_type': {
             signature: 'error_type(caught_error)',
             source: 'Exception Handling Standard Library',
             description: 'Extracts the descriptive string categorizing the exception type classification of a caught error.',
-            example: 'try {\n  let file = read_file("invalid.txt")\n} catch (e) {\n  show "Error category: " error_type(e)\n}'
+            example: 'try { let file = read_file("invalid.txt") }\ncatch (e) { show "Error category:" error_type(e) }'
         },
         'show': {
             signature: 'show value1 value2 ...',
             source: 'Console I/O Standard Library',
             description: 'Outputs an arbitrary list of arguments sequentially to the Sesi terminal output standard stream.',
-            example: 'let user = "developer"\nshow "[LOG] Session initialized by: " user'
+            example: 'let user = "developer"\nshow "[LOG] Session initialized by:" user'
         },
         'input': {
             signature: 'input(prompt)',
@@ -2526,19 +2574,19 @@ function activate(context) {
             signature: 'count_tokens(string, options = null)',
             source: 'AI Utility Standard Library',
             description: 'Counts request tokens through the native OpenAI or Gemini provider endpoint.',
-            example: 'let count = count_tokens("Hello world", "gemini-3.7-flash")'
+            example: 'let gemini_count = count_tokens("Hello world", "gemini-3.8-flash")\nlet gpt_count = count_tokens("Hello world", "gpt-6.1-sol")'
         },
         'estimate_tokens': {
             signature: 'estimate_tokens(string, options = null)',
             source: 'AI Utility Standard Library',
             description: 'Estimates tokens locally, explicitly allowing fallback encoding for non-OpenAI models.',
-            example: 'let approximate = estimate_tokens(text, "gemini-3.6-flash")'
+            example: 'let gemini_approx = estimate_tokens(text, "gemini-4-argon")\nlet gpt_approx = estimate_tokens(text, "gpt-6-astra")'
         },
         'estimate_cost': {
             signature: 'estimate_cost(model, input, output = 0, rates = null)',
             source: 'AI Utility Standard Library',
             description: 'Estimates paid-tier text-token cost in USD from counts or text.',
-            example: 'let cost = estimate_cost("gpt-5.6-terra", promptText, 500)\nshow cost.total_cost_usd'
+            example: 'let cost = estimate_cost("gpt-6.1-sol", promptText, 500)\nshow cost.total_cost_usd'
         },
         'model_usage': {
             signature: 'model_usage()',
@@ -2640,7 +2688,7 @@ function activate(context) {
             signature: 'str(value)',
             source: 'Type Conversion Standard Library',
             description: 'Converts the given parameter value into its explicit text string format representation.',
-            example: 'let age_string = str(28)\nshow "User age is: " age_string'
+            example: 'let age_string = str(28)\nshow "User age is:" age_string'
         },
         'num': {
             signature: 'num(value)',
@@ -2676,13 +2724,13 @@ function activate(context) {
             signature: 'args[number]',
             source: 'System I/O Standard Library',
             description: 'An array of strings containing the command-line arguments passed to the Sesi script.',
-            example: 'show "Number of script args:" len(args)\nif len(args) > 0 {\n  show "First script argument:" args[0]\n}'
+            example: 'show "Number of script args:" len(args)\nif len(args) > 0 { show "First script argument:" args[0] }'
         },
         'listen': {
             signature: 'listen(port, handler_function)',
             source: 'Network Server Standard Library',
             description: 'Starts a native HTTP server on the specified port and calls the handler function for each incoming connection.',
-            example: 'async fn handle(req) {\n  return {status: 200, body: "OK"}\n}\nlet server = listen(8080, handle)'
+            example: 'async fn handle(req) { return {status: 200, body: "OK"} }\nlet server = listen(8080, handle)'
         },
         'live': {
             signature: 'live(filePath, exportName = "handle")',
@@ -2876,6 +2924,12 @@ function activate(context) {
             description: 'Draws a raster polygon in the pixel buffer.',
             example: 'allow "std/draw" in as Draw\nDraw.pixel_polygon([[0,0],[10,0],[5,10]], "#ff00ff")'
         },
+        'pixel_path': {
+            signature: 'pixel_path(d, color, filled = true)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Rasterizes SVG-style path commands into the pixel buffer. Supports lines, curves, arcs, and multiple subpaths.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel_path("M 2 14 Q 8 2 14 14 Z", "#ff00ff")'
+        },
         'pixel_triangle': {
             signature: 'pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled = true)',
             source: 'Drawing Standard Library (std/draw)',
@@ -2909,7 +2963,7 @@ function activate(context) {
         'pixel_text': {
             signature: 'pixel_text(x, y, text, color, scale = 1, font = "classic")',
             source: 'Drawing Standard Library (std/draw)',
-            description: 'Rasterizes text into the pixel buffer using the classic 5x7 bitmap face or the smooth antialiased bubble and impact faces.',
+            description: 'Rasterizes text into the pixel buffer using the classic 5x7 bitmap face or the smooth antialiased faces: bubble, impact, sans, light, serif, mono, script, comic, marker, wide, italic, and outline.',
             example: 'allow "std/draw" in as Draw\nDraw.pixel_text(20, 20, "Bubble Text", "#79e6ff", 12, "bubble")'
         },
         'pixel_grid': {
@@ -2982,13 +3036,13 @@ function activate(context) {
             signature: 'async fn name() { ... }',
             source: 'Sesi Control Flow',
             description: 'Declares an asynchronous function that can perform non-blocking operations and suspend execution using the `await` operator.',
-            example: 'async fn fetchLogs() {\n  return db.collection("logs").find()\n}'
+            example: 'async fn fetchLogs() { return db.collection("logs").find() }'
         },
         'await': {
             signature: 'await expression',
             source: 'Sesi Control Flow',
             description: 'Suspends the execution of an enclosing async function until the target promise or async operation completes and returns its value.',
-            example: 'async fn fetchLogs() {\n  return db.collection("logs").find()\n}\nlet logs = await fetchLogs()'
+            example: 'async fn fetchLogs() { return db.collection("logs").find() }\nlet logs = await fetchLogs()'
         },
         'convert': {
             signature: 'convert(doc_or_media_or_audio) { output_type: ext } { expression }',
@@ -3027,16 +3081,16 @@ function activate(context) {
             example: 'let x = 10\nlet y = 20\ndebug()\nlet z = x + y\nshow z'
         },
         'allow': {
-            signature: 'allow "module" in as LibName\nallow "module" in with { names }',
+            signature: 'allow "module" in as Name\nallow "module" in with { names }',
             source: 'Sesi Modules / Libs',
             description: 'Imports a module or specific module functions, binding it to a scoped library namespace or importing names directly.',
-            example: 'allow "std/math" in as Math\nshow Math.PI'
+            example: 'allow "std/time" in as Time\nshow Time.format(Time.now)'
         },
         'with': {
-            signature: 'allow "module" in as LibName\nallow "module" in with { names }',
+            signature: 'allow "module" in as Name\nallow "module" in with { names }',
             source: 'Sesi Modules / Libs',
             description: 'Used in allow statements to designate the namespace identifier or function list to bind.',
-            example: 'allow "std/math" in with { max, min }'
+            example: 'allow "std/terminal" in with { color, clear }'
         },
         'to_upper': {
             signature: 'to_upper(string)',
@@ -3076,7 +3130,7 @@ function activate(context) {
         },
         'locate': {
             signature: 'locate(string, sub)',
-            source: 'String Utility Standard Library',
+            source: 'Array Utility Standard Library',
             description: 'Returns the zero-based index of the first occurrence of a substring within a string. Returns `-1` if not found, or `null` if either argument is not a string.',
             example: 'let idx = locate("hello.sesi", ".")\nshow idx // 5\nshow locate("hello.sesi", "ts") // -1'
         },
@@ -3144,7 +3198,7 @@ function activate(context) {
             signature: 'profile_end(name)',
             source: 'Profiler Standard Library',
             description: 'Ends a named manual profiling section and returns the latest measurement summary object.',
-            example: 'profile_start("work")\nrun_work()\nlet measurement = profile_end("work")'
+            example: 'profile_start("work")\nwork()\nlet measurement = profile_end("work")'
         },
         'profile_report': {
             signature: 'profile_report(format = "object")',
@@ -3276,7 +3330,7 @@ function activate(context) {
             signature: 'create_app(config = null)',
             source: 'API Framework Standard Library (std/api)',
             description: 'Creates an API application instance. `config` options include `title`, `version`, `description`, and `base_path`.',
-            example: 'allow "std/api" in with API\nlet app = API.create_app({\n  "title": "Users API",\n  "version": "1.0.0",\n  "description": "A user management API"\n})'
+            example: 'allow "std/api" in as API\nlet app = API.create_app({\n  "title": "Users API",\n  "version": "1.0.0",\n  "description": "A user management API"\n})'
         }
     };
 
@@ -3335,6 +3389,7 @@ function activate(context) {
                             'std/time': [
                                 'now()', 'sleep(ms)', 'format(timestamp, options)'
                             ],
+                            'std/web': [...SESI_WEB_EXPORTS.values()].map(item => item.signature),
                             'std/game': [
                                 'VERSION', 'create(config?)', 'vec2(x, y)', 'vec3(x, y, z)', 'quat(x, y, z, w)', 'color(r, g, b, a)',
                                 'game.assets.add(name, type, source, options?)', 'game.create_scene(name, options?)',
@@ -3372,7 +3427,7 @@ function activate(context) {
                                 'pixel(x, y, color)', 'pixel_grid(grid, palette, scale?, x?, y?)',
                                 'pixel_rect(x, y, w, h, color, filled?)', 'pixel_circle(cx, cy, r, color, filled?)',
                                 'pixel_line(x1, y1, x2, y2, color)', 'pixel_ellipse(cx, cy, rx, ry, color, filled?)',
-                                'pixel_polygon(points, color, filled?)', 'pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled?)',
+                                'pixel_polygon(points, color, filled?)', 'pixel_path(d, color, filled?)', 'pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled?)',
                                 'pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled?)',
                                 'pixel_ring(cx, cy, radius, thickness, color)', 'pixel_arc(cx, cy, radius, startAngle, endAngle, color)',
                                 'pixel_bezier(x1, y1, cx, cy, x2, y2, color)', 'pixel_text(x, y, text, color, scale?, font?)',
@@ -3416,6 +3471,9 @@ function activate(context) {
                         }
                         if (moduleInfo.specifier === 'std/game') {
                             markdown.appendMarkdown('**Description:** Optional Babylon.js/Electron imperative 3D desktop engine. Install `@misterscan/sesi-game` and run with `sesi -l`.\n\n');
+                        }
+                        if (moduleInfo.specifier === 'std/web') {
+                            markdown.appendMarkdown('**Description:** Sesi frontend framework with components, state, effects, and client-side routing. Available in browser and desktop web builds.\n\n');
                         }
                         if (exportsList) {
                             markdown.appendMarkdown(`**Exports:**\n`);
@@ -3513,7 +3571,10 @@ function activate(context) {
                 }
             }
 
-            const item = docs[importedSymbol && importedSymbol.kind === 'builtin' ? importedSymbol.exportName : word];
+            const webExport = importedSymbol?.specifier === 'std/web' && SESI_WEB_EXPORTS.get(importedSymbol.exportName);
+            const item = webExport
+                ? { ...webExport, source: 'Frontend Framework (std/web)' }
+                : docs[importedSymbol?.kind === 'builtin' ? importedSymbol.exportName : word];
             if (item) {
                 const markdown = new vscode.MarkdownString();
                 markdown.isTrusted = true;
@@ -3780,6 +3841,21 @@ function activate(context) {
     context.subscriptions.push(vscode.languages.registerCompletionItemProvider('sesi', {
         provideCompletionItems(document, position) {
             const prefix = document.lineAt(position.line).text.slice(0, position.character);
+            const namespaceExports = getNamespaceExports(document, position, workspaceRoot);
+            if (namespaceExports) {
+                return [...namespaceExports].map(([name, metadata]) => {
+                    const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Method);
+                    item.detail = metadata.signature;
+                    item.documentation = metadata.description;
+                    return item;
+                });
+            }
+            if (/(?:^|[^\w.])url_\w*$/.test(prefix)) {
+                const item = new vscode.CompletionItem('url_encode', vscode.CompletionItemKind.Function);
+                item.detail = docs.url_encode.signature;
+                item.documentation = docs.url_encode.description;
+                return [item];
+            }
             if (/\bMath\.$/.test(prefix)) {
                 return [
                     ...SESI_MATH_CONSTANTS.map(name => {
@@ -3855,6 +3931,7 @@ module.exports = {
         getModuleSpecifiers,
         getDocumentScopeAnalysis,
         getExportNamesFromSesiSource,
+        getExportsFromSesiFile,
         resolveSesiModule,
         validateImports,
         tokenize,
@@ -3870,6 +3947,7 @@ module.exports = {
         getImportBindingInfo,
         getImportTargetAtToken,
         getNamespaceImportAtToken,
+        getNamespaceExports,
         getMakeMemberTargetAtToken,
         findMakeMemberDefinitionInText,
         resolveMakeMemberAtPosition,

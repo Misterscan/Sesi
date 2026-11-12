@@ -1,5 +1,9 @@
+import type { createBrowserUi } from './browser-ui';
+
 /** Helpers embedded beside directly emitted JavaScript. This code uses browser APIs only. */
-export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: string; baseUrl?: string } = {}): Record<string, any> {
+export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: string; baseUrl?: string } = {},
+  uiFactory?: typeof createBrowserUi): Record<string, any> {
+  const functionOrigins = uiFactory && new WeakMap<Function, Function>();
   const truthy = (value: any): boolean => value !== null && value !== undefined && value !== false && value !== 0 && value !== '';
   const stringify = (value: any): string => {
     if (value === null || value === undefined) return 'null';
@@ -29,7 +33,10 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
     if (object === null || object === undefined) return null;
     safeKey(key);
     const value = object[key];
-    return typeof value === 'function' ? value.bind(object) : value ?? null;
+    if (typeof value !== 'function') return value ?? null;
+    const bound = value.bind(object) as Function;
+    if (functionOrigins) functionOrigins.set(bound, functionOrigins.get(value) ?? value);
+    return bound;
   };
   const setProperty = (object: any, key: string | number, value: any): any => {
     safeKey(key);
@@ -286,6 +293,10 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
     }
     return result;
   };
+  builtins.url_encode = (value: unknown) => {
+    if (typeof value !== 'string') return null;
+    try { return encodeURIComponent(value); } catch { return null; }
+  };
   builtins.web_get = async (url: any, headers: any = {}) => {
     const values = requestHeaders(headers);
     try { return await (await fetch(typeof url === 'string' ? url : '', { method: 'GET', headers: values })).text(); }
@@ -367,9 +378,11 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
     if (name in globalThis) return property(globalThis, name);
     throw new Error('Undefined variable: ' + name);
   };
+  let ui: ReturnType<typeof createBrowserUi> | undefined;
   const standard = (name: string): Record<string, any> => {
     if (name === 'std/math') return Object.fromEntries(Object.getOwnPropertyNames(Math).map(key => [key, property(Math, key)]));
     if (name === 'std/time') return { now: Date.now, sleep: builtins.sleep };
+    if (name === 'std/web' && uiFactory) return ui ??= uiFactory(fn => functionOrigins?.get(fn) ?? fn);
     throw new Error('Module unavailable in browser: ' + name);
   };
   const memory = new Map<string, string>();
@@ -467,6 +480,40 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
     const raw = separate ?? pick(settings, 'images', 'image', 'imgs', 'imgRefs', 'img_refs');
     return (Array.isArray(raw) ? raw : raw ? [raw] : []).map(String);
   };
+  const videoParts = async (raw: any): Promise<any[]> => {
+    if (raw === undefined || raw === null) return [];
+    const parts: any[] = [];
+    for (const source of Array.isArray(raw) ? raw : [raw]) {
+      let input = source;
+      if (typeof source === 'string' && source.trim()) {
+        const value = source.trim();
+        if (/^https?:\/\//i.test(value)) input = { uri: value };
+        else if (/^data:/i.test(value)) {
+          const match = value.match(/^data:(video\/[a-z0-9.+-]+);base64,([a-z0-9+/\s]+={0,2})$/i);
+          if (!match) throw new Error('Video data URLs require a video MIME type and non-empty base64 data.');
+          input = { mimeType: match[1], data: match[2] };
+        } else {
+          input = await mediaInput(value);
+          const types: Record<string, string> = { mp4: 'video/mp4', mov: 'video/quicktime', avi: 'video/avi',
+            webm: 'video/webm', mpeg: 'video/mpeg', mpg: 'video/mpeg', wmv: 'video/wmv', flv: 'video/x-flv', '3gp': 'video/3gpp' };
+          input.mimeType = types[value.split('.').pop()?.toLowerCase() ?? ''] ?? input.mimeType;
+        }
+      }
+      const mimeType = typeof input?.mimeType === 'string' ? input.mimeType.trim().toLowerCase() : undefined;
+      if (mimeType !== undefined && !/^video\/[a-z0-9.+-]+$/i.test(mimeType)) throw new Error('Video input requires a valid video MIME type.');
+      if (input && typeof input === 'object' && typeof input.uri === 'string'
+        && /^https?:\/\//i.test(input.uri.trim()) && input.data === undefined) {
+        parts.push({ fileData: { fileUri: input.uri.trim(), ...(mimeType ? { mimeType } : {}) } });
+      } else if (input && typeof input === 'object' && typeof input.data === 'string'
+        && /^[a-z0-9+/\s]+={0,2}$/i.test(input.data.trim()) && mimeType && input.uri === undefined) {
+        parts.push({ inlineData: { data: input.data.trim(), mimeType } });
+      } else throw new Error('Video input must be a non-empty file path, HTTP(S) URL, video data URL, {data, mimeType}, or {uri, mimeType?}.');
+    }
+    if (parts.reduce((size, part) => size + (part.inlineData?.data.length ?? 0), 0) > 19_000_000) {
+      throw new Error('Inline video input is too large. Upload it using the Gemini Files API and pass {uri, mimeType}.');
+    }
+    return parts;
+  };
   const aiCall = async (operation: string, modelValue: any, promptValue: any, config: any, images: any): Promise<any> => {
     const model = String(modelValue ?? '').replace(/^models\//, '').trim();
     if (!model) throw new Error(operation + ' expects a model name');
@@ -474,6 +521,11 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
     const settings = config && typeof config === 'object' ? config : {};
     const paths = mediaPaths(settings, images);
     const isOpenAI = /^gpt-/i.test(model);
+    const rawVideos = pick(settings, 'videos', 'video');
+    if (operation !== 'video' && rawVideos !== undefined && rawVideos !== null
+      && (!Array.isArray(rawVideos) || rawVideos.length > 0) && (isOpenAI || /^local(?::|$)/i.test(model))) {
+      throw new Error('Video input is not supported for model "' + model + '". Use a Gemini model that supports video input, or extract frames and pass them through images.');
+    }
     const key = apiKey(isOpenAI ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY');
     const imageGeneration = operation === 'image' || (operation === 'model' && model.includes('image'));
     if (operation === 'video') {
@@ -530,6 +582,8 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
       const body = new FormData();
       body.set('model', model); body.set('prompt', promptText);
       if (size) body.set('size', String(size));
+      const background = pick(settings, 'background');
+      if (background !== undefined) body.set('background', String(background));
       let endpoint = 'https://api.openai.com/v1/images/generations';
       if (paths.length) {
         endpoint = 'https://api.openai.com/v1/images/edits';
@@ -571,6 +625,7 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
     }
     const parts: any[] = [];
     for (const path of paths) { const input = await mediaInput(path); parts.push({ inlineData: input }); }
+    parts.push(...await videoParts(rawVideos));
     parts.push({ text: promptText });
     const generationConfig: Record<string, any> = {};
     for (const [field, keys] of Object.entries({ temperature: ['temperature', 'temp'],
@@ -704,15 +759,45 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
     if (operation === 'model' || operation === 'image' || operation === 'video')
       return aiCall(operation, args[0], args[1], args[2], args[3]);
     if (operation === 'convert') return convertMedia(String(args[0]), args[1], args[2]);
+    if (operation === 'structured_schema') {
+      const isObject = (value: any) => value !== null && typeof value === 'object' && !Array.isArray(value)
+        && !['function', 'promise', 'lazy'].includes(value.type);
+      const normalize = (value: any, path: string): any => {
+        if (!isObject(value)) throw new Error('structured_output schema must be an object of field type names');
+        const schema = Object.create(null);
+        for (const [key, type] of Object.entries(value)) {
+          const field = path ? path + '.' + key : key;
+          if (isObject(type)) {
+            schema[key] = Object.keys(type as object).length === 0 ? 'object' : normalize(type, field);
+          } else if (typeof type !== 'string' || !['string', 'number', 'bool', 'boolean', 'object', 'array', 'any'].includes(type)) {
+            throw new Error('structured_output schema field "' + field + '" must be a supported type name or a nested schema object');
+          } else {
+            schema[key] = type;
+          }
+        }
+        return schema;
+      };
+      return normalize(args[0], '');
+    }
     if (operation === 'structured_output') {
       const value = args[0];
       if (typeof value !== 'string') return value;
       const parsed = stripPrototypes(JSON.parse(value.replace(/^```(?:json)?\s*|\s*```$/g, '')));
-      const schema = args[1] ?? {};
-      for (const [key, type] of Object.entries(schema)) {
-        const expected = (type as any)?.name === 'bool' ? 'boolean' : (type as any)?.name;
-        if (!(key in parsed) || (expected && typeof parsed[key] !== expected)) throw new Error('Structured output field invalid: ' + key);
-      }
+      const validate = (data: any, schema: any, path: string): void => {
+        for (const [key, type] of Object.entries(schema ?? {})) {
+          const field = path ? path + '.' + key : key;
+          const name = typeof type === 'string' ? type : (type as any)?.name;
+          const nested = type !== null && typeof type === 'object' && !name;
+          const expected = nested ? 'object' : name === 'bool' ? 'boolean' : name;
+          const value = data?.[key];
+          const valid = expected === 'any' || (expected === 'array' ? Array.isArray(value)
+            : expected === 'object' ? value !== null && typeof value === 'object' && !Array.isArray(value)
+            : typeof value === expected);
+          if (data === null || typeof data !== 'object' || !(key in data) || (expected && !valid)) throw new Error('Structured output field invalid: ' + field);
+          if (nested) validate(value, type, field);
+        }
+      };
+      validate(parsed, args[1], '');
       return parsed;
     }
     throw new Error('Sesi ' + operation + ' requires a browser implementation');

@@ -178,7 +178,7 @@ AUTOENCODER*
 autonomous*
 avatar*
 baking.md
-cli.sesi
+./cli.sesi
 draw*
 eval*
 fans*
@@ -197,7 +197,9 @@ project*
 racing*
 song*
 start*
-temp*
+temp_*
+temp-*
+temp.*
 *clone*
 warm*
 trend*
@@ -221,3 +223,6 @@ the-real-world
 quick*
 prompt*
 midi*
+output
+out
+animation/

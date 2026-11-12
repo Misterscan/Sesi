@@ -12,17 +12,17 @@ show "--- 🎵 Sesi Advanced Synthesizer & Theory ---"
 show "Generating a C Major scale using std/theory..."
 let scaler = "C4" | Music.scale("major")
 for n in scaler {
-    show "Playing Note:" n
-    n | Audio.play(200, {attack: 20, release: 50, pan: (random() * 2) - 1})
+  show "Playing Note:" n
+  n | Audio.play(200, {attack: 20, release: 50, pan: (random() * 2) - 1})
 }
 
 // 2. Demonstrating Physical Modeling Drums
 show "\nRendering a high-quality drum loop..."
 let drum_loop = [
-    {note: "C1", ms: 500, type: "kick", vol: 1.0},
-    {note: "G8", ms: 500, type: "hat", vol: 0.2, pan: 0.5},
-    {note: "C4", ms: 500, type: "snare", vol: 0.7},
-    {note: "G8", ms: 500, type: "hat", vol: 0.2, pan: -0.5}
+  {note: "C1", ms: 500, type: "kick", vol: 1.0},
+  {note: "G8", ms: 500, type: "hat", vol: 0.2, pan: 0.5},
+  {note: "C4", ms: 500, type: "snare", vol: 0.7},
+  {note: "G8", ms: 500, type: "hat", vol: 0.2, pan: -0.5}
 ]
 "drum_demo.wav" | Audio.sequence(drum_loop)
 show "Saved drum loop to drum_demo.wav"
@@ -42,7 +42,7 @@ show "Creating a beautiful generative SVG artwork with gradients and animations.
 Draw.clear()
 
 // Define a neon vaporwave gradient
- "linear" | Draw.gradient("sky", [
+"linear" | Draw.gradient("sky", [
   {offset: "0%", color: "#ff007f"},
   {offset: "100%", color: "#7f00ff"}
 ])
@@ -83,11 +83,11 @@ Draw.ellipse(1250, 50, 40, 20, "rgba(255, 255, 255, 0.4)", {transform: "rotate(-
 // Add some random star circles with class name mapping
 let i = 0
 while i < 15 {
-    let rx = 50 + (random() * 400)
-    let ry = 50 + (random() * 250)
-    let rr = 2 + (random() * 5)
-    Draw.circle(rx, ry, rr, "white", {opacity: "0.7"})
-    i = i + 1
+  let rx = 50 + (random() * 400)
+  let ry = 50 + (random() * 250)
+  let rr = 2 + (random() * 5)
+  Draw.circle(rx, ry, rr, "white", {opacity: "0.7"})
+  i = i + 1
 }
 
 // Add vector highlights using paths
@@ -109,22 +109,22 @@ let equalizer_palette = {
 }
 
 let equalizer_grid = [
-    "................",
-    "................",
-    ".......CC.......",
-    ".......CC.......",
-    "....CC.CC....CC.",
-    "....CC.CC....CC.",
-    "....CC.CC.CC.CC.",
-    ".CC.CC.CC.CC.CC.",
-    ".CC.CC.CC.CC.CC.",
-    ".PP.PP.PP.PP.PP.",
-    ".PP.PP.PP.PP.PP.",
-    ".PP.PP.PP.PP.PP.",
-    ".PP.PP.PP.PP.PP.",
-    ".PP.PP.PP.PP.PP.",
-    ".PP.PP.PP.PP.PP.",
-    "................"
+  "................",
+  "................",
+  ".......CC.......",
+  ".......CC.......",
+  "....CC.CC....CC.",
+  "....CC.CC....CC.",
+  "....CC.CC.CC.CC.",
+  ".CC.CC.CC.CC.CC.",
+  ".CC.CC.CC.CC.CC.",
+  ".PP.PP.PP.PP.PP.",
+  ".PP.PP.PP.PP.PP.",
+  ".PP.PP.PP.PP.PP.",
+  ".PP.PP.PP.PP.PP.",
+  ".PP.PP.PP.PP.PP.",
+  ".PP.PP.PP.PP.PP.",
+  "................"
 ]
 
 equalizer_grid | Draw.pixel_grid(equalizer_palette, 32)

@@ -20,8 +20,7 @@ let sesiDocs = ""
 let d = 0
 while d < len(docs_list) {
   let f_name = docs_list[d]
-  let parts = split(f_name, ".")
-  let ext = parts[len(parts) - 1]
+  let ext = get_ext(f_name)
   
   if ext == "md" {
     let doc_content = ""
@@ -36,8 +35,7 @@ while d < len(docs_list) {
 let g = 0
 while g < len(getting_started_list) {
   let f_name = getting_started_list[g]
-  let parts = split(f_name, ".")
-  let ext = parts[len(parts) - 1]
+  let ext = get_ext(f_name)
   
   if ext == "md" {
     let doc_content = ""

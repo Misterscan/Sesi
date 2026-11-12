@@ -39,7 +39,7 @@
 │ Builtins            │  │ AI Runtime          │
 │ (src/builtins.ts)   │  │ (src/ai-runtime.ts) │
 │                     │  │                     │
-│ - show()           │  │ - Gemini API calls  │
+│ - show              │  │ - Gemini API calls  │
 │ - len()             │  │ - Memory mgmt       │
 │ - read_file()       │  │ - Structured output │
 │ - write_file()      │  │ - Tool calling      │

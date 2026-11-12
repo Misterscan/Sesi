@@ -6,7 +6,7 @@
 
 ## I/O Functions
 
-### show(...args)
+### show "..."
 
 Print values to standard output, separated by spaces.
 
@@ -586,7 +586,7 @@ let multiple_image_cost = estimate_cost("gemini-3.1-flash-image", ["prompt text"
 show multiple_image_cost.total_cost_usd
 ```
 
-The result includes token counts, separate input/output costs, total cost, per-million rates, pricing source, and pricing snapshot date. Built-in rates include supported Gemini and GPT image models.
+The result includes token counts, separate input/output costs, total cost, per-million rates, pricing source, and pricing snapshot date. Built-in rates include current, non-deprecated Gemini and GPT image models. For GPT Image edits, text and reference-image input tokens use their separate published rates; `image_input_tokens` and `image_input_rate_per_million` show that split. Numeric input counts are treated as text tokens unless image token counts come from local reference images.
 
 **Returns**: `object`, or `null` for an unsupported model without custom rates
 
@@ -594,7 +594,7 @@ The result includes token counts, separate input/output costs, total cost, per-m
 
 ### model_usage() -> object
 
-Return provider-reported token usage and estimated cost for the most recent `model()` call in the current interpreter.
+Return usage for the most recent `model()`, `image()`, or AI generation `video()` call in the current interpreter.
 
 ```sesi
 let answer = model("gpt-5.6-sol") {"Explain closures briefly."}
@@ -604,9 +604,9 @@ show "Tokens:" usage.total_tokens
 show "Estimated USD:" usage.total_cost_usd
 ```
 
-Token counts come from the provider response. Gemini thinking tokens are reported separately as `thinking_tokens` and included in `billable_output_tokens`, `total_tokens`, and cost. Local logic-cache hits return `cached: true`, zero tokens, and zero added cost. Cost fields are `null` when the model has no built-in pricing entry.
+Token counts come from the provider response. Gemini thinking tokens are reported separately as `thinking_tokens` and included in `billable_output_tokens`, `total_tokens`, and cost. Image and video calls include `media_type` and `generated_images` or `generated_videos`. GPT Image responses also expose `image_input_tokens` when the provider reports them; these use the image input rate. When a media provider does not return token usage, token and cost fields are `null`; a generated video is not treated as a zero-cost request. Local logic-cache hits return `cached: true`, zero tokens, and zero added cost. Cost fields are `null` when the model has no built-in pricing entry.
 
-**Returns**: `object`, or `null` before the first model call
+**Returns**: `object`, or `null` before the first model or media generation call
 
 ---
 
@@ -618,8 +618,8 @@ Converts all alphabetic characters in a string to uppercase.
 to_upper("hello")      // "HELLO"
 "hello" | to_upper
 
-to_upper("Sesi V1.9.1")  // "SESI V1.9.1"
-"Sesi V1.9.1" | to_upper
+to_upper("Sesi V1.9.2")  // "SESI V1.9.2"
+"Sesi V1.9.2" | to_upper
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -634,8 +634,8 @@ Converts all alphabetic characters in a string to lowercase.
 to_lower("SESI")      // "sesi"
 "SESI" | to_lower
 
-to_lower("Sesi V1.9.1")  // "sesi v1.9.1"
-"Sesi V1.9.1" | to_lower
+to_lower("Sesi V1.9.2")  // "sesi v1.9.2"
+"Sesi V1.9.2" | to_lower
 ```
 
 **Returns**: `string` or `null` if not a string
@@ -698,11 +698,11 @@ swap("a_b_c", "_", "-")    // "a-b-c"
 
 ### contains(string, sub) -> bool
 
-Returns `true` if the string contains the given substring, `false` otherwise.
+Returns `true` if the string contains the given substring, `false` otherwise. Only checks strings, not arrays.
 
 ```sesi
 contains("hello.sesi", ".sesi")  // true
-"hello.sesi" | contains(".sesi)
+"hello.sesi" | contains(".sesi")
 
 contains("hello.sesi", ".ts")    // false
 "hello.sesi" | contains(".ts")
@@ -726,7 +726,7 @@ locate("hello.sesi", ".")    // 5
 "hello.sesi" | locate(".")
 
 locate("hello.sesi", "ts")   // -1
-"hello.sesi" | locate("ts)
+"hello.sesi" | locate("ts")
 ```
 
 **Parameters**:
@@ -1315,22 +1315,19 @@ Options: `fps` (default `12`), `width`, `loop` (`0` means forever),
 
 #### AI video generation
 
-Use the same model/config/prompt block syntax as `image()`. It supports Gemini
-Omni Flash and Veo models through the current `@google/genai` SDK and returns
-the generated MP4 as Base64 data.
+Use the same model/config/prompt block syntax as `image()`. The current Gemini
+Developer API video model is `gemini-omni-1.1-flash`; it returns the generated
+MP4 as Base64 data. The Veo 3.1 preview endpoints in this API shut down on
+October 22, 2026.
 
 ```sesi
-let clip = video("gemini-omni-flash-preview") {ratio: "9:16"} {"A marble rolling through a chain-reaction track, continuous smooth shot"}
+let clip = video("gemini-omni-1.1-flash") {ratio: "9:16"} {"A marble rolling through a chain-reaction track, continuous smooth shot"}
 write_file("marble.mp4", clip, "base64")
-
-let veo_clip = video("veo-3.1-generate-preview") {images: "first-frame.png", ratio: "16:9", duration: 8, resolution: "1080p", audio: true} {"The camera slowly pushes toward the subject as wind moves through the scene"}
-write_file("veo.mp4", veo_clip, "base64")
 ```
 
 AI options include `images`/`image`, `ratio`/`aspectRatio`, `duration`,
 `resolution`, `negative_prompt`, `audio`, and `task`. Gemini Omni Flash uses
-the Interactions API; Veo uses the long-running video-generation API. Veo calls
-wait for generation to finish before returning.
+the Interactions API. Some options apply only to the older Veo API path.
 
 #### Local video creation
 
@@ -1395,6 +1392,14 @@ argument array.
 ---
 
 ## Network Functions
+
+### url_encode(value) -> string|null
+
+Percent-encodes a string for use as a single URL component, such as a query value. Returns `null` for non-string input or malformed Unicode.
+
+```sesi
+url_encode("São Paulo & region")  // "S%C3%A3o%20Paulo%20%26%20region"
+```
 
 ### web_get(url, headers = {}) -> string
 
@@ -1495,6 +1500,44 @@ server.close()
 ```
 
 **Returns**: `object` containing a `close` function.
+
+---
+
+### std/web
+
+Build interactive browser interfaces with ordinary Sesi functions. A component receives its inputs and a context for local state, then returns a UI tree. Build the script with `sesi build` and load the generated JavaScript as a module from your HTML page.
+
+- `UI.mount(selector, component, props)` renders a component into a browser element and returns a handle with `unmount()`.
+- `UI.element(tag, props, children)` describes an HTML element. Children can be elements, components, strings, or `null`. Use HTML attribute names and event props such as `on_click` and `on_input`.
+- `UI.child(component, props, key)` describes a nested component. Use a stable string or number key to preserve state when siblings reorder.
+- `ui.state(name, initial)` holds a value for a mounted component. Read `.value` during rendering and call `.set(value)` or `.update(fn)` from actions. Use `.update(fn)` when the next value depends on the current value.
+- `ui.provide(name, value)` shares a value with descendants. `ui.context(name, fallback)` reads the nearest provider's value.
+- `ui.effect(name, dependencies, setup)` runs setup after commit. Return a cleanup function from setup to release a subscription or invalidate a request when dependencies change or the component unmounts.
+- `UI.app(selector, {routes, layout, not_found})` mounts an app with browser history. Routes are checked in declaration order and use `{path, component}` entries. A path like `/issues/:id` exposes `props.params.id`. Pages receive `path`, `params`, and `query`. The optional layout also receives `page`.
+- `UI.link(to, props, children)` creates an app link. `ui.navigate(to)` navigates from an action. Use root-relative paths such as `/issues/42`.
+
+The renderer keeps the last committed UI visible while components resolve. It discards superseded renders and reports failed renders to the browser console. See the [CLI guide](CLI.md#compile-sesi-for-a-browser) for browser and desktop builds.
+
+#### Sesi icons
+
+The `sesi-icons/` library provides one Sesi component module per original SVG. Import the icons an app uses directly so other icons are excluded from the browser bundle.
+
+```sesi
+allow "std/web" in as Web
+allow "sesi-icons/search" in with {Search}
+allow "sesi-icons/ai" in with {AI}
+
+Web.child(Search, {size: 24, label: "Search"})
+Web.child(AI, {size: 32, palette: {outline: "#6950aa"}})
+```
+
+Icon props are `size` (a positive number, default 24), `class`, `label`, `palette`, and `stroke_width`. The original view box, paths, and colors are preserved. An icon is decorative by default. Set `label` to give it an accessible name and image role.
+
+Palette overrides support `outline` (the most-used stroke color), `surface` (the lightest fill), and `accent` (remaining non-outline fills). An exact source color can also be a palette key and takes precedence over the named role. Secondary stroke colors remain authored unless overridden by their exact color.
+
+Original stroke widths scale with each icon's view box. Set `stroke_width` to choose a width in displayed pixels using SVG non-scaling strokes. The source canvases range from 24 to 64 units, so their apparent weight at a common size differs when no override is supplied.
+
+The original SVGs remain the artwork source. `helpers/icon-library.sesi` regenerates the component modules after artwork changes. It supports the flat path, rectangle, circle, line, and ellipse shapes used by this set and rejects unsupported structures.
 
 ---
 
@@ -1998,7 +2041,7 @@ Saves the formatted SVG drawing to the specified path. Return `true` on success.
 
 Sets one pixel in the raster buffer at `(x, y)`. Later calls at the same integer coordinate replace the earlier color. Colors may be common names, `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb(...)`, or `rgba(...)`.
 
-### Pixel Shape Functions (`pixel_rect`, `pixel_circle`, `pixel_line`, `pixel_ellipse`, `pixel_polygon`, `pixel_triangle`, `pixel_star`, `pixel_ring`, `pixel_arc`, `pixel_bezier`, `pixel_text`)
+### Pixel Shape Functions (`pixel_rect`, `pixel_circle`, `pixel_line`, `pixel_ellipse`, `pixel_polygon`, `pixel_path`, `pixel_triangle`, `pixel_star`, `pixel_ring`, `pixel_arc`, `pixel_bezier`, `pixel_text`)
 
 Draws raster shape primitives directly into the raster pixel buffer:
 - `pixel_rect(x, y, w, h, color, filled = true)`
@@ -2006,12 +2049,17 @@ Draws raster shape primitives directly into the raster pixel buffer:
 - `pixel_line(x1, y1, x2, y2, color)`
 - `pixel_ellipse(cx, cy, rx, ry, color, filled = true)`
 - `pixel_polygon(points, color, filled = true)`
+- `pixel_path(d, color, filled = true)` — rasterizes SVG-style path commands (`M`, `L`, `H`, `V`, `Q`, `T`, `C`, `S`, `A`, `Z`, including lowercase relative forms) into the pixel buffer. Multiple subpaths use even-odd fill.
 - `pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled = true)`
 - `pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled = true)`
 - `pixel_ring(cx, cy, radius, thickness, color)`
 - `pixel_arc(cx, cy, radius, startAngle, endAngle, color)`
 - `pixel_bezier(x1, y1, cx, cy, x2, y2, color)`
-- `pixel_text(x, y, text, color, scale = 1, font = "classic")` — supports `classic`, `bubble`, and `impact` font faces
+- `pixel_text(x, y, text, color, scale = 1, font = "classic")` — font faces: `classic` (5x7 bitmap), plus rendered faces `bubble`, `impact`, `sans`, `light`, `serif`, `mono`, `script`, `comic`, `marker`, `wide`, `italic`, and `outline`. Rendered faces use system fonts with fallbacks, so exact glyphs vary by machine. An unknown face throws an error listing the available ones.
+
+Smooth `pixel_text` faces preserve fractional scales and use a nominal font size of `max(8, 7 * max(1, scale))` pixels. For a 16px font, pass `16 / 7` as the scale. The `classic` bitmap face keeps integral cells with `max(1, floor(scale))`. Coordinates and scale must be finite.
+
+Smooth text preserves leading/repeated spaces and font side bearings. `(x, y)` is the line origin, with a baseline at `y + nominal_font_size`; text is not cropped and repositioned per token. Calls with equal Y and nominal font size therefore retain a common baseline. Explicit newlines advance by `1.4 * nominal_font_size`, including blank lines. A whitespace-only string paints no pixels. See [Raster text sizing and layout](../getting-started/SVG-AND-PIXELS.md#raster-text-sizing-and-layout).
 
 ### pixel_grid(grid, palette, scale = 1, x = 0, y = 0)
 
@@ -2096,7 +2144,7 @@ show files
 
 ---
 
-### sesi(filePath, local = false, checkOnly = false) -> string
+### sesi(filePath, local = false, checkOnly = false, args = []) -> string
 
 Parse, compile, and run a Sesi file synchronously in the current Sesi process. Unlike `exec()` or `spawn()`, this does not create a child process. Use it when one Sesi script needs to run another script and wait for it to finish.
 
@@ -2114,6 +2162,9 @@ localFile | sesi(true)
 // Check syntax and compilation without running the file.
 sesi(file, false, true)
 file | sesi(false, true)
+
+// Pass strings to the invoked script's global args array.
+sesi(file, false, false, ["first", "second"])
 ```
 
 **Parameters**:
@@ -2121,6 +2172,7 @@ file | sesi(false, true)
 - `filePath` (`string`): Path to the Sesi file to run.
 - `local` (`bool`, optional): Enables local file access for the invoked script. Defaults to `false`.
 - `checkOnly` (`bool`, optional): Checks syntax and compilation without running the file. Defaults to `false`.
+- `args` (`array<string>`, optional): Command-line arguments exposed as the invoked script's global `args` array. Defaults to `[]`.
 
 **Returns**: `string` - An empty string after execution, or `"✓ Syntax and Compilation valid"` when `checkOnly` is `true`.
 
@@ -2547,6 +2599,77 @@ show tools
 ```
 
 **Returns**: `array<string>`
+
+---
+
+### structured_output(schema)(input) -> object
+
+Extract and enforce typed fields from JSON strings, API responses, or model completions.
+
+`structured_output` takes a schema definition in the first pair of parentheses, followed by the target input (a string, JSON text, or `model()` call) in the second pair.
+
+#### Inline Schema
+
+Define field types directly using unquoted Sesi type annotations:
+
+```sesi
+let raw = "{\"title\": \"Buy milk\", \"completed\": false, \"priority\": 1}"
+
+let task = structured_output({
+  title: string,
+  completed: bool,
+  priority: number
+})(raw)
+
+show task.title       // "Buy milk"
+show task.completed   // false
+show task.priority    // 1
+```
+
+#### Reusable Schema
+
+Use a variable holding an object with type-name strings. A field's value can also be a nested schema object to describe the contents of an object field:
+
+```sesi
+let userSchema = {name: "string", age: "number", active: "bool"}
+let user = structured_output(userSchema)(api_response)
+
+let faviconSchema = {
+  favicon: "string",
+  metadata: {
+    shape: "string",
+    colors: "array",
+    size: "number"
+  }
+}
+let result = structured_output(faviconSchema)(model("gemini-3.8-flash") {"Describe a boombox favicon."})
+
+show result.metadata.shape
+```
+
+Nested schemas are supported in reusable schema variables only; inline `{field: type}` schemas stay flat. Only declared fields are kept at every level.
+
+#### Structured Model Completions
+
+When passed a `model()` call, Sesi derives a JSON schema (including nested objects) for the provider to constrain model output, then extracts the declared fields from the response:
+
+```sesi
+let sentiment = structured_output({
+  sentiment: string,
+  confidence: number,
+  keywords: array
+})(model("gemini-3.8-flash") {"Analyze sentiment for: " review})
+
+show sentiment.sentiment
+show sentiment.confidence
+```
+
+**Parameters**:
+
+- `schema`: Either an inline type definition (`{field: type, ...}`) with unquoted types (`string`, `number`, `bool`, `object`, `array`, `any`), or a reusable object mapping keys to type strings (`"string"`, `"number"`, `"bool"`, `"object"`, `"array"`, `"any"`).
+- `input`: The expression to evaluate and parse — typically a raw JSON string or a `model()` expression.
+
+**Returns**: `object` containing the fields matching the schema. If initial parsing fails on string input, Sesi attempts AI-assisted recovery before returning an empty object `{}` on total failure.
 
 ---
 
@@ -3373,6 +3496,40 @@ game.run()
 
 Exports: `VERSION`, `create`, `vec2`, `vec3`, `quat`, and `color`. Game services cover named scenes, explicit assets, input actions, save storage, lifecycle callbacks, run, and desktop build. `game.run({icon: "asset_name"})` sets the window/app icon from a registered texture asset or local image path; omitting it uses the default placeholder icon. Scenes provide primitives and glTF/GLB models through `load_model`, cameras, lights, Standard/PBR materials, raycasts, intersection tests, transform and loaded-model animation, spatial sound, Babylon GUI, and opt-in Havok bodies/collisions. GUI controls support live width, height, left/top offsets, and horizontal/vertical alignment.
 
+Native glTF authoring and loading are available through `Game.gltf(scene, path, options)`:
+
+```sesi
+allow "std/game" in as Game
+let game = Game.create()
+let scene = game.create_scene("workshop")
+let rig = scene.transform("rig")
+let part = scene.box("part", {parent: rig})
+scene.animation_clip("turn", [{target: rig, property: "rotation", frames: [
+  {time: 0, value: Game.vec3()},
+  {time: 1, value: Game.vec3(0, 3.14159, 0)}
+]}])
+Game.gltf(scene, "assets/authored.glb", {mode: "export"})
+scene.dispose()
+let loaded = game.create_scene("loaded")
+let model = Game.gltf(loaded, "assets/authored.glb", {name: "model", mode: "import"})
+```
+
+`mode: "export"` writes a GLB or a glTF with its accompanying resources from an authored scene before desktop startup. Export requires development local mode. Imports register their asset for desktop packaging. Imported models retain their complete node hierarchy, materials, and named animation groups.
+
+Additional native APIs:
+
+- `scene.transform(name, options)` creates a transform parent. Mesh/transform `parent` accepts a live same-scene handle or `null`; cycles are rejected and disposal cascades to children.
+- `scene.animation_clip(name, tracks, options?)` authors named transform tracks; each track contains a target, `position`/`rotation`/`scaling` property, and `{time, value}` frames. Times are seconds; FPS defaults to 30.
+- `model.animations` lists imported clip names. `model.play_animation(name, {loop, speed, crossfade})` returns an animation handle with `pause`, `resume`, `stop`, `dispose`, `on_complete`, writable `speed`, and read-only `playing`.
+- `scene.animate` supports numeric transform components and complete vec3 transforms, with `linear`, `smoothstep`, `ease_in`, `ease_out`, or `ease_in_out` easing.
+- `scene.sweep_box(origin, destination, half_extents, {targets})` queries explicit same-scene objects and returns the earliest `{hit, object, point, normal, fraction}`. Bounds include parent transforms; disabled targets are ignored.
+- Follow cameras accept writable `follow_target`, `offset`, and `smoothing`; offsets rotate with the followed transform. Scene options accept `{fog: {color, density}}`; directional lights accept `{shadows: true, shadow_size: 1024}`.
+- Materials accept a registered `texture` name and `texture_scale: Game.vec2(u, v)`. GUI controls accept `font_size` and `padding`; panels/stacks support actual `add(control)` parenting and controls can be created after startup.
+- `camera.snap_to_target()` resets follow-camera smoothing for the next frame, useful after teleporting or rebasing world coordinates.
+- `game.input.axis(action)` reads bound gamepad axes with an 18% dead zone. Bindings use `Gamepad0Button0`, `Gamepad0Axis0`, and axis directions such as `Gamepad0Axis1Negative`. Focus loss and disconnect clear held state.
+- `scene.play_sound` returns a sound handle with `play`, `pause`, `stop`, `dispose`, writable `volume`/`loop`, and read-only `playing`. Non-looping sounds release their resources when finished.
+- `game.close()` requests desktop window closure; stop callbacks execute before disposal. Game and scene teardown release owned rendering resources, subscriptions, timers, input listeners, sounds, and animation clips.
+
 Run and build require `sesi -l`. The Electron window is isolated and packaged applications use a deny-by-default capability manifest. The complete API, installation, lifecycle, physics, permissions, and packaging reference is [GAME.md](../getting-started/GAME.md).
 
 ### std/math
@@ -3423,7 +3580,7 @@ JSON serialization and parsing are built in as `to_json(value)` and `from_json(t
 ```sesi
 let original = {
   "project": "Sesi",
-  "version": "1.9.1"
+  "version": "1.9.2"
 }
 let encoded = to_json(original)
 show from_json(encoded).project
@@ -3736,7 +3893,7 @@ Tip: add a folder to SESI_PATH, or place shared modules in ~/.sesi/lib
 
 ## Performance Notes
 
-- **show()** is unbuffered (each call flushes)
+- **show** is unbuffered (each call flushes)
 - **Array operations** are O(n) for most functions
 - **Object operations** are O(1) for key access
 - **String concatenation** with + is O(n) (consider pre-allocating)

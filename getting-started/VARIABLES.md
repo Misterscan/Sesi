@@ -16,7 +16,7 @@ All variables are declared with `let`. There is no `const`, `var`, or any other 
 let name = "Sesi"
 let retries: number = 3
 let title: string = "Welcome"
-let version = 1.9.1
+let version = 1.9.2
 let active = true
 let status = any   // can hold any type of value
 let missing        // declared but uninitialized — value is null
@@ -71,7 +71,7 @@ Sesi infers the type of a variable from its assigned value. The primitive types 
 Collection types are also supported:
 
 ```sesi
-let tags = ["sesi", "lang", "v1.9.1"]          // array
+let tags = ["sesi", "lang", "v1.9.2"]          // array
 let config = {theme: "dark", limit: 20} // object
 ```
 
@@ -139,7 +139,7 @@ A variable or parameter can hold one of several types:
 
 ```sesi
 let value: number | string = 42
-fn show(value: number | string) { show value }
+fn display(value: number | string) { show value }
 ```
 
 ---

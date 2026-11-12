@@ -1,0 +1,207 @@
+/**
+  Template management and string interpolation library for Sesi.
+
+  Provides tools to register, retrieve, interpolate, format, and persist
+  text templates with dynamic placeholder substitutions.
+
+  Fields:
+  - `templates`: In-memory dictionary object mapping registered template names to raw template strings.
+
+  Notes:
+  - Populated and mutated via `register_template`.
+  - Consulted by `get_template`, `render_template`, and `write_template`.
+
+  Output:
+  - An object containing string-to-string mappings of registered template definitions.
+*/
+let templates = {}
+/**
+  Stores a named text template into the global registry.
+
+  Parameters:
+  - `name`: The unique identifier name for the template.
+  - `text`: The raw template string containing optional `{{key}}` placeholders.
+
+  Returns:
+  - None.
+
+  Example:
+  ```sesi
+  register_template("greeting", "Hello, {{name}}! Welcome to {{service}}.")
+  ```
+
+  Notes:
+  - Replaces any existing template registered under the same identifier name.
+*/
+export fn register_template(name: string, text: string) { templates[name] = text }
+/**
+  Retrieves a registered template string by its name identifier.
+
+  Parameters:
+  - `name`: The identifier name of the template to look up.
+
+  Returns:
+  - The stored template string if found, or `null` if the template does not exist.
+
+  Example:
+  ```sesi
+  let tmpl = get_template("greeting")
+  if tmpl {
+    show "Found template:" tmpl
+  } else {
+    show "Template not found"
+  }
+  ```
+
+  Notes:
+  - Uses `contains(keys(templates), name)` to verify template presence before lookup.
+*/
+export fn get_template(name: string) -> string? {
+  if !contains(keys(templates), name) { return null }
+  return templates[name]
+}
+/**
+  Fills `{{key}}` placeholder tokens in a template string with values from an object.
+
+  Parameters:
+  - `text`: The raw template string containing `{{key}}` placeholders.
+  - `values`: An object containing key-value pairs to substitute into matching placeholders.
+
+  Returns:
+  - The interpolated string with all matching placeholder tokens replaced by their string values.
+
+  Example:
+  ```sesi
+  let raw = "User: {{username}}, Score: {{score}}"
+  let filled = fill_template(raw, {username: "Ada", score: 98})
+  show filled // User: Ada, Score: 98
+  ```
+
+  Notes:
+  - All values from the input object are coerced to strings using `str()`.
+  - Placeholders with no corresponding key in `values` remain unchanged in the output.
+*/
+export fn fill_template(text: string, values: object) -> string {
+  let result = text
+  for key in keys(values) { result = swap(result, "{{" + key + "}}", str(values[key])) }
+  return result
+}
+/**
+  Retrieves a registered template and fills its placeholders with values from an object.
+
+  Parameters:
+  - `name`: The identifier name of the registered template to render.
+  - `values`: An object containing placeholder substitution values.
+
+  Returns:
+  - The rendered template string, or `null` if the template is not registered.
+
+  Example:
+  ```sesi
+  register_template("notice", "[{{level}}] {{message}}")
+  let result = render_template("notice", {level: "INFO", message: "Server started"})
+  if result {
+    show result
+  }
+  ```
+
+  Notes:
+  - Combines `get_template` and `fill_template` into a single operation.
+*/
+export fn render_template(name: string, values: object) -> string? {
+  let text = get_template(name)
+  if text == null { return null }
+  return fill_template(text, values)
+}
+/**
+  Creates a structured email object with interpolated subject and body fields.
+
+  Parameters:
+  - `recipient`: The recipient email address string.
+  - `subject_template`: Template string for the subject line containing `{{key}}` placeholders.
+  - `body_template`: Template string for the email message body containing `{{key}}` placeholders.
+  - `values`: An object containing substitution values applied to both subject and body templates.
+
+  Returns:
+  - An object containing `to`, `subject`, and `body` fields with rendered contents.
+
+  Example:
+  ```sesi
+  let email = render_email(
+    "dev@example.com",
+    "Release {{version}} is live",
+    "Hello {{name}},\nVersion {{version}} has been published.",
+    {name: "Ada", version: "1.9.1"}
+  )
+  show email["to"]
+  show email.subject
+  show email.body
+  ```
+
+  Notes:
+  - Return object structure: `{to: string, subject: string, body: string}`.
+*/
+export fn render_email(recipient: string, subject_template: string, body_template: string, _values: object) -> object { return { "to": recipient, subject: fill_template(subject_template, values), body: fill_template(body_template, values) } }
+/**
+  Generates a titled report string by interpolating title and body templates separated by newlines.
+
+  Parameters:
+  - `title_template`: Template string for the report title containing `{{key}}` placeholders.
+  - `body_template`: Template string for the report body containing `{{key}}` placeholders.
+  - `values`: An object containing substitution values for both title and body templates.
+
+  Returns:
+  - The complete report string combining the rendered title, two blank newlines, and the rendered body.
+
+  Example:
+  ```sesi
+  let report = render_report(
+    "Report: {{quarter}}",
+    "Total Sales: {{sales}}\nNew Leads: {{leads}}",
+    {quarter: "Q3", sales: 4200, leads: 18}
+  )
+  show report
+  ```
+
+  Notes:
+  - Standardizes document layout by joining rendered components with two newline separators.
+*/
+export fn render_report(title_template: string, body_template: string, values: object) -> string {
+  let title = fill_template(title_template, values)
+  let body = fill_template(body_template, values)
+  return title + "\n\n" + body
+}
+/**
+  Renders a registered template with supplied values and writes the output directly to a file.
+
+  Parameters:
+  - `name`: The identifier name of the registered template to render.
+  - `path`: The destination file path where the rendered content will be saved.
+  - `values`: An object containing substitution values for the template placeholders.
+
+  Returns:
+  - A status object `{ok: true, path: path}` upon successful write, or `{ok: false, error: string}` if the template does not exist or I/O fails.
+
+  Example:
+  ```sesi
+  register_template("config", "env={{env}}\nport={{port}}\ndebug={{debug}}")
+  let res = write_template("config", ".env", {env: "production", port: 8080, debug: false})
+  if res.ok {
+    show "Configuration written to" res.path
+  } else {
+    show "Failed to write file:" res.error
+  }
+  ```
+
+  Notes:
+  - Wraps file I/O operations inside `try/catch` to handle filesystem permissions and missing directory errors gracefully.
+  - Fails early with `{ok: false, error: ...}` if the requested template is not registered.
+*/
+export fn write_template(name: string, path: string, values: object) -> object {
+  let content = render_template(name, values)
+  if content == null { return {ok: false, error: "Template not found: " + name} }
+  try {
+    write_file(path, content)
+    return {ok: true, path: path}
+  } catch (err) { return {ok: false, error: str(err)} }
+}

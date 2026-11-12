@@ -4,9 +4,10 @@ import { createRequire } from 'module';
 import type { Interpreter } from './interpreter';
 import { RuntimeFunction, RuntimeValue, SesiRuntimeError } from './types';
 import { bindNativeMethod, createNativeObject } from './native-object';
+import { literalModuleSpecifiers } from './parser';
 
 export const SESI_GAME_API_VERSION = 2;
-export const SESI_GAME_VERSION = '2.0.1';
+export const SESI_GAME_VERSION = '2.0.3';
 
 interface GameAddon {
   SESI_GAME_API_VERSION: number;
@@ -211,9 +212,7 @@ export function collectLiteralSesiModules(
     seen.add(resolved);
     files.push(resolved);
     const source = fs.readFileSync(resolved, 'utf8');
-    const modulePattern = /(?:allow|import(?:\s+\{[^}]*\}\s+from)?)\s*["']([^"']+)["']/g;
-    for (const match of source.matchAll(modulePattern)) {
-      const specifier = match[1];
+    for (const specifier of literalModuleSpecifiers(source)) {
       onSpecifier?.(specifier, resolved);
       const child = resolveLiteralSesiModule(resolved, specifier);
       if (child) visit(child);
@@ -256,7 +255,7 @@ export function createGameModule(interpreter: Interpreter): Map<string, RuntimeV
   let runtimeExports: Record<string, RuntimeValue> | undefined;
 
   const ensureRuntime = (): Record<string, RuntimeValue> => {
-    if (interpreter.safeMode) {
+    if (interpreter.safeMode && !interpreter.packagedGame) {
       throw new SesiRuntimeError(
         'SecurityError',
         'std/game development runs and builds require local mode. Run the script with sesi -l.',
@@ -278,15 +277,18 @@ export function createGameModule(interpreter: Interpreter): Map<string, RuntimeV
     return runtimeExports;
   };
 
-  const exports = new Map<string, RuntimeValue>();
-  exports.set('VERSION', SESI_GAME_VERSION);
+  const moduleExports = new Map<string, RuntimeValue>();
+  moduleExports.set('VERSION', SESI_GAME_VERSION);
   for (const [name, arity] of [['vec2', 2], ['vec3', 3], ['quat', 4], ['color', 4]] as const) {
-    exports.set(name, builtin(name, Array.from({ length: arity }, (_, index) => `v${index}`), (...args) => {
+    moduleExports.set(name, builtin(name, Array.from({ length: arity }, (_, index) => `v${index}`), (...args) => {
       return asBuiltinFunction(ensureRuntime()[name], name).builtin!(...args);
     }));
   }
-  exports.set('create', builtin('create', ['config'], (config = null) => {
+  moduleExports.set('create', builtin('create', ['config'], (config = null) => {
     return asBuiltinFunction(ensureRuntime().create, 'create').builtin!(config);
   }));
-  return exports;
+  moduleExports.set('gltf', builtin('gltf', ['scene', 'path', 'options'], (scene, path, options = null) => {
+    return asBuiltinFunction(ensureRuntime().gltf, 'gltf').builtin!(scene, path, options);
+  }));
+  return moduleExports;
 }

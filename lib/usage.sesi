@@ -1,0 +1,427 @@
+/**
+  Model request tracking utilities.
+
+  This module exports `track_model` and `track_structured_model`. Both validate
+  request configuration, invoke a model, measure elapsed time, and return the
+  response with timing and cost information.
+
+  - Model calls and cost reporting depend on the configured runtime and provider.
+*/
+allow "functions" in with {show_cost, format_time}
+allow "std/time" in with {format}
+
+/**
+  Lists the configuration keys accepted by both tracking functions.
+
+  Fields:
+  - `model_name`: Model identifier; string.
+  - `audio`: Audio inputs; array.
+  - `thinking`: Thinking setting; string.
+  - `max_tokens`: Maximum token setting; number.
+  - `images`: Image inputs; array.
+  - `videos`: Video inputs; array.
+  - `stream`: Streaming flag or callback; boolean or function.
+  - `response`: Response mode; string.
+  - `cache`: Cache flag; boolean.
+  - `system`: System instruction; string.
+  - `search`: Search flag; boolean.
+  - `tools`: Tool definitions or names; array.
+
+  Notes:
+  - The array contains strings in the order shown in the source.
+  - Both functions reject configuration keys not present in this list.
+
+  Output:
+  - An array of accepted configuration key names used during validation.
+*/
+let options = [
+  "model_name",
+  "audio",
+  "thinking",
+  "max_tokens",
+  "images",
+  "videos",
+  "stream",
+  "response",
+  "cache",
+  "system",
+  "search",
+  "tools",
+  "max_tool_calls"
+]
+
+/**
+  Lists the accepted configuration keys for thinking values.
+
+  Fields:
+  - `thinking`: Thinking setting; string.
+
+  Notes:
+  - The array contains strings in the order shown in the source.
+  - Thinking values reject configuration keys not present in this list.
+
+  Output:
+  - An array of accepted thinking values used during validation.
+*/
+let thinking_values = ["low", "medium", "high"]
+
+/**
+  Lists the accepted configuration keys for image requests.
+
+  Fields:
+  - `model_name`: Model identifier; string.
+  - `ratio`: Image ratio; string.
+  - `size`: Image size; string.
+  - `images`: Image inputs; array.
+  - `audio`: Audio inputs; array.
+  - `videos`: Video inputs; array.
+  - `background`: Background setting; string.
+  - `thinking`: Thinking setting; string.
+  - `system`: System instruction; string.
+  - `response`: Response mode; string.
+  - `cache`: Cache flag; boolean.
+
+  Notes:
+  - The array contains strings in the order shown in the source.
+  - Image requests reject configuration keys not present in this list.
+
+  Output:
+  - An array of accepted configuration key names used during validation.
+*/
+let img_options = [
+  "model_name",
+  "ratio",
+  "size",
+  "images",
+  "audio",
+  "videos",
+  "background",
+  "thinking",
+  "system",
+  "response",
+  "cache"
+]
+
+/**
+  Lists the accepted image ratios for image requests.
+
+  Fields:
+  - `square`: Square ratio; array of strings.
+  - `landscape`: Landscape ratio; array of strings.
+  - `wide`: Wide ratio; array of strings.
+  - `portrait`: Portrait ratio; array of strings.
+  - `standard`: Standard ratio; array of strings.
+
+  Notes:
+  - The object contains arrays of strings in the order shown in the source.
+  - Only the specified ratios are accepted.
+
+  Output:
+  - An object mapping ratio names to arrays of accepted ratio strings.
+*/
+let ratios = {
+  square: ["1:1", "1024x1024"],
+  landscape: ["16:9", "1536x1024"],
+  wide: ["4:3", "1024x1536"],
+  portrait: ["9:16", "1024x1536"],
+  standard: ["3:4", "1024x1365"]
+}
+
+/**
+  Lists the accepted image sizes for image requests.
+
+  Notes:
+  - The array contains strings in the order shown in the source.
+  - Only the specified sizes are accepted.
+
+  Output:
+  - An array of accepted image size strings.
+*/
+let sizes = ["512", "1K", "2K", "4K"]
+
+/**
+  Sends a model request and returns its response with elapsed time and cost.
+
+  Parameters:
+  - `request`: Non-empty prompt string to send to the model.
+  - `config`: Object containing zero or more accepted configuration keys.
+
+  Returns:
+  - An object containing `config_used`, `prompt`, `response`, `duration`, and `cost`. When `response` is configured as `"full"`, the object also contains `finish_reason`, `input_tokens`, `output_tokens`, `thinking_tokens`, `billable_output_tokens`, and `total_tokens`.
+
+  Example:
+  ```sesi
+  let result = track_model("Summarize the water cycle.", {
+    model_name: "gpt-6-luna",
+    max_tokens: 500
+  })
+  show result.response
+  show result.duration result.cost
+  ```
+
+  Notes:
+  - Accepted keys are `model_name`, `audio`, `thinking`, `max_tokens`, `images`, `videos`, `stream`, `response`, `cache`, `system`, `search`, `tools`, and `max_tool_calls`. Each supplied value is checked against its expected type.
+  - The model defaults to `$SESI_DEFAULT_MODEL`, then `"gpt-6-luna"`. Other defaults are `"low"` for `thinking`, `8192` for `max_tokens`, empty arrays for media and tools, `false` for `stream` and `search`, `0` for `max_tool_calls`, and empty strings for `response` and `system`.
+  - Defaults use truthiness. In particular, `max_tokens: 0` resolves to `8192`.
+  - `config_used` is the actual configuration used, including resolved defaults. `duration` comes from `format_time`, and `cost` comes from `show_cost`.
+  - An empty request raises `InvalidRequest`; invalid configuration raises `InvalidConfig`; errors from the model call are raised as `ModelError`.
+*/
+export fn track_model(request: string, config: object) -> object {
+  if request == "" { raise_error("InvalidRequest", "Request cannot be empty.") }
+  if !is_object(config) { raise_error("InvalidConfig", "Config must be an object.") }
+  let config_keys = keys(config)
+  for key in config_keys {
+    if !includes(options, key) { raise_error("InvalidConfig", "Unexpected config key: " + key) }
+    if key == "model_name" {
+      if !is_string(config[key]) { raise_error("InvalidConfig", "model_name must be a string.") }
+      if !starts_with(config[key], "gemini-") && !starts_with(config[key], "gpt-") { raise_error("InvalidProvider", "Only Google Gemini and OpenAI GPT models are supported.") }
+    }
+    if key == "audio" && !is_string(config[key]) { raise_error("InvalidConfig", "audio must be a string.") }
+    if key == "thinking" {
+      if !is_string(config[key]) { raise_error("InvalidConfig", "thinking must be a string.") }
+      if !includes(thinking_values, config[key]) { raise_error("InvalidConfig", "thinking must be one of: low, medium, high.") }
+    }
+    if key == "max_tokens" && !is_number(config[key]) { raise_error("InvalidConfig", "max_tokens must be a number.") }
+    if key == "images" && !is_array(config[key]) { raise_error("InvalidConfig", "images must be an array.") }
+    if key == "videos" && !is_array(config[key]) { raise_error("InvalidConfig", "videos must be an array.") }
+    if key == "stream" && (!is_bool(config[key]) && !is_function(config[key])) { raise_error("InvalidConfig", "stream must be a boolean or a function.") }
+    if key == "response" && !is_string(config[key]) { raise_error("InvalidConfig", "response must be a string.") }
+    if key == "cache" && !is_bool(config[key]) { raise_error("InvalidConfig", "cache must be a boolean.") }
+    if key == "system" && !is_string(config[key]) { raise_error("InvalidConfig", "system must be a string.") }
+    if key == "search" && !is_bool(config[key]) { raise_error("InvalidConfig", "search must be a boolean.") }
+    if key == "tools" && !is_array(config[key]) { raise_error("InvalidConfig", "tools must be an array.") }
+    if key == "max_tool_calls" && !is_number(config[key]) { raise_error("InvalidConfig", "max_tool_calls must be a number.") }
+  }
+  let model_name = config["model_name"] || $SESI_DEFAULT_MODEL || "gpt-6-luna"
+  let thinking = config["thinking"] || "low"
+  let max_tokens = config["max_tokens"] || 8192
+  let images = config["images"] || []
+  let audio = config["audio"] || []
+  let videos = config["videos"] || []
+  let stream = config["stream"] || false
+  let response = config["response"] || ""
+  if response != "" && response != "full" { raise_error("InvalidConfig", "response must be either 'full' or omitted.") }
+  let cache = true
+  if (config["cache"] | str) == "false" { cache = false }
+  let system = config["system"] || "You are an advanced reasoning expert. You provide detailed and accurate responses, explicitly provide reasoning for your conclusions, and maintain transparency when uncertain."
+  let search = config["search"] || false
+  let tools = config["tools"] || []
+  let max_tool_calls = config["max_tool_calls"] || 0
+  let r = ""
+  let start = time()
+  let readable_start = format(time())
+  try { r = model(model_name) {thinking: thinking, max_tokens: max_tokens, images: images, audio: audio, videos: videos, stream: stream, response: response, cache: cache, system: system, search: search, tools: tools, max_tool_calls: max_tool_calls} {request} }
+  catch (e) { raise_error("ModelError", "An error occurred while processing the model request: " + e) }
+  let readable_end = format(time())
+  let end = time()
+  let duration = format_time(end - start)
+  let c = show_cost()
+  let actual_config = {model_name: model_name, thinking: thinking, max_tokens: max_tokens, images: images, videos: videos, audio: audio, stream: stream, response: response, cache: cache, system: system, search: search, tools: tools, max_tool_calls: max_tool_calls}
+  if response == "full" { return {config_used: actual_config, "prompt": request, task_started_at: readable_start, task_finished_at: readable_end, duration: duration, response: r.text, finish_reason: r.finish_reason, input_tokens: r.input_tokens, output_tokens: r.output_tokens, thinking_tokens: r.thinking_tokens, billable_output_tokens: r.billable_output_tokens, total_tokens: r.total_tokens, cost: c} }
+  else { return {config_used: actual_config, "prompt": request, task_started_at: readable_start, task_finished_at: readable_end, duration: duration, response: r, cost: c} }
+}
+
+/**
+  Sends a model request through `structured_output` and returns the structured response with elapsed time and cost.
+
+  Parameters:
+  - `request`: Non-empty prompt string to send to the model.
+  - `schema`: Schema object passed to `structured_output` to specify the requested response structure.
+  - `config`: Object containing zero or more accepted configuration keys.
+
+  Returns:
+  - An object containing `config_used`, `prompt`, `response`, `duration`, and `cost`. When `response` is configured as `"full"`, `response` is parsed as JSON, and the object also contains `finish_reason`, `input_tokens`, `output_tokens`, `thinking_tokens`, `billable_output_tokens`, and `total_tokens`.
+
+  Example:
+  ```sesi
+  let schema = {
+    topic: "string",
+    summary: "string"
+  }
+  let config = {
+    model_name: "gpt-6-luna",
+    max_tokens: 500
+  }
+  let result = track_structured_model("Summarize the water cycle.", schema, config)
+  show result.response
+  ```
+
+  Notes:
+  - The schema is passed directly to `structured_output`; the function does not independently validate its contents.
+  - Accepted keys are `model_name`, `audio`, `thinking`, `max_tokens`, `images`, `videos`, `stream`, `response`, `cache`, `system`, `search`, `max_tool_calls` and `tools`. Each supplied value is checked against its expected type.
+  - The model defaults to `$SESI_DEFAULT_MODEL`, then `"gpt-6-luna"`. Other defaults are `"low"` for `thinking`, `8192` for `max_tokens`, `0` for `max_tool_calls`, empty arrays for media and tools, `false` for `stream` and `search`, and empty strings for `response` and `system`.
+  - Defaults use truthiness. In particular, `max_tokens: 0` resolves to `8192`.
+  - `config_used` is the actual configuration used, including resolved defaults. `duration` comes from `format_time`, and `cost` comes from `show_cost`.
+  - An empty request raises `InvalidRequest`; invalid configuration raises `InvalidConfig`; errors in the structured model call are raised as `ModelError`. In full-response mode, JSON parsing happens afterward and may raise a separate error.
+*/
+export fn track_structured_model(request: string, schema: object, config: object) -> object {
+  if request == "" { raise_error("InvalidRequest", "Request cannot be empty.") }
+  if !is_object(config) { raise_error("InvalidConfig", "Config must be an object.") }
+  let config_keys = keys(config)
+  for key in config_keys {
+    if !includes(options, key) { raise_error("InvalidConfig", "Unexpected config key: " + key) }
+    if config[key] == "" { raise_error("InvalidConfig", "Config option cannot be empty: " + key + ". Either provide a valid value or remove the option.") }
+    if key == "model_name" {
+      if !is_string(config[key]) { raise_error("InvalidConfig", "model_name must be a string.") }
+      if !starts_with(config[key], "gemini-") && !starts_with(config[key], "gpt-") { raise_error("InvalidProvider", "Only Google Gemini and OpenAI GPT models are supported.") }
+    }
+    if key == "thinking" {
+      if !is_string(config[key]) { raise_error("InvalidConfig", "thinking must be a string.") }
+      if !includes(thinking_values, config[key]) { raise_error("InvalidConfig", "thinking must be one of: low, medium, high.") }
+    }
+    if key == "max_tokens" && !is_number(config[key]) { raise_error("InvalidConfig", "max_tokens must be a number.") }
+    if key == "audio" && !is_array(config[key]) { raise_error("InvalidConfig", "audio must be an array.") }
+    if key == "images" && !is_array(config[key]) { raise_error("InvalidConfig", "images must be an array.") }
+    if key == "videos" && !is_array(config[key]) { raise_error("InvalidConfig", "videos must be an array.") }
+    if key == "stream" && !is_bool(config[key]) && !is_function(config[key]) { raise_error("InvalidConfig", "stream must be a boolean or a function.") }
+    if key == "response" && !is_string(config[key]) { raise_error("InvalidConfig", "response must be a string.") }
+    if key == "cache" && !is_bool(config[key]) { raise_error("InvalidConfig", "cache must be a boolean.") }
+    if key == "system" && !is_string(config[key]) { raise_error("InvalidConfig", "system must be a string.") }
+    if key == "search" && !is_bool(config[key]) { raise_error("InvalidConfig", "search must be a boolean.") }
+    if key == "tools" && !is_array(config[key]) { raise_error("InvalidConfig", "tools must be an array.") }
+    if key == "max_tool_calls" && !is_number(config[key]) { raise_error("InvalidConfig", "max_tool_calls must be a number.") }
+  }
+  let model_name = config["model_name"] || $SESI_DEFAULT_MODEL || "gpt-6-luna"
+  let thinking = config["thinking"] || "low"
+  let max_tokens = config["max_tokens"] || 8192
+  let images = config["images"] || []
+  let videos = config["videos"] || []
+  let audio = config["audio"] || []
+  let stream = config["stream"] || false
+  let response = config["response"] || ""
+  if response != "" && response != "full" { raise_error("InvalidConfig", "response must be either 'full' or omitted.") }
+  let cache = true
+  if (config["cache"] | str) == "false" { cache = false }
+  let system = config["system"] || ""
+  let search = config["search"] || false
+  let tools = config["tools"] || []
+  let max_tool_calls = config["max_tool_calls"] || 0
+  let r = ""
+  let start = time()
+  let readable_start = format(start)
+  try { r = structured_output(schema)(model(model_name) {thinking: thinking, max_tokens: max_tokens, images: images, videos: videos, audio: audio, stream: stream, response: response, cache: cache, system: system, search: search, tools: tools, max_tool_calls: max_tool_calls} {request}) }
+  catch (e) { raise_error("ModelError", "An error occurred while processing the model request: " + e) }
+  let end = time()
+  let readable_end = format(end)
+  let duration = format_time(end - start)
+  let c = show_cost()
+  let actual_config = {model_name: model_name, thinking: thinking, max_tokens: max_tokens, images: images, videos: videos, audio: audio, stream: stream, response: response, cache: cache, system: system, search: search, tools: tools, max_tool_calls: max_tool_calls}
+  if response == "full" { return {config_used: actual_config, "prompt": request, task_started_at: readable_start, task_finished_at: readable_end, duration: duration, response: r.text | from_json, finish_reason: r.finish_reason, input_tokens: r.input_tokens, output_tokens: r.output_tokens, thinking_tokens: r.thinking_tokens, billable_output_tokens: r.billable_output_tokens, total_tokens: r.total_tokens, cost: c} }
+  else { return {config_used: actual_config, "prompt": request, task_started_at: readable_start, task_finished_at: readable_end, duration: duration, response: r, cost: c} }
+}
+
+/**
+  Generates an image using an AI model and tracks performance, configuration, and cost metrics.
+
+  Parameters:
+  - `request`: The prompt string describing the image to generate.
+  - `config`: Configuration options object for image generation.
+  - `auto_save`: Flag indicating whether to write the generated image file automatically.
+  - `custom_metadata`: Object containing metadata attributes to attach to the output metadata.
+
+  Returns:
+  - An object containing generation details, including `config_used`, `prompt`, timing information, duration, calculated cost, optional `filename`, custom attributes, and the Base64 `image_data`.
+
+  Example:
+  ```sesi
+  let data = track_image(
+    "A serene mountain lake", {
+      model_name: "gpt-image-2.5-flare",
+      ratio: "square",
+      cache: false
+    },
+    true,
+    {
+      author: "Sesira",
+      category: "Nature",
+      tags: ["scenery", "lake", "mountain", "nature", "landscape"],
+      license: "CC-BY-4.0"
+    }
+  )
+
+  if write_file("A-serene-mountain-lake.json", to_json(data)) { show "Metadata saved successfully." }
+  ```
+
+  Notes:
+  - Validates all input keys in `config` against allowed image generation parameters.
+  - Maps standard ratio names to provider-compatible values.
+  - Provides default values for `custom_metadata` if none are supplied (`author: "Sesi"`, `category: "AI-Art"`, `tags: ["generated", "ai", "generative-art"]`, `license: "CC-BY-4.0"`, `version: 1.0`).
+  - Raises errors for invalid options, missing prompts, or generation and filesystem write failures.
+*/
+export fn track_image(request: string, config: object, auto_save: bool = false, custom_metadata: object = null) -> object {
+  if request == "" { raise_error("InvalidRequest", "Request cannot be empty.") }
+  if !is_object(config) { raise_error("InvalidConfig", "Config must be an object.") }
+  let config_keys = keys(config)
+  let safe_ratios = keys(ratios)
+  let safe_sizes = sizes
+  for key in config_keys {
+    if !includes(img_options, key) { raise_error("InvalidConfig", "Unknown config option: " + key) }
+    if config[key] == "" { raise_error("InvalidConfig", "Config option cannot be empty: " + key + ". Either provide a valid value or remove the option.") }
+    if key == "model_name" {
+      if !is_string(config[key]) { raise_error("InvalidName", "model_name must be a string.") }
+      if !starts_with(config[key], "gemini-") && !starts_with(config[key], "gpt-image-") { raise_error("InvalidModel", "Model name must be a valid Gemini or GPT image model.") }
+      if starts_with(config[key], "gemini-") {
+        if !contains(config[key], "image") && !contains(config[key], "banana") { raise_error("InvalidModel", "Gemini model must be an image model name.")}
+        if config.background { raise_error("InvalidConfig", "Gemini image models do not support the 'background' option. Use a GPT image model for background control.") }
+      }
+      if starts_with(config[key], "gpt-image-") {
+        if config.system == "" { show "WARNING: GPT image models do not support the 'system' option. Pass your instructions into the 'prompt' instead next time." }
+        if config.background == "" { raise_error("InvalidConfig", "GPT image models require the 'background' option to be specified. Provide a valid background value or remove the option for automatic background control.") }
+      }
+    }
+    if key == "ratio" {
+      if !includes(safe_ratios, config[key]) { raise_error("InvalidRatio", "Invalid ratio: " + config[key] + ". Only " + join(safe_ratios, ", ") + " are allowed.") }
+      config[key] = ratios[config[key]][0]
+    }
+    if key == "size" { if !includes(safe_sizes, config[key]) { raise_error("InvalidSize", "Invalid size: " + config[key] + ". Only " + join(safe_sizes, ", ") + " are allowed.") } }
+    if key == "images" { if !is_array(config[key]) { raise_error("InvalidConfig", "images must be an array.") } }
+    if key == "audio" { if !is_array(config[key]) { raise_error("InvalidConfig", "audio must be an array.") } }
+    if key == "videos" { if !is_array(config[key]) { raise_error("InvalidConfig", "videos must be an array.") } }
+    if key == "background" { if !is_string(config[key]) { raise_error("InvalidConfig", "background must be a string.") } }
+    if key == "thinking" {
+      if !is_string(config[key]) { raise_error("InvalidConfig", "thinking must be a string.") }
+      for value in thinking_values { if config[key] != value { raise_error("InvalidConfig", "thinking must be one of 'low', 'medium', 'high'.") } }
+    }
+    if key == "system" { if !is_string(config[key]) { raise_error("InvalidConfig", "system must be a string.") } }
+    if key == "response" { if !is_string(config[key]) { raise_error("InvalidConfig", "response must be a string.") } }
+    if key == "cache" { if !is_bool(config[key]) { raise_error("InvalidConfig", "cache must be a boolean.") } }
+  }
+  if custom_metadata | is_null { custom_metadata = {author: "Sesi", category: "AI-Art", tags: ["generated", "ai", "generative-art"], license: "CC-BY-4.0", version: 1.0} }
+  let model_name = config["model_name"] || $SESI_IMAGE_MODEL || "gemini-nano-banana-2.1"
+  let system = config["system"] || ""
+  let thinking = config["thinking"] || "medium"
+  let ratio = config["ratio"] || ratios.square[0]
+  let size = config["size"] || safe_sizes[1]
+  let images = config["images"] || []
+  let audio = config["audio"] || []
+  let videos = config["videos"] || []
+  let background = config["background"] || "auto"
+  let response = config["response"] || ""
+  if response != "" && response != "full" { raise_error("InvalidConfig", "response must be either 'full' or omitted.") }
+  let cache = true
+  if (config["cache"] | str) == "false" { cache = false }
+  let base64 = ""
+  let start = time()
+  let readable_start = format(start)
+  try { 
+    if system == "" { base64 = image(model_name) {thinking: thinking, ratio: ratio, size: size, images: images, audio: audio, videos: videos, background: background, cache: cache} {request} }
+    else { base64 = image(model_name) {system: system, thinking: thinking, ratio: ratio, size: size, images: images, audio: audio, videos: videos, background: background, cache: cache} {request} }
+  } catch (e) { raise_error("ImageGenerationError", "Failed to generate image: " + (e | str)) }
+  let end = time()
+  let readable_end = format(end)
+  let actual_config = {}
+  if system == "" { actual_config = {model_name: model_name, system: "N/A", thinking: thinking, ratio: ratio, size: size, images: images, audio: audio, videos: videos, background: background, cache: cache} }
+  else { actual_config = {model_name: model_name, system: system, thinking: thinking, ratio: ratio, size: size, images: images, audio: audio, videos: videos, background: background, cache: cache} }
+  let duration = format_time(end - start)
+  let c = show_cost()
+  if auto_save {
+    let filename = (request | trim | trunc(57) | swap(" ", "_") | swap("/", "_") | swap("\\", "_") | swap(":", "") | swap(",", "") | swap(".", "") | swap("?", "") | swap("!", "") | swap("'", "") | swap("\"", "") | swap("-", "") | swap("`", "")) + ".png"
+    try { write_image(filename, base64) }
+    catch { raise_error("ImageSaveError", "Failed to save image.") }
+    show "Image saved to" filename
+    if response != "full" { return {config_used: actual_config, "prompt": request, task_started_at: readable_start, task_finished_at: readable_end, duration: duration, cost: c, filename: filename, attributes: custom_metadata, image_data: base64} }
+    else { return {config_used: actual_config, "prompt": request, task_started_at: readable_start, task_finished_at: readable_end, duration: duration, cost: c, filename: filename, attributes: custom_metadata, results: base64} }
+  }
+  if response != "full" { return {config_used: actual_config, "prompt": request, task_started_at: readable_start, task_finished_at: readable_end, duration: duration, cost: c, attributes: custom_metadata, image_data: base64} }
+  else { return {config_used: actual_config, "prompt": request, task_started_at: readable_start, task_finished_at: readable_end, duration: duration, cost: c, attributes: custom_metadata, results: base64} }
+}

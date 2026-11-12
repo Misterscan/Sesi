@@ -107,5 +107,3 @@ export fn test_runner() {
   TERM.info("📦 test-runner tool registry loaded —" + str(len(_registry)) + " tools available")
   TERM.info(to_json(tool_refs))
 }
-
-test_runner()

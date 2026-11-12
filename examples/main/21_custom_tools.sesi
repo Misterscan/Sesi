@@ -3,7 +3,7 @@
   Demonstrates:
     1. define_tool(name, fn, description)
     2. list_tools()
-    3. tool_call(customTool)(...) 
+    3. customTool(...) 
 */
 
 fn normalizeText(text) {

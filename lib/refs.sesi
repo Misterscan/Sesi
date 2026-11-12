@@ -7,11 +7,11 @@
 */
 allow "helpers/safe" in with {read}
 /* Get the contents of the README file. */
-export fn getREADME() -> str { return read("README.md") }
+export fn getREADME() -> str { return web_get("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/README.md") }
 /* Get the contents of the QUICKSTART file. */
-export fn getQUICKSTART() -> str { return read("QUICKSTART.md") }
+export fn getQUICKSTART() -> str { return web_get("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/QUICKSTART.md") }
 /* Get the contents of the GUIDE file. */
-export fn getGUIDE() -> str { return read("GUIDE.md") }
+export fn getGUIDE() -> any { return read("GUIDE.md") || web_get("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/GUIDE.md") }
 /**
   Get the contents of all documentation files in the "docs" directory, excluding certain files.
 
@@ -21,14 +21,21 @@ export fn getGUIDE() -> str { return read("GUIDE.md") }
 export fn getDocs() -> array<str> {
   let docDir = "docs/"
   let docs = []
-  let docFiles = list_dir(docDir)
+  let docFiles = ""
+  try { docFiles = list_dir(docDir) }
+  catch (e) { docFiles = ["https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/docs/"] }
   let contents = ""
-  for file in docFiles {
-    if (file | get_ext) == "md" {
-      if file == "BUILDING_SESIRA.md" || file == "ffmpeg-cheatsheet.md" { continue }
-      contents = read(docDir + file)
-      docs | push({filename: file, contents: contents})
+  if docFiles | is_array {
+    for file in docFiles {
+      if (file | get_ext) == "md" {
+        if file == "BUILDING_SESIRA.md" || file == "ffmpeg-cheatsheet.md" { continue }
+        contents = read(docDir + file)
+        docs | push({filename: file, contents: contents})
+      }
     }
+  } else {
+    let names = ["ARCHITECTURE.md", "BUILTINS.md", "CLI.md", "COMPARISON.md", "IMAGE_GENERATION.md", "LOCAL_MODELS.md", "REASONING.md", "REGEX.md", "ROADMAP.md", "SPECIFICATION.md", "VIDEO_GENERATION.md", "WRITING_SCRIPTS.md"]
+    for name in names { docs | push({filename: docFiles + name, contents: web_get(docFiles + name)}) }
   }
   return docs
 }
@@ -42,18 +49,30 @@ export fn getGettingStarted() -> array<str> {
   let mainDir = "getting-started/"
   let optDir = mainDir + "optional/"
   let docs = []
-  let mainFiles = list_dir(mainDir)
-  let optFiles = list_dir(optDir)
+  let mainFiles = ""
+  let optFiles = ""
+  try {
+    mainFiles = list_dir(mainDir)
+    optFiles = list_dir(optDir)
+  } catch {}
   let contents = ""
-  for file in mainFiles {
-    if (file | get_ext) == "md" {
-      contents = read(mainDir + file)
+  if (mainFiles | is_array) && (optFiles | is_array) {
+    for file in mainFiles {
+      if (file | get_ext) == "md" {
+        contents = read(mainDir + file)
+        docs | push({filename: file, contents: contents})
+      }
+    }
+    for file in optFiles {
+      contents = read(optDir + file)
       docs | push({filename: file, contents: contents})
     }
-  }
-  for file in optFiles {
-    contents = read(optDir + file)
-    docs | push({filename: file, contents: contents})
+  } else {
+    mainFiles = "https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/getting-started/"
+    optFiles = "https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/getting-started/optional/"
+    let names = ["AUDIO.md", "CONDITIONALS.md", "DATABASE.md", "FILE-IO.md", "FUNCTIONS.md", "GAME.md", "LOOPS.md", "MAKE.md", "MODULES.md", "NETWORK.md", "PROMPTS.md", "PYTHON-IN-SESI.md", "SVG-AND-PIXELS.md", "TTS.md", "VARIABLES.md", "VIDEO.md"]
+    for name in names { docs | push({filename: mainFiles + name, contents: web_get(mainFiles + name)}) }
+    docs | push({filename: optFiles + "CONFIG.md", contents: web_get(optFiles + "CONFIG.md")})
   }
   return docs
 }
@@ -105,3 +124,1272 @@ export fn getVARIABLES() -> str { return docs[14].contents }
 export fn getVIDEO() -> str { return docs[15].contents }
 /* Get the contents of the AI_CONFIG documentation file. */
 export fn getAI_CONFIG() -> str { return docs[16].contents }
+/* Get the builtins as a dictionary. Contains all the native Sesi builtins and their metadata. */
+export let BUILTINS = {
+  'Game': {
+    signature: 'allow "std/game" in as Game',
+    source: '3D Game Standard Library (std/game)',
+    description: 'Loads the optional left-handed Babylon.js/Electron 3D engine. +X is right, +Z is forward, and relative asset paths use the current working directory. Install @misterscan/sesi-game and run with sesi -l.',
+    example: 'allow "std/game" in as Game\nlet game = Game.create({title: "Arena"})'
+  },
+  'vec3': {
+    signature: 'Game.vec3(x = 0, y = 0, z = 0) -> vec3',
+    source: '3D Game Standard Library (std/game)',
+    description: 'Creates a live mutable three-component vector used for positions, rotations, scaling, directions, forces, and velocities.',
+    example: 'let position = Game.vec3(0, 2, -5)\nposition.y = 3'
+  },
+  'create_scene': {
+    signature: 'game.create_scene(name, options = null) -> scene',
+    source: '3D Game Standard Library (std/game)',
+    description: 'Creates a named left-handed Babylon scene and returns its live native handle.',
+    example: 'let scene = game.create_scene("main")\nlet cube = scene.box("cube")'
+  },
+  'enable_physics': {
+    signature: 'scene.enable_physics(options = null) -> scene',
+    source: '3D Game Standard Library (std/game)',
+    description: 'Enables the pinned Havok physics backend for a scene.',
+    example: 'scene.enable_physics({gravity: Game.vec3(0, -9.81, 0)})'
+  },
+  'let': {
+    signature: 'let identifier = value',
+    source: 'Sesi Core Primitives',
+    description: 'Declares a variable and binds it to a value. In Sesi, `let` is the single universal binding primitive (forbid using `const`).',
+    example: 'let count = 10\ncount = count + 5\nshow count'
+  },
+  'make': {
+    signature: 'make identifier { ... }',
+    source: 'Sesi Core Primitives',
+    description: 'Declares a callable, class-like object template. Calling its name creates a fresh object.',
+    example: 'make Person {\n   let kind = "person"\n\n   fn start(self, name) { self.name = name }\n\n   fn greet(self) { return "Hello, " + self.name }\n}'
+  },
+  'fn': {
+    signature: 'fn name(param1, param2) { ... }',
+    source: 'Sesi Core Primitives',
+    description: 'Declares a reusable block of code with optional parameters and return values. Inside Sesi functions, `return` is used to output a value.',
+    example: 'fn multiply(a, b) { return a * b }\n\nlet result = multiply(5, 10)'
+  },
+  'if': {
+    signature: 'if condition { ... } else { ... }',
+    source: 'Sesi Control Flow',
+    description: 'Executes the first code block if the condition evaluates to `true`. Supports optional nested `else` statements.',
+    example: 'let value = random()\nif value > 0.5 { show "Greater than 0.5 "}\nelse { show "Less than or equal to 0.5" }'
+  },
+  'else': {
+    signature: 'else { ... }',
+    source: 'Sesi Control Flow',
+    description: 'Specifies a block of code to be executed if the corresponding `if` condition evaluates to `false`.',
+    example: 'if status == "success" { show "Done" }\nelse { show "Failed" }'
+  },
+  'while': {
+    signature: 'while condition { ... }',
+    source: 'Sesi Loops',
+    description: 'Repeatedly executes a block of code as long as the specified condition remains `true`.',
+    example: 'let x = 0\nwhile x < 5 {\n  show x\n  x = x + 1\n}'
+  },
+  'for': {
+    signature: 'for element in iterable { ... }',
+    source: 'Sesi Loops',
+    description: 'Iterates over elements of an array, a range, or an object collection.',
+    example: 'let items = ["apple", "banana", "cherry"]\nfor item in items { show item }'
+  },
+  'in': {
+    signature: 'element in collection',
+    source: 'Sesi Operators',
+    description: 'Used inside `for` loops to specify the sequence being iterated over, or as a membership test operator.',
+    example: 'for i in range(5) { show i }'
+  },
+  'to': {
+    signature: 'start to end',
+    source: 'Sesi Operators',
+    description: 'Specifies a range boundary operator or transition sequence specifier in Sesi structures.',
+    example: 'for i = 0 to 5 { show i }'
+  },
+  'return': {
+    signature: 'return value',
+    source: 'Sesi Core Primitives',
+    description: 'Terminates function execution and returns a value. Required inside of a `fn` block to output data.',
+    example: 'fn add(a, b) { return a + b }'
+  },
+  'try': {
+    signature: 'try { ... } catch (error) { ... }',
+    source: 'Sesi Resilience',
+    description: 'Encloses a block of code that may raise a filesystem or execution error, pairing with a `catch` block to handle exceptions.',
+    example: 'let content =  ""\ntry { content = read_file("missing.txt") }\ncatch (e) { show "Caught filesystem error:" e }'
+  },
+  'catch': {
+    signature: 'catch (error) { ... }',
+    source: 'Sesi Resilience',
+    description: 'Handles exceptions thrown within the preceding `try` block, binding the error metadata to the specified identifier.',
+    example: 'try { write_file("readonly.txt", "data") }\ncatch (e) { show e }'
+  },
+  'finally': {
+    signature: 'finally { ... }',
+    source: 'Sesi Resilience',
+    description: 'Defines a block of code that will always execute after a `try` block, regardless of whether an exception was thrown.',
+    example: 'try { write_file("readonly.txt", "data") }\ncatch (e) { show e }\nfinally { show "Cleanup actions" }'
+  },
+  'break': {
+    signature: 'break',
+    source: 'Sesi Loops',
+    description: 'Immediately terminates execution of the innermost active loop block.',
+    example: 'let i = 0\nwhile true {\n  if i == 3 { break }\n  i = i + 1\n}'
+  },
+  'continue': {
+    signature: 'continue',
+    source: 'Sesi Loops',
+    description: 'Skips the remaining statements in the current loop iteration and moves directly to the next loop evaluation.',
+    example: 'for x in range(5) {\n  if x == 2 { continue }\n  show x\n}'
+  },
+  'import': {
+    signature: 'import { item } from "module"',
+    source: 'Sesi Modules',
+    description: 'Loads a reusable module or configuration file into the current execution space.',
+    example: 'import { min, max } from "std/math"'
+  },
+  'from': {
+    signature: 'import { item } from "module"',
+    source: 'Sesi Modules',
+    description: 'Extracts specific functions or definitions from an external module file.',
+    example: 'import { format, now } from "std/time"'
+  },
+  'export': {
+    signature: 'export let variable',
+    source: 'Sesi Modules',
+    description: 'Exposes variables, objects, or functions from the active file as public module API exports.',
+    example: 'export let author = "Alice"'
+  },
+  'number': {
+    signature: 'let n: number',
+    source: 'Sesi Types',
+    description: 'Core numeric primitive representing both integer and floating-point values in Sesi.',
+    example: 'let pi = 3.14159\nlet size = 2048'
+  },
+  'string': {
+    signature: 'let s: string',
+    source: 'Sesi Types',
+    description: 'Core string text primitive representing sequences of UTF-8 characters.',
+    example: 'let title = "Sesi Compiler Pipeline"\nlet line = \'Systems Programming\''
+  },
+  'bool': {
+    signature: 'let b: bool',
+    source: 'Sesi Types',
+    description: 'Core Boolean boolean primitive containing either `true` or `false` values.',
+    example: 'let is_valid = true\nlet has_error = false'
+  },
+  'null': {
+    signature: 'let value: null',
+    source: 'Sesi Types',
+    description: 'Represents the intentional absence of any value or reference.',
+    example: 'let config = null'
+  },
+  'array': {
+    signature: 'let list: array',
+    source: 'Sesi Types',
+    description: 'A dynamic, ordered collection of values indexable by positive integers.',
+    example: 'let steps = [1, "compile", true]\nlet first = steps[0]'
+  },
+  'object': {
+    signature: 'let dict: object',
+    source: 'Sesi Types',
+    description: 'An associative collection of key-value pairs. Standard object literals require quoted string keys in Sesi.',
+    example: 'let user = {name: "Charlie", role: "admin"}\nshow user.name'
+  },
+  'model': {
+    signature: 'model("model-name") { ... }',
+    source: 'Sesi AI',
+    description: 'Reasoning model evaluation primitive. Calls a specified LLM configuration block to generate a reasoning response.',
+    example: 'show model("gemini-4-argon") {"Outline the systems architecture for a compiler pipeline."}\nshow model("gpt-6.1-sol") {"Explain coding to a new developer."}'
+  },
+  'image': {
+    signature: 'image("prompt")',
+    source: 'Sesi AI',
+    description: 'Generates a synthetic image using advanced text-to-image models based on the prompt parameter.',
+    example: 'let graphic = image("gemini-nano-banana-2.1") {ratio: "16:9", size: "1K"} {"A dark, technical isometric blueprint of a compiler lexer graph."}\nwrite_image("blueprint.png", graphic)'
+  },
+  'memory': {
+    signature: 'memory',
+    source: 'Sesi Stateful Memory',
+    description: 'Stateful conversation memory primitive that persists contextual thread arrays.',
+    example: 'memory conversation { "USER: Hello, how are you?" }\nshow conversation\nconversation = conversation + "USER: I am fine, thank you."\nshow conversation'
+  },
+  'set_alias': {
+    signature: 'set_alias(alias, model)',
+    source: 'Sesi AI',
+    description: 'Register a custom local name for a model string.',
+    example: 'set_alias("fast", "gemini-3.5-flash-lite")\nset_alias("detail", "gpt-6-luna")\nlet answer = model("fast") {"Summarize this paragraph."}\nlet explanation = model("detail") {"Explain this paragraph in detail."}'
+  },
+  'workflow': {
+    signature: 'workflow(steps, initialContext)',
+    source: 'Sesi AI',
+    description: 'Chains sequential model executions, transformations, and processing scripts into a unified pipeline.',
+    example: 'let context = read_file("system_performance.txt")\nlet steps = [\n   {"prompt": "Summarize the findings." },\n   {"prompt": "Provide recommendations based on the analysis."},\n   {"prompt": "Create a comprehensive report: " + context}\n]\nlet final = workflow(steps, "Analyze the system performance based on the following: " + context)\nshow final'
+  },
+  'structured_output': {
+    signature: 'structured_output(schema)(expression)',
+    source: 'Serialization Standard Library',
+    description: 'Creates strongly typed, schema-validated structured data from the result of any Sesi expression.',
+    example: 'let rawJson = "{\\"projectName\\": \\"Sesi\\", \\"version\\": \\"1.9.2\\"}"\nlet parsed = structured_output({projectName: string, version: string})(rawJson)'
+  },
+  'prompt': {
+    signature: 'prompt `identifier` { ... }',
+    source: 'Sesi Compostion',
+    description: 'Constructs highly dynamic and concise template prompts. Safe from literal string hardcoding and concatenations.',
+    example: 'let task = "audit logs"\nprompt audit {"Analyze the system performance regarding: " task}'
+  },
+  'define_tool': {
+    signature: 'define_tool("tool_name", function, description)',
+    source: 'Sesi Tooling Integration',
+    description: 'Declares a custom system tool schema. This makes standard Sesi functions or scripts discoverable as tool call actions for LLMs.',
+    example: 'fn read_config(file: string) -> string {\n  let content = ""\n  try { content =  read_file(file) }\n  catch(e) { return str(e) }\n}\ndefine_tool("read", read_config, "Reads a configuration file from disk.")'
+  },
+  'list_tools': {
+    signature: 'list_tools()',
+    source: 'Sesi Tooling Integration',
+    description: 'Returns an array of all registered system tool definitions currently available in the runtime environment.',
+    example: 'let tools = list_tools()\nshow tools'
+  },
+  'tool_call': {
+    signature: 'tool_call(tool_name)(tool_params)',
+    source: 'Sesi Tooling Integration',
+    description: 'Invokes a predefined custom tool dynamically by its name and passes the argument payload.',
+    example: 'let output = tool_call(read_config)("config.json")'
+  },
+  'multi_req': {
+    signature: 'multi_req(functions_array)',
+    source: 'Sesi Tooling Integration',
+    description: 'Runs an array of zero-argument functions concurrently and returns their results in the same order.',
+    example: 'fn auditIndex() { return model("gemini-3-flash-preview") {"Audit index.html"} }\nfn auditServer() { return model("gemini-3.1-flash-lite") {"Audit server.js"} }\nlet results = multi_req([auditIndex, auditServer])'
+  },
+  'read_file': {
+    signature: 'read_file(path, mode = "text")',
+    source: 'System I/O Standard Library',
+    description: 'Synchronously reads a file from disk. Use mode "text" for UTF-8 text (default) or mode "base64" to read binary files (such as images) as Base64.',
+    example: 'let source_code = read_file("main/playground.sesi")\nshow source_code\n\nlet image_b64 = read_file("output/banner.png", "base64")\nshow "Image size:" len(image_b64)'
+  },
+  'write_file': {
+    signature: 'write_file(path, content)',
+    source: 'System I/O Standard Library',
+    description: 'Writes a string of text content to a file at the designated path. Creates the file or overwrites it if it already exists.',
+    example: 'write_file("main/logs/status.txt", "Compiler execution succeeded.")'
+  },
+  'append_file': {
+    signature: 'append_file(path, content)',
+    source: 'System I/O Standard Library',
+    description: 'Appends string content to the end of a file at the designated path. Creates the file if it does not already exist.',
+    example: 'append_file("main/logs/status.txt", "\nCompiler step 2 complete.")'
+  },
+  'write_image': {
+    signature: 'write_image(path, img_data)',
+    source: 'System I/O Standard Library',
+    description: 'Saves raw image canvas data or generated image model outputs directly to a file path as an image file (e.g. PNG).',
+    example: 'let icon = image("gpt-image-2.5-sunburst") {ratio: "1:1", size: "1K"} {"Sleek minimal coding logo"}\nwrite_image("output/icon.png", icon)'
+  },
+  'open': {
+    signature: 'open(target, options = null)',
+    source: 'Desktop Integration Standard Library',
+    description: 'Opens an HTTP, HTTPS, FTP, file, or mailto URL, or an existing local file, with the operating system default application. Optional `browser`, `editor`, `viewer`, `image_viewer`, and `mode` settings can select an application. Disabled in safe mode; run the script with `-l` or `--local`.',
+    example: 'open("https://code-with-sesi.netlify.app")\nopen("reports/dashboard.html", {mode: "browser", browser: "Firefox"})'
+  },
+  'open_file': {
+    signature: 'open_file(path, options = null)',
+    source: 'Desktop Integration Standard Library',
+    description: 'Opens an existing local file with the operating system default application or a requested browser, editor, or viewer. The path is resolved through Sesi filesystem safety checks. Disabled in safe mode; run the script with `-l`, `--local`, or `SESI_SAFE_MODE` set to false.',
+    example: 'open_file("README.md", {editor: "Visual Studio Code"})\nopen_file("favicon.png", {viewer: "Preview"})'
+  },
+  'list_dir': {
+    signature: 'list_dir(path)',
+    source: 'System I/O Standard Library',
+    description: 'Retrieves an array containing the names of all files and folders located inside the target directory path.',
+    example: 'let files = list_dir("main")\nfor file in files { show file }'
+  },
+  'get_ext': {
+    signature: 'get_ext(path)',
+    source: 'System I/O Standard Library',
+    description: 'Returns the lowercase file extension without a leading dot. Compound archive extensions such as tar.gz are preserved.',
+    example: 'show get_ext("backup.tar.gz") // tar.gz'
+  },
+  'exists': {
+    signature: 'exists(path)',
+    source: 'System I/O Standard Library',
+    description: 'Returns whether a sandbox-approved filesystem path exists.',
+    example: 'if exists("config.json") { show "Found config" }'
+  },
+  'make_dir': {
+    signature: 'make_dir(path)',
+    source: 'System I/O Standard Library',
+    description: 'Recursively creates nested directory paths on the local system storage.',
+    example: 'let cacheDir = "main/tests/cache"\nif !exists(cacheDir) { make_dir(cacheDir) }'
+  },
+  'rename': {
+    signature: 'rename(old_path, new_path)',
+    source: 'System I/O Standard Library',
+    description: 'Renames or moves a file or directory on the filesystem.',
+    example: 'rename("main/temp.txt", "main/final.txt")'
+  },
+  'archive': {
+    signature: 'archive(source_path, dest_path = null)',
+    source: 'System I/O Standard Library',
+    description: 'Recursively copies/backs up a file or folder. If dest_path is null, automatically saves inside the hidden .archive directory in the workspace root.',
+    example: 'archive("main/tests", "main/backups/tests")'
+  },
+  'zip': {
+    signature: 'zip(source, destination = null, operation = null)',
+    source: 'Archive I/O Standard Library',
+    description: 'Creates, lists, or extracts ZIP and related archive formats. ZIP is native; RAR, 7z, and tar-family formats use installed archive tools.',
+    example: 'zip("assets", "assets.zip")\nlet entries = zip("assets.zip")\nzip("assets.zip", "restored")'
+  },
+  'trash': {
+    signature: 'trash(path, auto_remove = false)',
+    source: 'System I/O Standard Library',
+    description: 'Safely deletes a file or directory. By default, moves the item into a local .trash recycle bin directory with a unique timestamped name. If auto_remove is true, deletes permanently.',
+    example: 'trash("main/temp.txt", true)'
+  },
+  'spawn': {
+    signature: 'spawn(script_path)',
+    source: 'Process Orchestration Standard Library',
+    description: 'Asynchronously launches a separate, background Sesi script process concurrently.',
+    example: 'let PID = spawn("main/compile_service.sesi")\n show "Spawned process ID:" PID'
+  },
+  'exec': {
+    signature: 'exec(command_line)',
+    source: 'Process Orchestration Standard Library',
+    description: 'Spawns a shell environment command synchronously. Returns the full stdout response of the executed process.',
+    example: 'let version = exec("sesi version")\nshow "Current version:" version'
+  },
+  'run': {
+    signature: 'run(command_line)',
+    source: 'Process Orchestration Standard Library',
+    description: 'Exact alias of exec(). Executes a shell command synchronously and returns stdout. Disabled in safe mode.',
+    example: 'let sesi_help = run("sesi help")\nshow sesi_help'
+  },
+  'sesi': {
+    signature: 'sesi(file_path, local = false, check_only = false)',
+    source: 'Process Orchestration Standard Library',
+    description: 'Parses and compiles a Sesi file synchronously in the current process without launching a child process. Set local to true to enable local file access, or check_only to true to validate without executing the file.',
+    example: 'sesi("examples/main/01_hello.sesi")\nsesi("examples/main/25_webpage_server.sesi", true)\nsesi("main/check.sesi", false, true)'
+  },
+  'python': {
+    signature: 'python(code, args)',
+    source: 'Process Orchestration Standard Library',
+    description: 'Executes arbitrary Python code synchronously via stdin and returns its standard output. The optional second parameter `args` is serialized to JSON and stored in the environment variable `SESI_ARGS`. If `args` is an array, elements are also passed as command line arguments (via sys.argv).',
+    example: 'let code = "print(\'Hello from Python!\')"\nlet result = python(code)\nshow result'
+  },
+  'js': {
+    signature: 'js(code, args)',
+    source: 'Process Orchestration Standard Library',
+    description: 'Executes arbitrary JavaScript code synchronously with the current Node.js runtime and returns its standard output. The optional second parameter `args` is serialized to JSON and stored in the environment variable `SESI_ARGS`. If `args` is an array, elements are also passed as command line arguments.',
+    example: 'let code = "console.log(\'Hello from JavaScript!\')"\nlet result = js(code)\nshow result'
+  },
+  'html': {
+    signature: 'html(body, options)',
+    source: 'HTML Document Standard Library',
+    description: 'Wraps body markup in a complete HTML document string. Optional `options` may include `title`, `head`, and `lang`.',
+    example: 'let page = html("<main>Hello</main>", {title: "Demo"})\nwrite_file("index.html", page)'
+  },
+  'web_get': {
+    signature: 'web_get(url, headers = {})',
+    source: 'HTTP Client Standard Library',
+    description: 'Performs an HTTP GET request to the specified web address, optionally sending request headers and returning the textual response body.',
+    example: 'let api_response = web_get("https://api.github.com/repos/misterscan/sesi")'
+  },
+  'web_send': {
+    signature: 'web_send(url, payload, headers = {})',
+    source: 'HTTP Client Standard Library',
+    description: 'Dispatches an HTTP POST request to the target web endpoint, optionally sending request headers with the payload.',
+    example: 'let status = web_send("https://hooks.slack.com/services/...", {text: "Workflow completed!"})'
+  },
+  'api': {
+    signature: 'api(port, handler)',
+    source: 'HTTP Server Standard Library',
+    description: 'Starts a native WebSocket server listening on the specified port and calls the handler for each connected client message.',
+    example: 'fn handleMessage(client, msg) {\n show "WS received:" msg\n client.send("Echo: " + msg)\n}\n\nlet server = api(8080, handleMessage)'
+  },
+  'to_json': {
+    signature: 'to_json(value)',
+    source: 'Serialization Standard Library',
+    description: 'Converts a native Sesi value, array, or object into a standardized, valid JSON string.',
+    example: 'let payload = {id: 101, status: "active"}\nlet json_str = to_json(payload)\nshow json_str'
+  },
+  'from_json': {
+    signature: 'from_json(json_str)',
+    source: 'Serialization Standard Library',
+    description: 'Parses a structured JSON string and converts it directly into native, indexable Sesi objects or collections.',
+    example: 'let raw = \'{"result": "success", "code": 200}\'\nlet obj = from_json(raw)\nshow obj.result'
+  },
+  'encrypt': {
+    signature: 'encrypt(content, password) -> string',
+    source: 'Cryptography Standard Library',
+    description: 'Encrypts UTF-8 string content with AES-256-CBC and returns the same iv:ciphertext format used by the Sesi CLI encryption flow.',
+    example: 'let secret = encrypt("private notes", "passphrase")\nshow secret'
+  },
+  'decrypt': {
+    signature: 'decrypt(content, password) -> string',
+    source: 'Cryptography Standard Library',
+    description: 'Decrypts an AES-256-CBC iv:ciphertext string produced by encrypt(...) or the compatible Sesi CLI encryption format.',
+    example: 'let secret = encrypt("private notes", "passphrase")\nshow decrypt(secret, "passphrase")'
+  },
+  'speech': {
+    signature: 'speech(text, voice = null, gemini_model = null) -> bool|string',
+    source: 'Local Speech Standard Library',
+    description: 'Speaks text with a local system voice engine, or returns base64 audio when an optional Gemini TTS model is supplied.',
+    example: 'speech("Build complete")\nspeech("Bonjour", "Thomas")'
+  },
+  'from_speech': {
+    signature: 'from_speech(audio_path, language = null, model = "gpt-transcribe") -> string',
+    source: 'Speech Recognition Standard Library',
+    description: 'Transcribes an audio file through OpenAI or Gemini and returns the transcript as text. Defaults to OpenAI gpt-transcribe. The third argument selects the model. Requires OPENAI_API_KEY for OpenAI or GEMINI_API_KEY for Gemini.',
+    example: 'let transcript = from_speech("meeting.wav", "en")\nlet openai = from_speech("meeting.wav", "en", "gpt-transcribe")\nlet gemini = from_speech("meeting.wav", "en", "gemini-3.5-flash-lite")\nshow transcript'
+  },
+  'encode': {
+    signature: 'encode(value, mode = "text")',
+    source: 'Encoding Standard Library (std/base64)',
+    description: 'Encodes either UTF-8 text or raw byte arrays into a Base64 string. Use mode "text" for strings and mode "bytes" for arrays of numbers (0..255).',
+    example: 'allow "std/base64" in with {encode}\nshow encode("Hello")\nshow encode([0, 255, 16], "bytes")'
+  },
+  'decode': {
+    signature: 'decode(base64_text, mode = "text")',
+    source: 'Encoding Standard Library (std/base64)',
+    description: 'Decodes Base64 input (standard or URL-safe). Returns UTF-8 text in mode "text" or a byte array in mode "bytes".',
+    example: 'allow "std/base64" in with {decode}\nshow decode("SGVsbG8=")\nshow decode("AP8Q", "bytes")'
+  },
+  'time': {
+    signature: 'time()',
+    source: 'Utility Standard Library',
+    description: 'Returns the current high-resolution system timestamp in epoch milliseconds.',
+    example: 'let start = time()\n// Run process...\nlet end = time()\nlet elapsed = (end - start) / 1000\nshow "Completed in:" elapsed "s"'
+  },
+  'random': {
+    signature: 'random()',
+    source: 'Utility Standard Library',
+    description: 'Generates a pseudo-random floating-point decimal value between 0.0 (inclusive) and 1.0 (exclusive).',
+    example: 'let rand_val = random()\nif rand_val < 0.2 { show "Critical failure trigger" }'
+  },
+  'raise_error': {
+    signature: 'raise_error(message)',
+    source: 'Exception Handling Standard Library',
+    description: 'Aborts current execution flow and raises a custom error message exception to be caught in a try-catch block.',
+    example: 'if path == "" { raise_error("Directory path cannot be empty") }'
+  },
+  'error_type': {
+    signature: 'error_type(caught_error)',
+    source: 'Exception Handling Standard Library',
+    description: 'Extracts the descriptive string categorizing the exception type classification of a caught error.',
+    example: 'try { let file = read_file("invalid.txt") }\ncatch (e) { show "Error category:" error_type(e) }'
+  },
+  'show': {
+    signature: 'show value1 value2 ...',
+    source: 'Console I/O Standard Library',
+    description: 'Outputs an arbitrary list of arguments sequentially to the Sesi terminal output standard stream.',
+    example: 'let user = "developer"\nshow "[LOG] Session initialized by:" user'
+  },
+  'input': {
+    signature: 'input(prompt)',
+    source: 'Console I/O Standard Library',
+    description: 'Prompts the user for console input, halts execution until they press enter, and returns the entered string response.',
+    example: 'let name = input("Enter your name: ")\nshow "Hello," name'
+  },
+  'push': {
+    signature: 'push(array, value)',
+    source: 'Array Standard Library',
+    description: 'Adds an element to the end of an array.',
+    example: 'let items = ["apple", "banana"]\npush(items, "cherry")\nshow items'
+  },
+  'append': {
+    signature: 'append(collection, value)',
+    source: 'Collection Standard Library',
+    description: 'Appends a value to an array in place, or concatenates a value to the end of a string.',
+    example: 'let items = ["apple"]\nappend(items, "banana")\nshow items\n\nlet title = append("Sesi", " Runtime")\nshow title'
+  },
+  'pop': {
+    signature: 'pop(array)',
+    source: 'Array Standard Library',
+    description: 'Removes and returns the last element of an array.',
+    example: 'let items = ["apple", "banana", "cherry"]\nlet last = pop(items)\nshow last'
+  },
+  'join': {
+    signature: 'join(array, separator)',
+    source: 'Array Standard Library',
+    description: 'Join array elements into a string with separator.',
+    example: 'let items = ["apple", "banana", "cherry"]\nlet joined = join(items, ", ")\nshow joined'
+  },
+  'split': {
+    signature: 'split(string, separator)',
+    source: 'Array Standard Library',
+    description: 'Split a string into an array by separator.',
+    example: 'split("a,b,c", ",")\nsplit("hello world", " ")'
+  },
+  'regex': {
+    signature: 'regex(pattern, text, options = null)',
+    source: 'String Utility Standard Library',
+    description: 'Matches, tests, replaces, or splits text using a JavaScript-compatible regular expression.',
+    example: 'let matches = regex("[A-Z]+", "ID ABC and XYZ")\nlet valid = regex("^[a-z]+$", "sesi", {mode: "test", flags: "i"})'
+  },
+  'tokenize': {
+    signature: 'tokenize(string, options = null)',
+    source: 'String Utility Standard Library',
+    description: 'Tokenizes text into model token IDs using OpenAI-compatible tiktoken-style encoding.',
+    example: 'let ids = tokenize("Hello world")\nshow len(ids)\n\nlet ids2 = tokenize("Hello world", {"model": "gpt-5.6-sol"})\nshow ids2\n\nlet words = tokenize("one two", "simple")\nshow words'
+  },
+  'count_tokens': {
+    signature: 'count_tokens(string, options = null)',
+    source: 'AI Utility Standard Library',
+    description: 'Counts request tokens through the native OpenAI or Gemini provider endpoint.',
+    example: 'let gemini_count = count_tokens("Hello world", "gemini-3.8-flash")\nlet gpt_count = count_tokens("Hello world", "gpt-6.1-sol")'
+  },
+  'estimate_tokens': {
+    signature: 'estimate_tokens(string, options = null)',
+    source: 'AI Utility Standard Library',
+    description: 'Estimates tokens locally, explicitly allowing fallback encoding for non-OpenAI models.',
+    example: 'let gemini_approx = estimate_tokens(text, "gemini-4-argon")\nlet gpt_approx = estimate_tokens(text, "gpt-6-astra")'
+  },
+  'estimate_cost': {
+    signature: 'estimate_cost(model, input, output = 0, rates = null)',
+    source: 'AI Utility Standard Library',
+    description: 'Estimates paid-tier text-token cost in USD from counts or text.',
+    example: 'let cost = estimate_cost("gpt-6.1-sol", promptText, 500)\nshow cost.total_cost_usd'
+  },
+  'model_usage': {
+    signature: 'model_usage()',
+    source: 'AI Utility Standard Library',
+    description: 'Returns provider-reported tokens and estimated cost for the latest model call.',
+    example: 'let answer = model("gemini-3.5-flash-lite") {"Hello"}\nshow model_usage()'
+  },
+  'matrix_dot': {
+    signature: 'matrix_dot(a, b)',
+    source: 'Native Matrix Runtime',
+    description: 'Multiplies two rectangular numeric matrices. The inner dimensions must match.',
+    example: 'let result = matrix_dot([[1, 2]], [[3], [4]])'
+  },
+  'matrix_transpose': {
+    signature: 'matrix_transpose(matrix)',
+    source: 'Native Matrix Runtime',
+    description: 'Returns a matrix with its rows and columns exchanged.',
+    example: 'let result = matrix_transpose([[1, 2], [3, 4]])'
+  },
+  'matrix_add': {
+    signature: 'matrix_add(a, b)',
+    source: 'Native Matrix Runtime',
+    description: 'Adds numeric matrices. A single-row second matrix is broadcast across all rows of the first.',
+    example: 'let result = matrix_add([[1, 2], [3, 4]], [[10, 20]])'
+  },
+  'matrix_sub': {
+    signature: 'matrix_sub(a, b)',
+    source: 'Native Matrix Runtime',
+    description: 'Subtracts two numeric matrices with identical shapes.',
+    example: 'let result = matrix_sub([[3, 4]], [[1, 2]])'
+  },
+  'matrix_mul_elements': {
+    signature: 'matrix_mul_elements(a, b)',
+    source: 'Native Matrix Runtime',
+    description: 'Multiplies corresponding elements of two identically shaped numeric matrices.',
+    example: 'let result = matrix_mul_elements([[2, 3]], [[4, 5]])'
+  },
+  'matrix_scale': {
+    signature: 'matrix_scale(matrix, scalar)',
+    source: 'Native Matrix Runtime',
+    description: 'Multiplies every matrix element by a finite numeric scalar.',
+    example: 'let result = matrix_scale([[2, 4]], 0.5)'
+  },
+  'matrix_sigmoid': {
+    signature: 'matrix_sigmoid(matrix)',
+    source: 'Native Matrix Runtime',
+    description: 'Applies the logistic sigmoid function to every matrix element.',
+    example: 'let result = matrix_sigmoid([[0, 1]])'
+  },
+  'matrix_dsigmoid': {
+    signature: 'matrix_dsigmoid(matrix)',
+    source: 'Native Matrix Runtime',
+    description: 'Calculates y * (1 - y) for each matrix element containing a sigmoid output.',
+    example: 'let result = matrix_dsigmoid([[0.5, 0.75]])'
+  },
+  'matrix_sum_rows': {
+    signature: 'matrix_sum_rows(matrix)',
+    source: 'Native Matrix Runtime',
+    description: 'Sums each matrix column across its rows and returns a single-row matrix.',
+    example: 'let result = matrix_sum_rows([[1, 2], [3, 4]])'
+  },
+  'matrix_mse': {
+    signature: 'matrix_mse(a, b)',
+    source: 'Native Matrix Runtime',
+    description: 'Returns mean squared error across two identically shaped numeric matrices.',
+    example: 'let loss = matrix_mse([[1, 2]], [[1, 3]])'
+  },
+  'keys': {
+    signature: 'keys(collection)',
+    source: 'Array Standard Library',
+    description: 'Get all keys of an object.',
+    example: 'let obj = { name: "Alice", age: 30 }\nkeys(obj)'
+  },
+  'values': {
+    signature: 'values(collection)',
+    source: 'Array Standard Library',
+    description: 'Get all values of an object.',
+    example: 'let obj = { name: "Alice", age: 30 }\nvalues(obj)'
+  },
+  'len': {
+    signature: 'len(collection)',
+    source: 'Utility Standard Library',
+    description: 'Returns the total number of items, keys, or elements contained within an array, object, or string.',
+    example: 'let chars = len("Sesi")\nlet count = len([10, 20, 30])'
+  },
+  'range': {
+    signature: 'range(n)',
+    source: 'Utility Standard Library',
+    description: 'Generates the integers from 0 up to, but not including, n.',
+    example: 'let indices = range(3) // returns [0, 1, 2]'
+  },
+  'type': {
+    signature: 'type(value)',
+    source: 'Utility Standard Library',
+    description: 'Queries and returns a descriptive string indicating the active type classification of the evaluated parameter.',
+    example: 'show type("code") // shows "string"\nshow type(42) // shows "number"'
+  },
+  'str': {
+    signature: 'str(value)',
+    source: 'Type Conversion Standard Library',
+    description: 'Converts the given parameter value into its explicit text string format representation.',
+    example: 'let age_string = str(28)\nshow "User age is:" age_string'
+  },
+  'num': {
+    signature: 'num(value)',
+    source: 'Type Conversion Standard Library',
+    description: 'Parses or casts the given string or boolean parameter value into its explicit numeric value form.',
+    example: 'let value_num = num("1024")\nshow value_num + 1'
+  },
+  'float': {
+    signature: 'float(value)',
+    source: 'Type Conversion Standard Library',
+    description: 'Parses or casts the given string, number, or boolean parameter value into a floating-point number.',
+    example: 'let ratio = float("3.14159")\nshow ratio\nshow float(true)'
+  },
+  'floor': {
+    signature: 'floor(value)',
+    source: 'Global Math Function / Math Standard Library (std/math)',
+    description: 'Rounds a number down to the nearest integer. The bare floor() function is globally available without an import, and Math.floor() is available through std/math.',
+    example: 'show floor(3.9) // 3\nallow "std/math" in as Math\nshow Math.floor(3.9)'
+  },
+  'exp': {
+    signature: 'exp(value)',
+    source: 'Advanced Math Functions',
+    description: 'Returns Eulers number $e$ (approx. `2.71828`) raised to the power of $x$.',
+    example: 'exp(0)\nexp(1)\nlet sigmoid = 1.0 / (1.0 + exp(0.0 - 0.5))\nshow sigmoid'
+  },
+  'trunc': {
+    signature: 'trunc(value, length = 0)',
+    source: 'Advanced Math & String Utility',
+    description: 'Truncates a value. If the value is a number, it returns the integer part. If the value is a string, it truncates the text to the specified `length`.',
+    example: 'trunc(10.5) // 10\ntrunc("Hello World", 5) // "Hello"'
+  },
+  'args': {
+    signature: 'args[number]',
+    source: 'System I/O Standard Library',
+    description: 'An array of strings containing the command-line arguments passed to the Sesi script.',
+    example: 'show "Number of script args:" len(args)\nif len(args) > 0 { show "First script argument:" args[0] }'
+  },
+  'listen': {
+    signature: 'listen(port, handler_function)',
+    source: 'Network Server Standard Library',
+    description: 'Starts a native HTTP server on the specified port and calls the handler function for each incoming connection.',
+    example: 'async fn handle(req) { return {status: 200, body: "OK"} }\nlet server = listen(8080, handle)'
+  },
+  'live': {
+    signature: 'live(filePath, exportName = "handle")',
+    source: 'Network Server Standard Library',
+    description: 'Creates a dynamic hot-reloading wrapper around a Sesi script\'s exported function. When the returned function is called, it re-reads, re-parses, and re-executes the target file, ensuring changes to the code are instantly reflected without restarting the parent process.',
+    example: 'let handler = live("handler.sesi", "handleRequest")\nlet server = listen(8080, handler)'
+  },
+  'db_open': {
+    signature: 'db_open(filename, password?)',
+    source: 'Database Standard Library (std/db)',
+    description: 'After importing `std/db`, opens or creates a persistent document database file. An optional password enables encrypted storage.',
+    example: 'allow "std/db" in with {db_open}\nlet db = db_open("data.db")\nlet users = db.collection("users")'
+  },
+  'launch': {
+    signature: 'launch(options?)',
+    source: 'Browser Standard Library (std/browser)',
+    description: 'After importing `std/browser`, launches a Playwright browser instance. Options can configure settings such as headless mode.',
+    example: 'allow "std/browser" in with {launch}\nlet browser = launch({headless: true})\nlet page = browser.newPage()\npage.goto("https://code-with-sesi.netlify.app")'
+  },
+  'sf2': {
+    signature: 'sf2(path, options)',
+    source: 'Audio Standard Library (std/audio)',
+    description: 'After importing `std/audio`, creates an instrument function bound to a SoundFont (.sf2) file.',
+    example: 'allow "std/audio" in as Audio\nlet piano = Audio.sf2("GeneralUser-GS.sf2", {instrument: 0, gain: 1.5})\nlet note = piano("C4", 500)'
+  },
+  'mix': {
+    signature: 'mix(path, tracks_array, type, options)',
+    source: 'Audio Standard Library (std/audio)',
+    description: 'After importing `std/audio`, saves a stereo WAV file by mixing multiple tracks together.',
+    example: 'allow "std/audio" in as Audio\nAudio.mix("song.wav", [bass_track, piano_track], "sine", {saturate: 1.5})'
+  },
+  'synth': {
+    signature: 'synth(freq_or_note, duration_ms, type, options)',
+    source: 'Audio Standard Library (std/audio)',
+    description: 'After importing `std/audio`, returns a base64-encoded WAV string of a generated tone.',
+    example: 'allow "std/audio" in as Audio\nlet kick_b64 = Audio.synth(60, 500, "kick")'
+  },
+  'chord': {
+    signature: 'chord(root_note, type)',
+    source: 'Theory Standard Library (std/theory)',
+    description: 'After importing `std/theory`, generates an array of notes for a given chord type.',
+    example: 'allow "std/theory" in as Music\nlet c_maj7 = Music.chord("C4", "M7") // ["C4", "E4", "G4", "B4"]'
+  },
+  'scale': {
+    signature: 'scale(root_note, type)',
+    source: 'Theory Standard Library (std/theory)',
+    description: 'After importing `std/theory`, generates an array of notes for a given scale or mode.',
+    example: 'allow "std/theory" in as Music\nlet a_minor = Music.scale("A3", "minor")'
+  },
+  'transpose': {
+    signature: 'transpose(note_or_array, semitones)',
+    source: 'Theory Standard Library (std/theory)',
+    description: 'After importing `std/theory`, shifts a note or an array of notes by the specified number of semitones.',
+    example: 'allow "std/theory" in as Music\nlet shifted = Music.transpose(["C4", "E4"], 7) // ["G4", "B4"]'
+  },
+  'duration': {
+    signature: 'duration(minutes, seconds)',
+    source: 'Theory Standard Library (std/theory)',
+    description: 'After importing `std/theory`, converts minutes and seconds into milliseconds.',
+    example: 'allow "std/theory" in as Music\nlet ms = Music.duration(1, 30) // 90000 ms'
+  },
+  'bar': {
+    signature: 'bar(bars, bpm, beatsPerBar?)',
+    source: 'Theory Standard Library (std/theory)',
+    description: 'After importing `std/theory`, converts musical bars into milliseconds based on BPM and time signature.',
+    example: 'allow "std/theory" in as Music\nlet ms = Music.bar(8, 120) // 16000 ms'
+  },
+  'sequence': {
+    signature: 'sequence(path, notes_array, type, options?)',
+    source: 'Audio Standard Library (std/audio)',
+    description: 'After importing `std/audio`, saves a multi-note sequence to a WAV file.',
+    example: 'allow "std/audio" in as Audio\nAudio.sequence("melody.wav", [{note: "C4", ms: 500}], "saw")'
+  },
+  'midi': {
+    signature: 'midi(path, tracks)',
+    source: 'Audio Standard Library (std/audio)',
+    description: 'After importing `std/audio`, saves one or more tracks directly to a MIDI file.',
+    example: 'allow "std/audio" in as Audio\nAudio.midi("song.mid", melody_track)'
+  },
+  'play': {
+    signature: 'play(note, duration_ms, options?)',
+    source: 'Audio Standard Library (std/audio)',
+    description: 'After importing `std/audio`, plays a musical note through the system audio device.',
+    example: 'allow "std/audio" in as Audio\nAudio.play("E4", 500, {attack: 50, release: 200})'
+  },
+  'beep': {
+    signature: 'beep(freq, duration_ms)',
+    source: 'Audio Standard Library (std/audio)',
+    description: 'After importing `std/audio`, plays a basic sine-wave beep at the specified frequency in Hz.',
+    example: 'allow "std/audio" in as Audio\nAudio.beep(440, 200)'
+  },
+  'save': {
+    signature: 'save(path, freq_or_note, duration_ms, type, options?)',
+    source: 'Audio Standard Library (std/audio)',
+    description: 'After importing `std/audio`, generates a single tone and saves it to a WAV file.',
+    example: 'allow "std/audio" in as Audio\nAudio.save("kick.wav", 60, 500, "kick")'
+  },
+  'comp': {
+    signature: 'comp(sf2_path, notes_array, options?)',
+    source: 'Audio Standard Library (std/audio)',
+    description: 'After importing `std/audio`, batch-renders a sequence of notes using a SoundFont.',
+    example: 'allow "std/audio" in as Audio\nlet rendered_track = Audio.comp("font.sf2", melody_track)'
+  },
+  'render': {
+    signature: 'render(sf2_path, tracks_array, output_path, options?)',
+    source: 'Audio Standard Library (std/audio)',
+    description: 'After importing `std/audio`, batch-renders a complete multi-track arrangement through a SoundFont to a WAV file.',
+    example: 'allow "std/audio" in as Audio\nAudio.render("font.sf2", [track1, track2], "master.wav")'
+  },
+  'sixteen_levels': {
+    signature: 'sixteen_levels(pad, mode?, options?)',
+    source: 'Akai MPC Standard Library (std/mpc)',
+    description: 'Official Akai MPC 16 Levels mode. Spreads a pad sound across 16 pads by velocity, tune, filter, decay, or attack.',
+    example: 'allow "std/mpc" in as MPC\nlet bass_16 = MPC.sixteen_levels(pad1, "tune")'
+  },
+  'note_repeat': {
+    signature: 'note_repeat(pad, rate?, bars?, options?)',
+    source: 'Akai MPC Standard Library (std/mpc)',
+    description: 'Official Akai MPC Note Repeat function. Generates rhythmic repeats with swing and velocity ramps.',
+    example: 'allow "std/mpc" in as MPC\nlet rolls = MPC.note_repeat(3, "1/32", 1, {ramp: "crescendo"})'
+  },
+  'drum_kit': {
+    signature: 'drum_kit(nameOrPreset?)',
+    source: 'Akai MPC Standard Library (std/mpc)',
+    description: 'Creates a 16-pad Akai MPC drum program with tuning, levels, panning, envelopes, and choke groups.',
+    example: 'allow "std/mpc" in as MPC\nlet kit = MPC.drum_kit("boom_bap")'
+  },
+  'render_wav': {
+    signature: 'render_wav(target, path, options?)',
+    source: 'Akai MPC Standard Library (std/mpc)',
+    description: 'Renders an MPC sequence, song, or sample directly to a 16-bit 44.1kHz stereo WAV file.',
+    example: 'allow "std/mpc" in as MPC\nseq.render_wav("beat.wav")'
+  },
+  'render_midi': {
+    signature: 'render_midi(target, path)',
+    source: 'Akai MPC Standard Library (std/mpc)',
+    description: 'Exports an MPC sequence to a multi-track Standard MIDI File preserving Roger Linn swing timing.',
+    example: 'allow "std/mpc" in as MPC\nseq.render_midi("beat.mid")'
+  },
+  'clear': {
+    signature: 'clear()',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Clears the current SVG drawing buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.clear()'
+  },
+  'circle': {
+    signature: 'circle(x, y, radius, color, options = {})',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a circle on the SVG canvas.',
+    example: 'allow "std/draw" in as Draw\nDraw.circle(250, 250, 100, "red")'
+  },
+  'rect': {
+    signature: 'rect(x, y, width, height, color, options = {})',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a rectangle on the SVG canvas.',
+    example: 'allow "std/draw" in as Draw\nDraw.rect(0, 0, 500, 500, "#1a1a1a")'
+  },
+  'pixel': {
+    signature: 'pixel(x, y, color)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Sets one color value in the raster pixel buffer at (x, y).',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel(4, 4, "#ff00aa")'
+  },
+  'pixel_rect': {
+    signature: 'pixel_rect(x, y, w, h, color, filled = true)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a raster rectangle in the pixel buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_rect(0, 0, 16, 16, "#ff00aa")'
+  },
+  'pixel_circle': {
+    signature: 'pixel_circle(cx, cy, r, color, filled = true)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a raster circle in the pixel buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_circle(10, 10, 5, "#00ffaa")'
+  },
+  'pixel_line': {
+    signature: 'pixel_line(x1, y1, x2, y2, color)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a raster line in the pixel buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_line(0, 0, 20, 20, "#ffffff")'
+  },
+  'pixel_ellipse': {
+    signature: 'pixel_ellipse(cx, cy, rx, ry, color, filled = true)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a raster ellipse in the pixel buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_ellipse(15, 15, 8, 4, "#ffff00")'
+  },
+  'pixel_polygon': {
+    signature: 'pixel_polygon(points, color, filled = true)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a raster polygon in the pixel buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_polygon([[0,0],[10,0],[5,10]], "#ff00ff")'
+  },
+  'pixel_path': {
+    signature: 'pixel_path(d, color, filled = true)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Rasterizes SVG-style path commands into the pixel buffer. Supports lines, curves, arcs, and multiple subpaths.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_path("M 2 14 Q 8 2 14 14 Z", "#ff00ff")'
+  },
+  'pixel_triangle': {
+    signature: 'pixel_triangle(x1, y1, x2, y2, x3, y3, color, filled = true)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a raster triangle in the pixel buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_triangle(2, 14, 8, 2, 14, 14, "#ff4d6d")'
+  },
+  'pixel_star': {
+    signature: 'pixel_star(cx, cy, spikes, outerRadius, innerRadius, color, filled = true)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a raster star with configurable spike and radius counts in the pixel buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_star(16, 16, 5, 14, 6, "#ffd166")'
+  },
+  'pixel_ring': {
+    signature: 'pixel_ring(cx, cy, radius, thickness, color)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a raster ring with the requested thickness in the pixel buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_ring(16, 16, 12, 3, "#118ab2")'
+  },
+  'pixel_arc': {
+    signature: 'pixel_arc(cx, cy, radius, startAngle, endAngle, color)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a raster circular arc between two angles measured in degrees.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_arc(16, 16, 12, 0, 180, "#7209b7")'
+  },
+  'pixel_bezier': {
+    signature: 'pixel_bezier(x1, y1, cx, cy, x2, y2, color)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a raster quadratic Bezier curve through one control point.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_bezier(2, 28, 16, 2, 30, 28, "#4cc9f0")'
+  },
+  'pixel_text': {
+    signature: 'pixel_text(x, y, text, color, scale = 1, font = "classic")',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Rasterizes text into the pixel buffer using the classic 5x7 bitmap face or the smooth antialiased faces: bubble, impact, sans, light, serif, mono, script, comic, marker, wide, italic, and outline.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_text(20, 20, "Bubble Text", "#79e6ff", 12, "bubble")'
+  },
+  'pixel_grid': {
+    signature: 'pixel_grid(grid, palette, scale = 1, x = 0, y = 0)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a palette-indexed grid into the raster pixel buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel_grid(["01", "10"], {"0": "black", "1": "white"}, 16)'
+  },
+  'line': {
+    signature: 'line(x1, y1, x2, y2, color, options = {})',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a line on the SVG canvas.',
+    example: 'allow "std/draw" in as Draw\nDraw.line(0, 400, 500, 400, "white")'
+  },
+  'text': {
+    signature: 'text(x, y, text_string, font_size, color, options = {})',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws text on the SVG canvas.',
+    example: 'allow "std/draw" in as Draw\nDraw.text(20, 480, "Generated by Sesi", 14, "gray")'
+  },
+  'save_svg': {
+    signature: 'save_svg(path, width, height)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Saves the current drawing buffer to an SVG file on disk.',
+    example: 'allow "std/draw" in as Draw\nDraw.save_svg("art.svg", 500, 500)'
+  },
+  'save_png': {
+    signature: 'save_png(path, width, height, background = "transparent")',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Encodes the raster pixel buffer and saves it as a PNG file.',
+    example: 'allow "std/draw" in as Draw\nDraw.save_png("pixels.png", 64, 64)'
+  },
+  'ellipse': {
+    signature: 'ellipse(cx, cy, rx, ry, color, options = {})',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws an ellipse on the SVG canvas.',
+    example: 'allow "std/draw" in as Draw\nDraw.ellipse(250, 250, 100, 50, "cyan")'
+  },
+  'polygon': {
+    signature: 'polygon(points, color, options = {})',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws a polygon on the SVG canvas.',
+    example: 'allow "std/draw" in as Draw\nDraw.polygon("100,10 250,190 10,190", "magenta")'
+  },
+  'path': {
+    signature: 'path(d, color, options = {})',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Draws an SVG path on the SVG canvas.',
+    example: 'allow "std/draw" in as Draw\nDraw.path("M 10 10 L 90 90", "white")'
+  },
+  'gradient': {
+    signature: 'gradient(type, id, stops, options = {})',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Defines a linear or radial gradient in the SVG defs.',
+    example: 'allow "std/draw" in as Draw\nDraw.gradient("linear", "sky", [{offset: "0%", color: "blue"}, {offset: "100%", color: "black"}])'
+  },
+  'style': {
+    signature: 'style(cssText)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Defines a stylesheet block in the SVG defs for CSS styling or animations.',
+    example: 'allow "std/draw" in as Draw\nDraw.style(".spin { animation: spin 2s infinite; }")'
+  },
+  'raw': {
+    signature: 'raw(svgCode)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Injects raw SVG markup directly into the drawing buffer.',
+    example: 'allow "std/draw" in as Draw\nDraw.raw("<g>...</g>")'
+  },
+  'async': {
+    signature: 'async fn name() { ... }',
+    source: 'Sesi Control Flow',
+    description: 'Declares an asynchronous function that can perform non-blocking operations and suspend execution using the `await` operator.',
+    example: 'async fn fetchLogs() { return db.collection("logs").find() }'
+  },
+  'await': {
+    signature: 'await expression',
+    source: 'Sesi Control Flow',
+    description: 'Suspends the execution of an enclosing async function until the target promise or async operation completes and returns its value.',
+    example: 'async fn fetchLogs() { return db.collection("logs").find() }\nlet logs = await fetchLogs()'
+  },
+  'convert': {
+    signature: 'convert(doc_or_media_or_audio) { output_type: ext } { expression }',
+    source: 'Media Conversion Standard Library',
+    description: 'Native media conversion primitive. Transforms images, videos, audio, or documents to the specified format.',
+    example: 'let output = convert(media) { output_type: "jpg" } { "logo.png" }'
+  },
+  'gif': {
+    signature: 'gif(input, output, options = null)',
+    source: 'FFmpeg Media Standard Library',
+    description: 'Creates an animated GIF from a video file or an array of image-frame paths.',
+    example: 'let output = gif(\n   ["frame1.png", "frame2.png"],\n   "preview.gif",\n    {fps: 12, width: 640}\n)'
+  },
+  'video': {
+    signature: 'video(model) { config } { prompt } | video(input, output, options = null)',
+    source: 'AI Generation / FFmpeg Media Standard Library',
+    description: 'Generates video with Gemini Omni Flash or Veo, or creates/transcodes local media with FFmpeg.',
+    example: 'let localVid = video(frames, "build/preview.mp4", {\n  fps: 30,\n  width: 1280,\n  height: 720,\n  codec: "libx264",\n  crf: 23,\n  audio: "music.wav"\n})\nlet aiVid = video("veo-3.1-generate-preview") {duration: 8, ratio: "16:9"} {"A cinematic ocean shot"}'
+  },
+  'ffmpeg': {
+    signature: 'ffmpeg(args, options = null)',
+    source: 'FFmpeg Media Standard Library',
+    description: 'Runs FFmpeg with a structured argument array and returns its exit status and captured output.',
+    example: 'let info = ffmpeg(["-version"], {throw_on_error: false})'
+  },
+  'format': {
+    signature: 'format(timestamp, options = {})',
+    source: 'Time Standard Library (std/time)',
+    description: 'After importing `std/time`, converts a Unix timestamp into a readable localized string.',
+    example: 'allow "std/time" in as Time\nlet formatted = Time.format(Time.now(), {timeZone: "UTC", dateStyle: "medium", timeStyle: "short"})'
+  },
+  'debug': {
+    signature: 'debug(message)',
+    source: 'Debug Standard Library',
+    description: 'Pause execution and launch an interactive debugger REPL in your shell terminal.',
+    example: 'let x = 10\nlet y = 20\ndebug()\nlet z = x + y\nshow z'
+  },
+  'allow': {
+    signature: 'allow "module" in as Name\nallow "module" in with { names }',
+    source: 'Sesi Modules / Libs',
+    description: 'Imports a module or specific module functions, binding it to a scoped library namespace or importing names directly.',
+    example: 'allow "std/time" in as Time\nshow Time.format(Time.now)'
+  },
+  'with': {
+    signature: 'allow "module" in as Name\nallow "module" in with { names }',
+    source: 'Sesi Modules / Libs',
+    description: 'Used in allow statements to designate the namespace identifier or function list to bind.',
+    example: 'allow "std/terminal" in with { color, clear }'
+  },
+  'to_upper': {
+    signature: 'to_upper(string)',
+    source: 'String Utility Standard Library',
+    description: 'Returns the uppercase representation of the input string.',
+    example: 'let text = to_upper("hello")\nshow text'
+  },
+  'to_lower': {
+    signature: 'to_lower(string)',
+    source: 'String Utility Standard Library',
+    description: 'Returns the lowercase representation of the input string.',
+    example: 'let text = to_lower("WORLD")\nshow text'
+  },
+  'trim': {
+    signature: 'trim(string)',
+    source: 'String Utility Standard Library',
+    description: 'Removes leading and trailing whitespace from the string parameter.',
+    example: 'let cleaned = trim("  hello  ")\nshow cleaned'
+  },
+  'slice': {
+    signature: 'slice(collection, start, end = null)',
+    source: 'Collection Utility Standard Library',
+    description: 'Extracts a slice from a string or array starting at the start index up to (but not including) the end index.',
+    example: 'let part = slice("Hello World", 0, 5)\nshow part'
+  },
+  'swap': {
+    signature: 'swap(string, target, replacement)',
+    source: 'String Utility Standard Library',
+    description: 'Globally searches for the target string/character within the input string and replaces all occurrences with the replacement string.',
+    example: 'let res = swap("hello world", " ", "_")\nshow res'
+  },
+  'contains': {
+    signature: 'contains(string, sub)',
+    source: 'String Utility Standard Library',
+    description: 'Returns `true` if the string contains the given substring, `false` otherwise. Returns `null` if either argument is not a string.',
+    example: 'let found = contains("hello.sesi", ".sesi")\nshow found // true\nshow contains("hello.sesi", ".ts") // false'
+  },
+  'locate': {
+    signature: 'locate(string, sub)',
+    source: 'Array Utility Standard Library',
+    description: 'Returns the zero-based index of the first occurrence of a substring within a string. Returns `-1` if not found, or `null` if either argument is not a string.',
+    example: 'let idx = locate("hello.sesi", ".")\nshow idx // 5\nshow locate("hello.sesi", "ts") // -1'
+  },
+  'map': {
+    signature: 'map(array, fn)',
+    source: 'Array Utility Standard Library',
+    description: 'Applies a mapping function to each element of the array and returns a new array of mapped values.',
+    example: 'fn double(x) { return x * 2 }\nlet doubled = map([1, 2, 3], double)'
+  },
+  'filter': {
+    signature: 'filter(array, fn)',
+    source: 'Array Utility Standard Library',
+    description: 'Filters the elements of the array using a predicate function, returning a new array with all matching elements.',
+    example: 'fn isEven(x) { return x % 2 == 0 }\nlet evens = filter([1, 2, 3, 4], isEven)'
+  },
+  'reduce': {
+    signature: 'reduce(array, fn, initialValue = null)',
+    source: 'Array Utility Standard Library',
+    description: 'Reduces the elements of the array to a single value using an accumulator function starting with an optional initial value.',
+    example: 'fn add(acc, x) { return acc + x }\nlet sum = reduce([1, 2, 3, 4], add, 0)'
+  },
+  'find': {
+    signature: 'find(array, fn)',
+    source: 'Array Utility Standard Library',
+    description: 'Returns the first element in the array that satisfies the provided predicate function, or null if no element matches.',
+    example: 'fn isThree(x) { return x == 3 }\nlet item = find([1, 2, 3], isThree)'
+  },
+  'retry': {
+    signature: 'retry(fn, options)',
+    source: 'Fault Tolerance Standard Library',
+    description: 'Executes the given function with automatic retry and exponential backoff configuration upon encountering an exception.',
+    example: 'fn dangerousAction() { ... }\nlet res = retry(dangerousAction, { max_retries: 3 })'
+  },
+  'lazy': {
+    signature: 'lazy(fn, ...args)',
+    source: 'Runtime Control Standard Library',
+    description: 'Creates a memoized delayed computation. The function is not executed until the lazy value is passed to `force(...)`, and the result is cached after the first force.',
+    example: 'fn expensive() { return 42 }\nlet delayed = lazy(expensive)\nshow force(delayed)'
+  },
+  'force': {
+    signature: 'force(value)',
+    source: 'Runtime Control Standard Library',
+    description: 'Resolves a lazy value or promise. Non-lazy values are returned unchanged.',
+    example: 'let delayed = lazy(expensive)\nlet value = force(delayed)'
+  },
+  'timeout': {
+    signature: 'timeout(fn, ms, fallback = unset)',
+    source: 'Fault Tolerance Standard Library',
+    description: 'Runs a function with a millisecond deadline. If it times out, returns the optional fallback value or throws a TimeoutError when no fallback is provided.',
+    example: 'fn slow() { sleep(1000); return "done" }\nlet value = timeout(slow, 100, "too slow")'
+  },
+  'profile': {
+    signature: 'profile(name, fn)',
+    source: 'Profiler Standard Library',
+    description: 'Measures a function call under the given profile name and returns the wrapped function result unchanged.',
+    example: 'fn work() { return 42 }\nlet result = profile("work", work)'
+  },
+  'profile_start': {
+    signature: 'profile_start(name)',
+    source: 'Profiler Standard Library',
+    description: 'Starts a named manual profiling section and returns the normalized section name.',
+    example: 'profile_start("load")\nlet data = read_file("input.txt")\nprofile_end("load")'
+  },
+  'profile_end': {
+    signature: 'profile_end(name)',
+    source: 'Profiler Standard Library',
+    description: 'Ends a named manual profiling section and returns the latest measurement summary object.',
+    example: 'profile_start("work")\nwork()\nlet measurement = profile_end("work")'
+  },
+  'profile_report': {
+    signature: 'profile_report(format = "object")',
+    source: 'Profiler Standard Library',
+    description: 'Returns recorded profiler measurements sorted by total runtime. Pass "text" for a printable table.',
+    example: 'show profile_report("text")'
+  },
+  'name': {
+    signature: 'name(func)',
+    source: 'Function Introspection',
+    description: 'Returns the name of a given function.',
+    example: 'show name(read_file)'
+  },
+  'arity': {
+    signature: 'arity(func)',
+    source: 'Function Introspection',
+    description: 'Returns the number of parameters a function expects.',
+    example: 'show arity(web_get)'
+  },
+  'is_function': {
+    signature: 'is_function(value)',
+    source: 'Function Introspection',
+    description: 'Checks whether a value is a function.',
+    example: 'show is_function(list_dir)'
+  },
+  'is_array': {
+    signature: 'is_array(value)',
+    source: 'Collection Checks',
+    description: 'Checks whether a value is an array.',
+    example: 'show is_array([1, 2])'
+  },
+  'is_object': {
+    signature: 'is_object(value)',
+    source: 'Collection Checks',
+    description: 'Checks whether a value is an object.',
+    example: 'show is_object({a: 1})'
+  },
+  'is_string': {
+    signature: 'is_string(value)',
+    source: 'Collection Checks',
+    description: 'Checks whether a value is a string.',
+    example: 'show is_string("hello")'
+  },
+  'is_number': {
+    signature: 'is_number(value)',
+    source: 'Collection Checks',
+    description: 'Checks whether a value is a number.',
+    example: 'show is_number(42)'
+  },
+  'is_bool': {
+    signature: 'is_bool(value)',
+    source: 'Collection Checks',
+    description: 'Checks whether a value is a boolean.',
+    example: 'show is_bool(true)'
+  },
+  'is_null': {
+    signature: 'is_null(value)',
+    source: 'Collection Checks',
+    description: 'Checks whether a value is null.',
+    example: 'show is_null(null)'
+  },
+  'length': {
+    signature: 'length(collection)',
+    source: 'String Functions',
+    description: 'Alias for len(). Returns the number of characters, elements, or object keys.',
+    example: 'show length("hello")'
+  },
+  'starts_with': {
+    signature: 'starts_with(string, prefix)',
+    source: 'String Functions',
+    description: 'Checks if a string starts with the given prefix.',
+    example: 'show starts_with("hello", "he")'
+  },
+  'ends_with': {
+    signature: 'ends_with(string, suffix)',
+    source: 'String Functions',
+    description: 'Checks if a string ends with the given suffix.',
+    example: 'show ends_with("hello", "lo")'
+  },
+  'index_of': {
+    signature: 'index_of(collection, value)',
+    source: 'String & Array Functions',
+    description: 'Returns the first index at which a given value can be found in the collection (string or array), or -1 if it is not present.',
+    example: 'show index_of("hello", "l")'
+  },
+  'repeat': {
+    signature: 'repeat(string, count)',
+    source: 'String Functions',
+    description: 'Constructs and returns a new string which contains the specified number of copies of the string concatenated together.',
+    example: 'show repeat("a", 3)'
+  },
+  'includes': {
+    signature: 'includes(collection, value)',
+    source: 'String & Array Functions',
+    description: 'Checks if a collection (array or string) includes a certain value.',
+    example: 'show includes([1, 2, 3], 2)'
+  },
+  'reverse': {
+    signature: 'reverse(array)',
+    source: 'Array Functions',
+    description: 'Returns a reversed copy of the array without modifying the original.',
+    example: 'show reverse([1, 2, 3])'
+  },
+  'sort': {
+    signature: 'sort(array, compareFn?)',
+    source: 'Array Functions',
+    description: 'Sorts the elements of an array and returns it. Optionally takes a comparison function.',
+    example: 'show sort(["c", "a", "b"])'
+  },
+  'unique': {
+    signature: 'unique(array)',
+    source: 'Array Functions',
+    description: 'Returns a new array with all duplicate elements removed.',
+    example: 'show unique([1, 1, 2, 3, 3])'
+  },
+  'flatten': {
+    signature: 'flatten(array)',
+    source: 'Array Functions',
+    description: 'Returns a new array with nested elements concatenated by one level.',
+    example: 'show flatten([[1, 2], [3, 4]])'
+  },
+  'env': {
+    signature: 'env(key = null, defaultValue = null)',
+    source: 'System Functions Standard Library',
+    description: 'Retrieve the value of an environment variable, or retrieve all environment variables as an object.',
+    example: 'let apiKey = env("GEMINI_API_KEY")\nlet port = env("PORT", "8080")\nlet allEnvs = env()'
+  },
+  'create_app': {
+    signature: 'create_app(config = null)',
+    source: 'API Framework Standard Library (std/api)',
+    description: 'Creates an API application instance. `config` options include `title`, `version`, `description`, and `base_path`.',
+    example: 'allow "std/api" in as API\nlet app = API.create_app({\n  "title": "Users API",\n  "version": "1.0.0",\n  "description": "A user management API"\n})'
+  }
+}

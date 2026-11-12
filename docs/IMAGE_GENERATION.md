@@ -84,8 +84,12 @@ When configuring the `image` call (specifically for models like `gemini-3.1-flas
 
 - `ratio`: The aspect ratio of the image (e.g., `"1:1"`, `"16:9"`, `"9:16"`).
 - `size`: Dimensional sizing constraints (Must be `"512"`, `"1K"`, `"2K"`, or `"4K"`).
+- `images`: Image context supplied as local paths, HTTP(S) URLs, image data URLs, `{data, mimeType}`, `{uri, mimeType?}`, or an array of these inputs.
 - `audio`: Audio context supplied as a local path, an audio data URL, or `{data, mimeType}` Base64 audio.
-- `temperature`: _Will be deprecated in Gemini 3.x+, use thinkingLevel instead._ — controls variance.
+- `videos` (alias `video`): Video context for Gemini image models that accept video. Accepts local paths, HTTP(S) URLs, video data URLs, `{data, mimeType}`, `{uri, mimeType?}`, or an array of these inputs. OpenAI image models reject video input.
+- `background`: Sets the background mode for the image. Accepts `"transparent"`, `"opaque"`, or `"auto"`.
+- `thinkingLevel`: How much reasoning the model should apply, affecting the creativity and detail of the output.
+- `temperature`: _Deprecated, use thinkingLevel instead._ — controls variance.
 
 GPT image models are also supported through the same `image()` primitive. When you pass a model such as `gpt-image-2`, Sesi routes the call through OpenAI's image generation API and uses `ratio` to choose an OpenAI-compatible output size.
 
@@ -93,8 +97,31 @@ GPT image models are also supported through the same `image()` primitive. When y
 let logo = image("gpt-image-2") {ratio: "1:1"} {"A bold, flat logo for a fictional studio, black on warm white."}
 write_image("gpt-generated-logo.png", logo)
 ```
-
 <img src="gpt-generated-logo.png" alt="GPT Generated Logo" style="width:340px;">
+
+For real alpha transparency, set `background: "transparent"` on a GPT image model
+that supports transparent output. Asking for transparency only in the prompt does
+not explicitly enable the API's transparent background setting.
+
+```sesi
+let sticker = image("gpt-image-2.5-sunburst") {background: "transparent", ratio: "1:1", cache: false} {"A die-cut sticker of a cheerful robot, isolated on a transparent background."}
+write_image("robot-sticker.png", sticker)
+```
+<img src="robot-sticker.png" alt="Robot Sticker" style="width:340px;">
+
+`background` accepts `"transparent"`, `"opaque"`, or `"auto"`.
+
+
+## Passing Video to Image Models
+
+Gemini image models with video support, including `gemini-3.1-flash-image`, can generate an image from video context:
+
+```sesi
+let poster = image("gemini-3.1-flash-image") {videos: "clip.mp4", ratio: "16:9", cache: false} {"Create a cinematic poster capturing this video's main subject."}
+write_image("poster.png", poster)
+```
+
+See [Passing Videos as Input](REASONING.md#passing-videos-as-input) for multiple videos, uploaded-file URIs, supported formats, size limits, browser behavior, and caching. This configuration uses an existing video to inform an image; `video()` is the separate video-generation operation.
 
 ## Passing Audio to Image Models
 
@@ -119,7 +146,15 @@ Gemini receives the audio as inline multimodal input. For OpenAI image generatio
 
 ## File I/O Integration: `write_image`
 
-The `image()` call evaluates to a `string` (specifically, base64-encoded image data). To convert this into a standard image file on disk, use either `write_image(path, base64_content)` or `write_file(path, base64_content, "base64")`.
+By default, `image()` evaluates to a `string` containing base64-encoded image data. To convert this into a standard image file on disk, use either `write_image(path, base64_content)` or `write_file(path, base64_content, "base64")`.
+
+Set `response: "full"` to receive an object. Its `text` field contains the same Base64 image data, while `model`, `finish_reason`, `media_type`, `generated_images`, token counts, and estimated cost describe the call. Token and cost fields are `null` when the provider does not report usage.
+
+```sesi
+let result = image("gemini-3.1-flash-image") {response: "full"} {"A blue bird in flight"}
+write_image("bird.png", result.text)
+show result.total_cost_usd
+```
 
 `write_image` remains the clearest option for image payloads, while `write_file(..., "base64")` is useful for generalized binary writes.
 

@@ -11,6 +11,7 @@ allow "string" in with {toPascal, toKebab, substring}
 allow "timestamp" in with {formattedTime, localTime, getDate}
 allow "refs" in as DOCS
 allow "ansi" in as TERM
+allow "usage" in with {track_model, track_structured_model, track_image}
 
 let _ = DOCS.getBUILTINS() + "\n" + DOCS.getAUDIO() + "\n" + DOCS.getSVG_PIXELS() + "\n" + DOCS.getVARIABLES() + "\n" + DOCS.getFUNCTIONS() + "\n" + DOCS.getMAKE() + "\n" + DOCS.getHOW_TO() + "\n" + DOCS.getGUIDE()
 /**
@@ -71,13 +72,14 @@ export fn local(promptText: string) -> string {
 }
 
 /**
-  Performs an online web search using an AI model and appends formatted source URLs to the results.
+  Performs an online web search using an AI model and returns structured results including sources and links.
 
   Parameters:
   - query: The search query string.
+  - config: Optional boolean to include configuration details in the response.
 
   Returns:
-  - A string containing the model's findings followed by a formatted list of sources.
+  - An object containing the search results, sources, links, and optionally configuration and cost.
 
   Example:
   ```sesi
@@ -87,55 +89,51 @@ export fn local(promptText: string) -> string {
 
   Notes:
   - Uses the `gemini-3.5-flash-lite` model with web search capability enabled.
+  - If `config` is true, the response will include configuration and cost details.
 */
-export fn onlineSearch(query: string) -> string {
-    fn findURL(searchResults){
-    let lines = split(searchResults, "\n")
-    for line in lines {
-        if regex("https?://[\\w.-]+", line, {"mode": "match", "flags": "g"}) != [] {
-            // Extract the first URL found in the line and preserve the whole URL, including any query parameters
-            let urlMatch = regex("https?://[\\w.-]+(?:/[\\w./?=&%+-]*)?", line, {"mode": "match", "flags": "g"})
-            if urlMatch != [] {
-                return urlMatch[0]
-            }
-        }
-    }
-    return ""
-}
+export fn onlineSearch(query: string, config = false) -> object {
     prompt searchInstructions {"You have access to a search tool that can retrieve information from the web. Use this tool to find relevant information based on the user's query. Provide your findings, and include links to the sources."}
-    let results =  model("gemini-3.5-flash-lite") {system: searchInstructions, search, maxT: 1024} {"Search for the following query: " query"
-    Return only the relevant information and links to the sources."}
-    let urlCheck = ""
-    let URLs = []
-    let extracted = results | split("\n")
+    let results = track_structured_model(
+        "Search for the following query: " + query + "\nReturn only the relevant information and links to the sources.", {
+            results: "string",
+            sources: "array",
+            links: "array"
+        },
+        {
+            model_name: "gemini-3.5-flash-lite",
+            system: searchInstructions,
+            thinking: "medium",
+            search: true,
+            max_tokens: 4096,
+            response: "full"
+        }
+    )
 
-    // Extract URLs from the search results and store them in the URLs array
-    for lines in extracted {
-        urlCheck = findURL(lines)
-        if urlCheck != "" {
-            push(URLs, urlCheck.match)
+    let response = results.response
+    if response == null { raise_error("SearchError", "An error occurred while performing the search:" + results) }
+    let result = response.results
+    let sources = response.sources
+    let links = response.links
+    show "Time taken:" results.duration
+    if config {
+        return {
+            configuration: results.config_used,
+            query: query,
+            cost: results.cost,
+            duration: results.duration,
+            answer: result,
+            sources: sources,
+            links: links,
+            complete_log: results
         }
     }
-
-    if (URLs | length) > 0 {
-        let URL = URLs | join("\n")
-
-        // Clean up the results by removing any trailing "Source" or "Sources" sections, as well as any content after a "[" character
-        if results | contains("Source") || results | contains("source") {
-            results = split(results, "Source")[0] | trim
-        } else if results | contains("SOURCE") {
-            results = split(results, "SOURCE")[0] | trim
-        } else if results | contains("Sources") || results | contains("sources") {
-            results = split(results, "Sources")[0] | trim
-        } else if results | contains("SOURCES") {
-            results = split(results, "SOURCES")[0] | trim
-        } else if results | contains("[") {
-            results = split(results, "[")[0] | trim
-        }
-        results = results + "\n\nSource(s):\n" + URL
-        return results
-    } else {
-        return results
+    return {
+        query: query,
+        cost: results.cost,
+        duration: results.duration,
+        answer: result,
+        sources: sources,
+        links: links
     }
 }
 
@@ -144,9 +142,10 @@ export fn onlineSearch(query: string) -> string {
 
   Parameters:
   - promptText: The math expression or word problem to calculate. Can be any type.
+  - config: Optional boolean to include configuration details in the response.
 
   Returns:
-  - A string containing the calculated result or step-by-step breakdown.
+  - An object containing the calculation result, and optionally configuration and cost.
 
   Example:
   ```sesi
@@ -156,14 +155,32 @@ export fn onlineSearch(query: string) -> string {
 
   Notes:
   - Uses the `gemini-3.5-flash-lite` model configured with a calculator persona.
+  - If `config` is true, the response will include configuration and cost details.
 */
-export fn calculate(promptText: any) -> string {
+export fn calculate(promptText: any, config = false) -> any {
     prompt calculator {"You are a reliable and accurate calculator. You are tasked with performing calculations based on user input.
-    If the input is a mathematical expression, evaluate it and provide the number only.
-    If the input is a word problem or a question that requires calculations, break down the problem step by step and provide the final answer."}
-    let r = model("gemini-3.5-flash-lite") {system: calculator, thinking: "medium"} {"Calculate the following: " promptText | str}
-    show "Total cost for this request:" model_usage().total_cost_usd
-    return r
+If the input is a mathematical expression, evaluate it and provide the number only.
+If the input is a word problem or a question that requires calculations, break down the problem step by step in human-readable form and provide the final answer."}
+    let r = track_model("Calculate the following: " + promptText | str, {
+            model_name: "gemini-3.5-flash-lite",
+            system: calculator,
+            thinking: "medium",
+            response: "full"
+        }
+    )
+    if r.response == null { raise_error("CalculationError", "An error occurred while performing the calculation:" + r) }
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            cost: r.cost,
+            duration: r.duration,
+            answer: r.response,
+            complete_log: r
+        }
+    }
+    return r.response
 }
 
 /**
@@ -171,10 +188,11 @@ export fn calculate(promptText: any) -> string {
 
   Parameters:
   - promptText: The content or data to review.
-  - modelName: Optional. The name of the AI model to use for the review (default "gpt-6.1-sol").
+  - modelName: Optional. The name of the AI model to use for the review (default "gpt-6.1-terra").
+  - config: Optional boolean to include configuration details in the response.
 
   Returns:
-  - A string containing the analyst's review and recommendations.
+  - An object containing the review result, and optionally configuration and cost.
 
   Example:
   ```sesi
@@ -182,49 +200,94 @@ export fn calculate(promptText: any) -> string {
   show feedback
   ```
 
-    Notes:
-    - Uses the specified model for review analysis, defaulting to 'gpt-6.1-sol' if none is provided.
+  Notes:
+  - Uses the specified model for review analysis, defaulting to 'gpt-6.1-terra' if none is provided.
+  - If `config` is true, the response will include configuration and cost details.
 */
-export fn review(promptText: string, modelName) -> string? | any {
-    if !modelName { modelName = "gpt-6.1-sol" }
+export fn review(promptText: string, modelName, config = false) -> any {
+    if !modelName { modelName = "gpt-6.1-terra" }
     let r = ""
     prompt sys {"You are a professional and observant analyst. You are tasked with reviewing data based on user input."}
     prompt reviewPrompt {"Review the following content for potential issues, improvements, and best practices: "promptText}
-    try { r = model(modelName) {system: sys, thinking: "medium"} {reviewPrompt} show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (err) {
-        TERM.error(err.message)
-        return promptText
+    try {
+        r = track_model(reviewPrompt, {
+                model_name: modelName,
+                system: sys,
+                thinking: "medium",
+                response: "full"
+            }
+        ) 
+    } catch (err) { TERM.error(err.message) }
+    if r.response == null { raise_error("ReviewError", "An error occurred while performing the review:" + r) }
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            cost: r.cost,
+            duration: r.duration,
+            review: r.response,
+            complete_log: r
+        }
     }
-    return r
+    return r.response
 }
 
 /**
   Analyzes images and provides detailed observations and insights.
 
   Parameters:
-  - imagePath: The path or array of paths to the images to analyze.
+  - imagePath: An array of paths to the images to analyze.
   - promptText: Additional context or instructions for the analysis.
-  - useCache: A boolean indicating whether to use cached analysis results if available. Defaults to true.
+  - useCache: Optional. A boolean indicating whether to use cached analysis results if available. Defaults to true.
+  - config: Optional. A boolean to include configuration details in the response.
 
   Returns:
-  - A string containing the analysis and observations.
+  - A string containing the analysis and observations, or an object with configuration and cost details if `config` is true.
 
   Example:
   ```sesi
-  let analysis = askAboutIMG("image.jpg", "What does the image contain?", false)
+  let analysis = askAboutIMG(["image.jpg"], "What does the image contain?", false)
   show analysis
   ```
 
   Notes:
   - Uses the `gpt-6-luna` model with a fallback to `gemini-3.5-flash-lite` for image analysis.
+  - Supports caching of analysis results to optimize performance and reduce costs.
+  - If `config` is true, the response will include configuration and cost details.
 */
-export fn askAboutIMG(imagePath: string | array<string>, promptText: string, useCache: bool = true) -> string? | any {
+export fn askAboutIMG(imagePath: array<string>, promptText: string, useCache: bool = true, config = false) -> string? | any {
     prompt sys {"You are an image analyst. You are tasked with analyzing images based on user input. Provide detailed observations and insights about the images."}
     let r = ""
-    try { r = model("gpt-6-luna") {system: sys, images: imagePath, cache: useCache} {promptText} }
-    catch { r = model("gemini-3.5-flash-lite") {system: sys, images: imagePath} {promptText} }
-    show "Total cost for this request:" model_usage().total_cost_usd
-    return r
+    try {
+        r = track_model(promptText, {
+                model_name: "gpt-6-luna",
+                system: sys,
+                images: imagePath,
+                cache: useCache
+            }
+        ) 
+    } catch { 
+        r = track_model(promptText, {
+                model_name: "gemini-3.5-flash-lite",
+                system: sys,
+                images: imagePath,
+                cache: useCache
+            }
+        )
+    }
+    if r.response == null { raise_error("ImageAnalysisError", "An error occurred while analyzing the image:" + r) }
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            cost: r.cost,
+            duration: r.duration,
+            analysis: r.response
+        }
+    }
+    return r.response
 }
 
 /**
@@ -233,9 +296,10 @@ export fn askAboutIMG(imagePath: string | array<string>, promptText: string, use
   Parameters:
   - promptText: The concept, term, or text to explain.
   - modelName: Optional. The name of the AI model to use for the explanation (default "gpt-6-luna").
+  - config: Optional. If true, returns an object with configuration and cost details (default false).
 
   Returns:
-  - A detailed explanation string.
+  - A detailed explanation string or an object with configuration and cost details if `config` is true.
 
   Example:
   ```sesi
@@ -245,14 +309,34 @@ export fn askAboutIMG(imagePath: string | array<string>, promptText: string, use
 
   Notes:
   - Uses the specified model for explanation, defaulting to `gpt-6-luna` with medium thinking if none is provided.
+  - If `config` is true, the response will include configuration and cost details.
 */
-export fn explain(promptText: string, modelName) -> string {
+export fn explain(promptText: string, modelName, config = false) -> any {
     if !modelName { modelName = "gpt-6-luna" }
     prompt explainer {"You break down complex concepts into simple, easy-to-understand explanations. You are tasked with explaining the following prompt in detail."}
     let r = ""
-    try { r = model(modelName) {system: explainer, thinking: "medium"} {"Explain the following in detail: " promptText} show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    return r
+    try {
+        r = track_model("Explain the following in detail: " + promptText, {
+                model_name: modelName,
+                system: explainer,
+                thinking: "medium",
+                response: "full"
+            }
+        ) 
+    } catch (e) { TERM.error(e.message) }
+    if r.response == null { raise_error("ExplanationError", "An error occurred while explaining the concept:" + r) }
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            cost: r.cost,
+            duration: r.duration,
+            explanation: r.response,
+            complete_log: r
+        }
+    }
+    return r.response
 }
 
 /**
@@ -261,9 +345,10 @@ export fn explain(promptText: string, modelName) -> string {
   Parameters:
   - promptText: The text to summarize.
   - modelName: Optional. The name of the AI model to use for the summarization (default "gpt-6-luna").
+  - config: Optional. If true, returns an object with configuration and cost details (default false).
 
   Returns:
-  - A summary string.
+  - A summary string or an object with configuration and cost details if `config` is true.
 
   Example:
   ```sesi
@@ -273,14 +358,35 @@ export fn explain(promptText: string, modelName) -> string {
 
   Notes:
   - Uses the specified model for summarization, defaulting to `gpt-6-luna` with medium thinking if none is provided.
+  - If `config` is true, the response will include configuration and cost details.
 */
-export fn summarize(promptText: string, modelName) -> string {
+export fn summarize(promptText: string, modelName, config = false) -> any {
     if !modelName { modelName = "gpt-6-luna" }
     prompt summarizer {"You are a professional summarizer that understands intent and nuance. You are tasked with summarizing the following prompt in a clear and concise manner."}
     let r = ""
-    try { r = model(modelName) {system: summarizer, thinking: "medium"} {"Summarize the following: " promptText} show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    return r
+    try {
+        r = track_model(
+            "Summarize the following: " + promptText, {
+                model_name: modelName,
+                system: summarizer,
+                thinking: "medium",
+                response: "full"
+            }
+        ) 
+    } catch (e) { TERM.error(e.message) }
+    if r.response == null { raise_error("SummarizationError", "An error occurred while summarizing the text:" + r) }
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            cost: r.cost,
+            duration: r.duration,
+            summary: r.response,
+            complete_log: r
+        }
+    }
+    return r.response
 }
 
 /**
@@ -290,6 +396,7 @@ export fn summarize(promptText: string, modelName) -> string {
   - a: First item or text to compare.
   - b: Second item or text to compare.
   - modelName: Optional. The name of the AI model to use for the comparison (default "gpt-6-luna").
+  - config: Optional. If true, returns an object with configuration and cost details (default false).
 
   Returns:
   - A string containing a table or structured comparison analysis.
@@ -302,19 +409,40 @@ export fn summarize(promptText: string, modelName) -> string {
 
   Notes:
   - Uses the specified model for comparison, defaulting to `gpt-6-luna` with medium thinking if none is provided.
+  - If `config` is true, the response will include configuration and cost details.
 */
-export fn compare(a: string, b: string, modelName) -> string {
+export fn compare(a: string, b: string, modelName, config = false) -> any {
     if !modelName { modelName = "gpt-6-luna" }
     let r = ""
     prompt comparer {"You have an innate ability to compare and contrast different pieces of information. You are tasked with comparing the following two items and providing a detailed analysis of their similarities, differences, and any notable points."}
-    try { r = model(modelName) {system: comparer, thinking: "medium"} {"Compare the following:
-    A: " a "
+    try {
+        r = track_model(
+            "Compare the following:
+A: " + a + "
 
-    B: " b"
+B: " + b + "
 
-    Return a table or structured format that clearly outlines the similarities, differences, and notable points between the two items."} show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    return r
+Return a table or structured format that clearly outlines the similarities, differences, and notable points between the two items.", {
+                model_name: modelName,
+                system: comparer,
+                thinking: "medium",
+                response: "full"
+            }
+        )
+    } catch (e) { TERM.error(e.message) }
+    if r.response == null { raise_error("ComparisonError", "An error occurred while comparing the items:" + r) }
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            context: {a: a, b: b},
+            cost: r.cost,
+            duration: r.duration,
+            comparison: r.response,
+            complete_log: r
+        }
+    }
+    return r.response
 }
 
 /**
@@ -323,6 +451,8 @@ export fn compare(a: string, b: string, modelName) -> string {
   Parameters:
   - promptText: The source text or topic to generate questions from.
   - modelName: Optional. The name of the AI model to use for generating questions (default "gpt-6-luna").
+  - config: Optional. If true, the response will include configuration and cost details.
+  
 
   Returns:
   - A string listing the generated questions.
@@ -333,17 +463,34 @@ export fn compare(a: string, b: string, modelName) -> string {
   show qList
   ```
 
-  Notes:
-  - Returns only the question list without extraneous explanations.
+  Notes:.
+  - If 'config' is true, the response will include configuration and cost details.
 */
-export fn generateQuestions(promptText: string, modelName) -> string {
+export fn generateQuestions(promptText: string, modelName, config = false) -> any {
     if !modelName { modelName = "gpt-6-luna" }
     let r = ""
     prompt questionGenerator {"You are an inquisitive and insightful individual. You are tasked with generating a list of questions based on the following prompt."}
-    try { r = model(modelName) {system: questionGenerator, thinking: "medium"} {"Generate questions based on the following: " promptText "
-    Return only the list of questions without any additional explanations or comments."} show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    return r
+    try {
+        r = track_model("Generate questions based on the following: " + promptText + "
+Return only the list of questions without any additional explanations or comments.", {
+                model_name: modelName,
+                system: questionGenerator,
+                thinking: "medium"
+            }
+        ) 
+    } catch (e) { TERM.error(e.message) }
+    if r.response == null { raise_error("GenerationError", "An error occurred while generating questions:" + r) }
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            cost: r.cost,
+            duration: r.duration,
+            questions: r.response
+        }
+    }
+    return r.response
 }
 
 /**
@@ -352,9 +499,10 @@ export fn generateQuestions(promptText: string, modelName) -> string {
   Parameters:
   - promptText: The topic or goal to inspire ideas around.
   - modelName: Optional. The name of the AI model to use for generating inspirations (default "gpt-6-luna").
+  - config: Optional. If true, the response will include configuration and cost details (default false).
 
   Returns:
-  - A JSON object string or native Sesi object containing fields: 'ideas', 'names', 'concepts', and 'suggestions'.
+  - A JSON object string or native Sesi object containing fields: 'ideas', 'names', 'concepts', 'suggestions', and optionally 'configuration', 'cost', and 'duration' if 'config' is true.
 
   Example:
   ```sesi
@@ -364,25 +512,85 @@ export fn generateQuestions(promptText: string, modelName) -> string {
 
   Notes:
   - Cleans AI response and parses structured JSON output.
+  - If 'config' is true, includes configuration, cost, and duration details in the response.
   - Uses search tool to ground inspirations in real-world context.
 */
-export fn inspire(promptText: string, returnType: string = "JSON", modelName) -> object | string {
+export fn inspire(promptText: string, returnType: string = "JSON", modelName, config = false) -> object | string {
     if !modelName { modelName = "gpt-6-luna" }
     prompt inspirer {"You are a creative and inspiring individual. You are tasked with providing useful ideas, interesting names, thorough concepts, and creative suggestions based on the following prompt."}
     let resp = ""
-    try { resp = structured_output({ideas: string, names: string, concepts: string, suggestions: string})
-        (model(modelName) {system: inspirer, thinking: "medium", search} {"
-    Provide inspiration based on the following: "promptText".
-    Each should contain 3-4 sentences
-    If a field doesn't require an entry, simply leave it empty."})
-        show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    let i = resp.ideas | split(". ")
-    let n = resp.names | split(". ")
-    let c = resp.concepts | split(". ")
-    let s = resp.suggestions | split(". ")
-    if returnType == "JSON" { return {ideas: i, names: n, concepts: c, suggestions: s} | to_json
-    } else if returnType == "object" { return {ideas: i, names: n, concepts: c, suggestions: s} }
+    try {
+        resp = track_structured_model("Provide inspiration based on the following: "promptText".
+Each should contain 3-4 sentences.
+If a field doesn't require an entry, simply leave it empty.",
+            {
+                ideas: "array",
+                names: "array",
+                concepts: "array",
+                suggestions: "array"
+            },
+            {   
+                model_name: modelName,
+                system: inspirer,
+                thinking: "medium",
+                search: true,
+                response: "full"
+            }
+        )
+    } catch (e) { TERM.error(e.message) }
+    if resp.response == null { raise_error("GenerationError", "An error occurred while generating inspirations:" + resp) }
+    show "Time taken:" resp.duration
+    let i = resp.response.ideas
+    let n = resp.response.names
+    let c = resp.response.concepts
+    let s = resp.response.suggestions
+    if returnType == "JSON" { 
+        if config {
+            return {
+                configuration: resp.config_used,
+                request: promptText,
+                cost: resp.cost,
+                duration: resp.duration,
+                ideas: i,
+                names: n,
+                concepts: c,
+                suggestions: s,
+                complete_log: resp
+            } | to_json 
+        }
+        return {
+            request: promptText,
+            cost: resp.cost,
+            duration: resp.duration,
+            ideas: i,
+            names: n,
+            concepts: c,
+            suggestions: s
+        } | to_json
+    } else if returnType == "object" { 
+        if config {
+            return {
+                configuration: resp.config_used,
+                request: promptText,
+                cost: resp.cost,
+                duration: resp.duration,
+                ideas: i,
+                names: n,
+                concepts: c,
+                suggestions: s,
+                complete_log: resp
+            }
+        }
+        return {
+            request: promptText,
+            cost: resp.cost,
+            duration: resp.duration,
+            ideas: i,
+            names: n,
+            concepts: c,
+            suggestions: s
+        }
+    }
 }
 
 /**
@@ -393,6 +601,7 @@ export fn inspire(promptText: string, returnType: string = "JSON", modelName) ->
   - maxTokens: The maximum number of tokens to use when generating the improved prompt. Defaults to 1024.
   - sesiGuide: A boolean indicating whether to include SESI references in the prompt engineering process. Defaults to false.
   - modelName: Optional. The name of the AI model to use for improving the prompt (default "gpt-6-luna").
+  - config: A boolean indicating whether to include configuration details in the returned result. Defaults to false.
 
   Returns:
   - An improved prompt string.
@@ -405,22 +614,42 @@ export fn inspire(promptText: string, returnType: string = "JSON", modelName) ->
 
   Notes:
   - Attempts generation using the specified model first, defaulting to `gpt-6-luna` if none is provided.
+  - If `sesiGuide` is set to true, SESI references will be included in the prompt engineering process.
+  - If generation fails, the original prompt text will be returned.
+  - If `config` is set to true, the returned result will include configuration details and the cost of the request.
+  - If `config` is set to false, only the improved prompt string will be returned.
 */
-export fn improvePrompt(promptText: string, maxTokens: number = 1024, sesiGuide: bool = false, modelName) -> string {
+export fn improvePrompt(promptText: string, maxTokens: number = 1024, sesiGuide: bool = false, modelName, config = false) -> any {
     if !modelName { modelName = "gpt-6-luna" }
     prompt promptEngineer {"You are an experienced prompt engineer. You are well versed in creating effective and detailed prompts while preserving the exact intent."}
     if sesiGuide { promptEngineer = "# SESI REFERENCES:\n" + _ + "\n" + promptEngineer }
-    prompt improve {"Enhance the following prompt: "promptText"
-    Return only the improved prompt without any additional explanations or comments."}
+    prompt improve {"Enhance the following prompt: "promptText"\nReturn only the improved prompt without any additional explanations or comments."}
     let resp = ""
     try {
-        resp = model(modelName) {system: promptEngineer, thinking: "medium", maxT: maxTokens} {improve}
-        show "Total cost for this request:" model_usage().total_cost_usd
+        resp = track_model(improve, {
+                model_name: modelName,
+                system: promptEngineer,
+                thinking: "medium",
+                max_tokens: maxTokens,
+                response: "full"
+            }
+        )
     } catch (err) {
         TERM.error(err.message)
         return promptText
     }
-    return resp
+    show "Time taken:" resp.duration
+    if config {
+        return {
+            configuration: resp.config_used,
+            original_prompt: promptText,
+            improved_prompt: resp.response,
+            cost: resp.cost,
+            duration: resp.duration,
+            complete_log: resp
+        }
+    }
+    return resp.response
 }
 
 /**
@@ -428,6 +657,8 @@ export fn improvePrompt(promptText: string, maxTokens: number = 1024, sesiGuide:
 
   Parameters:
   - imageRef: A reference to the image or an array of images for which metadata should be generated.
+  - save: Optional. If true, the generated metadata will be saved (default true).
+  - config: Optional. If true, the response will include configuration and cost details (default false).
 
   Returns:
   - A structured object containing the generated metadata for the provided image(s), including description, orientation, dominant colors, extracted text, and tags.
@@ -443,8 +674,10 @@ export fn improvePrompt(promptText: string, maxTokens: number = 1024, sesiGuide:
   - The function attempts to use the `gpt-6-luna` model first. If it fails, it falls back to the `gemini-3.5-flash-lite` model.
   - The metadata includes a concise description of the subject, estimated aspect ratio or framing orientation, dominant colors, any visible OCR text, and up to 5 relevant descriptive tags.
   - Ensure that the image file(s) exist and are accessible to avoid errors.
+  - If 'save' is true, the generated metadata will be saved to a report object.
+  - If 'config' is true, the report object will also include configuration, cost, and duration details.
 */
-export fn getMetadata(imageRef: string | array, save = true) -> object? | string {
+export fn getMetadata(imageRef: array, save = true, config = false) -> object? | string {
     let meta = ""
     prompt metadata {"You are an experienced Image Analyst specialized in analyzing images and generating detailed metadata describing their contents.
 Analyze this image thoroughly.
@@ -455,58 +688,85 @@ Extract:
   4. Any visible OCR text.
   5. Up to 5 relevant descriptive tags.
     "}
+    let schema = {
+            description: "string",
+            orientation: "string",
+            dominantColors: "array",
+            extractedText: "string",
+            tags: "array"
+        }
     try {
-        meta = structured_output({
-            description: string,
-            orientation: string,
-            dominantColors: array<string>,
-            extractedText: string,
-            tags: array<string>
-        })(model("gpt-6-luna") {system: metadata, images: imageRef, maxT: 1024} {""})
+        meta = track_structured_model("Proceed.",
+            schema,
+            {
+                model_name: "gpt-6-luna",
+                system: metadata,
+                images: imageRef,
+                max_tokens: 1024,
+                response: "full"
+            }
+        )
     } catch (e) {
         TERM.warning(e.message)
         TERM.warning("Retrying with a more capable model...")
-        meta = structured_output({
-            description: string,
-            orientation: string,
-            dominantColors: array<string>,
-            extractedText: string,
-            tags: array<string>
-        })(model("gemini-3.5-flash-lite") {system: metadata, images: imageRef, maxT: 1024} {""})
+        meta = track_structured_model("Proceed.",
+            schema,
+            {
+                model_name: "gemini-3.5-flash-lite",
+                system: metadata,
+                images: imageRef,
+                max_tokens: 1024,
+                response: "full"
+            }
+        )
     }
-    show "Total cost for this request:" model_usage().total_cost_usd
-    if meta == "" {
-        show "Error: Model response came back empty, make sure the image file(s) exists."
-        return "Error: Model response came back empty, make sure the image file(s) exists."
-    }
+    if meta.response | is_null { raise_error("MetadataError", "An error occurred while generating metadata for the image:" + meta) }
+    if meta.response == "" { raise_error("MetadataError", "Model response came back empty, make sure the image file(s) exists.") }
+    show "Time taken:" meta.duration
     let ext = get_ext(imageRef)
     let report = {
       file_path: imageRef,
       extension: ext,
       analysis_time: formattedTime(),
-      description: meta["description"],
-      orientation: meta["orientation"],
-      dominant_colors: meta["dominantColors"],
-      extracted_text: meta["extractedText"],
-      tags: meta["tags"]
+      description: meta.response["description"],
+      orientation: meta.response["orientation"],
+      dominant_colors: meta.response["dominantColors"],
+      extracted_text: meta.response["extractedText"],
+      tags: meta.response["tags"]
     }
     if save {
         imageRef = imageRef | swap("." + ext, "")
+        if config {
+            report.configuration = meta.config_used
+            report.duration = meta.duration
+            report.cost = meta.cost
+            report.complete_log = meta
+        }
         show Safe.json(imageRef + "_metadata", report)
     }
-    return meta
+    if config {
+        return {
+            configuration: meta.config_used,
+            metadata: report,
+            cost: meta.cost,
+            duration: meta.duration,
+            complete_log: meta
+        }
+    }
+    return meta.response
 }
 
 /**
   Generates source code in a specified programming language based on a user prompt.
 
   Parameters:
-  - modelName: The name of the model to use for code generation (default is "gpt-6.1-sol").
+  - modelName: The name of the model to use for code generation (default is "gpt-6.1-terra").
   - promptText: Description or requirements of the code to generate.
   - language: The target programming language (default is "JavaScript").
+  - config: Boolean flag indicating whether to return detailed configuration and cost information (default is false).
 
   Returns:
-  - A string containing the generated code.
+  - A string containing the generated code, or an object with detailed configuration and cost information if `config` is true.
 
   Example:
   ```sesi
@@ -517,22 +777,43 @@ Extract:
   Notes:
   - The generated code will be in the specified programming language.
   - Ensure the model name is correct and available.
+  - If `config` is set to true, the function will return an object containing the configuration used, the original prompt, the target language, the generated script, and the associated cost and duration.
 */
-export fn genCode(modelName = "gpt-6.1-sol", promptText: string, language: string = "JavaScript") -> string {
+export fn genCode(modelName = "gpt-6.1-terra", promptText: string, language: string = "JavaScript", config = false) -> any {
     prompt sys {"You are a professional and organized software developer. You are tasked with generating code based on user input."}
     if language == "Sesi" || language == "sesi" { sys = "# SESI LANGUAGE REFERENCE:\n" + _ + "\n" + sys }
-    prompt makeCode {"Generate code in "language" for the following prompt: "promptText"
-    Return only the code without any additional explanations or comments."}
+    prompt makeCode {"Generate code in "language" for the following prompt: "promptText"\nReturn only the code without any additional explanations or comments."}
     let resp = ""
-    if modelName == "" { modelName = "gpt-6.1-sol" }
+    if modelName == "" { modelName = "gpt-6.1-terra" }
     try {
-        resp = model(modelName) {system: sys, thinking: "medium"} {makeCode} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd
+        resp = track_model(makeCode, {
+                model_name: modelName,
+                system: sys,
+                thinking: "medium",
+                max_tokens: 15000,
+                response: "full"
+            }
+        )
     } catch (err) {
         TERM.error(err.message)
-        return
+        raise_error("GenerationError", "Error generating code: " + err.message)
     }
-    return resp
+    let code = resp.response | cleanAIResponse
+    if code == "" { raise_error("GenerationError", "Generated code is empty") }
+    if code | is_null { raise_error("GenerationError", "An unexpected error occurred: " + resp) }
+    show "Time taken:" resp.duration
+    if config {
+        return {
+            configuration: resp.config_used,
+            request: promptText,
+            language: language,
+            script: code,
+            cost: resp.cost,
+            duration: resp.duration,
+            complete_log: resp
+        }
+    }
+    return code
 }
 
 /**
@@ -544,37 +825,82 @@ export fn genCode(modelName = "gpt-6.1-sol", promptText: string, language: strin
   - ratio: Aspect ratio (default "1:1").
   - filename: Base filename for saving the output (default "generated_image").
   - ext: File extension (default "png").
+  - config: Boolean indicating whether to return detailed configuration and cost information (default false).
+  - raw_data: Boolean indicating whether to return raw image data in base64 format (default false).
 
   Returns:
-  - A string representing the final saved file path.
+  - Either: 
+    - A string representing the final saved file path.
+    - An object containing detailed configuration and cost information if `config` is true.
+    - An object containing raw image data in base64 format if `raw_data` is true.
 
   Example:
   ```sesi
-  let img = genImage("A futuristic city at sunset", "2K", "16:9", "city", "png")
-  show img
+  let generated = genImage("Times Square at night", "1K", "1:1", "times_square", "png", true, false)
+  write_file("times_square.png.json", to_json(generated))
   ```
 
   Notes:
   - Uses `gemini-3-flash-preview` for prompt enhancement and `gemini-3.1-flash-image` for image generation.
+  - The `config` parameter allows retrieval of detailed generation metadata, including the raw image data in base64 format.
+  - The `raw_data` parameter allows retrieval of the raw image data in base64 format.
 */
-export fn genImage(promptText: string, size: string = "1K", ratio: string = "1:1", filename: string = "generated_image", ext: string = "png") -> string {
-    prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for image generation. Return only ONE prompt without any additional explanations or comments."}
-    let imgPrompt = model("gemini-3-flash-preview") {system: promptEngineer, thinking: "medium"} {promptText} | trim
-    let pCost = model_usage().total_cost_usd
-
-    TERM.info("Generating image with the following prompt: " + imgPrompt)
-    let imgResponse = image("gemini-3.1-flash-image") {size: size, ratio: ratio} {imgPrompt}
-    let iCost = model_usage().total_cost_usd
-    show "Total cost for this request:" pCost + iCost
-
-    if ext == "" || ext == "png" {
-        write_image(filename + ".png", imgResponse)
-    } else {
-        write_image(filename + "." + ext, imgResponse)
+export fn genImage(promptText: string, size: string = "1K", ratio: string = "1:1", filename: string = "generated_image", ext: string = "png", config = false, raw_data = false) -> any {
+    if ratio == "1:1" { ratio = "square"}
+    if ratio == "16:9" { ratio = "landscape"}
+    if ratio == "9:16" { ratio = "portrait"}
+    if ratio == "4:3" { ratio = "wide"}
+    if ratio == "3:4" { ratio = "standard"}
+    else {
+        TERM.warning("Unknown ratio specified. Defaulting to 1:1.")
+        ratio = "square"
     }
+    prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for image generation. Return only ONE prompt without any additional explanations or comments."}
+    let imgPrompt = track_model(promptText, {
+            model_name: "gemini-3-flash-preview",
+            system: promptEngineer,
+            thinking: "medium",
+            max_tokens: 1024
+        }
+    )
+    let good2go = imgPrompt.response
+    if good2go == "" || good2go == null { good2go = promptText }
+    TERM.info("Generating image with the following prompt: " + good2go)
+    let imgResponse = track_image(good2go | trim, {
+            model_name: "gemini-3.1-flash-image",
+            size: size,
+            ratio: ratio,
+            thinking: "medium",
+            response: "full"
+        }
+    )
 
-    TERM.success("Image generated and saved as '" + filename + "." + ext + "'")
-    return filename + "." + ext
+    if ext == "" || ext == "png" { write_image(filename + ".png", imgResponse.image_data) }
+    else { write_image(filename + "." + ext, imgResponse.image_data) }
+    let out = filename + "." + ext
+
+    TERM.success("Image generated and saved as '" + out + "'")
+    show "Time taken:" imgResponse.duration
+    if config {
+        return {
+            configuration: imgResponse.config_used,
+            original_request: promptText,
+            enhanced_request: imgPrompt.response,
+            cost: imgResponse.cost,
+            duration: imgResponse.duration,
+            filename: out,
+            extension: ext,
+            base64: imgResponse.image_data,
+            complete_log: imgResponse
+        }
+    }
+    if raw_data {
+        return {
+            filename: out,
+            base64: imgResponse.image_data
+        }
+    }
+    return out
 }
 
 /**
@@ -585,9 +911,14 @@ export fn genImage(promptText: string, size: string = "1K", ratio: string = "1:1
   - ratio: Aspect ratio (default "1:1").
   - filename: Base filename for saving (default "generated_image").
   - ext: File extension (default "png").
+  - config: Boolean indicating if configuration details should be returned (default false).
+  - raw_data: Boolean indicating if raw image data should be returned (default false).
 
   Returns:
-  - A string representing the saved file path.
+  - Either:
+    - A string representing the saved file path.
+    - An object containing configuration details if `config` is true.
+    - An object containing raw image data if `raw_data` is true.
 
   Example:
   ```sesi
@@ -597,26 +928,68 @@ export fn genImage(promptText: string, size: string = "1K", ratio: string = "1:1
 
   Notes:
   - Uses `gemini-2.5-flash-lite` for prompt engineering and `gemini-3.1-flash-image` with 512 size.
+  - The `config` parameter allows retrieval of detailed generation metadata, including the raw image data in base64 format.
+  - The `raw_data` parameter allows retrieval of the raw image data in base64 format.
 */
-export fn genImageLite(promptText: string, ratio: string = "1:1", filename: string = "generated_image", ext: string = "png") -> string {
+export fn genImageLite(promptText: string, ratio: string = "1:1", filename: string = "generated_image", ext: string = "png", config = false, raw_data = false) -> any {
+    if ratio == "1:1" { ratio = "square"}
+    if ratio == "16:9" { ratio = "landscape"}
+    if ratio == "9:16" { ratio = "portrait"}
+    if ratio == "4:3" { ratio = "wide"}
+    if ratio == "3:4" { ratio = "standard"}
+    else {
+        TERM.warning("Unknown ratio specified. Defaulting to 1:1.")
+        ratio = "square"
+    }
     prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for image generation."}
-    let imgPrompt = model("gemini-2.5-flash-lite") {system: promptEngineer, thinking: "medium"} {promptText"
-    Just return ONE prompt without any additional explanations or comments."} | trim
-    let pCost = model_usage().total_cost_usd
+    let imgPrompt = track_model(promptText + "\nJust return ONE prompt without any additional explanations or comments.", {
+            model_name: "gemini-2.5-flash-lite",
+            system: promptEngineer,
+            thinking: "medium",
+            max_tokens: 1024
+        }
+    )
+    let good2go = imgPrompt.response
+    if good2go == "" || good2go == null { good2go = promptText }
 
-    TERM.info("Generating image with the following prompt: " + imgPrompt)
-    let imgResponse = image("gemini-3.1-flash-image") {size: "512", ratio: ratio} {imgPrompt}
-    let iCost = model_usage().total_cost_usd
-    show "Total cost for this request:" pCost + iCost
+    TERM.info("Generating image with the following prompt: " + good2go)
+    let imgResponse = track_image(good2go | trim, {
+            model_name: "gemini-3.1-flash-image",
+            size: "512",
+            ratio: ratio,
+            response: "full"
+        }
+    )
 
     if ext == "" || ext == "png" {
-        write_image(filename + ".png", imgResponse)
+        write_image(filename + ".png", imgResponse.image_data)
     } else {
-        write_image(filename + "." + ext, imgResponse)
+        write_image(filename + "." + ext, imgResponse.image_data)
     }
+    let out = filename + "." + ext
 
-    TERM.success("Image generated and saved as '" + filename + "." + ext + "'")
-    return filename + "." + ext
+    TERM.success("Image generated and saved as '" + out + "'")
+    show "Time taken:" imgResponse.duration
+    if config {
+        return {
+            configuration: imgResponse.config_used,
+            original_request: promptText,
+            enhanced_request: imgPrompt.response,
+            cost: imgResponse.cost,
+            duration: imgResponse.duration,
+            filename: out,
+            extension: ext,
+            base64: imgResponse.image_data,
+            complete_log: imgResponse
+        }
+    }
+    if raw_data {
+        return {
+            filename: out,
+            base64: imgResponse.image_data
+        }
+    }
+    return out
 }
 
 /**
@@ -628,9 +1001,14 @@ export fn genImageLite(promptText: string, ratio: string = "1:1", filename: stri
   - ratio: Aspect ratio (default "1:1").
   - filename: Base filename for output (default "generated_image").
   - ext: File extension (default "png").
+  - config: Boolean indicating if configuration details should be returned (default false).
+  - raw_data: Boolean indicating if raw image data should be returned (default false).
 
   Returns:
-  - A string representing the saved image filename.
+  - Either:
+    - A string representing the saved image filename.
+    - An object containing configuration details if `config` is true.
+    - An object containing raw image data if `raw_data` is true.
 
   Example:
   ```sesi
@@ -640,45 +1018,96 @@ export fn genImageLite(promptText: string, ratio: string = "1:1", filename: stri
 
   Notes:
   - Attempts generation using `gpt-6-luna` and `gpt-image-2`, falling back to `gemini-3.5-flash-lite` and `gemini-3-pro-image`.
+  - The `config` parameter allows retrieval of detailed generation metadata, including the raw image data in base64 format.
+  - The `raw_data` parameter allows retrieval of the raw image data in base64 format.
 */
-export fn genImageMax(promptText: string, size: string = "4K", ratio: string = "1:1", filename: string = "generated_image", ext: string = "png") -> string {
+export fn genImageMax(promptText: string, size: string = "4K", ratio: string = "1:1", filename: string = "generated_image", ext: string = "png", config = false, raw_data = false) -> any {
+    if ratio == "1:1" { ratio = "square"}
+    if ratio == "16:9" { ratio = "landscape"}
+    if ratio == "9:16" { ratio = "portrait"}
+    if ratio == "4:3" { ratio = "wide"}
+    if ratio == "3:4" { ratio = "standard"}
+    else {
+        TERM.warning("Unknown ratio specified. Defaulting to 1:1.")
+        ratio = "square"
+    }
     prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for image generation. Do not mention the size or ratio in the prompt, as those will be handled separately."}
     let imgPrompt = ""
-    let pCost = 0.0
-    let iCost = 0.0
     try {
-        imgPrompt = model("gpt-6-luna") {system: promptEngineer, thinking: "medium", maxT: 1024} {promptText "
-        Just return the prompt without any additional explanations or comments."} | trim
-        pCost = model_usage().total_cost_usd
+        imgPrompt = track_model(promptText + "\nJust return the prompt without any additional explanations or comments.", {
+                model_name: "gpt-6-luna",
+                system: promptEngineer,
+                thinking: "medium",
+                max_tokens: 1024
+            }
+        )
     } catch (err) {
         TERM.warning(err.message)
         TERM.warning("Retrying with a more capable model...")
-        imgPrompt = model("gemini-3.5-flash-lite") {system: promptEngineer, thinking: "medium", maxT: 1024} {promptText "
-        Just return the prompt without any additional explanations or comments."} | trim
-        pCost = model_usage().total_cost_usd
+        imgPrompt = track_model(promptText + "\nJust return the prompt without any additional explanations or comments.", {
+                model_name: "gemini-3.5-flash-lite",
+                system: promptEngineer,
+                thinking: "medium",
+                max_tokens: 1024
+            }
+        )
     }
+    let good2go = imgPrompt.response
+    if good2go == "" || good2go == null { good2go = promptText }
 
-    TERM.info("Generating image with the following prompt: " + imgPrompt)
+    TERM.info("Generating image with the following prompt: " + good2go)
     let imgResponse = ""
     try {
-        imgResponse = image("gpt-image-2.5-flare") {size: size, ratio: ratio} {imgPrompt}
-        iCost = model_usage().total_cost_usd
+        imgResponse = track_image(good2go | trim, {
+                model_name: "gpt-image-2.5-sunburst",
+                size: size,
+                ratio: ratio,
+                thinking: "high",
+                response: "full"
+            }
+        )
     } catch (err) {
         TERM.warning(err.message)
         TERM.warning("Retrying with a more capable model...")
-        imgResponse = image("gemini-3-pro-image") {size: size, ratio: ratio} {imgPrompt}
-        iCost = model_usage().total_cost_usd
+        imgResponse = track_image(good2go | trim, {
+                model_name: "gemini-3-pro-image",
+                size: size,
+                ratio: ratio,
+                thinking: "high",
+                response: "full"
+            }
+        )
     }
-    show "Total cost for this request:" pCost + iCost
 
     if ext == "" || ext == "png" {
-        write_image(filename + ".png", imgResponse)
+        write_image(filename + ".png", imgResponse.image_data)
     } else {
-        write_image(filename + "." + ext, imgResponse)
+        write_image(filename + "." + ext, imgResponse.image_data)
     }
+    let out = filename + "." + ext
 
-    TERM.success("Image generated and saved as '" + filename + "." + ext + "'")
-    return filename + "." + ext
+    TERM.success("Image generated and saved as '" + out + "'")
+    show "Time taken:" imgResponse.duration
+    if config {
+        return {
+            configuration: imgResponse.config_used,
+            original_request: promptText,
+            enhanced_request: imgPrompt.response,
+            cost: imgResponse.cost,
+            duration: imgResponse.duration,
+            filename: out,
+            extension: ext,
+            base64: imgResponse.image_data,
+            complete_log: imgResponse
+        }
+    }
+    if raw_data {
+        return {
+            filename: out,
+            base64: imgResponse.image_data
+        }
+    }
+    return out
 }
 
 /**
@@ -690,9 +1119,14 @@ export fn genImageMax(promptText: string, size: string = "4K", ratio: string = "
   - ratio: Aspect ratio (default "1:1").
   - filename: Base filename for saving (default "generated_image").
   - ext: File extension (default "png").
+  - config: Boolean indicating if configuration details should be returned (default false).
+  - raw_data: Boolean indicating if raw image data should be returned (default false).
 
   Returns:
-  - A string representing the saved image filename.
+  - Either:
+    - A string representing the saved image filename.
+    - An object containing configuration details if `config` is true.
+    - An object containing raw image data if `raw_data` is true.
 
   Example:
   ```sesi
@@ -703,40 +1137,82 @@ export fn genImageMax(promptText: string, size: string = "4K", ratio: string = "
   Notes:
   - If the GPT model fails to generate a prompt, the original `promptText` will be used.
   - If the image generation fails, the function will return the error message instead of the filename.
+  - The `config` parameter allows retrieval of detailed generation metadata, including the raw image data in base64 format.
+  - The `raw_data` parameter allows retrieval of the raw image data in base64 format.
 */
-export fn genImageGPT(promptText: string, size: string = "2K", ratio: string = "1:1", filename: string = "generated_image", ext: string = "png") -> string {
+export fn genImageGPT(promptText: string, size: string = "2K", ratio: string = "1:1", filename: string = "generated_image", ext: string = "png", config = false, raw_data = false) -> any {
+    if ratio == "1:1" { ratio = "square"}
+    if ratio == "16:9" { ratio = "landscape"}
+    if ratio == "9:16" { ratio = "portrait"}
+    if ratio == "4:3" { ratio = "wide"}
+    if ratio == "3:4" { ratio = "standard"}
+    else {
+        TERM.warning("Unknown ratio specified. Defaulting to 1:1.")
+        ratio = "square"
+    }
     prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for image generation. Do not mention the size or ratio in the prompt, as those will be handled separately."}
     let imgPrompt = ""
-    let pCost = 0.0
-    let iCost = 0.0
     try {
-        imgPrompt = model("gpt-6-luna") {system: promptEngineer, thinking: "medium", maxT: 1024} {promptText "
-        Just return the prompt without any additional explanations or comments."}
-        pCost = model_usage().total_cost_usd
-    } catch (err) {
-        imgPrompt = promptText
-    }
-    imgPrompt = imgPrompt | trim
+        imgPrompt = track_model(promptText + "\nJust return the prompt without any additional explanations or comments.", {
+                model_name: "gpt-6-luna",
+                system: promptEngineer,
+                thinking: "medium",
+                max_tokens: 1024
+            }
+        )
+    } catch (err) { TERM.warning(err.message + "\nUsing original prompt instead.") }
+    let good2go = imgPrompt.response
+    if good2go == "" || good2go == null { good2go = promptText }
 
-    TERM.info("Generating image with the following prompt: " + imgPrompt)
+    TERM.info("Generating image with the following prompt: " + good2go)
     let imgResponse = ""
     try {
-        imgResponse = image("gpt-image-2.5-flare") {size: size, ratio: ratio} {imgPrompt}
-        iCost = model_usage().total_cost_usd
+        imgResponse = track_image(good2go | trim, {
+                model_name: "gpt-image-2.6-flare",
+                size: size,
+                ratio: ratio,
+                response: "full"
+            }
+        )
     } catch (err) {
         TERM.error(err.message)
         return err.message
     }
-    show "Total cost for this request:" pCost + iCost
-
-    if ext == "" || ext == "png" {
-        write_image(filename + ".png", imgResponse)
-    } else {
-        write_image(filename + "." + ext, imgResponse)
+    try {
+        if ext == "" || ext == "png" {
+            write_image(filename + ".png", imgResponse.image_data)
+        } else {
+            write_image(filename + "." + ext, imgResponse.image_data)
+        }
+    } catch (err) {
+        TERM.error(err.message)
+        return err.message
     }
 
-    TERM.success("Image generated and saved as '" + filename + "." + ext + "'")
-    return filename + "." + ext
+    let out = filename + "." + ext
+
+    TERM.success("Image generated and saved as '" + out + "'")
+    show "Time taken:" imgResponse.duration
+    if config {
+        return {
+            configuration: imgResponse.config_used,
+            original_request: promptText,
+            enhanced_request: imgPrompt.response,
+            cost: imgResponse.cost,
+            duration: imgResponse.duration,
+            filename: out,
+            extension: ext,
+            base64: imgResponse.image_data,
+            complete_log: imgResponse
+        }
+    }
+    if raw_data {
+        return {
+            filename: out,
+            base64: imgResponse.image_data
+        }
+    }
+    return out
 }
 
 /**
@@ -749,9 +1225,14 @@ export fn genImageGPT(promptText: string, size: string = "2K", ratio: string = "
   - ratio: Desired image aspect ratio (default "1:1").
   - filename: Base filename for saving (default "edited_image").
   - ext: File extension (default "png").
+  - config: Whether to return detailed configuration and cost information (default false).
+  - raw_data: Whether to return only the raw image data (default false).
 
   Returns:
-  - A string representing the saved image filename.
+  - Either:
+    - A string representing the saved image filename.
+    - An object containing detailed configuration and cost information if `config` is true.
+    - An object containing only the raw image data if `raw_data` is true.
 
   Example:
   ```sesi
@@ -761,40 +1242,85 @@ export fn genImageGPT(promptText: string, size: string = "2K", ratio: string = "
 
   Notes:
   - Uses `gpt-6-luna` for prompt generation and `gpt-image-2.5-sunburst` for image editing.
+  - If `config` is true, the returned object will include detailed information about the image generation process, including the original and enhanced prompts, cost, duration, and file extensions.
+  - If `raw_data` is true, the returned object will contain only the raw image data in base64 format.
 */
-export fn editImageGPT(imgPath: string, promptText: string, size: string = "2K", ratio: string = "1:1", filename: string = "edited_image", ext: string = "png") -> string {
+export fn editImageGPT(imgPath: string, promptText: string, size: string = "2K", ratio: string = "1:1", filename: string = "edited_image", ext: string = "png", config = false, raw_data = false) -> any {
+    if ratio == "1:1" { ratio = "square"}
+    if ratio == "16:9" { ratio = "landscape"}
+    if ratio == "9:16" { ratio = "portrait"}
+    if ratio == "4:3" { ratio = "wide"}
+    if ratio == "3:4" { ratio = "standard"}
+    else {
+        TERM.warning("Unknown ratio specified. Defaulting to 1:1.")
+        ratio = "square"
+    }
     prompt promptEngineer {"You are an experienced prompt engineer. You transform user input into a detailed and descriptive prompt for image editing. Do not mention the size or ratio in the prompt, as those will be handled separately."}
     let imgPrompt = ""
-    let pCost = 0.0
-    let iCost = 0.0
     try {
-        imgPrompt = model("gpt-6-luna") {images: imgPath, system: promptEngineer, thinking: "medium", maxT: 1024} {promptText "
-        Just return the prompt without any additional explanations or comments."}
-        pCost = model_usage().total_cost_usd
-    } catch (err) {
-        imgPrompt = promptText
-    }
-    imgPrompt = imgPrompt | trim
+        imgPrompt = track_model(promptText + "\nJust return the prompt without any additional explanations or comments.", {
+                model_name: "gpt-6-luna",
+                system: promptEngineer,
+                thinking: "medium",
+                max_tokens: 1024,
+                images: [imgPath],
+                response: "full"
+            }
+        )
+    } catch (err) { TERM.warning(err.message + "\nUsing original prompt instead.") }
+    let good2go = imgPrompt.response
+    if good2go == "" || good2go == null { good2go = promptText }
 
-    TERM.info("Editing image with the following prompt: " + imgPrompt)
+    TERM.info("Editing image with the following prompt: " + good2go)
     let imgResponse = ""
     try {
-        imgResponse = image("gpt-image-2.5-sunburst") {size: size, ratio: ratio, images: imgPath} {imgPrompt}
-        iCost = model_usage().total_cost_usd
+        imgResponse = track_image(good2go | trim, {
+                model_name: "gpt-image-2.5-sunburst",
+                size: size,
+                ratio: ratio,
+                thinking: "medium",
+                response: "full",
+                images: [imgPath]
+            }
+        )
     } catch (err) {
         TERM.error(err.message)
         return err.message
     }
-    show "Total cost for this request:" pCost + iCost
 
     if ext == "" || ext == "png" {
-        write_image(filename + ".png", imgResponse)
+        write_image(filename + ".png", imgResponse.image_data)
     } else {
-        write_image(filename + "." + ext, imgResponse)
+        write_image(filename + "." + ext, imgResponse.image_data)
     }
 
-    TERM.success("Image edited and saved as '" + filename + "." + ext + "'")
-    return filename + "." + ext
+    let out = filename + "." + ext
+
+    TERM.success("Image generated and saved as '" + out + "'")
+    show "Time taken:" imgResponse.duration
+    if config {
+        return {
+            configuration: imgResponse.config_used,
+            original_request: promptText,
+            enhanced_request: imgPrompt.response,
+            cost: imgResponse.cost,
+            duration: imgResponse.duration,
+            original_image: imgPath,
+            edited_image: out,
+            original_extension: get_ext(imgPath),
+            output_extension: ext,
+            base64: imgResponse.image_data,
+            complete_log: imgResponse
+        }
+    }
+    if raw_data {
+        return {
+            original_filename: imgPath,
+            output_filename: out,
+            base64: imgResponse.image_data
+        }
+    }
+    return out
 }
 
 /**
@@ -890,9 +1416,10 @@ export fn genVideoLite(promptText: string, timeLen: number = 4, resolution: stri
   Parameters:
   - promptText: Description or structure requirements for the JSON data.
   - modelName: Optional. The name of the AI model to use (default "gpt-6-luna").
+  - config: Optional. If true, returns detailed configuration and cost information (default false).
 
   Returns:
-  - A string containing the generated JSON.
+  - A string containing the generated JSON, or an object with detailed configuration and cost information if `config` is true.
 
   Example:
   ```sesi
@@ -900,15 +1427,37 @@ export fn genVideoLite(promptText: string, timeLen: number = 4, resolution: stri
   show jData
   ```
 */
-export fn genJSON(promptText: string, modelName) -> string? | any {
+export fn genJSON(promptText: string, modelName, config = false) -> string? | any {
     if !modelName { modelName = "gpt-6-luna" }
     let r = ""
     prompt sys {"You are a professional and organized software developer. You are tasked with generating JSON data based on user input."}
     prompt makeJSON {"Generate JSON data for the following prompt: "promptText} 
-    try { r = model(modelName) {system: sys, thinking: "medium"} {makeJSON} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    return r
+    try {
+        r = track_model(makeJSON, {
+                model_name: modelName,
+                system: sys,
+                thinking: "medium",
+                response: "full"
+            }
+        )
+    } catch (e) { TERM.error(e.message) }
+    if r.response == "" || r.response == null {
+        show "Error: Model response came back empty, try again later."
+        return "Error: Model response came back empty, try again later."
+    }
+    let cleanJSON = r.response | cleanAIResponse
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            JSON: cleanJSON,
+            cost: r.cost,
+            duration: r.duration,
+            complete_log: r
+        }
+    }
+    return cleanJSON
 }
 
 /**
@@ -917,9 +1466,10 @@ export fn genJSON(promptText: string, modelName) -> string? | any {
   Parameters:
   - promptText: Description or structure requirements for the YAML data.
   - modelName: Optional. The name of the AI model to use (default "gpt-6-luna").
+  - config: Optional. If true, returns detailed configuration and cost information (default false).
 
   Returns:
-  - A string containing the generated YAML data or an error message if empty.
+  - A string containing the generated YAML data or an object with detailed configuration and cost information if `config` is true, or an error message if empty.
 
   Example:
   ```sesi
@@ -927,19 +1477,36 @@ export fn genJSON(promptText: string, modelName) -> string? | any {
   show yml
   ```
 */
-export fn genYAML(promptText: string, modelName) -> string {
+export fn genYAML(promptText: string, modelName, config = false) -> any {
     if !modelName { modelName = "gpt-6-luna" }
     prompt sys {"You are a professional and organized software developer. You are tasked with generating YAML data based on user input."}
     prompt makeYAML {"Generate YAML data for the following prompt: "promptText}
     let yaml = ""
-    try { yaml = model(modelName) {system: sys, thinking: "medium"} {makeYAML} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    if yaml == "" {
+    try { yaml = track_model(makeYAML, {
+                model_name: modelName,
+                system: sys,
+                thinking: "medium",
+                response: "full"
+            }
+        )
+    } catch (e) { TERM.error(e.message) }
+    if yaml.response == "" || yaml.response == null {
         show "Error: Model response came back empty, try again later."
         return "Error: Model response came back empty, try again later."
     }
-    return yaml
+    let cleanYAML = yaml.response | cleanAIResponse
+    show "Time taken:" yaml.duration
+    if config {
+        return {
+            configuration: yaml.config_used,
+            request: promptText,
+            YAML: cleanYAML,
+            cost: yaml.cost,
+            duration: yaml.duration,
+            complete_log: yaml
+        }
+    }
+    return cleanYAML
 }
 
 /**
@@ -948,9 +1515,10 @@ export fn genYAML(promptText: string, modelName) -> string {
   Parameters:
   - promptText: Description or requirements for the BAML data.
   - modelName: Optional. The name of the AI model to use (default "gpt-6-luna").
+  - config: Optional. If true, returns detailed configuration and cost information (default false).
 
   Returns:
-  - A string containing the generated BAML content or an error message if empty.
+  - A string containing the generated BAML content or an object with detailed configuration and cost information if `config` is true, or an error message if empty.
 
   Example:
   ```sesi
@@ -958,19 +1526,36 @@ export fn genYAML(promptText: string, modelName) -> string {
   show baml
   ```
 */
-export fn genBAML(promptText: string, modelName) -> string {
+export fn genBAML(promptText: string, modelName, config = false) -> any {
     if !modelName { modelName = "gpt-6-luna" }
     prompt sys {"You are a professional and organized software developer. You are tasked with generating BAML data based on user input."}
     prompt makeBAML {"Generate BAML data for the following prompt: "promptText}
     let baml = ""
-    try { baml = model(modelName) {system: sys, thinking: "medium"} {makeBAML} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    if baml == "" {
+    try { baml = track_model(makeBAML, {
+                model_name: modelName,
+                system: sys,
+                thinking: "medium",
+                response: "full"
+            }
+        )
+    } catch (e) { TERM.error(e.message) }
+    if baml.response == "" || baml.response == null {
         show "Error: Model response came back empty, try again later."
         return "Error: Model response came back empty, try again later."
     }
-    return baml
+    let cleanBAML = baml.response | cleanAIResponse
+    show "Time taken:" baml.duration
+    if config {
+        return {
+            configuration: baml.config_used,
+            request: promptText,
+            BAML: cleanBAML,
+            cost: baml.cost,
+            duration: baml.duration,
+            complete_log: baml
+        }
+    }
+    return cleanBAML
 }
 
 /**
@@ -979,9 +1564,10 @@ export fn genBAML(promptText: string, modelName) -> string {
   Parameters:
   - promptText: Description or structure requirements for the XML.
   - modelName: Optional. The name of the AI model to use (default "gemini-3.1-flash-lite").
+  - config: Optional. If true, returns detailed configuration and cost information (default false).
 
   Returns:
-  - A string containing the generated XML markup.
+  - A string containing the generated XML markup or an object with detailed configuration and cost information if `config` is true.
 
   Example:
   ```sesi
@@ -989,15 +1575,36 @@ export fn genBAML(promptText: string, modelName) -> string {
   show xml
   ```
 */
-export fn genXML(promptText: string, modelName) -> string {
+export fn genXML(promptText: string, modelName, config = false) -> any {
     if !modelName { modelName = "gemini-3.1-flash-lite" }
     let r = ""
     prompt sys {"You are a professional and organized software developer. You are tasked with generating XML data based on user input."}
     prompt makeXML {"Generate XML data for the following prompt: "promptText}
-    try { r = model(modelName) {system: sys, thinking: "medium"} {makeXML} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    return r
+    try { r = track_model(makeXML, {
+                model_name: modelName,
+                system: sys,
+                thinking: "medium",
+                response: "full"
+            }
+        )
+    } catch (e) { TERM.error(e.message) }
+    if r.response == "" || r.response == null {
+        show "Error: Model response came back empty, try again later."
+        return "Error: Model response came back empty, try again later."
+    }
+    let cleanXML = r.response | cleanAIResponse
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            XML: cleanXML,
+            cost: r.cost,
+            duration: r.duration,
+            complete_log: r
+        }
+    }
+    return cleanXML
 }
 
 /**
@@ -1006,9 +1613,10 @@ export fn genXML(promptText: string, modelName) -> string {
   Parameters:
   - promptText: Description of tabular data to generate.
   - modelName: Optional. The name of the AI model to use (default "gemini-3.1-flash-lite").
+  - config: Optional. If true, returns detailed configuration and cost information (default false).
 
   Returns:
-  - A string containing the generated CSV-formatted data.
+  - A string containing the generated CSV-formatted data or an object with detailed configuration and cost information if `config` is true.
 
   Example:
   ```sesi
@@ -1016,15 +1624,37 @@ export fn genXML(promptText: string, modelName) -> string {
   show csv
   ```
 */
-export fn genCSV(promptText: string, modelName) -> string {
+export fn genCSV(promptText: string, modelName, config = false) -> any {
     if !modelName { modelName = "gemini-3.1-flash-lite" }
     let r = ""
     prompt sys {"You are a professional and organized software developer. You are tasked with generating CSV data based on user input."}
     prompt makeCSV {"Generate CSV data for the following prompt: "promptText}
-    try { r = model(modelName) {system: sys, thinking: "medium"} {makeCSV} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    return r
+    try { r = track_model(makeCSV, {
+                model_name: modelName,
+                system: sys,
+                thinking: "medium",
+                response: "full"
+            }
+        )
+    } catch (e) { TERM.error(e.message) }
+    if r.response == "" || r.response == null {
+        show "Error: Model response came back empty, try again later."
+        return "Error: Model response came back empty, try again later."
+    }
+    let cleanCSV = r.response | cleanAIResponse
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            CSV: cleanCSV,
+            cost: r.cost,
+            duration: r.duration,
+            complete_log: r
+        }
+    }
+    
+    return cleanCSV
 }
 
 /**
@@ -1033,6 +1663,7 @@ export fn genCSV(promptText: string, modelName) -> string {
   Parameters:
   - promptText: Description of the database query requirements.
   - modelName: Optional. The name of the AI model to use (default "gemini-3.1-flash-lite").
+  - config: Optional. If true, returns detailed configuration and cost information (default false).
 
   Returns:
   - A string containing the generated SQL statements.
@@ -1043,15 +1674,36 @@ export fn genCSV(promptText: string, modelName) -> string {
   show sql
   ```
 */
-export fn genSQL(promptText: string, modelName) -> string {
+export fn genSQL(promptText: string, modelName, config = false) -> any {
     if !modelName { modelName = "gemini-3.1-flash-lite" }
     let r = ""
     prompt sys {"You are a professional and organized software developer. You are tasked with generating SQL queries based on user input."}
     prompt makeSQL {"Generate SQL queries for the following prompt: "promptText}
-    try { r = model(modelName) {system: sys, thinking: "medium"} {makeSQL} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    return r
+    try {
+        r = track_model(makeSQL, {
+                modelName: modelName,
+                system: sys,
+                thinking: "medium"
+            }
+        )
+    } catch (e) { TERM.error(e.message) }
+    if r.response == "" || r.response == null {
+        show "Error: Model response came back empty, try again later."
+        return "Error: Model response came back empty, try again later."
+    }
+    let cleanSQL = r.response | cleanAIResponse
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            SQL: cleanSQL,
+            cost: r.cost,
+            duration: r.duration,
+            complete_log: r
+        }
+    }
+    return cleanSQL
 }
 
 /**
@@ -1069,15 +1721,36 @@ export fn genSQL(promptText: string, modelName) -> string {
   show md
   ```
 */
-export fn genMarkdown(promptText: string, modelName) -> string? | any {
-    if !modelName { modelName = "gpt-6.1-sol" }
+export fn genMarkdown(promptText: string, modelName, config = false) -> string? | any {
+    if !modelName { modelName = "gpt-6.1-terra" }
     let r = ""
     prompt sys {"You are a professional and organized software developer. You are tasked with generating Markdown content based on user input."}
     prompt makeMarkdown {"Generate Markdown content for the following prompt: "promptText}
-    try { r = model(modelName) {system: sys, thinking: "medium", search} {makeMarkdown}
-        show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) { TERM.error(e.message) }
-    return r
+    try {
+        r = track_model(makeMarkdown, {
+                modelName: modelName,
+                system: sys,
+                thinking: "medium"
+            }
+        )
+    } catch (e) { TERM.error(e.message) }
+    if r.response == "" || r.response == null {
+        show "Error: Model response came back empty, try again later."
+        return "Error: Model response came back empty, try again later."
+    }
+    let cleanMarkdown = r.response | cleanAIResponse
+    show "Time taken:" r.duration
+    if config {
+        return {
+            configuration: r.config_used,
+            request: promptText,
+            markdown: cleanMarkdown,
+            cost: r.cost,
+            duration: r.duration,
+            complete_log: r
+        }
+    }
+    return cleanMarkdown
 }
 
 fn parseHTML(markup: string) -> object {
@@ -1252,15 +1925,23 @@ fn logSteps(stepName: string, stepNumber: number, modelName: string, thinkingLev
 fn runModelStep(stepName: string, stepNumber: number, modelName: string, thinkingLevel: string, systemPrompt: string, input: string, expectsHTML: bool = true) -> string {
     try {
         // Run the AI model with the specified parameters and capture the output.
-        let output = model(modelName) {system: systemPrompt, thinking: thinkingLevel, maxT: 10000} {input} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd
-        logSteps(stepName, stepNumber, modelName, thinkingLevel, systemPrompt, input, output, expectsHTML)
-        return output
+        let output = track_model(input, {
+                model_name: modelName,
+                system: systemPrompt,
+                thinking: thinkingLevel,
+                max_tokens: 18500,
+                response: "full"
+            }
+        )
+        logSteps(stepName, stepNumber, modelName, thinkingLevel, systemPrompt, input, output.response | cleanAIResponse, expectsHTML)
+        show Safe.json("drafts/" + stepName + "_" + stepNumber + "_" + formattedTime() + "_log", output | to_json)
+        return output.response | cleanAIResponse
     } catch (error) {
         // Handle any errors that occur during the model execution.
         // Convert the error to a JSON string for logging and reporting.
         let errorText = to_json(error)
         logSteps(stepName, stepNumber, modelName, thinkingLevel, systemPrompt, input, errorText, false, "failed")
+        show Safe.json("drafts/" + stepName + "_" + stepNumber + "_" + formattedTime() + "_log", errorText)
         raise_error("GenerationStepFailed", errorText)
         return ""
     }
@@ -1345,7 +2026,7 @@ export fn genHTML(promptText: string, purpose: string = "", minify: bool = false
     // Generate the website in multiple steps, including drafting, styling, optimizing, enhancing interactivity, evaluating for defects, fixing defects if found, and minifying the final output.
     let logStep1 = "Step 1: Drafting the initial website structure and content based on the prompt...\n"
     TERM.info(logStep1)
-    let step1 = runModelStep("draft", 1, "gemini-3.8-flash", "medium", sys1, makeSite)
+    let step1 = runModelStep("draft", 1, "gpt-6.1-terra", "medium", sys1, makeSite)
     saveDraft(filename, step1, 1, "Initial Draft")
 
     let logStep2 = "Step 2: Improving the CSS styling and JS logic...\n"
@@ -1354,7 +2035,7 @@ export fn genHTML(promptText: string, purpose: string = "", minify: bool = false
     " step1 "
     Return only the improved HTML/CSS code without any additional explanations or comments."}
 
-    let step2 = runModelStep("styling", 2, "gemini-3.6-flash", "medium", sys2, step2Input)
+    let step2 = runModelStep("styling", 2, "gemini-3.8-flash", "medium", sys2, step2Input)
     saveDraft(filename, step2, 2, "CSS Enhancement")
 
     let logStep3 = "Step 3: Ensuring proper semantic tags and accessibility...\n"
@@ -1363,7 +2044,7 @@ export fn genHTML(promptText: string, purpose: string = "", minify: bool = false
     " step2 "
     Return only the optimized HTML/CSS code without any additional explanations or comments. DO NOT REMOVE ANY EXISTING FUNCTIONALITY, CONTENT, OR DESIGN ELEMENTS."}
 
-    let step3 = runModelStep("optimization", 3, "gemini-3.6-flash", "medium", sys3, step3Input)
+    let step3 = runModelStep("optimization", 3, "gpt-6.1-sol", "medium", sys3, step3Input)
     saveDraft(filename, step3, 3, "Semantics and Accessibility")
 
     let logStep4 = "Step 4: Ensuring the website is responsive and mobile-friendly...\n"
@@ -1372,7 +2053,7 @@ export fn genHTML(promptText: string, purpose: string = "", minify: bool = false
     " step3 "
     Return only the responsive and mobile-friendly HTML/CSS code without any additional explanations or comments."}
 
-    let step4 = runModelStep("responsive", 4, "gemini-3.6-flash", "medium", sys4, step4Input)
+    let step4 = runModelStep("responsive", 4, "gpt-6.1-sol", "medium", sys4, step4Input)
     saveDraft(filename, step4, 4, "Responsive Check")
 
     let finalLog = "Final Step: Adding or enhancing present JavaScript functionality and interactivity...\n"
@@ -1381,7 +2062,7 @@ export fn genHTML(promptText: string, purpose: string = "", minify: bool = false
     " step4 "
     Return only the final self-contained HTML/CSS/JS code for the website, without any additional explanations or comments."}
 
-    let finalStep = runModelStep("interactivity", 5, "gemini-3.6-flash", "medium", sys5, finalInput)
+    let finalStep = runModelStep("interactivity", 5, "gemini-3.8-flash", "medium", sys5, finalInput)
     saveDraft(filename, finalStep, 5, "JS Functionality")
 
     let evalLog = "Evaluation Step: Reviewing the final website for any defects, issues, or areas of improvement...\n"
@@ -1414,14 +2095,14 @@ export fn genHTML(promptText: string, purpose: string = "", minify: bool = false
     " finalStep}
 
     // Run the evaluation step to review the final website for defects and issues.
-    let evalRaw = runModelStep("evaluation", 6, "gemini-3.5-flash-lite", "medium", eval, evalInput, false)
+    let evalRaw = runModelStep("evaluation", 6, "gemini-3.5-flash-lite", "high", eval, evalInput, false)
     // Parse the evaluation output into a structured format.
     let evalStep = {}
     try {
         evalStep = structured_output({broken: string, semantic: string, accessibility: string, responsive: string, js: string, requirements: string})(evalRaw)
     } catch (error) {
         let errorText = to_json(error)
-        logSteps("evaluation_parse", 6, "gemini-3.5-flash-lite", "medium", eval, evalInput, errorText, false, "failed")
+        logSteps("evaluation_parse", 6, "gemini-3.5-flash-lite", "high", eval, evalInput, errorText, false, "failed")
         raise_error("EvaluationParseFailed", errorText)
     }
 
@@ -1437,7 +2118,7 @@ export fn genHTML(promptText: string, purpose: string = "", minify: bool = false
         " finalStep "
         Return only the fixed HTML/CSS/JS code without any additional explanations or commentse."}
 
-        let fixedStep = runModelStep("defect_fix", 7, "gemini-3.8-flash", "medium", defectFixer, fixedInput)
+        let fixedStep = runModelStep("defect_fix", 7, "gpt-6.1-sol", "medium", defectFixer, fixedInput)
         saveDraft(filename, fixedStep, 7, "Defect Revision")
         finalStep = fixedStep
     }
@@ -1517,7 +2198,7 @@ export fn genHTMLFast(promptText: string, purpose: string = "", minify: bool = f
     let pass1 = ""
     let review = ""
     let eval = ""
-    let fixed = ""
+    let final = ""
 
     try {
         TERM.info("Enhancing prompt and purpose to best suit your needs...")
@@ -1536,50 +2217,73 @@ with the purpose to:
 " + purpose + "
 ...")
         try {
-            pass1 = model("gpt-6.1-sol") {system: sys1, thinking: "medium"} {makeSite} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            pass1 = track_model(makeSite, {
+                    model_name: "gpt-6.1-terra",
+                    system: sys1,
+                    thinking: "medium"
+                }
+            )
         } catch (e) {
             TERM.warning(e.message)
             TERM.warning("Retrying with a more capable model...")
-            pass1 = model("gemini-3-flash-preview") {system: sys1, thinking: "medium"} {makeSite} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            pass1 = track_model(makeSite, {
+                    model_name: "gemini-3.6-flash",
+                    system: sys1,
+                    thinking: "medium"
+                }
+            )
         }
         TERM.info("Enhancing CSS and making sure site is functional...\n")
         write_file(filename, pass1)
-        try { review = model("gemini-3.6-flash") {system: sys2, thinking: "medium"} {"Enhance the following CSS and make sure the JS logic is functional rather than placeholder:
-        " pass1 "
-
-        Return only the complete code for the website without any additional explanations or comments."} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd }
+        try {
+            review = track_model("Enhance the following CSS and make sure the JS logic is functional rather than placeholder:\n" + cleanAIResponse(pass1.response) + "\n\nReturn only the complete code for the website without any additional explanations or comments.", {
+                    model_name: "gpt-6.1-terra",
+                    system: sys2,
+                    thinking: "medium"
+                }
+            )
+        }
         catch (e) {
             TERM.warning(e.message)
             TERM.warning("Retrying with a more capable model...")
-            review = model("gemini-3.8-flash") {system: sys2, thinking: "medium"} {"Enhance the following CSS and make sure the JS logic is functional rather than placeholder:
-        " pass1 "
-
-        Return only the complete code for the website without any additional explanations or comments."} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            review = track_model("Enhance the following CSS and make sure the JS logic is functional rather than placeholder:\n" + cleanAIResponse(pass1.response) + "\n\nReturn only the complete code for the website without any additional explanations or comments.", {
+                    model_name: "gemini-3.8-flash",
+                    system: sys2,
+                    thinking: "medium"
+                }
+            )
         }
         try {
-            eval = model("gpt-6-luna") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            eval = track_model(evalInput + "Implementation:\n" + cleanAIResponse(pass1.response), {
+                    model_name: "gpt-6-luna",
+                    system: evalSite,
+                    thinking: "medium"
+                }
+            )
         } catch (e) {
             TERM.warning(e.message)
             TERM.warning("Retrying with a more capable model...")
-            eval = model("gemini-3.5-flash-lite") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            eval = track_model(evalInput + "Implementation:\n" + cleanAIResponse(pass1.response), {
+                    model_name: "gemini-3.5-flash-lite",
+                    system: evalSite,
+                    thinking: "medium"
+                }
+            )
         }
-        if eval.broken != "" || eval.semantic != "" || eval.accessibility != "" || eval.responsive != "" || eval.js != "" || eval.requirements != "" {
+        if eval.response.broken != "" || eval.response.semantic != "" || eval.response.accessibility != "" || eval.response.responsive != "" || eval.response.js != "" || eval.response.requirements != "" {
             TERM.warning("Detected errors, patching before final delivery...")
             prompt defectFixer {"You are a professional and organized software developer. You are tasked with fixing the following defects in this HTML code. Preserve semantics, accessibility, word usage/text, and responsive design. Do not redesign the website."}
             prompt fixedInput {"Bugs to patch:
-            " to_json(eval) "
+            " to_json(eval.response | cleanAIResponse) "
             Code to fix:
-            " review "
+            " cleanAIResponse(review.response) "
             Return only the complete fixed code without any additional explanations or comments."}
-            fixed = model("gpt-6.1-sol") {system: defectFixer, thinking: "medium"} {fixedInput} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
-            review = fixed
+            final = track_model(fixedInput, {
+                    model_name: "gpt-6.1-sol",
+                    system: defectFixer,
+                    thinking: "medium"
+                }
+            )
         } else {
             TERM.success("No defects found in the final website implementation.")
         }
@@ -1590,9 +2294,17 @@ with the purpose to:
     TERM.success("Successfully generated HTML!")
 
     if minify {
-        return minify_html(review)
+        return minify_html(final)
     }
-    return review
+    Safe.json((promptText | to_lower | trim | swap(" ", "_")) + "_log_" + formattedTime(), {
+        request: promptText,
+        purpose: purpose,
+        draft_1: pass1,
+        draft_2: review,
+        evaluation: eval,
+        final: final
+    })
+    return final.response | cleanAIResponse
 }
 
 /**
@@ -1680,7 +2392,7 @@ export fn genHTMLFastWithRef(promptText: string, purpose: string, filenames: arr
     let pass1 = ""
     let review = ""
     let eval = ""
-    let fixed = ""
+    let final = ""
 
     try {
         TERM.info("Enhancing prompt and purpose to best suit your needs...")
@@ -1700,51 +2412,73 @@ with the purpose to:
 ...
 ")
         try {
-            pass1 = model("gpt-6.1-sol") {system: sys1, thinking: "medium"} {makeSite} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            pass1 = track_model(makeSite, {
+                    model_name: "gpt-6.1-terra",
+                    system: sys1,
+                    thinking: "medium"
+                }
+            )
         } catch (e) {
             TERM.warning(e.message)
             TERM.warning("Retrying with a more capable model...")
-            pass1 = model("gemini-3-flash-preview") {system: sys1, thinking: "medium"} {makeSite} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            pass1 = track_model(makeSite, {
+                    model_name: "gemini-3.6-flash",
+                    system: sys1,
+                    thinking: "medium"
+                }
+            )
         }
         TERM.info("Enhancing CSS and making sure site is functional...\n")
         write_file(filename, pass1)
-        try { review = model("gemini-3.6-flash") {system: sys2, thinking: "medium"} {"Enhance the following CSS and make sure the JS logic is functional rather than placeholder:
-        " pass1 "
-
-        Return only the complete code for the website without any additional explanations or comments."} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd }
+        try {
+            review = track_model("Enhance the following CSS and make sure the JS logic is functional rather than placeholder:\n" + cleanAIResponse(pass1.response) + "\n\nReturn only the complete code for the website without any additional explanations or comments.", {
+                    model_name: "gpt-6.1-terra",
+                    system: sys2,
+                    thinking: "medium"
+                }
+            )
+        }
         catch (e) {
             TERM.warning(e.message)
             TERM.warning("Retrying with a more capable model...")
-            review = model("gemini-3.8-flash") {system: sys2, thinking: "medium"} {"Enhance the following CSS and make sure the JS logic is functional rather than placeholder:
-        " pass1 "
-
-        Return only the complete code for the website without any additional explanations or comments."} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            review = track_model("Enhance the following CSS and make sure the JS logic is functional rather than placeholder:\n" + cleanAIResponse(pass1.response) + "\n\nReturn only the complete code for the website without any additional explanations or comments.", {
+                    model_name: "gemini-3.8-flash",
+                    system: sys2,
+                    thinking: "medium"
+                }
+            )
         }
-        write_file(dir + "pass_2.html", review)
         try {
-            eval = model("gpt-6-luna") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            eval = track_model(evalInput + "Implementation:\n" + cleanAIResponse(pass1.response), {
+                    model_name: "gpt-6-luna",
+                    system: evalSite,
+                    thinking: "medium"
+                }
+            )
         } catch (e) {
             TERM.warning(e.message)
             TERM.warning("Retrying with a more capable model...")
-            eval = model("gemini-3.5-flash-lite") {system: evalSite, thinking: "medium"} {evalInput "Implementation:\n" pass1} | cleanAIResponse | from_json
-            show "Total cost for this request:" model_usage().total_cost_usd
+            eval = track_model(evalInput + "Implementation:\n" + cleanAIResponse(pass1.response), {
+                    model_name: "gemini-3.5-flash-lite",
+                    system: evalSite,
+                    thinking: "medium"
+                }
+            )
         }
-        if eval.broken != "" || eval.semantic != "" || eval.accessibility != "" || eval.responsive != "" || eval.js != "" || eval.requirements != "" {
+        if eval.response.broken != "" || eval.response.semantic != "" || eval.response.accessibility != "" || eval.response.responsive != "" || eval.response.js != "" || eval.response.requirements != "" {
             TERM.warning("Detected errors, patching before final delivery...")
             prompt defectFixer {"You are a professional and organized software developer. You are tasked with fixing the following defects in this HTML code. Preserve semantics, accessibility, word usage/text, and responsive design. Do not redesign the website."}
             prompt fixedInput {"Bugs to patch:
-            " to_json(eval) "
+            " to_json(eval.response | cleanAIResponse) "
             Code to fix:
-            " review "
+            " cleanAIResponse(review.response) "
             Return only the complete fixed code without any additional explanations or comments."}
-            fixed = model("gpt-6.1-sol") {system: defectFixer, thinking: "medium"} {fixedInput} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
-            review = fixed
+            final = track_model(fixedInput, {
+                    model_name: "gpt-6.1-sol",
+                    system: defectFixer,
+                    thinking: "medium"
+                }
+            )
         } else {
             TERM.success("No defects found in the final website implementation.")
         }
@@ -1755,9 +2489,17 @@ with the purpose to:
     TERM.success("Successfully generated HTML!")
 
     if minify {
-        return minify_html(review)
+        return minify_html(final)
     }
-    return review
+    Safe.json((promptText | to_lower | trim | swap(" ", "_")) + "_log_" + formattedTime(), {
+        request: promptText,
+        purpose: purpose,
+        draft_1: pass1,
+        draft_2: review,
+        evaluation: eval,
+        final: final
+    })
+    return final.response | cleanAIResponse
 }
 
 /**
@@ -1866,7 +2608,7 @@ export fn genHTMLWithRef(promptText: string, purpose: string, filenames: array<s
     // Generate the website in multiple steps, including drafting, styling, optimizing, enhancing interactivity, evaluating for defects, fixing defects if found, and minifying the final output.
     let logStep1 = "Step 1: Drafting the initial website structure and content based on the prompt...\n"
     TERM.info(logStep1)
-    let step1 = runModelStep("draft", 1, "gemini-3.8-flash", "medium", sys1, makeSite)
+    let step1 = runModelStep("draft", 1, "gpt-6.1-terra", "medium", sys1, makeSite)
     saveDraft(filename, step1, 1, "Initial Draft")
 
     let logStep2 = "Step 2: Improving the CSS styling and JS logic...\n"
@@ -1875,7 +2617,7 @@ export fn genHTMLWithRef(promptText: string, purpose: string, filenames: array<s
     " step1 "
     Return only the improved HTML/CSS code without any additional explanations or comments."}
 
-    let step2 = runModelStep("styling", 2, "gemini-3.6-flash", "medium", sys2, step2Input)
+    let step2 = runModelStep("styling", 2, "gpt-6.1-sol", "medium", sys2, step2Input)
     saveDraft(filename, step2, 2, "CSS Enhancement")
 
     let logStep3 = "Step 3: Ensuring proper semantic tags...\n"
@@ -1884,7 +2626,7 @@ export fn genHTMLWithRef(promptText: string, purpose: string, filenames: array<s
     " step2 "
     Return only the HTML/CSS code with the applied semantic tags without any additional explanations or comments. DO NOT REMOVE ANY EXISTING FUNCTIONALITY, CONTENT, OR DESIGN ELEMENTS."}
 
-    let step3 = runModelStep("semantics", 3, "gemini-3.6-flash", "medium", sys3, step3Input)
+    let step3 = runModelStep("semantics", 3, "gemini-3.8-flash", "medium", sys3, step3Input)
     saveDraft(filename, step3, 3, "Semantics Tagging")
 
     let logStep4 = "Step 4: Ensuring the website is responsive and mobile-friendly...\n"
@@ -1893,7 +2635,7 @@ export fn genHTMLWithRef(promptText: string, purpose: string, filenames: array<s
     " step3 "
     Return only the responsive and mobile-friendly HTML/CSS code without any additional explanations or comments."}
 
-    let step4 = runModelStep("responsive", 4, "gemini-3.6-flash", "medium", sys4, step4Input)
+    let step4 = runModelStep("responsive", 4, "gpt-6.1-terra", "medium", sys4, step4Input)
     saveDraft(filename, step4, 4, "Responsive Check")
 
     let finalLog = "Final Step: Adding or enhancing present JavaScript functionality and interactivity...\n"
@@ -1902,7 +2644,7 @@ export fn genHTMLWithRef(promptText: string, purpose: string, filenames: array<s
     " step4 "
     Return only the final self-contained HTML/CSS/JS code for the website, without any additional explanations or comments."}
 
-    let finalStep = runModelStep("interactivity", 5, "gemini-3.6-flash", "medium", sys5, finalInput)
+    let finalStep = runModelStep("interactivity", 5, "gemini-3.8-flash", "medium", sys5, finalInput)
     saveDraft(filename, finalStep, 5, "JS Functionality")
 
     let evalLog = "Evaluation Step: Reviewing the final website for any defects, issues, or areas of improvement...\n"
@@ -1959,7 +2701,7 @@ export fn genHTMLWithRef(promptText: string, purpose: string, filenames: array<s
         " finalStep "
         Return only the fixed HTML/CSS/JS code without any additional explanations or commentse."}
 
-        let fixedStep = runModelStep("defect_fix", 7, "gemini-3.8-flash", "medium", defectFixer, fixedInput)
+        let fixedStep = runModelStep("defect_fix", 7, "gpt-6.1-sol", "medium", defectFixer, fixedInput)
         saveDraft(filename, fixedStep, 7, "Defect Revision")
         finalStep = fixedStep
     }
@@ -1982,9 +2724,10 @@ export fn genHTMLWithRef(promptText: string, purpose: string, filenames: array<s
   - name: Name of the project.
   - description: Brief description of the package.
   - author: The author of the project.
+  - config: Optional boolean indicating whether to return detailed configuration and cost information. Defaults to false.
 
   Returns:
-  - A string containing the generated package.json contents.
+  - A string containing the generated package.json contents if `config` is false, otherwise an object with detailed configuration and cost information.
 
   Example:
   ```sesi
@@ -1995,7 +2738,7 @@ export fn genHTMLWithRef(promptText: string, purpose: string, filenames: array<s
   Notes:
   - Uses `gpt-6-luna` to enhance the description and format JSON, falling back to `gemini-3.5-flash-lite` if necessary.
 */
-export fn genPkgJSON(name: string, description: string, author: string) -> string {
+export fn genPkgJSON(name: string, description: string, author: string, config = false) -> any {
     prompt sys {"You are a professional and organized software developer. You are tasked with generating a package.json file for a Node.js project."}
     prompt makePkgJSON {"Generate a package.json file for a Node.js project with the following details:
 - Name: "name"
@@ -2004,15 +2747,39 @@ export fn genPkgJSON(name: string, description: string, author: string) -> strin
 - License: MIT"}
 
     let generatedPkg = ""
-    try { generatedPkg = model("gpt-6-luna") {system: sys} {makePkgJSON} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd }
-    catch (e) {
+    try {
+        generatedPkg = track_model(makePkgJSON, {
+                model_name: "gpt-6-luna",
+                system: sys,
+                max_tokens: 2048,
+                response: "full"
+            }
+        )
+    } catch (e) {
         TERM.warning(e.message)
         TERM.warning("Retrying with a more capable model...")
-        generatedPkg = model("gemini-3.5-flash-lite") {system: sys} {makePkgJSON} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd
+        generatedPkg = track_model(makePkgJSON, {
+                model_name: "gemini-3.5-flash-lite",
+                system: sys,
+                max_tokens: 2048,
+                response: "full"
+            }
+        )
     }
-    return generatedPkg 
+    if config {
+        return {
+            configuration: generatedPkg.config_used,
+            cost: generatedPkg.cost,
+            duration: generatedPkg.duration,
+            package_name: name,
+            description: description,
+            author: author,
+            license: "MIT",
+            package_json: generatedPkg.response,
+            complete_log: generatedPkg
+        }
+    }
+    return generatedPkg.response
 }
 
 /**
@@ -2024,19 +2791,24 @@ export fn genPkgJSON(name: string, description: string, author: string) -> strin
   - body: The main content of the README, providing an overview of the project, its features, and other relevant information.
   - installation: Instructions for installing the project.
   - usage: Instructions for using the project.
+  - config: A boolean indicating whether to return detailed configuration and generation information. Defaults to false.
+
   Returns:
-  - A string containing the generated markdown README content.
+  - A string containing the generated markdown README content, or an object with detailed configuration and generation information if `config` is true.
 
   Example:
   ```sesi
-  let readme = genReadMe("MyLib", "A fast library", "Details...", "npm install mylib", "import mylib")
-  show readme
+  let readme = genReadMe("MyLib", "A fast library", "Details...", "npm install mylib", "import mylib", true)
+  show readme.complete_log
   ```
 
   Notes:
-  - Attempts generation using `gpt-6.1-sol`, falling back to `gemini-3.6-flash`.
+  - Attempts generation using `gpt-6.1-terra`, falling back to `gemini-3.6-flash`.
+  - The requested parameters and generated parameters are isolated, useful for debugging and understanding how the final README content was derived.
+  - If `config` is true, the returned object will include the complete generation log under `complete_log`.
+  - If `config` is false, only the generated README content as a string will be returned.
 */
-export fn genReadMe(title: string, description: string, body: string, installation: string, usage: string) -> string {
+export fn genReadMe(title: string, description: string, body: string, installation: string, usage: string, config = false) -> any {
     prompt sys {"You are a professional and organized software developer. You are tasked with generating a README.md file for a project."}
     prompt makeReadMe {"Generate a README.md file for a project with the following details:
 - Title: "title"
@@ -2048,43 +2820,52 @@ export fn genReadMe(title: string, description: string, body: string, installati
 
     let generatedReadMe = ""
     try {
-        generatedReadMe = model("gpt-6.1-sol") {system: sys, search} {makeReadMe}
-        show "Total cost for this request:" model_usage().total_cost_usd
+        generatedReadMe = track_structured_model(makeReadMe, {
+                title: "string",
+                description: "string",
+                installation: "string",
+                usage: "string",
+                readme: "string"
+            },
+            {
+                model_name: "gpt-6.1-terra",
+                system: sys,
+                search: true,
+                response: "full"
+            }
+        )
     } catch (e) {
         TERM.warning(e.message)
         TERM.warning("Retrying with a more capable model...")
-        generatedReadMe = model("gemini-3.8-flash") {system: sys, search} {makeReadMe}
-        show "Total cost for this request:" model_usage().total_cost_usd
+        generatedReadMe = track_structured_model(makeReadMe, {
+                title: "string",
+                description: "string",
+                installation: "string",
+                usage: "string",
+                readme: "string"
+            },
+            {
+                model_name: "gemini-3.8-flash",
+                system: sys,
+                search: true,
+                response: "full"
+            }
+        )
     }
-
-    fn cleanCodeBlockAtEndOfFile(text: string) -> string {
-        let lines = split(text, "\n")
-        let cleanedLines = []
-        let insideCodeBlock = false
-
-        for line in lines {
-            // Check for the start or end of a code block
-            if regex("^```", line, {"mode": "match", "flags": "g"}) != [] {
-                insideCodeBlock = !insideCodeBlock
-            }
-            // Add back descriptive text lines, but skip the last code block if it's at the end of the file
-            if !insideCodeBlock || (insideCodeBlock && line != lines[len(lines) - 1]) {
-                cleanedLines = append(cleanedLines, line)
-            }
-            // Some code blocks might've been accidentally left open, so we ensure we don't include the last code block if it's at the end of the file
-            if insideCodeBlock && line == lines[len(lines) - 1] {
-                insideCodeBlock = false
-            }
+    if config {
+        return {
+            configuration: generatedReadMe.config_used,
+            cost: generatedReadMe.cost,
+            duration: generatedReadMe.duration,
+            title: generatedReadMe.title,
+            description: generatedReadMe.description,
+            installation: generatedReadMe.installation,
+            usage: generatedReadMe.usage,
+            readme: generatedReadMe.readme,
+            complete_log: generatedReadMe
         }
-
-        return join(cleanedLines, "\n")
     }
-
-    if generatedReadMe | contains("```markdown") {
-        generatedReadMe = regex("```markdown\\n([\\s\\S]*?)\\n```", generatedReadMe, {"mode": "replace", "replacement": "$1", "flags": "g"})
-        generatedReadMe = cleanCodeBlockAtEndOfFile(generatedReadMe)
-    }
-    return generatedReadMe
+    return generatedReadMe.readme
 }
 
 /**
@@ -2094,9 +2875,10 @@ export fn genReadMe(title: string, description: string, body: string, installati
   - name: The name of the copyright holder.
   - year: The year the license applies to.
   - license: License type (e.g., "MIT", "Apache-2.0").
+  - config: Optional boolean indicating whether to return detailed configuration and cost information. Defaults to false.
 
   Returns:
-  - A string containing the generated license text.
+  - A string containing the generated license text if `config` is false, otherwise an object with detailed configuration and cost information.
 
   Example:
   ```sesi
@@ -2106,8 +2888,10 @@ export fn genReadMe(title: string, description: string, body: string, installati
 
   Notes:
   - Uses the `gemini-3.1-flash-lite` model with search enabled.
+  - If `config` is true, the function returns an object containing the configuration used, cost, duration, licensee, year, license text, and the complete log.
+  - If `config` is false, the function returns only the generated license text.
 */
-export fn genLicense(name: string, year: string, license: string) -> string {
+export fn genLicense(name: string, year: string, license: string, config = false) -> any {
     prompt sys {"You are a professional and organized software developer. You are tasked with generating a LICENSE file for a project."}
     prompt makeLicense {"Generate a LICENSE file for a project with the following details:
 
@@ -2116,8 +2900,27 @@ export fn genLicense(name: string, year: string, license: string) -> string {
 - License: "license"
 "}
 
-    let generatedLicense = model("gemini-3.1-flash-lite") {system: sys, search} {makeLicense}
-    return generatedLicense | cleanAIResponse
+    let generatedLicense = track_model(makeLicense, {
+            model_name: "gemini-3.1-flash-lite",
+            system: sys,
+            search: true,
+            max_tokens: 1024,
+            response: "full"
+        }
+    )
+    if config {
+        return {
+            configuration: generatedLicense.config_used,
+            cost: generatedLicense.cost,
+            duration: generatedLicense.duration,
+            copyright_holder: name,
+            year: year,
+            license_type: license,
+            license: generatedLicense.license | cleanAIResponse,
+            complete_log: generatedLicense
+        }
+    }
+    return generatedLicense.license | cleanAIResponse
 }
 
 /**
@@ -2132,9 +2935,11 @@ export fn genLicense(name: string, year: string, license: string) -> string {
   - `license`: The type of license for the project.
   - `name`: The name of the copyright holder.
   - `year`: The year the license applies to.
+  - `config`: Whether to return the full configuration and log along with the generated content. Defaults to false.
 
   Returns:
   - A combined markdown string containing the README and appended license.
+  - If `config` is true, returns an object with `readme` and `license` logs containing the generated content and configuration details.
 
   Example:
   ```sesi
@@ -2145,9 +2950,15 @@ export fn genLicense(name: string, year: string, license: string) -> string {
   Notes:
   - Automatically generates the license and appends it to the README.
 */
-export fn genReadMeWithLicense(title: string, description: string, body: string, installation: string, usage: string, license: string, name: string, year: string) -> string {
-    let licenseText = genLicense(name, year, license)
-    let readme = genReadMe(title, description, body, installation, usage + "\n" + licenseText + "----")
+export fn genReadMeWithLicense(title: string, description: string, body: string, installation: string, usage: string, license: string, name: string, year: string, config = false) -> any {
+    let licenseText = genLicense(name, year, license, config)
+    let readme = genReadMe(title, description, body, installation, usage + "\n" + licenseText + "----", config)
+    if config {
+        return {
+            readme: readme,
+            license: licenseText
+        }
+    }
     return readme
 }
 
@@ -2156,9 +2967,11 @@ export fn genReadMeWithLicense(title: string, description: string, body: string,
 
   Parameters:
   - purpose: Description of the project requirements or purpose.
+  - `config`: Whether to return the full configuration and log along with the generated content. Defaults to false.
 
   Returns:
   - A string containing the generated requirements.txt contents.
+  - If `config` is true, returns an object with configuration, cost, duration, purpose, requirements, and complete log.
 
   Example:
   ```sesi
@@ -2169,14 +2982,30 @@ export fn genReadMeWithLicense(title: string, description: string, body: string,
   Notes:
   - Uses `gemini-3.5-flash-lite` with search enabled.
 */
-export fn genRequirements(purpose: string) -> string {
+export fn genRequirements(purpose: string, config = false) -> any {
     prompt sys {"You are a professional and organized software developer. You are tasked with generating a requirements.txt file for a Python project. Do not conversate or provide any explanations. Only provide the requirements.txt file content."}
     prompt makeRequirements {"Generate a requirements.txt file for a Python project with the following purpose:
 
 " purpose}
 
-    let generatedRequirements = model("gemini-3.5-flash-lite") {system: sys, search} {makeRequirements}
-    return generatedRequirements | cleanAIResponse
+    let generatedRequirements = track_model(makeRequirements, {
+            model_name: "gemini-3.5-flash-lite",
+            system: sys,
+            search: true,
+            response: "full"
+        }
+    )
+    if config {
+        return {
+            configuration: generatedRequirements.config_used,
+            cost: generatedRequirements.cost,
+            duration: generatedRequirements.duration,
+            purpose: purpose,
+            requirements: generatedRequirements.response | cleanAIResponse,
+            complete_log: generatedRequirements
+        }
+    }
+    return generatedRequirements.response | cleanAIResponse
 }
 
 /**
@@ -2184,9 +3013,11 @@ export fn genRequirements(purpose: string) -> string {
 
   Parameters:
   - purpose: Description of the project.
+  - `config`: Whether to return the full configuration and log along with the generated content. Defaults to false.
 
   Returns:
   - A string containing environment variable examples.
+  - If `config` is true, returns an object with configuration, cost, duration, purpose, env_example, and complete log.
 
   Example:
   ```sesi
@@ -2197,14 +3028,31 @@ export fn genRequirements(purpose: string) -> string {
   Notes:
   - Uses `gemini-3.5-flash-lite` with search enabled.
 */
-export fn genEnvExample(purpose: string) -> string {
+export fn genEnvExample(purpose: string, config = false) -> any {
     prompt sys {"You are a professional and organized software developer. You are tasked with generating an .env.example file for a project."}
     prompt makeEnvExample {"Generate an .env.example file for a project with the following purpose:
 
 " purpose}
 
-    let generatedEnvExample = model("gemini-3.5-flash-lite") {system: sys, search} {makeEnvExample}
-    return generatedEnvExample | cleanAIResponse
+    let generatedEnvExample = track_model(makeEnvExample, {
+            model_name: "gemini-3.5-flash-lite",
+            system: sys,
+            search: true,
+            response: "full",
+            max_tokens: 800
+        }
+    )
+    if config {
+        return {
+            configuration: generatedEnvExample.config_used,
+            cost: generatedEnvExample.cost,
+            duration: generatedEnvExample.duration,
+            purpose: purpose,
+            env_example: generatedEnvExample.response | cleanAIResponse,
+            complete_log: generatedEnvExample
+        }
+    }
+    return generatedEnvExample.response | cleanAIResponse
 }
 
 // Templates
@@ -2228,6 +3076,7 @@ export make AIProject {
     let purpose = ""
     let name = ""
     let licenseType = ""
+    let config = false
 
     // Initializes the AIProject instance with project metadata.
     //
@@ -2243,7 +3092,7 @@ export make AIProject {
     //
     // Notes:
     // - Formats project name as PascalCase and directory as kebab-case. Default license is MIT.
-    fn start(self, title: string = projectName, purpose: string, name: string,  directory: string, licenseType: string) {
+    fn start(self, title: string = projectName, purpose: string, name: string,  directory: string, licenseType: string, config: bool = false) {
         self.name = name
         self.projectName = title | toPascal
         self.purpose = purpose
@@ -2252,6 +3101,7 @@ export make AIProject {
         if self.licenseType == "" || self.licenseType | is_null {
             self.licenseType = "MIT"
         }
+        self.config = config
     }
 
     // Creates the project directory on disk.
@@ -2291,53 +3141,75 @@ export make AIProject {
 
         try {// Generate project files
             TERM.info("Generating README...")
-            let README = genReadMe(self.projectName, self.purpose, "", "", "")
+            let README = genReadMe(self.projectName, self.purpose, "", "", "", self.config)
             TERM.info("Generating LICENSE...")
-            let LICENSE = genLicense(self.name, "2026", self.licenseType)
+            let LICENSE = genLicense(self.name, "2026", self.licenseType, self.config)
             TERM.info("Generating requirements.txt...")
-            let requirements = genRequirements(self.purpose)
+            let requirements = genRequirements(self.purpose, self.config)
             TERM.info("Generating .env.example...")
-            let envExample = genEnvExample(self.purpose)
+            let envExample = genEnvExample(self.purpose, self.config)
             TERM.info("Generating package.json...")
-            let pkgJSON = genPkgJSON(self.projectName, self.purpose, self.name)
+            let pkgJSON = genPkgJSON(self.projectName, self.purpose, self.name, self.config)
 
             try {// Generate .gitignore file based on the project purpose
                 TERM.info("Generating .gitignore file based on the project purpose...")
                 // Tool for generating a .gitignore file based on the project purpose.
                 define_tool("generateGitIgnore", generateGitIgnore, "Generate a .gitignore file for a project based on the provided contents.")
                 // Use the AI model to generate the contents of the .gitignore file based on the project purpose and current workspace context.
-                let generatedContents = model("gemini-3.5-flash-lite") {tools: generateGitIgnore, system: "You are a professional and organized software developer. You are tasked with generating a .gitignore file for a project."} {"
-                Use the generateGitIgnore tool for a project with the following purpose:
-                "self.purpose"
+                let generatedContents = track_structured_model("Use the generateGitIgnore tool for a project with the following purpose:
+" + self.purpose + "
 
-                Here's the current workspaace context:
-                ==== README.md ====
-                "README"
-                ==== LICENSE ====
-                "LICENSE"
-                ==== requirements.txt ====
-                "requirements"
-                ==== .env.example ====
-                "envExample"
-                ==== package.json ====
-                "pkgJSON} | cleanAIResponse | from_json
-
-                let lines = generatedContents.arguments.custom_entries
-                for line in lines {
-                    gitignore = gitignore + line + "\n"
-                }
+Here's the current workspace context:
+==== README.md ====
+" + README + "
+==== LICENSE ====
+" + LICENSE + "
+==== requirements.txt ====
+" + requirements + "
+==== .env.example ====
+" + envExample + "
+==== package.json ====
+" + pkgJSON,
+                    {
+                        gitignore: "string"
+                    },
+                    {
+                        model_name: "gemini-3.5-flash-lite",
+                        tools: [generateGitIgnore],
+                        max_tool_calls: 4,
+                        system: "You are a professional and organized software developer. You are tasked with generating a .gitignore file for a project.",
+                        response: "full",
+                        max_tokens: 1024
+                    }
+                )
+                gitignore = generatedContents.response.gitignore
             } catch (e1) {
                 TERM.error("Error generating .gitignore file: " + e1)
                 gitignore = ""
             }
 
             // Write the generated files to the project directory
-            write_file(projectPath + "/README.md", README)
-            write_file(projectPath + "/LICENSE", LICENSE)
-            write_file(projectPath + "/.gitignore", gitignore)
-            write_file(projectPath + "/requirements.txt", requirements)
-            write_file(projectPath + "/.env.example", envExample)
-            write_file(projectPath + "/package.json", pkgJSON)
+            if self.config {
+                Safe.json(projectPath + "/README.md", README | to_json)
+                Safe.json(projectPath + "/LICENSE", LICENSE | to_json)
+                Safe.json(projectPath + "/.gitignore", gitignore | to_json)
+                Safe.json(projectPath + "/requirements.txt", requirements | to_json)
+                Safe.json(projectPath + "/.env.example", envExample | to_json)
+                Safe.json(projectPath + "/package.json", pkgJSON | to_json)
+                write_file(projectPath + "/README.md", README.readme)
+                write_file(projectPath + "/LICENSE", LICENSE.license)
+                write_file(projectPath + "/.gitignore", gitignore.gitignore)
+                write_file(projectPath + "/requirements.txt", requirements.requirements)
+                write_file(projectPath + "/.env.example", envExample.env_example)
+                write_file(projectPath + "/package.json", pkgJSON.package_json)
+            } else {
+                write_file(projectPath + "/README.md", README)
+                write_file(projectPath + "/LICENSE", LICENSE)
+                write_file(projectPath + "/.gitignore", gitignore)
+                write_file(projectPath + "/requirements.txt", requirements)
+                write_file(projectPath + "/.env.example", envExample)
+                write_file(projectPath + "/package.json", pkgJSON)
+            }
             TERM.success("Project files created successfully.")
         } catch (e2) {
             TERM.error("Error creating project files: " + e2)
@@ -2352,9 +3224,11 @@ export make AIProject {
 
   Parameters:
   - content: The Sesi code content to be debugged. Can be a string containing the code or a file path to the Sesi source file.
+  - config: Optional boolean flag indicating whether to return detailed configuration and debugging information. Defaults to false.
 
   Returns:
   - A detailed review of the Sesi code, including any identified issues, suggestions for improvement, and the corrected code if applicable.
+  - If config is true, also includes detailed configuration and debugging information used during the process.
 
   Example:
   ```sesi
@@ -2365,8 +3239,9 @@ export make AIProject {
   Notes:
   - The function attempts to debug the Sesi code using the "gpt-6.1-sol" model first. If it fails, it falls back to the "gemini-4-argon" model.
   - Any errors encountered during the debugging process will be returned as error messages.
+  - If config is true, the returned result will also include detailed configuration and debugging information.
 */
-export fn debugSesi(content: string) -> string {
+export fn debugSesi(content: string, config = false) -> any {
     let c = ""
     let debugged = ""
     prompt fix {"# SESI REFERENCE: "_"\nYou are an expert in debugging Sesi code. You find syntax errors, bad practices, and hallucinated/mistaken code patterns in Sesi. If none of these issues are present, indicate that the code is correct. Otherwise, provide detailed feedback and suggestions for improvement.
@@ -2374,19 +3249,43 @@ export fn debugSesi(content: string) -> string {
     TERM.info("Debugging Sesi code...")
     if (content | get_ext) == null { c = content } else if (content | get_ext) != null { c = read_file(content) }
     try {
-        debugged = model("gpt-6.1-sol") {system: fix, thinkingLevel: "medium", cache: true, maxT: 10000} {c}
-        show "Total cost for this request:" model_usage().total_cost_usd
+        debugged = track_model(c, {
+                model_name: "gpt-6.1-sol",
+                system: fix,
+                thinking: "medium",
+                cache: true,
+                max_tokens: 10000,
+                response: "full"
+            }
+        )
         TERM.success("Sesi code debugged successfully.")
     } catch (e) {
         try {
-            debugged = model("gemini-4-argon") {system: fix, thinkingLevel: "medium", cache: true, maxT: 10000} {c}
-            show "Total cost for this request:" model_usage().total_cost_usd
+            debugged = track_model(c, {
+                    model_name: "gemini-4-argon",
+                    system: fix,
+                    thinking: "medium",
+                    cache: true,
+                    max_tokens: 10000,
+                    response: "full"
+                }
+            )
             TERM.success("Sesi code debugged successfully.")
         } catch (e2) {
             return TERM.error("Error debugging Sesi code: " + e2.message)
         }
     }
-    return debugged
+    if config {
+        return {
+            configuration: debugged.config_used,
+            input: content,
+            cost: debugged.cost,
+            duration: debugged.duration,
+            result: debugged.response,
+            complete_log: debugged
+        }
+    }
+    return debugged.response
 }
 
 /**
@@ -2395,9 +3294,11 @@ export fn debugSesi(content: string) -> string {
   Parameters:
   - file: Path to the Sesi source file to check and patch.
   - modelChoice: The model to use for patching, either "gpt" or "gemini".
+  - config: Boolean flag indicating whether to include configuration details in the return value.
 
   Returns:
-  - A string containing the patched code or a message indicating no issues were found.
+  - `None` if no issues were found or the file could not be patched.
+  - If `config` is true, the return value will include detailed configuration information along with the patched code.
 
   Example:
   ```sesi
@@ -2406,11 +3307,13 @@ export fn debugSesi(content: string) -> string {
   ```
 
   Notes:
-  - The function uses the "gpt-6.1-sol" model to verify and patch the Sesi code, falling back to the "gemini-4-argon" model if necessary.
+  - The function uses the "gpt-6.1-terra" model to verify and patch the Sesi code, falling back to the "gemini-4-argon" model if necessary.
   - It relies on the "verify" and "view" tools to identify and understand issues in the Sesi file.
-  - The function returns the corrected Sesi code or indicates if no issues were found.
+  - The function will attempt to patch the file in place using the specified model and configuration, creating a backup.
+  - If the file could not be patched, the function will return `None`.
+  - The `config` parameter allows users to obtain detailed information about the patching process, including the configuration used, cost, duration, and complete log.
 */
-export fn patchSesi(file: string, modelChoice: string = "gemini") -> string {
+export fn patchSesi(file: string, modelChoice: string = "gemini", config = false) -> any {
     // Checks the correctness of a Sesi file by running it and returning the log output.
     //
     // Parameters:
@@ -2440,22 +3343,22 @@ export fn patchSesi(file: string, modelChoice: string = "gemini") -> string {
     // Notes:
     // - Helper utility used by tools.    
     fn read(file: string) {
-        show "Reading" file "..."
+        TERM.info("Reading " + file + "...")
         return Safe.read(file)
     }
 
     fn write(code: string) {
-        show "Writing to" file ".patched"
+        TERM.info("Writing to " + file + ".patched")
         let written = Safe.write(file + ".patched", code)
-        show written
+        TERM.info(written)
         let backup = ".backup/" + time() + "_" + file
-        show "Backup file saved to" backup
+        TERM.info("Backup file saved to " + backup)
         if exists(file + ".patched") {
             archive(file, backup)
             rename(backup, file)
-            show "File patched successfully.\n"
+            TERM.success("File patched successfully.\n")
         } else {
-            show "Failed to create patched file.\n"
+            TERM.error("Failed to create patched file.\n")
         }
         return written
     }
@@ -2467,33 +3370,80 @@ export fn patchSesi(file: string, modelChoice: string = "gemini") -> string {
     let s = ""
     let i = _ + "\n\nYou are an expert in verifying Sesi code for correctness and identifying errors."
     prompt patcher {i "
-    Use the check tool to check the correctness of the Sesi file: "file"
-    Call verify exactly once. If it reports errors or issues, call view exactly once to inspect the file, then return the complete corrected Sesi code.
-    Do not call verify or view again. Return only the corrected code so the caller can execute it seperately. Do not wrap it in code blocks.
-    Otherwise, return 'No issues found!' exactly.
-    Do not provide any explanations or commentary."}
+Use the check tool to check the correctness of the Sesi file: "file"
+Call verify exactly once. If it reports errors or issues, call view exactly once to inspect the file.
+Do not call verify or view again.
+Use the write_code tool to save the corrected code to a patch file.
+Otherwise, return 'No issues found!' exactly.
+Do not provide any explanations or commentary."}
 
     if modelChoice == "gpt" {
         try {
-            s = model("gpt-6.1-sol") {system: patcher, tools: [check, read], max_tool_calls: 7, thinkingLevel: "low", cache: false, maxT: 10000} {"Proceed."} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            s = track_model("Proceed.", {
+                    model_name: "gpt-6.1-terra",
+                    system: patcher,
+                    tools: [check, read, write],
+                    max_tool_calls: 7,
+                    thinking: "low",
+                    cache: false,
+                    max_tokens: 10000,
+                    response: "full"
+                }
+            )
         } catch (e) {
             TERM.warning(e.message)
             TERM.warning("Retrying with a more capable model...")
-            s = model("gemini-4-argon") {system: patcher, tools: [check, read], max_tool_calls: 7, thinkingLevel: "low", cache: false, maxT: 10000} {"Proceed."} | cleanAIResponse
-            show "Total cost for this request:" model_usage().total_cost_usd
+            s = track_model("Proceed.", {
+                    model_name: "gemini-4-argon",
+                    system: patcher,
+                    tools: [check, read, write],
+                    max_tool_calls: 7,
+                    thinking: "low",
+                    cache: false,
+                    max_tokens: 10000,
+                    response: "full"
+                }
+            )
         }
     } else {
-        s = model("gemini-4-argon") {system: patcher, tools: [check, read], max_tool_calls: 7, thinkingLevel: "low", cache: false, maxT: 10000} {"Proceed."} | cleanAIResponse
-        show "Total cost for this request:" model_usage().total_cost_usd
+        s = track_model("Proceed.", {
+            model_name: "gemini-4-argon",
+            system: patcher,
+            tools: [check, read, write],
+            max_tool_calls: 7,
+            thinking: "low",
+            cache: false,
+            max_tokens: 10000,
+            response: "full"
+        })
     }
     
-    if s == "No issues found!" {
+    if s.response == "No issues found!" {
         TERM.success(file + " has been checked and verified for errors, none found!")
-        return s
-    } else { 
+        if config {
+            return {
+                configuration: s.config_used,
+                cost: s.cost,
+                duration: s.duration,
+                file_to_patch: file,
+                results: s.response,
+                complete_log: s
+            }
+        }
+        return s.response
+    } else {
         TERM.success(file + " has been patched!") 
-        return s
+        if config {
+            return {
+                configuration: s.config_used,
+                cost: s.cost,
+                duration: s.duration,
+                file_to_patch: file,
+                results: s.response,
+                complete_log: s
+            }
+        }
+        return s.response
     }
 }
 
@@ -2503,9 +3453,11 @@ export fn patchSesi(file: string, modelChoice: string = "gemini") -> string {
   Parameters:
   - dir: The path to the directory containing Sesi files to be patched. If null, the function will use the 'files' parameter.
   - files: An array of specific Sesi files to be patched. If null or empty, the function will use the 'dir' parameter.
+  - config: Optional boolean flag to indicate whether to use a specific configuration during patching. Defaults to false.
 
   Returns:
   - None. The function patches the files in place and creates backup copies.
+  - The function will respect the 'config' flag when calling patchSesi for each file.
 
   Example:
   ```sesi
@@ -2518,14 +3470,15 @@ export fn patchSesi(file: string, modelChoice: string = "gemini") -> string {
   - If a file has already been patched, it will skip that file and continue with the next one.
   - This tool is especially helpful if updating versioned Sesi files across a project.
 */
-export fn patchAllSesi(dir: string? = null, files: array<string>? = null) {
+export fn patchAllSesi(dir: string? = null, files: array<string>? = null, config = false) {
     if files != null {
         for file in files {
             show "Patching" file "\n"
             try {
-                patchSesi(file)
-            } catch {
-                show "File already patched.\n"
+                patchSesi(file, "gemini", config)
+            } catch (e) {
+                show "File already patched or could not be patched."
+                show e.message + "\n"
                 continue
             }
             
@@ -2535,9 +3488,10 @@ export fn patchAllSesi(dir: string? = null, files: array<string>? = null) {
             if ((dir + "/" + file | get_ext) == "sesi") {
                 show "Patching" file "\n"
                 try {
-                    patchSesi(dir + "/" + file)
-                } catch {
-                    show "File already patched.\n"
+                    patchSesi(dir + "/" + file, "gemini", config)
+                } catch (e) {
+                    show "File already patched or could not be patched."
+                    show e.message + "\n"
                     continue
                 }
             }
@@ -2549,10 +3503,15 @@ export fn patchAllSesi(dir: string? = null, files: array<string>? = null) {
   Automatically generates and applies documentation comments to a Sesi source file.
 
   Parameters:
-  - file: Path to the target Sesi source file.
+  - `file`: Path to the target Sesi source file.
+  - `modelName`: Name of the AI provider to use for generating documentation. Defaults to "gemini".
+  - `config`: Optional configuration flag for the documentation generation process. Defaults to false.
 
   Returns:
-  - Result status of the documentation application (e.g., success message or error).
+  - Either:
+    - The updated source code with applied documentation comments.
+    - An error message if the documentation generation process failed.
+    - An object containing detailed logs of the documentation generation and application process.
 
   Example:
   ```sesi
@@ -2563,15 +3522,16 @@ export fn patchAllSesi(dir: string? = null, files: array<string>? = null) {
   - Uses AI models to generate detailed documentation based on Sesi reference guidelines & follows the standard Sesi documentation format, including descriptions, parameters, return values, examples, and notes, and applies them back to the source file.
   - If the source file already contains documentation comments, they will be left untouched unless comments appear outdated.
   - If the returned code contains errors, it's passed to the patchSesi() function for automatic correction.
+  - The detailed logs object contains information about the documentation generation and application process, and the final applied comments.
 */
-export fn autoDoc(file: string, modelName: string = "gemini") -> any {
+export fn autoDoc(file: string, modelName: string = "gemini", config = false) -> any {
     let contents = read_file(file)
     // Generate function comments for the given source file
     prompt docQuery {"## SESI REFERENCE:
 "_"
 
 ## TASK
-Generate detailed function/make comments and documentation header for the source code supplied by the user. 
+Generate detailed function/make comments and documentation header for the source code supplied by the user. Only return the generated comments with a note of which functions they belong to, and line numbers, do not include the actual source code.
 
 Format:
 
@@ -2632,12 +3592,14 @@ Format:
 
 YOU ARE NOT DEBUGGING CODE AT ALL.
 DO NOT LEAVE ANY FUNCTIONS UNDOCUMENTED. THIS IS A NON-NEGOTIABLE.
+ONLY DOCUMENT SESI FUNCTIONS, MODULES, AND VARIABLES.
 DO NOT PRIORITIZE BREVITY, THESE COMMENTS ARE FOR THE USER TO UNDERSTAND HOW TO USE FUNCTIONS, MODULES, AND VARIABLES WHEN IMPORTED IN OTHER SCRIPTS OR USED WITHIN THE SAME SCRIPT.
+DO NOT HYPERFIXATE ON DOCUMENTING EVERY VARIABLE. ONLY VARIABLES CONTAINING ARRAYS AND OBJECTS THAT ABSOLUTELY REQUIRE DOCUMENTATION SHOULD BE DOCUMENTED.
 YOU MUST FOLLOW THE FORMAT EXACTLY AS SHOWN ABOVE OTHERWISE THE PARSER WILL FAIL TO RECOGNIZE THE COMMENTS CORRECTLY.
     "}
 
     prompt verify {"
-Apply each of the following function comments contained in `/**...*/` blocks to their respective functions (directly above) in the source code.
+Apply each of the following function comments contained in `/**...*/` blocks directly above their respective functions in the source code.
 Do not wrap the final output in additional code blocks or comments.
     " docQuery}
 
@@ -2646,32 +3608,83 @@ Do not wrap the final output in additional code blocks or comments.
         let docs = ""
         if modelName == "gpt" {
             try {
-                docs = model("gpt-6.1-sol") {system: docQuery, thinking: "medium", cache: true} {contents}
-                show "Total cost for this request:" model_usage().total_cost_usd
+                docs = track_model(contents, {
+                        model_name: "gpt-6.1-terra",
+                        system: docQuery,
+                        thinking: "low",
+                        cache: true,
+                        response: "full"
+                    }
+                )
             } catch (e) {
                 TERM.warning(e.message)
                 TERM.warning("Retrying with a more capable model...")
-                docs = model("gemini-3.6-flash") {system: docQuery, temp: 0.35, cache: true} {contents}
-                show "Total cost for this request:" model_usage().total_cost_usd
+                docs = track_model(contents, {
+                        model_name: "gemini-3.6-flash",
+                        system: docQuery,
+                        thinking: "low",
+                        cache: true,
+                        response: "full"
+                    }
+                )
             }
         } else {
-            docs = model("gemini-3.6-flash") {system: docQuery, temp: 0.35, cache: true} {contents}
-            show "Total cost for this request:" model_usage().total_cost_usd
+            docs = track_model(contents, {
+                    model_name: "gemini-3.6-flash",
+                    system: docQuery,
+                    thinking: "low",
+                    cache: true,
+                    response: "full"
+                }
+            )
         }
         
         TERM.info("Applying comments now...")
-        let addedComments = model("gemini-3.5-flash-lite") {system: verify, thinkingLevel: "medium"} {docs"\n"contents}
-        Safe.tempFile("sesi_test", addedComments, "sesi")
+        let addedComments = track_model(docs.response + "\n" + contents, {
+                model_name: "gemini-3.5-flash-lite",
+                system: verify,
+                thinking: "medium",
+                cache: true,
+                response: "full"
+            }
+        )
+        let finalComments = addedComments.response
+        Safe.tempFile("sesi_test", addedComments.response, "sesi")
         Safe.archiveFile("sesi_test_temp.sesi")
-        let parserCheck = patchSesi("sesi_test_temp.sesi")
-        if parserCheck != "No issues found!" {
-            addedComments = parserCheck
+        let parserCheck = patchSesi("sesi_test_temp.sesi", "gpt", true)
+        if parserCheck.response != "No issues found!" {
+            finalComments = parserCheck.response
         }
 
         try {
-            write_file(file, addedComments)
+            if parserCheck.response == "No issues found!" { write_file(file, addedComments.response) }
+            else { write_file(file, finalComments) }
             Safe.remove("sesi_test_temp.sesi", true)
             TERM.success("Successfully applied!")
+            if config {
+                return {
+                    configuration: {
+                        documentation: docs.config_used,
+                        application: addedComments.config_used
+                    },
+                    cost: {
+                        documentation: docs.cost,
+                        application: addedComments.cost,
+                    },
+                    duration: {
+                        documentation: docs.duration,
+                        application: addedComments.duration,
+                    },
+                    sesi_file: file,
+                    documentation: docs.response,
+                    result: parserCheck,
+                    output: addedComments.response,
+                    complete_log: {
+                        documentation: docs,
+                        application: addedComments
+                    }
+                }
+            }
             return "Success!"
         } catch (e3) {
             TERM.error("Error applying comments to the source file: " + e3.message)
@@ -2690,9 +3703,11 @@ Do not wrap the final output in additional code blocks or comments.
 
   Parameters:
   - `filePath`: The relative or absolute path to the target `.sesi` file.
+  - `config`: Optional boolean flag indicating whether to return detailed configuration and cost information. Defaults to `false`.
 
   Returns:
   - `true` if the file was documented and saved successfully, `false` otherwise.
+  - If `config` is `true`, returns an object containing detailed configuration, cost, duration, and documentation information.
 
   Example:
   ```sesi
@@ -2703,13 +3718,20 @@ Do not wrap the final output in additional code blocks or comments.
   ```
 
   Notes:
+  - If `config` is `true`, the returned object will include:
+    - `configuration`: The configuration used for documentation generation.
+    - `cost`: The cost associated with the documentation generation.
+    - `duration`: The time taken for the documentation generation.
+    - `sesi_file`: The path to the documented Sesi file.
+    - `documentation`: The generated documentation content.
+    - `complete_log`: The complete log of the documentation generation process.
   - Uses 'gpt-6-luna' model for generating documentation, falls back to 'gemini-3.5-flash-lite' if necessary.
   - Creates a safety backup of the original file via `archive()` before rewriting.
   - Cleans markdown fences if emitted by the model.
 */
-export fn autoDocumentFile(filePath: string) -> bool {
+export fn autoDocumentFile(filePath: string, config = false) -> any {
   if !exists(filePath) {
-    show "Error: Target file does not exist at path:" filePath
+    TERM.error("Target file does not exist at path:" + filePath)
     return false
   }
 
@@ -2718,21 +3740,21 @@ export fn autoDocumentFile(filePath: string) -> bool {
   try {
     sourceCode = read_file(filePath)
   } catch (err) {
-    show "Failed to read file:" err
+    TERM.error("Failed to read file:" + err)
     return false
   }
 
   if (sourceCode | len) == 0 {
-    show "Warning: File is empty. Nothing to document."
+    TERM.warning("File is empty. Nothing to document.")
     return false
   }
 
   // Backup the original file to .archive/
   try {
     archive(filePath, ".backup/" + filePath)
-    show "Created backup in .archive/ for safety."
+    TERM.info("Created backup in .archive/ for safety.")
   } catch (err) {
-    show "Notice: Could not create archive backup:" err
+    TERM.warning("Notice: Could not create archive backup:" + err)
   }
 
   prompt docPrompt {"You are an expert Sesi documentation generator. Inspect the following Sesi source code and insert idiomatic multi-line documentation comments (/** ... */) directly above each undocumented function (fn), object template (make), and major variable declaration (let).
@@ -2795,23 +3817,31 @@ Return ONLY the raw executable Sesi code. Do not wrap the response in markdown c
 Source Code:
 " sourceCode}
 
-  show "Generating documentation comments..."
+  TERM.info("Generating documentation comments...")
   let updatedCode = ""
   try {
-    updatedCode = model("gpt-6-luna") {thinking: "medium"} {docPrompt}
-    show "Total cost for this request:" model_usage().total_cost_usd
+    updatedCode = track_model(docPrompt, {
+            model_name: "gpt-6-luna",
+            thinking: "low",
+            response: "full"
+        }
+    )
   } catch {e} {
-    updatedCode = model("gemini-3.5-flash-lite") {thinking: "medium"} {docPrompt}
-    show "Total cost for this request:" model_usage().total_cost_usd
+    updatedCode = track_model(docPrompt, {
+            model_name: "gemini-3.5-flash-lite",
+            thinking: "medium",
+            response: "full"
+        }
+    )
   }
 
-  if updatedCode | is_null || (updatedCode | len) == 0 {
-    show "Failed to generate documentation from model."
+  if updatedCode.response | is_null || (updatedCode.response | len) == 0 {
+    TERM.error("Failed to generate documentation from model.")
     return false
   }
 
   // Strip accidental markdown fences if returned by the model
-  let cleaned = updatedCode
+  let cleaned = updatedCode.response
   if cleaned | starts_with("```sesi") {
     cleaned = slice(cleaned, 7)
   } else if cleaned | starts_with("```") {
@@ -2826,10 +3856,31 @@ Source Code:
 
   try {
     write_file(filePath, cleaned)
-    show "Successfully updated and documented:" filePath
+    TERM.success("Successfully updated and documented:" + filePath)
+    if config {
+        return {
+            configuration: updatedCode.config_used,
+            cost: updatedCode.cost,
+            duration: updatedCode.duration,
+            sesi_file: filePath,
+            documentation: updatedCode.response,
+            complete_log: updatedCode
+        }
+    }
     return true
   } catch (err) {
-    show "Failed to write documented code back to file:" err
+    TERM.error("Failed to write documented code back to file:" + err)
+    if config {
+        return {
+            error: err | to_json,
+            configuration: updatedCode.config_used,
+            cost: updatedCode.cost,
+            duration: updatedCode.duration,
+            sesi_file: filePath,
+            documentation: updatedCode.response,
+            complete_log: updatedCode
+        }
+    }
     return false
   }
 }

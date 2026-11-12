@@ -194,7 +194,7 @@ $env:SESI_PATH = "C:\MyLibs\shared;C:\Projects\common"
 ```sesi
 // Export
 export fn greet(name) { show "Hello," name }
-export let VERSION = "1.9.1"
+export let VERSION = "1.9.2"
 
 // import (named)
 import { greet, VERSION } from "mymodule"
