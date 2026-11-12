@@ -2,6 +2,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { compileSesiForBrowser } from '../src/browser-compiler';
 import { Lexer } from '../src/lexer';
 import { Parser } from '../src/parser';
@@ -52,6 +53,25 @@ for i = 0 to 3 { show i }
     const generated = fs.readFileSync(path.join(directory, 'program1.js'), 'utf8');
     assert.ok(generated.trim().split('\n').length < 10, 'JavaScript output must be minified by default');
     assert.doesNotMatch(generated, /Generated from Sesi source/);
+
+    // A fresh process makes esbuild read the extracted executable path before
+    // its API is initialized, matching the standalone executable's behavior.
+    const extractedBinary = execFileSync(process.execPath, ['-e', `
+      process.pkg = {};
+      delete process.env.ESBUILD_BINARY_PATH;
+      const fs = require('node:fs');
+      const { compileSesiForBrowser } = require(${JSON.stringify(path.join(process.cwd(), 'dist/browser-compiler.js'))});
+      compileSesiForBrowser(${JSON.stringify(path.join(directory, 'program1.sesi'))}, ${JSON.stringify(path.join(directory, 'packaged-mode.js'))});
+      if (!fs.existsSync(process.env.ESBUILD_BINARY_PATH)) throw new Error('Missing extracted esbuild executable');
+      console.log(process.env.ESBUILD_BINARY_PATH);
+    `], { encoding: 'utf8' }).trim();
+    assert.ok(extractedBinary.includes('sesi-esbuild-'));
+    assert.equal(fs.existsSync(extractedBinary), false, 'temporary esbuild executable is removed at exit');
+    const packagedOutput = await capture(async () => {
+      const code = fs.readFileSync(path.join(directory, 'packaged-mode.js'), 'utf8');
+      await import(`data:text/javascript,${encodeURIComponent(code)}`);
+    });
+    assert.deepEqual(packagedOutput, ['105', '205', 'Hello, Ada', 'Hello, Lin', '0', '1', '2']);
 
     assert.deepEqual(await run(`
 prompt header {"Welcome " "Sesi"}
@@ -196,6 +216,7 @@ button.addEventListener("click", update)
       if (url.endsWith(':generateContent')) {
         assert.equal(options.headers['x-goog-api-key'], 'test-gemini-key');
         const body = JSON.parse(options.body);
+        if (url.includes('gemini-4-argon')) assert.deepEqual(body.generationConfig.thinkingConfig, { thinkingLevel: 'high' });
         const image = body.generationConfig?.responseModalities?.includes('IMAGE');
         return { ok: true, json: async () => ({ candidates: [{ content: { parts: image
           ? [{ inlineData: { data: 'aW1hZ2U=' } }] : [{ text: 'browser answer' }] } }] }) };
@@ -204,13 +225,6 @@ button.addEventListener("click", update)
         assert.equal(options.headers['x-goog-api-key'], 'test-gemini-key');
         return { ok: true, json: async () => ({ embedding: { values: [1, 0] } }) };
       }
-      if (url.endsWith(':predictLongRunning')) {
-        assert.equal(options.headers['x-goog-api-key'], 'test-gemini-key');
-        assert.equal(JSON.parse(options.body).instances[0].prompt, 'make a clip');
-        return { ok: true, json: async () => ({ done: true, response: { generateVideoResponse: {
-          generatedSamples: [{ video: { videoBytes: 'dmlkZW8=' } }],
-        } } }) };
-      }
       if (url === 'https://generativelanguage.googleapis.com/v1beta/interactions') {
         assert.equal(options.headers['x-goog-api-key'], 'test-gemini-key');
         return { ok: true, json: async () => ({ steps: [{ type: 'model_output',
@@ -218,6 +232,7 @@ button.addEventListener("click", update)
       }
       if (url === 'https://api.openai.com/v1/responses') {
         assert.equal(options.headers.Authorization, 'Bearer test-openai-key');
+        assert.deepEqual(JSON.parse(options.body).reasoning, { effort: 'max' });
         return { ok: true, json: async () => ({ output: [{ content: [{ type: 'output_text', text: 'gpt answer' }] }] }) };
       }
       throw new Error('Unexpected fetch: ' + url);
@@ -257,13 +272,12 @@ show chat
 show memory_config("chat", {max_tokens: 1000}).max_tokens
 show memory_search("chat", "hello")[0].text
 show memory_trim("chat")
-show model("gemini-3.1-flash") {"question"}
-show model("gpt-5") {"question"}
+show model("gemini-4-argon") {thinkingLevel: "high"} {"question"}
+show model("gpt-6.1-sol") {thinkingLevel: "max"} {"question"}
 let picture = image("gemini-3.1-flash-image") {"draw"}
 show picture
-show video("veo-3.1-generate-preview") {"make a clip"}
 show video("gemini-omni-1.1-flash") {"make a clip"}
-`, false), ['hello world', '1000', 'hello world', 'hello world', 'browser answer', 'gpt answer', 'aW1hZ2U=', 'dmlkZW8=', 'b21uaQ==']);
+`, false), ['hello world', '1000', 'hello world', 'hello world', 'browser answer', 'gpt answer', 'aW1hZ2U=', 'b21uaQ==']);
       assert.deepEqual(await run(`
 show write_file("diagram.svg", "<svg></svg>")
 let converted = convert(media) {output_type: "webp"} {"diagram.svg"}

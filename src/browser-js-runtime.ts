@@ -3,6 +3,46 @@ import type { createBrowserUi } from './browser-ui';
 /** Helpers embedded beside directly emitted JavaScript. This code uses browser APIs only. */
 export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: string; baseUrl?: string } = {},
   uiFactory?: typeof createBrowserUi): Record<string, any> {
+  function resolveThinking(model: string, value: unknown): {
+    reasoning?: { effort: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' };
+    thinkingConfig?: { thinkingLevel?: string; thinkingBudget?: number };
+  } {
+    if (value === undefined || value === null) return {};
+    const openAI = /^gpt-/i.test(model);
+    let level: string;
+    if (typeof value === 'string') {
+      level = value.trim().toLowerCase();
+    } else if (typeof value === 'object' && !Array.isArray(value)) {
+      const config = value as { thinking?: unknown; level?: unknown };
+      if (String(config.thinking ?? '').trim().toLowerCase() === 'no') level = 'none';
+      else if (config.level === undefined || config.level === null) level = openAI ? 'low' : 'medium';
+      else if (typeof config.level === 'string') level = config.level.trim().toLowerCase();
+      else throw new Error('thinkingLevel.level must be a string.');
+    } else {
+      throw new Error('thinkingLevel must be a level string or an object with thinking and level fields.');
+    }
+    if (level === 'no') level = 'none';
+    if (openAI) {
+      if (level !== 'none' && level !== 'minimal' && level !== 'low' && level !== 'medium'
+        && level !== 'high' && level !== 'xhigh' && level !== 'max') {
+        throw new Error('OpenAI thinkingLevel must be none, minimal, low, medium, high, xhigh, or max.');
+      }
+      return { reasoning: { effort: level } };
+    }
+    if (!['none', 'minimal', 'low', 'medium', 'high'].includes(level)) {
+      throw new Error('Gemini thinkingLevel must be minimal, low, medium, or high (none/no requests minimum thinking).');
+    }
+    const name = model.trim().replace(/^models\//i, '').toLowerCase();
+    if (/gemini-2(?:[.-]|$)/.test(name)) {
+      const budgets: Record<string, number> = { none: 0, minimal: 128, low: 1024, medium: 2048, high: 4096 };
+      return { thinkingConfig: { thinkingBudget: budgets[level] } };
+    }
+    if (level === 'none') {
+      level = /gemini-4(?:[.-]|$)|gemini-3\.8(?:[.-]|$)|pro/.test(name) ? 'low' : 'minimal';
+    }
+    return { thinkingConfig: { thinkingLevel: level } };
+  }
+
   const functionOrigins = uiFactory && new WeakMap<Function, Function>();
   const truthy = (value: any): boolean => value !== null && value !== undefined && value !== false && value !== 0 && value !== '';
   const stringify = (value: any): string => {
@@ -528,54 +568,31 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
     }
     const key = apiKey(isOpenAI ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY');
     const imageGeneration = operation === 'image' || (operation === 'model' && model.includes('image'));
+    const thinking = operation === 'video' || (isOpenAI && imageGeneration) ? {}
+      : resolveThinking(model, pick(settings, 'thinkingLevel', 'thinking', 'effort', 'reasoning'));
     if (operation === 'video') {
-      if (isOpenAI) throw new Error('Video model is not supported by the Sesi browser runtime: ' + model);
+      if (!/omni/i.test(model)) {
+        throw new Error('AI video generation supports Gemini Omni models through the Interactions API. Veo generation is no longer supported.');
+      }
       const base = 'https://generativelanguage.googleapis.com/v1beta/';
-      if (/omni/i.test(model)) {
-        const input: any[] = [];
-        for (const path of paths) { const image = await mediaInput(path);
-          input.push({ type: 'image', data: image.data, mime_type: image.mimeType }); }
-        input.push({ type: 'text', text: promptText });
-        const responseFormat: Record<string, any> = { type: 'video' };
-        const ratio = pick(settings, 'ratio', 'aspectRatio', 'aspect_ratio');
-        const resolution = pick(settings, 'resolution', 'size');
-        if (ratio) responseFormat.aspect_ratio = ratio;
-        if (resolution) responseFormat.resolution = resolution;
-        const body: Record<string, any> = { model, input: paths.length ? input : promptText,
-          response_format: responseFormat };
-        const task = pick(settings, 'task');
-        if (task) body.generation_config = { video_config: { task } };
-        const result = await jsonRequest(base + 'interactions', key, body);
-        const video = result.steps?.filter((step: any) => step.type === 'model_output')
-          .flatMap((step: any) => step.content ?? []).find((part: any) => part.type === 'video');
-        if (video?.data) return video.data;
-        throw new Error('Video generation returned no video');
-      }
-      const instance: Record<string, any> = { prompt: promptText };
-      if (paths.length) { const input = await mediaInput(paths[0]); instance.image = { inlineData: input }; }
-      const parameters: Record<string, any> = {};
-      for (const [field, keys] of Object.entries({ aspectRatio: ['ratio', 'aspectRatio', 'aspect_ratio'],
-        durationSeconds: ['duration', 'durationSeconds', 'duration_seconds'], resolution: ['resolution', 'size'],
-        negativePrompt: ['negative_prompt', 'negativePrompt'], generateAudio: ['audio', 'generateAudio', 'generate_audio'] })) {
-        const value = pick(settings, ...keys); if (value !== undefined) parameters[field] = value;
-      }
-      let result = await jsonRequest(base + 'models/' + encodeURIComponent(model) + ':predictLongRunning', key,
-        { instances: [instance], parameters });
-      const poll = Math.max(100, Number(pick(settings, 'poll_interval', 'pollInterval') ?? 10000));
-      while (!result.done) {
-        if (!result.name) throw new Error('Video generation returned no operation name');
-        await new Promise(resolve => setTimeout(resolve, poll));
-        result = await jsonRequest(base + result.name, key, undefined, 'GET');
-      }
-      if (result.error) throw new Error('Video generation failed: ' + JSON.stringify(result.error));
-      const video = result.response?.generateVideoResponse?.generatedSamples?.[0]?.video
-        ?? result.response?.generatedVideos?.[0]?.video;
-      if (typeof video?.videoBytes === 'string') return video.videoBytes;
-      if (typeof video?.data === 'string') return video.data;
-      if (!video?.uri) throw new Error('Video generation returned no video');
-      const response = await fetch(video.uri, { headers: { 'x-goog-api-key': key } });
-      if (!response.ok) throw new Error('Video download failed (' + response.status + ')');
-      return toBase64(new Uint8Array(await response.arrayBuffer()));
+      const input: any[] = [];
+      for (const path of paths) { const image = await mediaInput(path);
+        input.push({ type: 'image', data: image.data, mime_type: image.mimeType }); }
+      input.push({ type: 'text', text: promptText });
+      const responseFormat: Record<string, any> = { type: 'video' };
+      const ratio = pick(settings, 'ratio', 'aspectRatio', 'aspect_ratio');
+      const resolution = pick(settings, 'resolution', 'size');
+      if (ratio) responseFormat.aspect_ratio = ratio;
+      if (resolution) responseFormat.resolution = resolution;
+      const body: Record<string, any> = { model, input: paths.length ? input : promptText,
+        response_format: responseFormat };
+      const task = pick(settings, 'task');
+      if (task) body.generation_config = { video_config: { task } };
+      const result = await jsonRequest(base + 'interactions', key, body);
+      const video = result.steps?.filter((step: any) => step.type === 'model_output')
+        .flatMap((step: any) => step.content ?? []).find((part: any) => part.type === 'video');
+      if (video?.data) return video.data;
+      throw new Error('Video generation returned no video');
     }
     if (isOpenAI && imageGeneration) {
       const size = pick(settings, 'size', 'imgSize', 'imageSize');
@@ -607,6 +624,7 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
         content.push({ type: 'input_image', image_url: 'data:' + input.mimeType + ';base64,' + input.data }); }
       content.push({ type: 'input_text', text: promptText });
       const body: Record<string, any> = { model, input: paths.length ? [{ role: 'user', content }] : promptText };
+      if (thinking.reasoning) body.reasoning = thinking.reasoning;
       const system = pick(settings, 'system', 'system_prompt', 'systemPrompt');
       if (system) body.instructions = String(system);
       const maxTokens = pick(settings, 'max_tokens', 'maxTokens', 'maxT');
@@ -628,6 +646,7 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
     parts.push(...await videoParts(rawVideos));
     parts.push({ text: promptText });
     const generationConfig: Record<string, any> = {};
+    if (thinking.thinkingConfig) generationConfig.thinkingConfig = thinking.thinkingConfig;
     for (const [field, keys] of Object.entries({ temperature: ['temperature', 'temp'],
       maxOutputTokens: ['max_tokens', 'maxTokens', 'maxT'], topK: ['top_k', 'topK'], topP: ['top_p', 'topP'] })) {
       const value = pick(settings, ...keys); if (value !== undefined) generationConfig[field] = value;

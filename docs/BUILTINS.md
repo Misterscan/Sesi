@@ -1325,9 +1325,11 @@ let clip = video("gemini-omni-1.1-flash") {ratio: "9:16"} {"A marble rolling thr
 write_file("marble.mp4", clip, "base64")
 ```
 
-AI options include `images`/`image`, `ratio`/`aspectRatio`, `duration`,
-`resolution`, `negative_prompt`, `audio`, and `task`. Gemini Omni Flash uses
-the Interactions API. Some options apply only to the older Veo API path.
+AI options include `images`/`image`, `ratio`/`aspectRatio`/`aspect_ratio`, and
+`task`. Gemini Omni Flash uses the Interactions API. Veo generation and its
+duration, polling, negative-prompt, and audio controls have been removed.
+Browser builds also forward `resolution`/`size` to Omni. Non-Omni models fail
+before a video request is sent.
 
 #### Local video creation
 

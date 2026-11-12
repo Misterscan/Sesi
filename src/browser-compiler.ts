@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { transformSync } from 'esbuild';
+import type { TransformOptions, TransformResult } from 'esbuild';
 import { Lexer } from './lexer';
 import { Parser } from './parser';
 import { Compiler } from './compiler';
@@ -19,6 +19,23 @@ interface BrowserModule {
   exports: string[];
   references: ModuleReference[];
   dependencies: Record<string, string>;
+}
+
+function transformJavaScript(code: string, options: TransformOptions): TransformResult {
+  if ((process as any).pkg && !process.env.ESBUILD_BINARY_PATH) {
+    // Native executables cannot be spawned from pkg's snapshot filesystem.
+    const binary = process.platform === 'win32' ? 'esbuild.exe' : 'bin/esbuild';
+    const packageRoot = path.dirname(require.resolve('esbuild/package.json'));
+    const source = path.join(packageRoot, '..', '@esbuild', `${process.platform}-${process.arch}`, binary);
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-esbuild-'));
+    const executable = path.join(directory, process.platform === 'win32' ? 'esbuild.exe' : 'esbuild');
+    fs.copyFileSync(source, executable);
+    fs.chmodSync(executable, 0o700);
+    process.env.ESBUILD_BINARY_PATH = executable;
+    process.once('exit', () => fs.rmSync(directory, { recursive: true, force: true }));
+  }
+  // Preserve esbuild's module layout and load it after configuring its binary.
+  return require('esbuild').transformSync(code, options);
 }
 
 function resolveModule(source: string, fromFile: string): string {
@@ -121,7 +138,7 @@ export function compileSesiForBrowser(entryFile: string, outputFile: string): {
   ].join('\n');
   const js = `const __sesiBase = ${server || Object.keys(assets).length
     ? 'new URL(".", import.meta.url).href' : 'undefined'};\n` + body;
-  const minify = (code: string): string => transformSync(code, {
+  const minify = (code: string): string => transformJavaScript(code, {
     loader: 'js', target: 'es2022', minify: true, keepNames: true, legalComments: 'none',
     supported: { 'template-literal': false },
   }).code;

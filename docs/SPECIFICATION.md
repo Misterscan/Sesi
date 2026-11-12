@@ -286,7 +286,7 @@ config_entry := (STRING | identifier) ':' expression
 
 | Key             | Applies to       | Type                      | Description                                                                |
 | --------------- | ---------------- | ------------------------- | -------------------------------------------------------------------------- |
-| `thinkingLevel` | `model`          | `string \| object`        | Effort level (`"minimal"`, `"low"`, `"medium"`, `"high"`) |
+| `thinkingLevel` | `model`, `image` | `string \| object`        | Provider thinking level; GPT also accepts `"none"`, `"xhigh"`, and `"max"`. See [thinking levels](REASONING.md#thinking-levels). |
 | `temperature`   | `model`, `image` | `number`                  | \*Deprecated, use `thinkingLevel` instead\_             |
 | `max_tokens`    | `model`          | `number`                  | Max output token count                                                     |
 | `top_k`         | `model`          | `number`                  | \*Deprecated\_                                      |
@@ -768,7 +768,7 @@ show "Image written to logo.png"
 
 #### Config Block Options:
 
-- **`thinkingLevel`**: `string` (`"minimal"`, `"low"`, `"medium"`, `"high"`) or legacy `object` with keys `"thinking"` and `"level"`. Natively configures Gemini's reasoning budget.
+- **`thinkingLevel`**: a level string or legacy object with `thinking` and `level` keys. GPT accepts `"none"`, `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`, and `"max"`; Gemini accepts `"minimal"`, `"low"`, `"medium"`, and `"high"`, with model-specific restrictions. Gemini 3 and 4 use named levels; Gemini 2.x retains token budgets. See [thinking levels](REASONING.md#thinking-levels) for defaults, disabling, and browser behavior.
 - **`max_tokens`**: `number` (maximum response tokens)
 - **`images`**: `string` or `array<string>` (paths to multimodal vision input files)
 - **`cache`**: `bool` (set to `false` to explicitly bypass Sesi Logic Caching)

@@ -71,14 +71,11 @@ let creative = model("gemini-3.8-flash") {thinkingLevel: "low"} {"Write a creati
 show creative
 
 // Config options:
-// - thinkingLevel: "minimal", "low", "medium", "high" (natively configures Gemini's reasoning budget)
+// - thinkingLevel: provider-specific thinking level (see Thinking Levels below)
 // - max_tokens: max length of response (OPTIONAL: if not specified, will use the model's default max tokens=8192)
-// - temperature: creative variation (OPTIONAL: defaults to 0.1 for high-fidelity reasoning precision)
-// - top_k / top_p: parameter options for specialized sampling configurations
 
 // Aliases are also supported in model config:
-// - thinking -> thinkingLevel
-// - temp -> temperature
+// - thinking / effort / reasoning -> thinkingLevel
 // - maxT -> max_tokens
 
 let modelName = "modelName"
@@ -87,9 +84,46 @@ let thinking = "low"
 let temp = 0.3
 let maxT = 1024
 let q = read_file("README.md")
-let res = model(modelName) {thinking, temp, maxT} {"Summarize this in one sentence: "q}
+let res = model(modelName) {thinking, maxT} {"Summarize this in one sentence: "q}
 show res
 ```
+
+### Thinking Levels
+
+Use `thinkingLevel` (or `thinking`, `effort`, or `reasoning`) to select a
+provider's reasoning effort. Sesi forwards the selected level without silently
+replacing unsupported values with `low`.
+
+| Provider | Level strings |
+| --- | --- |
+| GPT | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` |
+| Gemini | `minimal`, `low`, `medium`, `high` |
+
+Each model accepts a subset of its provider's levels. For example, Gemini 4
+Argon accepts `low`, `medium`, and `high`; GPT-6.1 Sol does not accept `none`
+or `minimal`. Sesi validates provider-level names; the provider validates the
+chosen model's supported subset.
+
+```sesi
+let analysis = model("gemini-4-argon") {thinking: "high"} {"Analyze this design."}
+let review = model("gpt-6.1-sol") {thinking: "xhigh"} {"Review this design."}
+let deepReview = model("gpt-6.1-sol") {thinking: "max"} {"Check this design for subtle failures."}
+```
+
+Omitting the setting preserves the provider's default. The legacy object form,
+such as `{thinking: "yes", level: "high"}`, remains supported. Values are
+trimmed and case-insensitive. Invalid level names raise an error.
+
+`none` and the legacy `no` alias send OpenAI's `none` effort. On Gemini, these
+request the minimum supported thinking: `low` for Gemini 4, Gemini 3.8, and Pro
+models, or `minimal` for other models using named levels. They do not disable
+thinking on models that require it. The legacy object `{thinking: "no"}` follows
+the same rules.
+
+Gemini 3 and 4 use `thinkingConfig.thinkingLevel`. Gemini 2.x retains the
+token-budget mapping: `minimal` = 128, `low` = 1,024, `medium` = 2,048,
+`high` = 4,096, and `none`/`no` = 0. Model-specific budget restrictions apply.
+Node execution and compiled browser JavaScript both forward these settings.
 
 ### Streaming Responses
 

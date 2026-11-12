@@ -1,7 +1,9 @@
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
@@ -9,6 +11,39 @@ const releasesDir = path.join(repoRoot, 'releases');
 const packagedNodeRange = 'node22';
 const pkgVersion = '6.21.0';
 const pkgFetchVersion = '3.6.4';
+
+function stageNativeRuntime(targets) {
+  const sharp = JSON.parse(fs.readFileSync(path.join(repoRoot, 'node_modules/sharp/package.json'), 'utf8'));
+  const esbuild = JSON.parse(fs.readFileSync(path.join(repoRoot, 'node_modules/esbuild/package.json'), 'utf8'));
+  for (const target of targets.split(',')) {
+    const [, platform, arch] = target.split('-');
+    const runtime = `${platform === 'macos' ? 'darwin' : platform === 'win' ? 'win32' : platform}-${arch}`;
+    for (const name of [`@img/sharp-${runtime}`, `@img/sharp-libvips-${runtime}`, `@esbuild/${runtime}`]) {
+      const version = sharp.optionalDependencies?.[name] ?? esbuild.optionalDependencies?.[name];
+      if (!version) continue; // Windows Sharp packages carry their own libvips.
+      const destination = path.join(repoRoot, 'node_modules', name);
+      const manifest = path.join(destination, 'package.json');
+      if (fs.existsSync(manifest) && JSON.parse(fs.readFileSync(manifest, 'utf8')).version === version) continue;
+      const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'sesi-native-'));
+      try {
+        console.log(`Staging ${name}@${version} for ${target}`);
+        const packed = JSON.parse(execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm',
+          ['pack', `${name}@${version}`, '--ignore-scripts', '--json', '--pack-destination', temporary],
+          { cwd: repoRoot, encoding: 'utf8', shell: process.platform === 'win32' }));
+        const archive = path.join(temporary, path.basename(packed[0].filename));
+        const extracted = path.join(temporary, 'extracted');
+        fs.mkdirSync(extracted);
+        execFileSync('tar', ['-xzf', archive, '-C', extracted, '--strip-components=1']);
+        const staged = JSON.parse(fs.readFileSync(path.join(extracted, 'package.json'), 'utf8'));
+        if (staged.name !== name || staged.version !== version) throw new Error(`Unexpected native package: ${name}`);
+        fs.mkdirSync(destination, { recursive: true });
+        fs.cpSync(extracted, destination, { recursive: true });
+      } finally {
+        fs.rmSync(temporary, { recursive: true, force: true });
+      }
+    }
+  }
+}
 
 function stageStudioRuntime() {
   const runtimeDir = path.join(releasesDir, 'studio-runtime');
@@ -36,10 +71,26 @@ function stageStudioRuntime() {
 
 console.log('=== Step 1: Bundling Sesi with esbuild ===');
 try {
-  execSync(
-    'npx esbuild bin/sesi.js --bundle --platform=node --alias:node:sqlite=./mock-sqlite.js --external:blessed --external:playwright --external:playwright-core --external:chromium-bidi --external:term.js --external:pty.js --external:onnxruntime-node --external:sharp --outfile=dist/sesi.bundled.js',
-    { stdio: 'inherit', cwd: repoRoot }
-  );
+  // require.resolve() worker paths remain relative to the bundled entry point.
+  // Bundle each worker beside it so pkg can include executable worker sources.
+  await build({
+    absWorkingDir: repoRoot,
+    entryPoints: {
+      'sesi.bundled': 'bin/sesi.js',
+      'decryptor-worker': 'node_modules/@dotenvx/dotenvx/src/lib/decryptors/decryptor-worker.js',
+      armorWorker: 'node_modules/@dotenvx/providers/src/armorWorker.js',
+    },
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node22',
+    alias: { 'node:sqlite': './mock-sqlite.js' },
+    external: ['blessed', 'playwright', 'playwright-core', 'chromium-bidi', 'term.js',
+      'pty.js', 'onnxruntime-node', 'sharp', 'esbuild', 'electron', '@electron/packager',
+      './armorWorker.js', './decryptor-worker.js'],
+    outdir: 'dist',
+    logLevel: 'info',
+  });
   
   // Prepend File polyfill to ensure it is defined at the very top of the bundled file, 
   // before any bundled module executes (like undici).
@@ -72,6 +123,9 @@ try {
 }
 
 console.log('\n=== Step 2: Packaging Sesi with pkg ===');
+// pkg 6.21 matches noDictionary entries against filenames (e.g. sharp.js).
+// Modern Sharp uses @img assets; Electron is project-installed; open falls
+// back to the system xdg-open when its private launcher is absent.
 // Determine targets based on current host platform to avoid spawn UNKNOWN fabricator failures
 let targets = '';
 if (process.platform === 'win32') {
@@ -83,6 +137,7 @@ if (process.platform === 'win32') {
 }
 
 console.log(`Host platform is ${process.platform}. Selected pkg targets: ${targets}`);
+stageNativeRuntime(targets);
 
 // Windows specific pre-processing to set icon on base binary to avoid corruption
 if (process.platform === 'win32') {
@@ -138,7 +193,7 @@ if (process.platform === 'win32') {
 
 try {
   execSync(
-    `npx --yes @yao-pkg/pkg@${pkgVersion} dist/sesi.bundled.js --config pkg.json --targets ${targets} --out-path releases`,
+    `npx --yes --prefer-offline @yao-pkg/pkg@${pkgVersion} dist/sesi.bundled.js --config pkg.json --targets ${targets} --out-path releases`,
     { stdio: 'inherit', cwd: repoRoot }
   );
 } catch (e) {

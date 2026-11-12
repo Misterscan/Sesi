@@ -834,3 +834,63 @@ export fn isValidDate(date: string) -> bool {
   - Seconds and timezone offsets are not accepted.
 */
 export fn isValidTime(time: string) -> bool { return regex("^([01]?[0-9]|2[0-3]):[0-5][0-9]$", time, {"mode": "match", "flags": "g"}) != [] }
+
+/**
+  Get the media type (MIME type) based on the file extension.
+
+  Parameters:
+  - `file_path`: The path to the file.
+
+  Returns:
+  - The corresponding media type as a string if the extension is recognized.
+  - `"application/octet-stream"` if the extension is not recognized.
+
+  Example:
+  ```sesi
+  let media_type = get_media_type("example.jpg")
+  show media_type
+  ```
+*/
+export fn get_media_type(file_path: string) -> any {
+  let extension = get_ext(file_path)
+  let media_types = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    svg: "image/svg+xml",
+    bmp: "image/bmp",
+    tif: "image/tiff",
+    tiff: "image/tiff",
+    avif: "image/avif",
+    ico: "image/x-icon",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    m4a: "audio/mp4",
+    aac: "audio/aac",
+    flac: "audio/flac",
+    ogg: "audio/ogg",
+    opus: "audio/opus",
+    mp4: "video/mp4",
+    m4v: "video/mp4",
+    mov: "video/quicktime",
+    webm: "video/webm",
+    avi: "video/x-msvideo",
+    mpeg: "video/mpeg",
+    mpg: "video/mpeg",
+    wmv: "video/x-ms-wmv",
+    flv: "video/x-flv",
+    "3gp": "video/3gpp",
+    pdf: "application/pdf",
+    json: "application/json",
+    html: "text/html",
+    htm: "text/html",
+    css: "text/css",
+    txt: "text/plain",
+    md: "text/markdown",
+    csv: "text/csv",
+    zip: "application/zip"
+  }
+  return media_types[extension] || "application/octet-stream"
+}

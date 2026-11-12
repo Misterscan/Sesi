@@ -3,8 +3,20 @@
     "sesi": "dist/sesi.bundled.js"
   },
   "pkg": {
+    "fallbackToSource": true,
+    "noDictionary": ["sharp.js", "electron.js", "open.js"],
+    "ignore": [
+      "**/node_modules/electron/**",
+      "**/node_modules/open/xdg-open",
+      "**/node_modules/**/node_modules/open/xdg-open"
+    ],
     "scripts": [],
     "assets": [
+      "dist/decryptor-worker.js",
+      "dist/armorWorker.js",
+      "node_modules/esbuild/lib/main.js",
+      "node_modules/esbuild/package.json",
+      "node_modules/@esbuild/**/*",
       "bin/web-desktop-host.cjs",
       "node_modules/sharp/**/*",
       "node_modules/onnxruntime-node/bin/**/*",

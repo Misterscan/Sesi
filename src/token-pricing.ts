@@ -63,7 +63,7 @@ const PRICING_RULES: PricingRule[] = [
     source: GEMINI_PRICING_SOURCE,
   },
   {
-    models: ['gemini-4-argon'],
+    models: ['gemini-4-argon', 'gemini-4-carbon'],
     standard: { inputPerMillion: 2, outputPerMillion: 10 },
     source: GEMINI_PRICING_SOURCE,
   },

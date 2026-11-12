@@ -38,13 +38,48 @@ export interface VideoGenerationRequest {
   prompt: string;
   images?: string[];
   ratio?: string;
-  duration?: number;
-  resolution?: string;
-  negativePrompt?: string;
-  audio?: boolean;
   task?: string;
-  pollInterval?: number;
   onUsage?: (usage?: AIResponse['usage']) => void;
+}
+
+function resolveThinking(model: string, value: unknown): {
+  reasoning?: { effort: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' };
+  thinkingConfig?: { thinkingLevel?: string; thinkingBudget?: number };
+} {
+  if (value === undefined || value === null) return {};
+  const openAI = /^gpt-/i.test(model);
+  let level: string;
+  if (typeof value === 'string') {
+    level = value.trim().toLowerCase();
+  } else if (typeof value === 'object' && !Array.isArray(value)) {
+    const config = value as { thinking?: unknown; level?: unknown };
+    if (String(config.thinking ?? '').trim().toLowerCase() === 'no') level = 'none';
+    else if (config.level === undefined || config.level === null) level = openAI ? 'low' : 'medium';
+    else if (typeof config.level === 'string') level = config.level.trim().toLowerCase();
+    else throw new Error('thinkingLevel.level must be a string.');
+  } else {
+    throw new Error('thinkingLevel must be a level string or an object with thinking and level fields.');
+  }
+  if (level === 'no') level = 'none';
+  if (openAI) {
+    if (level !== 'none' && level !== 'minimal' && level !== 'low' && level !== 'medium'
+      && level !== 'high' && level !== 'xhigh' && level !== 'max') {
+      throw new Error('OpenAI thinkingLevel must be none, minimal, low, medium, high, xhigh, or max.');
+    }
+    return { reasoning: { effort: level } };
+  }
+  if (!['none', 'minimal', 'low', 'medium', 'high'].includes(level)) {
+    throw new Error('Gemini thinkingLevel must be minimal, low, medium, or high (none/no requests minimum thinking).');
+  }
+  const name = model.trim().replace(/^models\//i, '').toLowerCase();
+  if (/gemini-2(?:[.-]|$)/.test(name)) {
+    const budgets: Record<string, number> = { none: 0, minimal: 128, low: 1024, medium: 2048, high: 4096 };
+    return { thinkingConfig: { thinkingBudget: budgets[level] } };
+  }
+  if (level === 'none') {
+    level = /gemini-4(?:[.-]|$)|gemini-3\.8(?:[.-]|$)|pro/.test(name) ? 'low' : 'minimal';
+  }
+  return { thinkingConfig: { thinkingLevel: level } };
 }
 
 function stripPrototypes(val: any): any {
@@ -523,27 +558,6 @@ export class AIRuntime {
         thinkingTokens: 0,
       },
     };
-  }
-
-  private mapThinkingEffort(thinkingLevel: AIRequest['thinkingLevel']): 'minimal' | 'low' | 'medium' | 'high' | undefined {
-    if (!thinkingLevel) return undefined;
-
-    let level = 'low';
-    let thinking = true;
-
-    if (typeof thinkingLevel === 'object' && thinkingLevel !== null) {
-      thinking = (thinkingLevel as any).thinking !== 'no';
-      level = String((thinkingLevel as any).level || 'low').toLowerCase();
-    } else {
-      level = String(thinkingLevel).toLowerCase();
-      thinking = level !== 'no';
-    }
-
-    if (!thinking) return 'minimal';
-    if (level === 'minimal' || level === 'low' || level === 'medium' || level === 'high') {
-      return level;
-    }
-    return 'low';
   }
 
   private get openAIClient(): any {
@@ -1043,7 +1057,7 @@ export class AIRuntime {
   }
 
   private async callGPTModel(request: AIRequest): Promise<AIResponse> {
-    const effort = this.mapThinkingEffort(request.thinkingLevel);
+    const { reasoning } = resolveThinking(request.model, request.thinkingLevel);
     const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
     const instructions = request.systemPrompt?.trim()
       ? `${timeContext}${request.systemPrompt.trim()}`
@@ -1075,7 +1089,7 @@ export class AIRuntime {
     if (request.temperature !== undefined) body.temperature = request.temperature;
     if (request.maxTokens !== undefined) body.max_output_tokens = request.maxTokens;
     if (request.topP !== undefined) body.top_p = request.topP;
-    if (effort) body.reasoning = { effort };
+    if (reasoning) body.reasoning = reasoning;
     if (request.responseSchema) {
       body.text = { format: { type: 'json_schema', name: 'sesi_response', schema: request.responseSchema, strict: this.isStrictCompatibleSchema(request.responseSchema) } };
     }
@@ -1282,10 +1296,13 @@ export class AIRuntime {
   }
 
   async callVideo(request: VideoGenerationRequest): Promise<string> {
-    const client = this.client;
     const model = String(request.model || '').replace(/^models\//, '').trim();
     if (!model) throw new Error('AI video generation requires a model name.');
     if (!request.prompt.trim()) throw new Error('AI video generation requires a prompt.');
+    if (!/omni/i.test(model)) {
+      throw new Error('AI video generation supports Gemini Omni models through the Interactions API. Veo generation is no longer supported.');
+    }
+    const client = this.client;
 
     const loadImage = (filePath: string): { imageBytes: string; mimeType: string } => {
       const absolutePath = path.resolve(filePath);
@@ -1316,57 +1333,26 @@ export class AIRuntime {
       }
     };
 
-    if (/omni/i.test(model)) {
-      const imageInputs = (request.images || []).map((imagePath) => {
-        const image = loadImage(imagePath);
-        return { type: 'image', data: image.imageBytes, mime_type: image.mimeType };
-      });
-      const params: any = {
-        model,
-        input: imageInputs.length
-          ? [...imageInputs, { type: 'text', text: request.prompt }]
-          : request.prompt,
-        response_format: {
-          type: 'video',
-          ...(request.ratio ? { aspect_ratio: request.ratio } : {}),
-        },
-      };
-      if (request.task) {
-        params.generation_config = { video_config: { task: request.task } };
-      }
-      const interaction = await client.interactions.create(params);
-      const video = await downloadAsBase64(interaction?.output_video);
-      const metadata = interaction?.usageMetadata ?? interaction?.usage_metadata ?? interaction?.usage;
-      request.onUsage?.(metadata ? {
-        inputTokens: metadata.promptTokenCount ?? metadata.input_tokens ?? 0,
-        outputTokens: metadata.candidatesTokenCount ?? metadata.output_tokens ?? 0,
-        thinkingTokens: metadata.thoughtsTokenCount ?? 0,
-      } : undefined);
-      return video;
+    const imageInputs = (request.images || []).map((imagePath) => {
+      const image = loadImage(imagePath);
+      return { type: 'image', data: image.imageBytes, mime_type: image.mimeType };
+    });
+    const params: any = {
+      model,
+      input: imageInputs.length
+        ? [...imageInputs, { type: 'text', text: request.prompt }]
+        : request.prompt,
+      response_format: {
+        type: 'video',
+        ...(request.ratio ? { aspect_ratio: request.ratio } : {}),
+      },
+    };
+    if (request.task) {
+      params.generation_config = { video_config: { task: request.task } };
     }
-
-    const source: any = { prompt: request.prompt };
-    if (request.images?.length) source.image = loadImage(request.images[0]);
-    const config: any = { numberOfVideos: 1 };
-    if (request.ratio) config.aspectRatio = request.ratio;
-    if (request.duration !== undefined) config.durationSeconds = request.duration;
-    if (request.resolution) config.resolution = request.resolution;
-    if (request.negativePrompt) config.negativePrompt = request.negativePrompt;
-    if (request.audio !== undefined) config.generateAudio = request.audio;
-
-    let operation = await client.models.generateVideos({ model, source, config });
-    const pollInterval = Math.max(100, request.pollInterval ?? 10000);
-    while (!operation.done) {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-      operation = await client.operations.getVideosOperation({ operation });
-    }
-    if (operation.error) {
-      throw new Error(`Video generation failed: ${JSON.stringify(operation.error)}`);
-    }
-    const generated = operation.response?.generatedVideos?.[0]?.video;
-    const video = await downloadAsBase64(generated);
-    const metadata = operation.response?.usageMetadata ?? operation.response?.usage_metadata ?? operation.response?.usage
-      ?? operation.usageMetadata ?? operation.usage_metadata ?? operation.usage;
+    const interaction = await client.interactions.create(params);
+    const video = await downloadAsBase64(interaction?.output_video);
+    const metadata = interaction?.usageMetadata ?? interaction?.usage_metadata ?? interaction?.usage;
     request.onUsage?.(metadata ? {
       inputTokens: metadata.promptTokenCount ?? metadata.input_tokens ?? 0,
       outputTokens: metadata.candidatesTokenCount ?? metadata.output_tokens ?? 0,
@@ -1657,31 +1643,7 @@ export class AIRuntime {
       const timeContext = `[System context: Current date and time is ${new Date().toUTCString()}]\n\n`;
       const systemInstruction = timeContext + request.systemPrompt?.trim() || undefined;
 
-      // Build thinkingConfig if requested
-      let thinkingConfig: any = undefined;
-      if (request.thinkingLevel) {
-        let level = 'medium';
-        let thinking = true;
-        if (typeof request.thinkingLevel === 'object' && request.thinkingLevel !== null) {
-          thinking = (request.thinkingLevel as any).thinking !== 'no';
-          level = (request.thinkingLevel as any).level || 'medium';
-        } else if (typeof request.thinkingLevel === 'string') {
-          level = request.thinkingLevel;
-          thinking = level.toLowerCase() !== 'no';
-        }
-
-        const isGemini3 = request.model.includes('gemini-3');
-        if (isGemini3) {
-          const isPro = request.model.includes('pro');
-          thinkingConfig = {
-            thinkingLevel: thinking ? level.toLowerCase() : (isPro ? 'low' : 'minimal')
-          };
-        } else {
-          thinkingConfig = {
-            thinkingBudget: thinking ? (level === 'low' ? 1024 : level === 'medium' ? 2048 : 4096) : 0
-          };
-        }
-      }
+      const { thinkingConfig } = resolveThinking(request.model, request.thinkingLevel);
 
       // Handle image generation models dynamically
       if (request.model.includes('image') || request.model.includes('nano')) {

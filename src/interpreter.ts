@@ -1553,16 +1553,7 @@ export class Interpreter {
       images,
       ratio: typeof pick('ratio', 'aspectRatio', 'aspect_ratio') === 'string'
         ? pick('ratio', 'aspectRatio', 'aspect_ratio') as string : undefined,
-      duration: typeof pick('duration', 'durationSeconds', 'duration_seconds') === 'number'
-        ? pick('duration', 'durationSeconds', 'duration_seconds') as number : undefined,
-      resolution: typeof pick('resolution', 'size') === 'string' ? pick('resolution', 'size') as string : undefined,
-      negativePrompt: typeof pick('negative_prompt', 'negativePrompt') === 'string'
-        ? pick('negative_prompt', 'negativePrompt') as string : undefined,
-      audio: typeof pick('audio', 'generateAudio', 'generate_audio') === 'boolean'
-        ? pick('audio', 'generateAudio', 'generate_audio') as boolean : undefined,
       task: typeof pick('task') === 'string' ? pick('task') as string : undefined,
-      pollInterval: typeof pick('poll_interval', 'pollInterval') === 'number'
-        ? pick('poll_interval', 'pollInterval') as number : undefined,
       onUsage: (usage) => this.recordMediaUsage(model, 'video', usage),
     });
   }
