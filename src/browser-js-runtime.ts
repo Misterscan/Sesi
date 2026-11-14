@@ -179,6 +179,7 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
   builtins.len = (value: any) => typeof value === 'string' || Array.isArray(value) ? value.length
     : value && typeof value === 'object' ? Object.keys(value).length : null;
   builtins.to_json = (value: any) => { try { return JSON.stringify(value, null, 2); } catch { return null; } };
+  builtins.to_json_str = (value: any) => { try { return JSON.stringify(value); } catch { return null; } };
   builtins.from_json = (value: any) => { if (typeof value !== 'string') return null; try { return stripPrototypes(JSON.parse(value)); } catch { return null; } };
   builtins.range = (count: any) => typeof count === 'number' ? Array.from({ length: Math.max(0, Math.ceil(count)) }, (_, index) => index) : null;
   builtins.push = (array: any, value: any) => { if (!Array.isArray(array)) return null; array.push(value); return array; };

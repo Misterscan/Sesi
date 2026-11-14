@@ -72,7 +72,7 @@ interface LoopInfo {
 
 // Known Sesi built-in names — compiled to CALL_BUILTIN for a speed win
 export const BUILTINS = new Set([
-  'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
+  'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'to_json_str', 'encrypt', 'decrypt',
   'speech', 'from_speech', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
   'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call',

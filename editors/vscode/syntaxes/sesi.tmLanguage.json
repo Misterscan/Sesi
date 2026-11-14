@@ -339,6 +339,10 @@
     "builtins": {
       "patterns": [
         {
+          "name": "support.function.builtin.general.sesi",
+          "match": "\\bto_json_str\\b"
+        },
+        {
           "name": "support.function.builtin.reasoning.sesi",
           "match": "\\b(set_alias|model|image|workflow)\\b"
         },

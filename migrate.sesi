@@ -1,0 +1,514 @@
+allow "lib/ansi" in as TERM
+/**
+  Migrate older Sesi scripts in the current workspace.
+
+  Usage:
+  `sesi migrate.sesi run` applies migrations recursively in the current directory.
+  `sesi migrate.sesi --preview` reports changes without overwriting source files.
+  `sesi migrate.sesi path/to/workspace` selects another directory or a single file.
+
+  Changed files are checked with native `sesi(..., false, true)` before writing.
+  Original contents are saved beside each changed file in a `.bak` file.
+*/
+
+/**
+  Scan `source` into tokens with offsets, preserving strings and skipping comments.
+
+  Returns migration tokens; unterminated strings/comments raise errors.
+*/
+fn migration_tokens(source) {
+  let tokens = []
+  let i = 0
+  let line = 1
+  while i < len(source) {
+    let c = slice(source, i, i + 1)
+    let pair = slice(source, i, i + 2)
+    if regex("^\\s$", c, {mode: "test"}) {
+      if c == "\n" { line = line + 1 }
+      i = i + 1
+      continue
+    }
+    if pair == "//" {
+      while i < len(source) && slice(source, i, i + 1) != "\n" { i = i + 1 }
+      continue
+    }
+    if pair == "/*" {
+      i = i + 2
+      while i < len(source) && slice(source, i, i + 2) != "*/" {
+        if slice(source, i, i + 1) == "\n" { line = line + 1 }
+        i = i + 1
+      }
+      if i >= len(source) { raise_error("MigrationError", "Unterminated block comment") }
+      i = i + 2
+      continue
+    }
+    let start = i
+    let token_line = line
+    let kind = "symbol"
+    if c == "\"" || c == "'" {
+      kind = "string"
+      i = i + 1
+      let closed = false
+      while i < len(source) {
+        let current = slice(source, i, i + 1)
+        if current == "\n" { line = line + 1 }
+        i = i + 1
+        if current == "\\" {
+          if slice(source, i, i + 1) == "\n" { line = line + 1 }
+          i = i + 1
+        } else if current == c {
+          closed = true
+          break
+        }
+      }
+      if !closed { raise_error("MigrationError", "Unterminated string") }
+    } else if regex("^[A-Za-z_$]$", c, {mode: "test"}) {
+      kind = "identifier"
+      i = i + 1
+      while i < len(source) && regex("^[A-Za-z0-9_$]$", slice(source, i, i + 1), {mode: "test"}) { i = i + 1 }
+    } else {
+      i = i + 1
+      if pair == "?." || pair == "==" || pair == "!=" || pair == "=>" { i = i + 1 }
+    }
+    push(tokens, {text: slice(source, start, i), kind: kind, start: start, end: i, line: token_line})
+  }
+  return tokens
+}
+
+fn token_text(tokens, i) {
+  if i < 0 || i >= len(tokens) { return "" }
+  return tokens[i].text
+}
+
+/**
+  Apply non-overlapping `edits` to `source`, preserving all other text.
+
+  Each edit supplies `start`, `end`, and replacement `text`.
+*/
+fn apply_migration_edits(source, edits) {
+  let cursor = 0
+  let output = []
+  for unused in edits {
+    let next = null
+    for edit in edits {
+      if edit.start >= cursor && (next == null || edit.start < next.start) { next = edit }
+    }
+    if next == null { break }
+    push(output, slice(source, cursor, next.start))
+    push(output, next.text)
+    cursor = next.end
+  }
+  push(output, slice(source, cursor))
+  return join(output, "")
+}
+
+/**
+  Find declarations in `tokens`, including multiline selective imports.
+
+  Unsupported declarations are marked for manual review.
+*/
+fn migration_imports(tokens) {
+  let imports = []
+  let i = 0
+  while i < len(tokens) {
+    let keyword = tokens[i].text
+    if keyword != "allow" && keyword != "import" { i = i + 1; continue }
+    if i > 0 && tokens[i - 1].line == tokens[i].line && token_text(tokens, i - 1) != ";" && token_text(tokens, i - 1) != "{" && token_text(tokens, i - 1) != "}" {
+      i = i + 1
+      continue
+    }
+    let start = i
+    let path = ""
+    let names = []
+    let namespace = ""
+    let supported = true
+    let legacy = -1
+    let j = i + 1
+    if keyword == "allow" {
+      if j >= len(tokens) || tokens[j].kind != "string" { i = i + 1; continue }
+      path = slice(tokens[j].text, 1, len(tokens[j].text) - 1)
+      j = j + 1
+      if token_text(tokens, j) != "in" { i = i + 1; continue }
+      j = j + 1
+      let mode = token_text(tokens, j)
+      if mode != "with" && mode != "as" { i = i + 1; continue }
+      j = j + 1
+      if mode == "as" || token_text(tokens, j) != "{" {
+        if j >= len(tokens) || (tokens[j].kind != "identifier" && tokens[j].text != "*") { i = i + 1; continue }
+        namespace = tokens[j].text
+        if namespace == "*" { supported = false }
+        if mode == "with" { legacy = j - 1 }
+        j = j + 1
+      }
+    }
+    if namespace == "" {
+      if token_text(tokens, j) == "{" {
+        j = j + 1
+        while j < len(tokens) && token_text(tokens, j) != "}" {
+          if tokens[j].kind == "identifier" { push(names, tokens[j].text) }
+          else if tokens[j].text != "," { supported = false }
+          j = j + 1
+        }
+        if token_text(tokens, j) != "}" { supported = false }
+        j = j + 1
+      } else if keyword == "import" && token_text(tokens, j) == "*" && token_text(tokens, j + 1) == "as" {
+        supported = false
+        namespace = token_text(tokens, j + 2)
+        j = j + 3
+      } else if keyword == "import" && j < len(tokens) && tokens[j].kind == "identifier" {
+        push(names, tokens[j].text)
+        j = j + 1
+      } else { i = i + 1; continue }
+    }
+    if keyword == "import" {
+      if token_text(tokens, j) != "from" { i = i + 1; continue }
+      j = j + 1
+      if j >= len(tokens) || tokens[j].kind != "string" { i = i + 1; continue }
+      path = slice(tokens[j].text, 1, len(tokens[j].text) - 1)
+      j = j + 1
+    }
+    push(imports, {first: start, last: j - 1, path: path, names: names, namespace: namespace, supported: supported, legacy: legacy})
+    i = j
+  }
+  return imports
+}
+
+fn inside_import(imports, i) {
+  for item in imports { if i >= item.first && i <= item.last { return true } }
+  return false
+}
+
+/**
+  Detect declarations that could shadow `name` anywhere in a file.
+
+  Ambiguous bindings are preserved instead of guessing their scope.
+*/
+fn binding_conflict(tokens, imports, name, owner = -1) {
+  for item in imports {
+    if item.first != owner && (item.namespace == name || includes(item.names, name)) { return true }
+  }
+  let param_depth = 0
+  let awaiting_params = false
+  for i = 0 to len(tokens) {
+    if inside_import(imports, i) { continue }
+    let text = tokens[i].text
+    let previous = token_text(tokens, i - 1)
+    if text == "fn" { awaiting_params = true }
+    if awaiting_params && text == "(" { param_depth = 1; awaiting_params = false }
+    else if param_depth > 0 && text == "(" { param_depth = param_depth + 1 }
+    if text == ")" && param_depth > 0 { param_depth = param_depth - 1 }
+    if text == name {
+      if param_depth > 0 || includes(["let", "const", "fn", "make", "for", "memory"], previous) { return true }
+      if previous == "(" && token_text(tokens, i - 2) == "catch" { return true }
+      if previous != "." && previous != "?." && token_text(tokens, i + 1) == "=" { return true }
+    }
+  }
+  return false
+}
+
+/**
+  Replace complete identifiers in `source`, excluding members and object keys.
+
+  `old_name` and `new_name` are strings. Conflicting declarations prevent changes.
+*/
+fn replace_code_identifier(source, old_name, new_name) {
+  let tokens = migration_tokens(source)
+  let imports = migration_imports(tokens)
+  if binding_conflict(tokens, imports, old_name) { return source }
+  let edits = []
+  for i = 0 to len(tokens) {
+    if tokens[i].kind != "identifier" || tokens[i].text != old_name || inside_import(imports, i) { continue }
+    let previous = token_text(tokens, i - 1)
+    if previous == "." || previous == "?." || token_text(tokens, i + 1) == ":" { continue }
+    push(edits, {start: tokens[i].start, end: tokens[i].end, text: new_name})
+  }
+  return apply_migration_edits(source, edits)
+}
+
+fn swap_print(source) { return replace_code_identifier(source, "print", "show") }
+
+/**
+  Convert namespace imports in `source` from `in with Name` to `in as Name`.
+
+  Selective imports, strings, and comments are preserved.
+*/
+fn migrate_imports(source) {
+  let tokens = migration_tokens(source)
+  let edits = []
+  for item in migration_imports(tokens) {
+    if item.legacy >= 0 {
+      let token = tokens[item.legacy]
+      push(edits, {start: token.start, end: token.end, text: "as"})
+    }
+  }
+  return apply_migration_edits(source, edits)
+}
+
+/**
+  Count arguments for a direct call following token `i`.
+
+  Returns `-1` for a reference without a call and `-2` for an unclosed call.
+*/
+fn migration_arity(tokens, i) {
+  if token_text(tokens, i + 1) != "(" { return -1 }
+  let depth = 0
+  let count = 0
+  let present = false
+  let j = i + 2
+  while j < len(tokens) {
+    let text = tokens[j].text
+    if text == ")" && depth == 0 {
+      if present { count = count + 1 }
+      return count
+    }
+    if text == "," && depth == 0 { count = count + 1; present = false }
+    else { present = true }
+    if text == "(" || text == "[" || text == "{" { depth = depth + 1 }
+    if text == ")" || text == "]" || text == "}" { depth = depth - 1 }
+    j = j + 1
+  }
+  return -2
+}
+
+/**
+  Migrate `std/json` imports and their references in `source` together.
+
+  Returns `{source, changes, warnings}`. Shadowed or unsupported imports stay intact.
+  Namespace aliases are supported; selective renaming aliases need manual review.
+*/
+fn migrate_json(source) {
+  let tokens = migration_tokens(source)
+  let imports = migration_imports(tokens)
+  let edits = []
+  let changes = []
+  let warnings = []
+  for item in imports {
+    if item.path != "std/json" { continue }
+    let pending = []
+    let safe = item.supported
+    let depth = 0
+    for i = 0 to item.first {
+      if tokens[i].text == "{" { depth = depth + 1 }
+      if tokens[i].text == "}" { depth = depth - 1 }
+    }
+    if depth != 0 { safe = false }
+    if item.namespace == "" && len(item.names) == 0 { safe = false }
+    for name in item.names {
+      if name != "parse" && name != "stringify" { safe = false }
+      if binding_conflict(tokens, imports, name, item.first) { safe = false }
+    }
+    if item.namespace != "" && binding_conflict(tokens, imports, item.namespace, item.first) { safe = false }
+    for i = 0 to len(tokens) {
+      if inside_import(imports, i) || tokens[i].kind != "identifier" { continue }
+      let name = tokens[i].text
+      let last = i
+      let previous = token_text(tokens, i - 1)
+      if previous == "." || previous == "?." || token_text(tokens, i + 1) == ":" { continue }
+      if item.namespace != "" {
+        if name != item.namespace { continue }
+        if token_text(tokens, i + 1) != "." { safe = false; continue }
+        name = token_text(tokens, i + 2)
+        last = i + 2
+        if name != "parse" && name != "stringify" { safe = false; continue }
+        if contains(slice(source, tokens[i].end, tokens[last].start), "/*") || contains(slice(source, tokens[i].end, tokens[last].start), "//") { safe = false }
+      } else if !includes(item.names, name) { continue }
+      let arity = migration_arity(tokens, last)
+      if previous == "|" {
+        if arity != -1 && arity != 0 { safe = false }
+      } else if arity != 1 { safe = false }
+      let replacement = "from_json"
+      if name == "stringify" { replacement = "to_json_str" }
+      if binding_conflict(tokens, imports, replacement) { safe = false }
+      push(pending, {start: tokens[i].start, end: tokens[last].end, text: replacement})
+    }
+    if !safe {
+      push(warnings, {line: tokens[item.first].line, message: "JSON import left unchanged: unsupported binding, shadowing, namespace use, or argument count; review manually."})
+      continue
+    }
+    for edit in pending { push(edits, edit) }
+    for i = item.first to item.last + 1 {
+      let text = ""
+      for c in split(tokens[i].text, "") {
+        if c == "\n" || c == "\r" { text = text + c }
+      }
+      push(edits, {start: tokens[i].start, end: tokens[i].end, text: text})
+    }
+    push(changes, {line: tokens[item.first].line, message: "Replaced std/json import and references with from_json/to_json_str."})
+  }
+  return {source: apply_migration_edits(source, edits), changes: changes, warnings: warnings}
+}
+
+/**
+  Run all passes on `source` and return proposed source and diagnostics.
+
+  Does not read, write, or execute the migrated program.
+*/
+fn migrate_source(source) {
+  let result = migrate_json(source)
+  let migrated = migrate_imports(result.source)
+  if migrated != result.source { push(result.changes, {line: 0, message: "Converted legacy namespace imports to in as."}) }
+  let printed = swap_print(migrated)
+  if printed != migrated { push(result.changes, {line: 0, message: "Replaced print identifiers with show."}) }
+  else {
+    let tokens = migration_tokens(migrated)
+    let imports = migration_imports(tokens)
+    for i = 0 to len(tokens) {
+      if tokens[i].kind == "identifier" && tokens[i].text == "print" && !inside_import(imports, i) && token_text(tokens, i - 1) != "." && token_text(tokens, i - 1) != "?." && token_text(tokens, i + 1) != ":" {
+        push(result.warnings, {line: tokens[i].line, message: "Review print usage: a declaration or import may shadow the legacy print statement."})
+        break
+      }
+    }
+  }
+  result.source = printed
+  result.changed = printed != source
+  return result
+}
+
+/**
+  Validate `source` without executing it, using a temporary file in `base_dir`.
+
+  Returns `{valid, diagnostics}` from Sesi's native syntax and compilation checks.
+  The temporary file is removed after checking.
+*/
+fn validate_migration(source, base_dir = ".") {
+  let temporary = base_dir + "/.sesi-migration-check-" + str(time()) + "-" + str(floor(random() * 1000000000)) + ".sesi"
+  while exists(temporary) { temporary = temporary + ".sesi" }
+  let result = {valid: false, diagnostics: []}
+  try {
+    retry_write(temporary, source)
+    sesi(temporary, false, true)
+    result.valid = true
+  } catch (error) {
+    push(result.diagnostics, {severity: "error", message: error.message})
+  }
+  try { if exists(temporary) { retry_remove(temporary) } }
+  catch (error) { result.valid = false; push(result.diagnostics, {severity: "error", message: error.message}) }
+  return result
+}
+
+fn retry_read(path) {
+  fn action() { return read_file(path) }
+  return retry(action)
+}
+
+fn retry_write(path, content) {
+  fn action() { return write_file(path, content) }
+  return retry(action)
+}
+
+fn retry_remove(path) {
+  fn action() { return trash(path, true) }
+  return retry(action)
+}
+
+/** Collect Sesi files under `path`, skipping dependencies, generated files, and this script. */
+fn collect_migration_files(path, files, depth = 0) {
+  if depth > 64 { raise_error("MigrationError", "Directory nesting exceeds 64 levels: " + path) }
+  fn list_entries() { return list_dir(path) }
+  let entries = retry(list_entries)
+  if entries == null {
+    if ends_with(path, ".sesi") && !ends_with(path, "/migrate.sesi") && path != "migrate.sesi" { push(files, path) }
+    return
+  }
+  for entry in entries {
+    if starts_with(entry, ".") || includes(["node_modules", "sesi_modules", "dist", "build", "vendor", "venv", "__pycache__", "coverage", "migrate.sesi"], entry) { continue }
+    collect_migration_files(path + "/" + entry, files, depth + 1)
+  }
+}
+
+/** Return the parent directory of `path`. */
+fn migration_parent(path) {
+  let parts = split(swap(path, "\\", "/"), "/")
+  pop(parts)
+  let parent = join(parts, "/")
+  if parent == "" {
+    if starts_with(path, "/") { return "/" }
+    return "."
+  }
+  return parent
+}
+
+/** Run workspace migrations directly, with optional `--preview` and a target path. */
+fn run_workspace_migration(options) {
+  let target = "."
+  let target_set = false
+  let preview = false
+  let migrate = false
+  for option in options {
+    if option == "--help" || option == "-h" {
+      TERM.info("Usage: sesi migrate.sesi [--preview] [workspace-or-file]")
+      TERM.info("Migrates .sesi files recursively. Default workspace: current directory.")
+      TERM.info("Changed files receive a sibling .bak backup. --preview leaves source files untouched.")
+      return
+    }
+    else if option == "--preview" { preview = true }
+    else if option == "run" { migrate = true }
+    else if starts_with(option, "-") { raise_error("MigrationError", "Unknown option: " + option) }
+    else {
+      if target_set { raise_error("MigrationError", "Provide one workspace directory or file.") }
+      target = option
+      target_set = true
+    }
+  }
+  if !migrate { raise_error("MigrationError", "No action specified. Use 'run' to apply migrations.") }
+  if !exists(target) { raise_error("MigrationError", "Workspace or file does not exist: " + target) }
+  let files = []
+  collect_migration_files(target, files)
+  let changed = 0
+  let unchanged = 0
+  let skipped = 0
+  let failed = 0
+  let run_id = str(time()) + "-" + str(floor(random() * 1000000000))
+  if preview { TERM.info("Previewing workspace: " + target) }
+  else if migrate { TERM.info("Migrating workspace: " + target) }
+  for path in files {
+    try {
+      let original = retry_read(path)
+      let result = migrate_source(original)
+      if len(result.warnings) > 0 {
+        skipped = skipped + 1
+        TERM.info("REVIEW " + path)
+        for warning in result.warnings { TERM.warning("  Line " + str(warning.line) + " " + warning.message) }
+        continue
+      }
+      if !result.changed { unchanged = unchanged + 1; continue }
+      let validation = validate_migration(result.source, migration_parent(path))
+      if !validation.valid {
+        skipped = skipped + 1
+        TERM.warning("SKIPPED " + path + " (migrated source did not pass syntax/compilation checks)")
+        for diagnostic in validation.diagnostics { TERM.warning(" " + diagnostic.message) }
+        continue
+      }
+      if preview { TERM.info("WOULD MIGRATE " + path) }
+      else if migrate {
+        let backup = path + ".migration-" + run_id + ".bak"
+        if exists(backup) { raise_error("MigrationError", "Backup already exists: " + backup) }
+        if retry_read(path) != original { raise_error("MigrationError", "File changed during migration: " + path) }
+        retry_write(backup, original)
+        try { retry_write(path, result.source) }
+        catch (error) {
+          retry_write(path, original)
+          raise_error("MigrationError", "Write failed; restored original. " + error.message)
+        }
+        TERM.success("MIGRATED " + path)
+        TERM.info("  Backup: " + backup)
+      }
+      changed = changed + 1
+      for change in result.changes { TERM.info(" " + change.message) }
+    } catch (error) {
+      failed = failed + 1
+      TERM.error("ERROR " + path + " " + error.message)
+    }
+  }
+  TERM.info("Scanned:" len(files))
+  TERM.info("Changed:" changed)
+  TERM.info("Unchanged:" unchanged)
+  TERM.info("Needs review:" skipped)
+  TERM.info("Failed:" failed)
+  if preview { TERM.success("Preview complete. Run with 'run' to apply changes.") }
+  if migrate { TERM.success("Migration complete.") }
+  if failed > 0 { raise_error("MigrationError", "Migration finished with file errors; see the report above.") }
+}
+
+let choices = ["--help", "-h", "run", "--preview"]
+if includes(choices, args[0]) { run_workspace_migration(args) }

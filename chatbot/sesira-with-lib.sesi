@@ -5,11 +5,12 @@
 */
 allow "helpers/safe" in as Safe
 allow "std/time" in with {now, format}
+allow "lib/usage" in with {track_model}
 allow "timestamp" in as Stamp
 
 let archiveDir = "chatbot/archive/"; archiveDir | make_dir
 let queryText = ""
-let fileContext = ""
+let fileContext = null
 let logFile = "chatbot/sesira.log"
 
 /**
@@ -413,26 +414,29 @@ let sys = persona + instructions
 let generated_response = ""
 let err = ""
 
-if !($OPENAI_API_KEY | is_null){
-  try {
-    generated_response = model("gpt-6.1-sol") {system: sys, thinkingLevel: "medium", maxT: 10000} {ragPrompt}
-  } catch (e) {err = e.message; generated_response = model("gemini-3.6-flash") {system: sys, thinkingLevel: "medium", maxT: 10000} {ragPrompt}}
-} else {
-  try { generated_response = model("gemini-3.6-flash") {system: sys, thinkingLevel: "medium", maxT: 5120} {ragPrompt} }
-  catch (e2) {err = e2.message}
+try { generated_response = track_model(ragPrompt, {model_name: "gemini-3.5-flash-lite", system: sys, thinking: "low", response: "full"}) }
+catch (e) {
+  err = e.message
+  try { generated_response = track_model(ragPrompt, {model_name: "gemini-3.5-flash-lite", system: sys, thinking: "low", response: "full"}) }
+  catch (e2) {err = err + "\n" + e2.message}
 }
 
-if generated_response { show "Sesira has provided a response to your question:\n"generated_response } else { show err; return }
+"SESI" | writeLog("Current request cost:" generated_response.cost)
+show "Time taken:" generated_response.duration
+"SESI" | writeLog("Time taken: " + generated_response.duration)
+
+if generated_response { show "Sesira has provided a response to your question:\n"generated_response.response } else { show err; return }
 let helpResponse = ""
 let timestamp = now | format({"dateStyle": "short", "timeStyle": "medium"})
 timestamp = timestamp | swap("/", "-") | swap(":", "-") | swap(",", "") | swap(" ", "-")
 let responseFile = "chatbot/responses/sesira-help-" + timestamp + ".md"; "chatbot/responses" | make_dir
 
 try {
-  helpResponse = responseFile | Safe.writeFile("# Sesira Response:\n\n" + generated_response)
+  helpResponse = responseFile | Safe.writeFile("# Sesira Response:\n\n" + generated_response.response)
   show "\n\nYour answer has also been saved at '"responseFile"'."
   "SESI" | writeLog("Response written to " + responseFile)
-  "SESIRA" | writeLog(generated_response)
+  "SESIRA" | writeLog(generated_response.response)
+  show Safe.json(responseFile | swap(".md", ""), to_json(generated_response))
 } catch (e) {
   "SESI" | writeLog("Failed to write " + responseFile + ": " + e)
 }

@@ -52,6 +52,39 @@ npm run build:mac:installer
 
 The generated installer files are written to `releases/`.
 
+## Migrating Existing Workspaces
+
+**Migration is required for legacy syntax when upgrading to Sesi 1.8.5 or later.** That version replaced `print` with `show`, changed namespace imports from `in with Name` to `in as Name`, and removed `std/json` in favor of built-in JSON functions. If your scripts already use the current syntax, no migration is needed.
+
+Run [migrate.sesi](./migrate.sesi) with **Sesi 1.9.2 or later**, which provides the `to_json_str()` function used for compact JSON output. Download or copy the script into your workspace, then run it directly from that workspace:
+
+```bash
+# Review proposed changes without overwriting source files
+npm run migrate:dry
+
+# Apply changes recursively to the current workspace
+npm run migrate
+
+# Migrate a particular directory or a single file
+npm run migrate ./src
+npm run migrate ./main.sesi
+```
+
+The migration handles these changes:
+
+| Legacy syntax | Current syntax |
+| --- | --- |
+| `print value` | `show value` |
+| `allow "module" in with Name` | `allow "module" in as Name` |
+| `std/json` imported `parse(value)` | `from_json(value)` |
+| `std/json` imported `stringify(value)` | `to_json_str(value)` |
+
+Selective imports such as `allow "module" in with {name}` are unchanged. The script preserves strings and comments, supports multiline imports and JSON namespace aliases, and leaves ambiguous cases for manual review. Each changed file is checked for valid syntax and compilation before writing, with its original contents saved beside it in a `.migration-<run-id>.bak` file.
+
+Dependency folders (`node_modules`, `sesi_modules`, and `vendor`), generated folders, hidden entries, and `migrate.sesi` itself are skipped. Read the final report for migrated files, files needing review, and errors.
+
+## Running Sesi
+
 ### Run a program
 
 Once Sesi is installed, you can run Sesi files globally:
@@ -297,7 +330,7 @@ show "Score: " analysis.score
 Like `model`, the `image` command takes configuration parameters.
 
 ```sesi
-let logo = image("gemini-3.1-flash-image-preview") {ratio: "1:1", size: "512", temperature: 0.3} {"Make a beautiful logo for the word Sesi"}
+let logo = image("gemini-3.1-flash-image") {ratio: "1:1", size: "512", temperature: 0.3} {"Make a beautiful logo for the word Sesi"}
 "logo.png" | write_image(logo)
 show "Generated image successfully!"
 ```
@@ -376,7 +409,6 @@ string | append_file(string) -> bool // Append string content to file
 path | write_image(content) // Write base64 encoded image to a file
 target | open(options?) -> bool // Open a URL or local file in an external app (local mode)
 path | open_file(options?) -> bool // Open an existing local file (local mode)
-string | from_json  // Parse JSON string back to value
 
 convert(type) { config } { file } // Convert documents/media/audio between formats
 
@@ -391,11 +423,12 @@ src | archive(dest) // Backup/copy file/directory recursively
 path | trash(auto)  // Move to trash or permanently remove
 path | spawn        // Launch concurrent background process
 command | exec      // Synchronous shell execution
+command | run       // Alias for `exec`
 
 time()             // Unix timestamp (ms)
 random()           // Random number (0-1)
 
-path | sesi(local) // Run a Sesi file synchronously in-process
+path | sesi(local, args) // Run a Sesi file synchronously in-process
 code | python(args)  // Execute Python code
 code | js(args)      // Execute JavaScript code
 body | html(options) // Build a complete HTML page string
@@ -405,7 +438,9 @@ key | env(default)  // Get environment variable(s)
 ### Type Checking
 
 ```sesi
-value | to_json()     // Convert to valid JSON string
+value | to_json     // Convert to valid JSON string (pretty-printed)
+value | to_json_str  // Convert to compact JSON string
+string | from_json  // Parse JSON string back to value
 value | type        // Get type name
 value | str         // Convert to string
 value | num         // Convert to number

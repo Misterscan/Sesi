@@ -5,13 +5,14 @@
 */
 allow "helpers/safe" in as Safe
 allow "std/time" in with {now, format}
+allow "lib/usage" in with {track_model}
 allow "timestamp" in as Stamp
 allow "lib/network/utils" in with {read}
 
 let archiveDir = "chatbot/archive/"; if !exists(archiveDir) { archiveDir | make_dir }
 let responses = "chatbot/responses/"; if !exists(responses) { responses | make_dir }
 let queryText = ""
-let fileContext = ""
+let fileContext = null
 let logFile = "chatbot/sesira.log"
 
 /**
@@ -156,7 +157,7 @@ show "--------------------------------------------------"
 "SESI" | writeLog("💭 SESIRA IS THINKING:")
 
 let src = "src/"
-let files = list_dir(src) || ["ai-runtime.ts", "browser-compiler.ts", "browser-deployment.ts", "browser-js-runtime.ts", "builtins.ts","chunk.ts", "compiler.ts", "documentation.ts", "dry-checker.ts", "game.ts", "html-to-text.d.ts", "index.ts", "interpreter.ts", "js-emitter.ts", "lexer.ts", "make.ts", "mpc.ts", "native-object.ts", "parser.ts", "pm.ts", "profiler.ts", "token-pricing.ts", "type-checker.ts", "types.ts", "video-input.ts", "vm.ts"]
+let files = list_dir(src) || ["ai-runtime.ts", "browser-compiler.ts", "browser-deployment.ts", "browser-js-runtime.ts", "builtins.ts", "chunk.ts", "compiler.ts", "documentation.ts", "dry-checker.ts", "game.ts", "html-to-text.d.ts", "index.ts", "interpreter.ts", "js-emitter.ts", "lexer.ts", "make.ts", "mpc.ts", "native-object.ts", "parser.ts", "pm.ts", "profiler.ts", "token-pricing.ts", "type-checker.ts", "types.ts", "video-input.ts", "vm.ts"]
 let brain = []
 let skills = ""
 let expandedLibs = ""
@@ -164,6 +165,7 @@ try {
   skills = ".agents/skills/SKILLS.md" | Safe.readFile || read("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/.agents/skills/SKILLS.md")
   for file in files { if get_ext(file) == "ts" { brain | push({filename: file, contents: (Safe.readFile(src + file) || read("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/" + src + file))}) } }
   expandedLibs = "=== LIB: File System (Built-in via \"helpers/safe\") ===\n" + (Safe.readFile("helpers/safe.sesi") || read("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/helpers/safe.sesi"))
+  expandedLibs = expandedLibs + "\n\n=== LIB: Model Usage (via \"lib/usage\") ===\n" + (Safe.readFile("lib/usage.sesi") || read("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/lib/usage.sesi"))
   expandedLibs = expandedLibs + "\n\n=== LIB: Math (via sesi install Misterscan/math) ===\n" + (Safe.readFile("sesi_modules/math/main.sesi") || read("https://raw.githubusercontent.com/Misterscan/math/refs/heads/main/main.sesi"))
   expandedLibs = expandedLibs + "\n\n=== LIB: Shell (via sesi install Misterscan/shell-automation) ===\n" + (Safe.readFile("sesi_modules/shell-automation/index.sesi") || read("https://raw.githubusercontent.com/Misterscan/shell-automation/refs/heads/main/index.sesi"))
   expandedLibs = expandedLibs + "\n\n=== LIB: Web Diagnostics (via sesi install Misterscan/AutoWebpageDiagnostics) ===\n" + (Safe.readFile("sesi_modules/AutoWebpageDiagnostics/main.sesi") || read("https://raw.githubusercontent.com/Misterscan/AutoWebpageDiagnostics/refs/heads/main/main.sesi"))
@@ -176,6 +178,7 @@ Sesi Official Reference:
 Expanded Libraries:
 - `math` uses `allow 'math' in as ... or `allow 'math' in with {...}`
 - `helpers/safe` uses `allow 'helpers/safe' in as ... or `allow 'helpers/safe' in with {...}`
+- `lib/usage` uses `allow 'lib/usage' in as ... or `allow 'lib/usage' in with {...}`. YOU MUST USE THIS FOR ANY AND ALL MODEL/IMAGE CALLS.
 - `shell-automation` uses `allow 'shell-automation' in as ... or `allow 'shell-automation' in with {...}`
 - `AutoWebpageDiagnostics` uses `allow 'AutoWebpageDiagnostics' in as ... or `allow 'AutoWebpageDiagnostics' in with {...}`
 "expandedLibs"
@@ -366,8 +369,6 @@ prompt example {""Multi line strings are fine
 but they MUST begin on the same line as the opening '{' 
 and end on the same line as the closing '}' ""}
 
-let test = model(""gemini-3.1-flash-lite"") {thinkingLevel: ""low"", maxT: 2048, cache: false, search} <-- NOTICE ITS NOT SEPARATED BY NEWLINES IN THE CONFIGURATION {example} 
-let correct_multiline = model(""gemini-3.1-flash-lite"") {thinkingLevel: ""low"", maxT: 2048, cache: false, search} {"" <-- THE NEWLINE DOESNT NOT START UNTIL AFTER THE FIRST `'` OR `""`
 Multi line strings are fine
 but they MUST begin on the same line as the opening '{' 
 and end on the same line as the closing '}'
@@ -409,34 +410,30 @@ let sys = persona + instructions
 let generated_response = ""
 let err = ""
 
-let start = time()
-if $OPENAI_API_KEY {
-  try {
-    generated_response = model("gpt-6-luna") {system: sys, thinkingLevel: "medium", maxT: 4096} {ragPrompt}
-    "SESI" | writeLog("Current request cost: $" model_usage().total_cost_usd | str | trunc(7))
-    show "Current request cost: $" model_usage().total_cost_usd | str | trunc(7)
-  } catch (e) {err = e.message; generated_response = model("gemini-3.6-flash") {system: sys, thinkingLevel: "medium", maxT: 4096} {ragPrompt} show "Current request cost: $" model_usage().total_cost_usd | str | trunc(7)}
-} else {
-  try { generated_response = model("gemini-3.6-flash") {system: sys, thinkingLevel: "medium", maxT: 4096} {ragPrompt} show "Current request cost: $" model_usage().total_cost_usd | str | trunc(7) }
-  catch (e2) {err = e2.message}
+try { generated_response = track_model(ragPrompt, {model_name: "gemini-3.5-flash-lite", system: sys, thinking: "low", max_tokens: 8192, response: "full"}) }
+catch (e) {
+  err = e.message
+  try { generated_response = track_model(ragPrompt, {model_name: "gemini-3.5-flash-lite", system: sys, thinking: "low", max_tokens: 8192, response: "full"}) }
+  catch (e2) {err = err + "\n" + e2.message}
 }
-let end = time()
-let s = (start - end) / 1000
-let m = s / 60
-show "Time taken: (approx) " str(m) " minutes [" str(s) " seconds]"
-"SESI" | writeLog("Time taken: (approx) " + m + " minutes [" + s + " seconds]")
 
-if generated_response { show "\n\nSesira has provided a response to your question:\n"generated_response } else { show err; return }
+"SESI" | writeLog("Current request cost:" generated_response.cost)
+show "Time taken:" generated_response.duration
+"SESI" | writeLog("Time taken: " + generated_response.duration)
+
+if err { show err }
+if generated_response { show "\n\nSesira has provided a response to your question:\n"generated_response.response } else { show err; return }
 let helpResponse = ""
 let timestamp = now | format({"dateStyle": "short", "timeStyle": "medium"})
 timestamp = timestamp | swap("/", "-") | swap(":", "-") | swap(",", "") | swap(" ", "-")
 let responseFile = responses + "sesira-help-" + timestamp + ".md"
 
 try {
-  helpResponse = responseFile | Safe.writeFile("# Sesira Response:\n\n" + generated_response)
+  helpResponse = responseFile | Safe.writeFile("# Sesira Response:\n\n" + generated_response.response)
   show "\n\nYour answer has also been saved at '"responseFile"'."
   "SESI" | writeLog("Response written to " + responseFile)
-  "SESIRA" | writeLog(generated_response)
+  "SESIRA" | writeLog(generated_response.response)
+  show Safe.json(responseFile | swap(".md", ""), to_json(generated_response))
 } catch (e) {
   "SESI" | writeLog("Failed to write " + responseFile + ": " + e)
 }

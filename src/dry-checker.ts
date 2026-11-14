@@ -463,7 +463,7 @@ function shouldPushScope(index: number, tokens: ScopeToken[]): boolean {
 }
 
 const BUILTINS = new Set([
-  'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt', 'speech', 'from_speech', 'len',
+  'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'to_json_str', 'encrypt', 'decrypt', 'speech', 'from_speech', 'len',
   'read_file', 'write_file', 'append_file', 'write_image', 'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call', 'spawn', 'exec', 'run', 'sesi', 'python', 'time', 'env',
   'range', 'push', 'append', 'pop', 'join', 'split', 'keys', 'values', 'array', 'PI', 'E', 'sin', 'cos', 'tan', 'sqrt', 'floor', 'ceil', 'abs',

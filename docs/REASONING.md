@@ -178,30 +178,37 @@ show cheap
 
 ### Available Models
 
+#### Gemini 4 Models
+
+- `gemini-4-hydrogen` - Fast general-purpose model for coding and agentic workflows.
+- `gemini-4-argon` - Efficient frontier reasoning model for complex coding and science.
+- `gemini-4-carbon` - Flagship reasoning model for complex software engineering and multimodal work.
+
 #### Flash Models
 
-- `gemini-2.5-flash` - Legacy, but supported. 1M tokens.
-- `gemini-2.5-flash-lite` - Legacy, but supported. Cheapest output cost. 1M tokens.
-- `gemini-3-flash-preview` - Fast, most balanced model for coding and minimal tasks.
-- `gemini-3.1-flash-lite` - Fastest, most cost-efficient for lightweight tasks.
-- `gemini-3.5-flash` - Balanced, but token hungry (USE WISELY). Supports all native thinking effort levels (`minimal`, `low`, `medium`, `high`).
-- `gemini-3.5-flash-lite` - Faster 3.5 model for high-throughput execution like subagent work and document parsing.
-- `gemini-3.6-flash` - Stronger performance on complex agentic and multimodal tasks while reducing token usage, at a lower price point than 3.5 Flash.
-- `gemini-3.7-flash (Deprecated)` - Enhanced reasoning capabilities, improved performance, and tool integration.
-- `gemini-3.8-flash` - Slightly improved reasoning capabilities, performance, and tool integration compared to 3.7 Flash.
+- `gemini-3.8-flash` - Previous-generation model for coding, agents, and complex workflows.
+- `gemini-3.6-flash` - Balanced model for everyday multimodal and agentic tasks.
+- `gemini-3.5-flash-lite` - Fast, cost-efficient model for high-throughput workloads.
+- `gemini-3.1-flash-lite` - Lightweight model; earliest scheduled shutdown is May 7, 2027. We recommend `gemini-3.5-flash-lite`.
+- `gemini-3-flash-preview` - Preview model
+- `gemini-2.5-flash-lite` - Not deprecated, but access is limited to existing users who have actively used the 2.5 models.
+- `gemini-3.7-flash` - No longer selectable; API requests automatically route to `gemini-3.8-flash`.
+- `gemini-3.5-flash` - No longer selectable; API requests automatically route to `gemini-3.6-flash`.
+- `gemini-2.5-flash` - Deprecated and limited to existing active users. From December 1, 2026, requests will route to `gemini-3.5-flash-lite` and use its pricing.
 
 #### Pro Models
 
-- `gemini-2.5-pro` - Legacy, but supported. 1M tokens.
-- `gemini-3.1-pro-preview` - Most powerful reasoning model, doesn't support `minimal` thinking (falls back to `low`).
+- `gemini-3.1-pro-preview` - Preview model for reasoning, coding, and agentic workflows
+- `gemini-3.1-pro-preview-customtools` - Preview variant optimized for custom tools.
+- `gemini-2.5-pro` - Deprecated and limited to existing active users. From December 1, 2026, requests will route to `gemini-3.8-flash` and use its pricing.
 
 #### Image Models
 
-- `gemini-2.5-flash-image` - Standard image model. (No `512` image size support for this model. Only `1K` is supported.) Most cost efficient.
-- `gemini-3.1-flash-image` -  Most consistent image generation model.
-- `gemini-3.1-flash-image-lite` - Fastest and cheapest image model, engineered for velocity and scale where speed and cost are the primary operational constraints. Not optimized for multiple reference inputs or multi-turn sequential editing.
-- `gemini-nano-banana-2.1` - Latest Nano Banana model.
-- `gemini-3-pro-image` - High quality image generation model. (No `512` image size support for this model.)
+- `gemini-nano-banana-2.1` - Current high-efficiency image generation and editing model.
+- `gemini-3.1-flash-image` - Previous-generation model optimized for speed and reference-image consistency.
+- `gemini-3.1-flash-lite-image` - Fast, low-cost model for high-volume generation; not optimized for multiple reference images or sequential editing.
+- `gemini-3-pro-image` - Premium model for complex layouts and high-fidelity text.
+- `gemini-2.5-flash-image` - Legacy model; earliest scheduled shutdown is March 15, 2027. We recommend `gemini-nano-banana-2.1`.
 
 #### OpenAI GPT Models
 
@@ -210,6 +217,11 @@ show cheap
 - Set `OPENAI_API_KEY` in your environment to enable GPT calls.
 - GPT calls support streaming, `system` instructions, local image files via `images`, and web search via `search: true`.
 - GPT tool schemas can be passed via `tools` in model config.
+
+Verify available models and deprecations via the link below:
+[Upcoming Deprecations](https://developers.openai.com/api/docs/deprecations#upcoming-deprecations)
+[Previous Deprecations](https://developers.openai.com/api/docs/deprecations#past-deprecations)
+[Available Models](https://developers.openai.com/api/docs/models/all)
 
 ```sesi
 let answer = model("gpt-6-luna") {"Summarize this document in 3 bullets."}

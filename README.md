@@ -77,6 +77,24 @@ npm run build
 npm install -g .  # Unlock the `sesi` command locally
 ```
 
+## Migrating Existing Workspaces
+
+**Sesi 1.8.5 introduced breaking changes to output statements, namespace imports, and JSON imports.** Existing scripts that still use `print`, `allow "..." in with Name`, or `std/json` need migration when upgrading to 1.8.5 or later. Scripts already using the current syntax do not need migration.
+
+Update to **Sesi 1.9.2 or later** before running the migration script; its compact JSON conversion uses `to_json_str()`. Download or copy [migrate.sesi](./migrate.sesi) into your workspace, open a terminal in that workspace, and run:
+
+```bash
+# Preview the changes
+npm run migrate:dry
+
+# Apply migrations throughout the current workspace
+npm run migrate
+```
+
+The script recursively migrates `.sesi` files: `print` becomes `show`, namespace imports use `in as Name`, and supported `std/json` imports and calls become `from_json()` and `to_json_str()`. Selective imports using `in with {...}` remain valid. Changed files receive a sibling `.bak` backup. Dependencies, generated folders, and the migration script itself are skipped; ambiguous cases are reported for manual review.
+
+See the [Quick Start migration instructions](./QUICKSTART.md#migrating-existing-workspaces) for targeting a particular directory or file.
+
 ## Quick Start
 
 ### Compile Sesi for a browser
@@ -84,7 +102,7 @@ npm install -g .  # Unlock the `sesi` command locally
 Compile the Sesi code that should run after deployment:
 
 ```bash
-sesi build path/to/your-file.sesi
+npm run sesi:build path/to/your-file.sesi
 ```
 
 This creates minified `path/to/your-file.js`. JavaScript output, including service workers, is minified automatically.
@@ -317,6 +335,7 @@ Sesi/
 ├── example.js                       # Helper script to run basic examples
 ├── example-ai.js                    # Helper script to run reasoning examples
 ├── examples.sesi                    # Central execution suite for examples
+├── migrate.sesi                     # Migrate legacy Sesi syntax in a workspace
 ├── README.md                        # Project overview
 ├── QUICKSTART.md                    # Getting started guide
 ├── package.json                     # Dependencies & scripts

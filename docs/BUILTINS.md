@@ -159,6 +159,20 @@ to_json({ "a": 1, "b": [1, 2] })
 
 ---
 
+### to_json_str(value) -> string
+
+Convert a value into a compact JSON string without indentation or formatting whitespace. Spaces inside string values are preserved. Use `to_json(value)` for formatted output.
+
+```sesi
+to_json_str({ "a": 1, "b": [1, 2] })
+({ "a": 1, "b": [1, 2] }) | to_json_str
+// Both return: {"a":1,"b":[1,2]}
+```
+
+**Returns**: `string` (valid JSON), or `null` if serialization fails.
+
+---
+
 ### from_json(string) -> any
 
 Parse a valid JSON string back into a native Sesi primitive, array, or object.
@@ -3577,7 +3591,7 @@ show formatted // e.g. "2:27:02 AM"
 
 ### JSON conversion
 
-JSON serialization and parsing are built in as `to_json(value)` and `from_json(text)`. The former `std/json` module has been removed.
+JSON serialization and parsing are built in as `to_json(value)` for formatted output, `to_json_str(value)` for compact output, and `from_json(text)` for parsing. The former `std/json` module has been removed.
 
 ```sesi
 let original = {

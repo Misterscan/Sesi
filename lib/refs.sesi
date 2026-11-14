@@ -510,6 +510,12 @@ export let BUILTINS = {
     description: 'Converts a native Sesi value, array, or object into a standardized, valid JSON string.',
     example: 'let payload = {id: 101, status: "active"}\nlet json_str = to_json(payload)\nshow json_str'
   },
+  'to_json_str': {
+    signature: 'to_json_str(value)',
+    source: 'Serialization Standard Library',
+    description: 'Converts a native Sesi value into a compact JSON string without indentation or formatting whitespace. Returns null if serialization fails.',
+    example: 'let payload = {id: 101, status: "active"}\nshow to_json_str(payload) // {"id":101,"status":"active"}'
+  },
   'from_json': {
     signature: 'from_json(json_str)',
     source: 'Serialization Standard Library',

@@ -1819,7 +1819,7 @@ function analyzeScope(tokens, decls, refs) {
     
     const diagnostics = [];
     const builtinsSet = new Set([
-        'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'encrypt', 'decrypt',
+        'show', 'str', 'type', 'num', 'float', 'bool', 'from_json', 'to_json', 'to_json_str', 'encrypt', 'decrypt',
   'speech', 'from_speech', 'len', 'read_file', 'write_file', 'append_file', 'write_image',
   'open', 'open_file', 'list_dir', 'make_dir', 'rename', 'archive', 'zip', 'exists', 'get_ext', 'trash', 'exp', 'trunc',
   'random', 'sleep', 'now', 'model', 'image', 'js', 'html', 'structured_output', 'tool_call',
@@ -2449,6 +2449,12 @@ function activate(context) {
             source: 'Serialization Standard Library',
             description: 'Converts a native Sesi value, array, or object into a standardized, valid JSON string.',
             example: 'let payload = {id: 101, status: "active"}\nlet json_str = to_json(payload)\nshow json_str'
+        },
+        'to_json_str': {
+            signature: 'to_json_str(value)',
+            source: 'Serialization Standard Library',
+            description: 'Converts a native Sesi value into a compact JSON string without indentation or formatting whitespace. Returns null if serialization fails.',
+            example: 'let payload = {id: 101, status: "active"}\nshow to_json_str(payload) // {"id":101,"status":"active"}'
         },
         'from_json': {
             signature: 'from_json(json_str)',

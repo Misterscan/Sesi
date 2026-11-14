@@ -233,32 +233,13 @@ sesi
 Inside the REPL, any **Expression Statement** (like mathematical equations, string variables, or expressions) will auto-show its evaluated result to the terminal.
 
 ```sesi
-┌─ Sesi Interactive Terminal (v1.9.2) ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│Welcome to Sesi! Type code and press Enter.                                                                                                                                                         │
-│Type .exit or press ESC to quit.                                                                                                                                                                    │
-│sesi> let x = 10                                                                                                                                                                                    │
-│sesi> let y = 20                                                                                                                                                                                    │
-│sesi> x + y                                                                                                                                                                                         │
-│=> 30                                                                                                                                                                                               │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-│                                                                                                                                                                                                    │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌─ sesi> ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│.exit                                                                                                                                                                                               │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+Welcome to Sesi! Type code and press Enter.
+Type .exit or press Ctrl+C to quit.
+sesi> let x = 10
+sesi> let y = 20
+sesi> x + y
+=> 30
+sesi> 
 ```
 
 ---
@@ -290,6 +271,10 @@ If you are working inside the Sesi repository, you can leverage native package m
 | `npm run lint <file>`               | `sesi bin/lint.sesi <file>`| Audits a single file and prints directly to terminal. |
 | `npm run sesi <file>`               | `sesi <file>`             | Runs the Sesi script.                                 |
 | `npm run sesi:local <file>`         | `sesi -l <file>`          | Runs a script with safe-mode disabled.                |
+| `npm run sesi:build <file>`         | `sesi build <file>`       | Builds the Sesi script.                               |
+| `npm run migrate`                     | `sesi migrate`            | Migrates all Sesi scripts to the latest format.       |
+| `npm run migrate <file>`              | `sesi migrate <file>`     | Migrates the Sesi script to the latest format.        |
+| `npm run migrate:dry <file>` | `sesi migrate --preview <file>` | Previews the migration changes without applying them. |
 | `npm run sesi:dry <file>`           | `sesi -c <file>`          | Runs a dry run of the script.                         |
 | `npm run sesi:eval "<code_to_run>"` | `sesi -e "<code_to_run>"` | Evaluates Sesi code in-memory.                        |
 | `npm run sesi:parse <file>`         | `sesi -r <file>`          | Dumps the raw AST representation.                     |

@@ -195,7 +195,7 @@ async fn handleRequest(req) {
     let response_content = "Sorry, no response could be generated."
     let failed = false
     try {
-      response_content = model("gemini-3.1-flash-lite") {system: history, temperature: 0.3, max_tokens: 2048} {prompt_context}
+      response_content = model("gemini-3.5-flash-lite") {system: history, thinking: "low", max_tokens: 4096} {prompt_context}
     } catch (e) {
       show "[SERVER ERROR] Sesi model call failed:" e
       failed = true

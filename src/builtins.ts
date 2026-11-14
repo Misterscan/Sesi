@@ -930,6 +930,22 @@ export function getBuiltins(interpreter?: any): Map<string, RuntimeFunction> {
     },
   });
 
+  builtins.set('to_json_str', {
+    type: 'function',
+    name: 'to_json_str',
+    params: [{ name: 'value' }],
+    body: {} as any,
+    closure: {} as any,
+    isBuiltin: true,
+    builtin: (value: RuntimeValue): RuntimeValue => {
+      try {
+        return JSON.stringify(value);
+      } catch (e) {
+        return null;
+      }
+    },
+  });
+
   builtins.set('from_json', {
     type: 'function',
     name: 'from_json',
