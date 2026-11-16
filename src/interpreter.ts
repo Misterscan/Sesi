@@ -1,4 +1,5 @@
 // Tree-walking interpreter for Sesi
+import { createNumericHelpers } from './numeric-helpers';
 import {
   type Program,
   type Statement,
@@ -2442,6 +2443,15 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
     } else if (source === 'std/mpc') {
       return createMpcModule(this);
     } else if (source === 'std/math') {
+      const helpers = createNumericHelpers();
+      const mathHelpers: Record<string, Function> = { clamp: helpers.clamp, lerp: helpers.lerp, hash: helpers.hash };
+      for (const [name, params] of Object.entries({ clamp: ['value', 'min', 'max'], lerp: ['a', 'b', 't'], hash: ['value', 'seed'] })) {
+        exports.set(name, {
+          type: 'function', name, params: params.map(name => ({ name })),
+          body: {} as any, closure: {} as any, isBuiltin: true,
+          builtin: (...args: RuntimeValue[]): RuntimeValue => mathHelpers[name](...args),
+        });
+      }
       const mathConstants: Record<string, number> = {
         E: Math.E,
         LN10: Math.LN10,
@@ -3692,6 +3702,7 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       });
       return exports;
     } else if (source === 'std/draw') {
+      const { finite, clamp, lerp, noise, fractal } = createNumericHelpers();
       let elements: string[] = [];
       let defs: string[] = [];
       let pixels = new Map<string, [number, number, number, number]>();
@@ -3731,6 +3742,30 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
 
         throw new Error(`Unsupported pixel color: ${color}`);
       };
+
+      const colorByte = (value: number): number => Math.round(clamp(finite(value, 'color'), 0, 255));
+      const rgb = (r: number, g: number, b: number): string => `rgb(${colorByte(r)}, ${colorByte(g)}, ${colorByte(b)})`;
+      const rgba = (r: number, g: number, b: number, a = 1): string => `rgba(${colorByte(r)}, ${colorByte(g)}, ${colorByte(b)}, ${clamp(a)})`;
+      const drawHelpers: Record<string, { params: string[]; call: Function }> = {
+        rgb: { params: ['r', 'g', 'b'], call: rgb },
+        rgba: { params: ['r', 'g', 'b', 'a'], call: rgba },
+        channel: { params: ['n'], call: (n: number) =>
+          Math.floor(clamp(finite(n, 'channel'), 0, 255)).toString(16).padStart(2, '0') },
+        blend: { params: ['a', 'b', 't'], call: (a: RuntimeValue, b: RuntimeValue, t = 0.5) => {
+          const first = parsePixelColor(a), second = parsePixelColor(b);
+          const channels = first.map((value, index) => lerp(value, second[index], clamp(t)));
+          return rgba(channels[0], channels[1], channels[2], channels[3] / 255);
+        } },
+        noise: { params: ['x', 'y', 'seed'], call: noise },
+        fractal: { params: ['x', 'y', 'octaves', 'persistence', 'lacunarity', 'seed'], call: fractal },
+      };
+      for (const [name, helper] of Object.entries(drawHelpers)) {
+        exports.set(name, {
+          type: 'function', name, params: helper.params.map(name => ({ name })),
+          body: {} as any, closure: {} as any, isBuiltin: true,
+          builtin: (...args: RuntimeValue[]): RuntimeValue => helper.call(...args),
+        });
+      }
 
       const pngChunk = (type: string, data: Buffer): Buffer => {
         const typeBuffer = Buffer.from(type, 'ascii');

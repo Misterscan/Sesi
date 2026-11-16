@@ -121,12 +121,16 @@ async function main() {
   assert.ok(mathModuleHover.contents[0].value.includes('SQRT2 (number)'));
   assert.ok(mathModuleHover.contents[0].value.includes('atan2(y, x)'));
   assert.ok(mathModuleHover.contents[0].value.includes('hypot(...values)'));
+  for (const name of ['clamp', 'lerp', 'hash']) {
+    assert.ok(mathModuleHover.contents[0].value.includes(`${name}(`));
+  }
 
   const drawModule = createModel('allow "std/draw" in as Draw\n');
   const drawModuleHover = await hoverProvider.provideHover(drawModule, { lineNumber: 1, column: 9 });
   for (const name of [
     'pixel_rect', 'pixel_circle', 'pixel_line', 'pixel_ellipse', 'pixel_polygon', 'pixel_triangle',
     'pixel_star', 'pixel_ring', 'pixel_arc', 'pixel_bezier', 'pixel_text',
+    'fractal', 'channel', 'rgb', 'rgba', 'noise', 'blend',
   ]) {
     assert.ok(drawModuleHover.contents[0].value.includes(`${name}(`), `Expected ${name} in std/draw hover`);
   }

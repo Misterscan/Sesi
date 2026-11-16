@@ -11,7 +11,8 @@ const SESI_MATH_FUNCTION_SIGNATURES = {
     floor: 'floor(x)', fround: 'fround(x)', hypot: 'hypot(...values)', imul: 'imul(x, y)', log: 'log(x)',
     log1p: 'log1p(x)', log2: 'log2(x)', log10: 'log10(x)', max: 'max(...values)', min: 'min(...values)',
     pow: 'pow(x, y)', random: 'random()', round: 'round(x)', sign: 'sign(x)', sin: 'sin(x)',
-    sinh: 'sinh(x)', sqrt: 'sqrt(x)', tan: 'tan(x)', tanh: 'tanh(x)', trunc: 'trunc(x)'
+    sinh: 'sinh(x)', sqrt: 'sqrt(x)', tan: 'tan(x)', tanh: 'tanh(x)', trunc: 'trunc(x)',
+    clamp: 'clamp(value, min = 0, max = 1)', lerp: 'lerp(a, b, t)', hash: 'hash(value, seed = 0)'
 };
 const SESI_MATH_FUNCTIONS = Object.keys(SESI_MATH_FUNCTION_SIGNATURES);
 const SESI_WEB_EXPORTS = new Map(Object.entries({
@@ -1837,6 +1838,7 @@ function analyzeScope(tokens, decls, refs) {
   'create', 'drum_kit', 'program', 'pad', 'sixteen_levels', 'note_repeat', 'swaing', 'chop', 'sample', 'vintage', 'effect', 'fx', 'song',
   'render_wav', 'render_midi',
   'clear', 'circle', 'rect', 'line', 'text', 'save_svg', 'ellipse', 'polygon', 'path', 'gradient', 'style', 'raw',
+  'fractal', 'channel', 'rgb', 'rgba', 'noise', 'blend',
   'regex', 'tokenize', 'count_tokens', 'estimate_tokens', 'estimate_cost', 'model_usage',
   'gif', 'video', 'ffmpeg',
   'matrix_dot', 'matrix_transpose', 'matrix_add', 'matrix_sub', 'matrix_mul_elements',
@@ -2876,6 +2878,60 @@ function activate(context) {
             description: 'Exports an MPC sequence to a multi-track Standard MIDI File preserving Roger Linn swing timing.',
             example: 'allow "std/mpc" in as MPC\nseq.render_midi("beat.mid")'
         },
+        'fractal': {
+            signature: 'fractal(x, y = 0, octaves = 4, persistence = 0.5, lacunarity = 2, seed = 0)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Returns normalized layered value noise in [0, 1]. Supports 1–32 octaves, persistence in [0, 1], and positive lacunarity.',
+            example: 'allow "std/draw" in as Draw\nshow Draw.fractal(0.2, 0.4)'
+        },
+        'noise': {
+            signature: 'noise(x, y = 0, seed = 0)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Returns deterministic smooth 2D value noise in [0, 1].',
+            example: 'allow "std/draw" in as Draw\nshow Draw.noise(0.2, 0.4, 42)'
+        },
+        'rgb': {
+            signature: 'rgb(r, g, b)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Returns a CSS RGB color. Components are rounded and clamped to 0–255. std/terminal separately exports rgb(text, red, green, blue) for terminal formatting.',
+            example: 'allow "std/draw" in as Draw\nDraw.pixel(0, 0, Draw.rgb(255, 128, 0))'
+        },
+        'rgba': {
+            signature: 'rgba(r, g, b, a = 1)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Returns a CSS RGBA color with RGB bytes clamped to 0–255 and alpha clamped to 0–1.',
+            example: 'allow "std/draw" in as Draw\nshow Draw.rgba(255, 128, 0, 0.5)'
+        },
+        'channel': {
+            signature: 'channel(n)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Encodes a numeric color component as two lowercase hex digits. Clamps to 0–255, then floors fractional values.',
+            example: 'allow "std/draw" in as Draw\nshow "#" + Draw.channel(255) + Draw.channel(128) + Draw.channel(64)'
+        },
+        'blend': {
+            signature: 'blend(a, b, t = 0.5)',
+            source: 'Drawing Standard Library (std/draw)',
+            description: 'Interpolates two colors, including alpha, and returns a CSS RGBA color. The interpolation factor is clamped to 0–1.',
+            example: 'allow "std/draw" in as Draw\nshow Draw.blend("red", "blue", 0.5)'
+        },
+        'clamp': {
+            signature: 'clamp(value, min = 0, max = 1)',
+            source: 'Math Standard Library (std/math)',
+            description: 'Bounds a finite number to an inclusive range. Requires min <= max.',
+            example: 'allow "std/math" in as Math\nshow Math.clamp(300, 0, 255)'
+        },
+        'lerp': {
+            signature: 'lerp(a, b, t)',
+            source: 'Math Standard Library (std/math)',
+            description: 'Returns (1 - t) * a + t * b. Values of t outside 0–1 extrapolate.',
+            example: 'allow "std/math" in as Math\nshow Math.lerp(10, 20, 0.25)'
+        },
+        'hash': {
+            signature: 'hash(value, seed = 0)',
+            source: 'Math Standard Library (std/math)',
+            description: 'Returns a deterministic hash of a number or string in [0, 1). The seed is a finite number converted to a 32-bit integer. Not cryptographic.',
+            example: 'allow "std/math" in as Math\nshow Math.hash("hello", 42)'
+        },
         'clear': {
             signature: 'clear()',
             source: 'Drawing Standard Library (std/draw)',
@@ -3429,6 +3485,9 @@ function activate(context) {
                                 'chord(root, type)', 'scale(root, type)', 'transpose(notes, steps)', 'duration(min, sec)', 'bar(bars, bpm, beatsPerBar?)'
                             ],
                             'std/draw': [
+                                'rgb(r, g, b)', 'rgba(r, g, b, a = 1)', 'channel(n)',
+                                'blend(a, b, t = 0.5)', 'noise(x, y = 0, seed = 0)',
+                                'fractal(x, y = 0, octaves = 4, persistence = 0.5, lacunarity = 2, seed = 0)',
                                 'clear()', 'circle(x, y, r, fill, options?)', 'rect(x, y, w, h, fill, options?)',
                                 'pixel(x, y, color)', 'pixel_grid(grid, palette, scale?, x?, y?)',
                                 'pixel_rect(x, y, w, h, color, filled?)', 'pixel_circle(cx, cy, r, color, filled?)',
