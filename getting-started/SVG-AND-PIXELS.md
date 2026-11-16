@@ -39,6 +39,74 @@ Read [Raster text sizing and layout](#raster-text-sizing-and-layout) for sizing,
 
 ---
 
+## Creating and Mixing Colors
+
+These helpers return CSS color strings you can pass to SVG shapes or raster drawing functions. All numeric arguments must be finite numbers.
+
+| Function | Description |
+| --- | --- |
+| `Draw.rgb(r, g, b)` | Creates an RGB color. Components are rounded and clamped to 0–255. |
+| `Draw.rgba(r, g, b, a = 1)` | Creates an RGBA color. RGB uses 0–255; alpha is clamped to 0–1. |
+| `Draw.channel(n)` | Encodes a numeric component as two lowercase hex digits, clamping to 0–255 and flooring fractional values. For example, `Draw.channel(128)` returns `"80"`. |
+| `Draw.blend(a, b, t = 0.5)` | Interpolates two colors, including alpha, and returns an RGBA string. `t` is clamped to 0–1: `0` selects `a`, `1` selects `b`. |
+
+`blend` accepts the same colors as `Draw.pixel`: supported named colors, hex (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`), and CSS `rgb(...)` or `rgba(...)` strings. Use `channel` to build hex strings: `"#" + Draw.channel(r) + Draw.channel(g) + Draw.channel(b)`.
+
+```sesi
+allow "std/draw" in as Draw
+
+let warm = Draw.rgb(255, 128, 0)
+let cool = Draw.rgba(0, 128, 255, 0.5)
+let mixed = Draw.blend(warm, cool, 0.5)
+show Draw.channel(128) // "80"
+
+Draw.rect(0, 0, 120, 80, mixed)
+Draw.save_svg("mixed-color.svg", 120, 80)
+```
+
+Raster pixels store the supplied alpha. A later pixel call at the same position replaces the earlier color; use `blend` explicitly when you want to mix colors.
+
+---
+
+## Procedural Textures — `Draw.noise` and `Draw.fractal`
+
+These functions return numeric samples in [0, 1]. Use the samples to choose colors or control shape placement.
+
+```
+Draw.noise(x, y = 0, seed = 0)
+Draw.fractal(x, y = 0, octaves = 4, persistence = 0.5, lacunarity = 2, seed = 0)
+```
+
+`noise` produces smooth 2D value noise. The same coordinates and seed always produce the same sample, including at negative coordinates. Sample fractional coordinates, such as `x / 16`, to get gradual variation between neighboring pixels.
+
+`fractal` combines several noise layers and normalizes the result. `octaves` must be an integer from 1–32. `persistence` controls how strongly later layers contribute and must be in [0, 1]. `lacunarity` multiplies the coordinates between layers and must be positive. Each layer uses `seed + layer_index`, starting at zero. All numeric arguments must be finite.
+
+```sesi
+allow "std/draw" in as Draw
+allow "std/math" in as Math
+
+for y = 0 to 64 {
+  for x = 0 to 64 {
+    let sample = Draw.fractal(x / 16, y / 16, 4, 0.5, 2, 42)
+    let t = Math.clamp(Math.lerp(-0.1, 1.1, sample))
+    Draw.pixel(x, y, Draw.blend("#16324f", "#b7e4c7", t))
+  }
+}
+Draw.save_png("terrain.png", 64, 64)
+```
+
+The `std/math` helpers are useful for procedural drawing:
+
+| Function | Description |
+| --- | --- |
+| `Math.clamp(value, min = 0, max = 1)` | Bounds a finite number to the inclusive range; requires `min <= max`. |
+| `Math.lerp(a, b, t)` | Returns `(1 - t) * a + t * b`. Values of `t` outside 0–1 extrapolate. |
+| `Math.hash(value, seed = 0)` | Returns a deterministic hash of a number or string in [0, 1). The finite numeric seed is converted to a 32-bit integer. Useful for repeatable variation; not cryptographic. |
+
+For example, `Math.hash("tree-1", 42)` can provide a repeatable variation for a particular tree. See the [built-in function reference](../docs/BUILTINS.md#math-functions-stdmath) for more math functions.
+
+---
+
 ## Drawing Shapes
 
 Every draw call appends a shape to an internal buffer. Nothing is rendered or saved until you call `render` or `save_svg`. This only applies to SVG output; pixel-based drawings are handled differently. Do not call `save_png` for SVG shapes — only use it when using `Draw.pixel()`, `Draw.pixel_grid()`, or `Draw.pixel_<shape>()` functions.
@@ -749,9 +817,23 @@ try {
 allow "std/draw" in as Draw
 
 // Setup & Formatting
+Draw.rgb(r, g, b)
+Draw.rgba(r, g, b, a = 1)
+Draw.channel(n)
+Draw.blend(a, b, t = 0.5)
 Draw.gradient(type, id, stops, options = {})
 Draw.style(cssText)
 Draw.raw(svgCode)
+
+// Procedural samples (return numbers in [0, 1])
+Draw.noise(x, y = 0, seed = 0)
+Draw.fractal(x, y = 0, octaves = 4, persistence = 0.5, lacunarity = 2, seed = 0)
+
+// Math helpers for procedural drawing
+allow "std/math" in as Math
+Math.clamp(value, min = 0, max = 1)
+Math.lerp(a, b, t)
+Math.hash(value, seed = 0)
 
 // Shapes (all accept optional custom attributes dictionary)
 Draw.rect(x, y, width, height, fill, options = {})

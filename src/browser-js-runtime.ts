@@ -1,8 +1,9 @@
 import type { createBrowserUi } from './browser-ui';
+import { createNumericHelpers } from './numeric-helpers';
 
 /** Helpers embedded beside directly emitted JavaScript. This code uses browser APIs only. */
 export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: string; baseUrl?: string } = {},
-  uiFactory?: typeof createBrowserUi): Record<string, any> {
+  uiFactory?: typeof createBrowserUi, numericFactory = createNumericHelpers): Record<string, any> {
   function resolveThinking(model: string, value: unknown): {
     reasoning?: { effort: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' };
     thinkingConfig?: { thinkingLevel?: string; thinkingBudget?: number };
@@ -421,7 +422,10 @@ export function browserJsRuntime(options: { assetsUrl?: string; workerUrl?: stri
   };
   let ui: ReturnType<typeof createBrowserUi> | undefined;
   const standard = (name: string): Record<string, any> => {
-    if (name === 'std/math') return Object.fromEntries(Object.getOwnPropertyNames(Math).map(key => [key, property(Math, key)]));
+    if (name === 'std/math') {
+      const { clamp, lerp, hash } = numericFactory();
+      return { ...Object.fromEntries(Object.getOwnPropertyNames(Math).map(key => [key, property(Math, key)])), clamp, lerp, hash };
+    }
     if (name === 'std/time') return { now: Date.now, sleep: builtins.sleep };
     if (name === 'std/web' && uiFactory) return ui ??= uiFactory(fn => functionOrigins?.get(fn) ?? fn);
     throw new Error('Module unavailable in browser: ' + name);

@@ -7,8 +7,28 @@
 
   - Model calls and cost reporting depend on the configured runtime and provider.
 */
-allow "functions" in with {show_cost, format_time}
 allow "std/time" in with {format}
+
+fn show_cost(display = true) {
+  let cost = "$" + model_usage().total_cost_usd + " USD"
+  if contains(cost, "null") { cost = cost | swap("$null USD", "N/A") }
+  if display { show "Cost for this run:" cost }
+  return cost
+}
+
+fn format_time(ms) {
+  if ms <= 0 { return "0s" }
+  let r = floor(ms/1000)
+  if r < 0 { r = 0 }
+  let h = floor(r/3600)
+  let m = floor((r%3600)/60)
+  let s = r%60
+  let p = []
+  if h > 0 { prompt label {h "h"} push(p, label) }
+  if m > 0 { prompt label {m "m"} push(p, label) }
+  if s > 0 { prompt label {s "s"} push(p, label) }
+  return join(p, " ")
+}
 
 /**
   Lists the configuration keys accepted by both tracking functions.

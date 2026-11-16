@@ -111,10 +111,13 @@ allow "std/math" in as Math
 fn greet(name = "World") { return "Hello, " + name }
 show greet()
 show Math.floor(3.9)
+show Math.clamp(4, 0, 2)
+show Math.lerp(0, 10, 0.25)
+show Math.hash("hello", 42)
 let value = null
 show value?.missing
 try { show 1 } catch (err) { show err }
-`), ['Hello, World', '3', 'null', '1']);
+`), ['Hello, World', '3', '2', '2.5', String((await import('../src/numeric-helpers')).createNumericHelpers().hash('hello', 42)), 'null', '1']);
 
     assert.deepEqual(await run(`
 fn makeAdder(base) {

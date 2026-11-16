@@ -1938,6 +1938,30 @@ seq.render_midi("beat.mid")
 
 ## Drawing Functions (std/draw)
 
+### Color and procedural helpers
+
+| Function | Behavior |
+| --- | --- |
+| `rgb(r, g, b)` | Returns a CSS `rgb(...)` string. Components are rounded and clamped to 0–255. |
+| `rgba(r, g, b, a = 1)` | Returns a CSS `rgba(...)` string. Alpha is clamped to 0–1. |
+| `channel(n)` | Encodes a numeric color component as two lowercase hex digits. Clamps to 0–255, then floors: `channel(15.9)` returns `"0f"`. Build a hex color with `"#" + channel(r) + channel(g) + channel(b)`. |
+| `blend(a, b, t = 0.5)` | Interpolates two colors, including alpha, and returns a CSS RGBA string. `t` is clamped to 0–1. |
+| `noise(x, y = 0, seed = 0)` | Returns deterministic smooth 2D value noise in [0, 1]. Negative coordinates are supported. |
+| `fractal(x, y = 0, octaves = 4, persistence = 0.5, lacunarity = 2, seed = 0)` | Returns normalized layered value noise in [0, 1]. Octaves must be an integer from 1–32, persistence 0–1, and lacunarity positive. Each octave uses `seed + octave`. |
+
+Numeric arguments must be finite numbers. Color helpers work with both vector shapes and pixel drawing. Noise helpers return samples; draw them using the existing drawing primitives:
+
+```sesi
+allow "std/draw" in as Draw
+for y = 0 to 64 {
+  for x = 0 to 64 {
+    let t = Draw.fractal(x / 16, y / 16)
+    Draw.pixel(x, y, Draw.blend("#16324f", "#b7e4c7", t))
+  }
+}
+Draw.save_png("terrain.png", 64, 64)
+```
+
 The `std/draw` module provides APIs for SVG graphics and raster pixel drawing.
 
 ```sesi
@@ -3110,6 +3134,16 @@ trunc("Hello World", 5)  // "Hello"
 ---
 
 ## Math Functions (std/math)
+
+Sesi also provides these helpers:
+
+| Function | Behavior |
+| --- | --- |
+| `clamp(value, min = 0, max = 1)` | Bounds a finite number to the inclusive range. Throws if `min > max`. |
+| `lerp(a, b, t)` | Linear interpolation, `(1 - t) * a + t * b`. Values of `t` outside 0–1 extrapolate. |
+| `hash(value, seed = 0)` | Deterministic numeric or string hash in [0, 1). Uses FNV-1a over UTF-16 code units followed by integer mixing. The finite numeric seed is converted to a 32-bit integer. This is not a cryptographic hash. |
+
+All numeric arguments must be finite. For example, `Math.clamp(300, 0, 255)` returns `255`, and `Math.lerp(10, 20, 0.25)` returns `12.5`.
 
 The `"std/math"` module exposes the complete stable JavaScript `Math` surface supported by Node.js 20+, including constants, trigonometry, logarithms, rounding, integer helpers, and variadic operations:
 
