@@ -4,7 +4,7 @@
   This module provides various utility functions for string manipulation, file handling, UUID generation, and more.
 */
 allow "string" in with {randomize, substring, match, toKebab, toPascal}
-allow "network" in with {ping}
+allow "network/" in with {ping}
 /**
   Split a string into an array of lines based on newline characters.
 

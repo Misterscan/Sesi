@@ -57,27 +57,12 @@ fn list_tools_description(tools) {
   ```
 
   Notes:
-  - Compares `model_name` against known aliases including "agent", "workflow_model", "search", "tutor", "developer", "copilot", and various Gemini models.
-  - Falls back to invoking `"gemini-3.8-flash"` if `model_name` does not match any predefined alias.
+  - If `model_name` is an empty string, the function defaults to using `"gemini-4-hydrogen"`.
+  - Otherwise, it uses the specified `model_name` for the model call.
 */
 fn call_model_helper(model_name: string, thinking: string, search_flag: bool, stream_val: any, cache_flag: bool, max_tokens_val: any, prompt_val: string) -> string {
-  if model_name == "agent" { return model("agent") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "agent_model" { return model("agent_model") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "workflow_model" { return model("workflow_model") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "search" { return model("search") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "tutor" { return model("tutor") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "developer" { return model("developer") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "chat" { return model("chat") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "copilot" { return model("copilot") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "gemini-3.5-flash" { return model("gemini-3.5-flash") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "gemini-3.6-flash" { return model("gemini-3.6-flash") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "gemini-3.1-pro-preview" { return model("gemini-3.1-pro-preview") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "gemini-3-flash-preview" { return model("gemini-3-flash-preview") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "gemini-2.5-flash" { return model("gemini-2.5-flash") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "gemini-2.5-pro" { return model("gemini-2.5-pro") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "gemini-3.1-flash-lite" { return model("gemini-3.1-flash-lite") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else if model_name == "gemini-3.5-flash-lite" { return model("gemini-3.5-flash-lite") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
-  else { return model("gemini-3.8-flash") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  if model_name == "" { return model("gemini-4-hydrogen") {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
+  else { return model(model_name) {thinkingLevel: thinking, search: search_flag, stream: stream_val, cache: cache_flag, max_tokens: max_tokens_val} {prompt_val} }
 }
 /**
   Instantiates a new AI agent object with configurable model settings, system prompts, and tool mappings.
@@ -99,7 +84,7 @@ fn call_model_helper(model_name: string, thinking: string, search_flag: bool, st
   Example:
   ```sesi
   let agent = create({
-    "model": "gemini-3.6-flash",
+    "model": "gpt-6.1-terra",
     system: "You are an expert coder.",
     thinkingLevel: "medium"
   })
@@ -110,7 +95,7 @@ fn call_model_helper(model_name: string, thinking: string, search_flag: bool, st
   - The returned agent object maintains state in-place across subsequent interactions.
 */
 export fn create(config) {
-  let model_name = "gemini-3.6-flash"
+  let model_name = "gpt-6.1-terra"
   if config["model"] != null { model_name = config["model"] }
   let system_prompt = "You are a helpful assistant."
   if config.system != null { system_prompt = config.system }
