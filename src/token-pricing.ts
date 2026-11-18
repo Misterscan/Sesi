@@ -27,7 +27,7 @@ interface PricingRule {
   source: string;
 }
 
-const PRICING_AS_OF = '2026-10-29';
+const PRICING_AS_OF = '2026-11-17';
 const GEMINI_PRICING_SOURCE = 'https://ai.google.dev/gemini-api/docs/pricing';
 const OPENAI_PRICING_SOURCE = 'https://developers.openai.com/api/docs/pricing';
 
@@ -161,6 +161,15 @@ const PRICING_RULES: PricingRule[] = [
     source: OPENAI_PRICING_SOURCE,
   },
   {
+    models: ['gpt-6.2-astra'],
+    standard: { inputPerMillion: 8, outputPerMillion: 40 },
+    longContext: {
+      aboveInputTokens: 272_000,
+      rates: { inputPerMillion: 16, outputPerMillion: 60 },
+    },
+    source: OPENAI_PRICING_SOURCE,
+  },
+  {
     models: ['gpt-6-astra'],
     standard: { inputPerMillion: 10, outputPerMillion: 50 },
     longContext: {
@@ -170,7 +179,7 @@ const PRICING_RULES: PricingRule[] = [
     source: OPENAI_PRICING_SOURCE,
   },
   {
-    models: ['gpt-6-sol', 'gpt-6.1-sol'],
+    models: ['gpt-6-sol', 'gpt-6.1-sol', 'gpt-6.2-sol'],
     standard: { inputPerMillion: 2, outputPerMillion: 10 },
     longContext: {
       aboveInputTokens: 272_000,
