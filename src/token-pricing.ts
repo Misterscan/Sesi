@@ -63,6 +63,11 @@ const PRICING_RULES: PricingRule[] = [
     source: GEMINI_PRICING_SOURCE,
   },
   {
+    models: ['gemini-4-neon'],
+    standard: { inputPerMillion: 3, outputPerMillion: 15 },
+    source: GEMINI_PRICING_SOURCE,
+  },
+  {
     models: ['gemini-4-hydrogen'],
     standard: { inputPerMillion: 1.50, outputPerMillion: 7.50 },
     source: GEMINI_PRICING_SOURCE,
