@@ -486,6 +486,12 @@ export let BUILTINS = {
     description: 'Wraps body markup in a complete HTML document string. Optional `options` may include `title`, `head`, and `lang`.',
     example: 'let page = html("<main>Hello</main>", {title: "Demo"})\nwrite_file("index.html", page)'
   },
+  'url_encode': {
+    signature: 'url_encode(value) -> string|null',
+    source: 'HTTP Client Standard Library',
+    description: 'Percent-encodes a single URL component, such as a query value. Returns null for non-string input or malformed Unicode.',
+    example: 'url_encode("São Paulo & region")  // "S%C3%A3o%20Paulo%20%26%20region"'
+  },
   'web_get': {
     signature: 'web_get(url, headers = {})',
     source: 'HTTP Client Standard Library',
@@ -935,6 +941,60 @@ export let BUILTINS = {
     source: 'Akai MPC Standard Library (std/mpc)',
     description: 'Exports an MPC sequence to a multi-track Standard MIDI File preserving Roger Linn swing timing.',
     example: 'allow "std/mpc" in as MPC\nseq.render_midi("beat.mid")'
+  },
+  'fractal': {
+    signature: 'fractal(x, y = 0, octaves = 4, persistence = 0.5, lacunarity = 2, seed = 0)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Returns normalized layered value noise in [0, 1]. Supports 1–32 octaves, persistence in [0, 1], and positive lacunarity.',
+    example: 'allow "std/draw" in as Draw\nshow Draw.fractal(0.2, 0.4)'
+  },
+  'noise': {
+    signature: 'noise(x, y = 0, seed = 0)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Returns deterministic smooth 2D value noise in [0, 1].',
+    example: 'allow "std/draw" in as Draw\nshow Draw.noise(0.2, 0.4, 42)'
+  },
+  'rgb': {
+    signature: 'rgb(r, g, b)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Returns a CSS RGB color. Components are rounded and clamped to 0–255. std/terminal separately exports rgb(text, red, green, blue) for terminal formatting.',
+    example: 'allow "std/draw" in as Draw\nDraw.pixel(0, 0, Draw.rgb(255, 128, 0))'
+  },
+  'rgba': {
+    signature: 'rgba(r, g, b, a = 1)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Returns a CSS RGBA color with RGB bytes clamped to 0–255 and alpha clamped to 0–1.',
+    example: 'allow "std/draw" in as Draw\nshow Draw.rgba(255, 128, 0, 0.5)'
+  },
+  'channel': {
+    signature: 'channel(n)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Encodes a numeric color component as two lowercase hex digits. Clamps to 0–255, then floors fractional values.',
+    example: 'allow "std/draw" in as Draw\nshow "#" + Draw.channel(255) + Draw.channel(128) + Draw.channel(64)'
+  },
+  'blend': {
+    signature: 'blend(a, b, t = 0.5)',
+    source: 'Drawing Standard Library (std/draw)',
+    description: 'Interpolates two colors, including alpha, and returns a CSS RGBA color. The interpolation factor is clamped to 0–1.',
+    example: 'allow "std/draw" in as Draw\nshow Draw.blend("red", "blue", 0.5)'
+  },
+  'clamp': {
+    signature: 'clamp(value, min = 0, max = 1)',
+    source: 'Math Standard Library (std/math)',
+    description: 'Bounds a finite number to an inclusive range. Requires min <= max.',
+    example: 'allow "std/math" in as Math\nshow Math.clamp(300, 0, 255)'
+  },
+  'lerp': {
+    signature: 'lerp(a, b, t)',
+    source: 'Math Standard Library (std/math)',
+    description: 'Returns (1 - t) * a + t * b. Values of t outside 0–1 extrapolate.',
+    example: 'allow "std/math" in as Math\nshow Math.lerp(10, 20, 0.25)'
+  },
+  'hash': {
+    signature: 'hash(value, seed = 0)',
+    source: 'Math Standard Library (std/math)',
+    description: 'Returns a deterministic hash of a number or string in [0, 1). The seed is a finite number converted to a 32-bit integer. Not cryptographic.',
+    example: 'allow "std/math" in as Math\nshow Math.hash("hello", 42)'
   },
   'clear': {
     signature: 'clear()',
