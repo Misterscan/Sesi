@@ -1,5 +1,8 @@
 allow "std/draw" in as Draw
+allow "std/math" in as Math
 allow "../ansi" in with {saved}
+
+let FONT = "system-ui, -apple-system, sans-serif"
 /**
   Color palettes collection for SVG visual component rendering.
 
@@ -71,11 +74,84 @@ fn positive(value: number, fallback: number) -> number {
   if value > 0 { return value }
   return fallback
 }
+
+/**
+  Starts a fresh SVG with a theme gradient and the full label as its title.
+*/
+fn begin_asset(w: number, h: number, colors, label: string) {
+  Draw.clear()
+  let title = join(split(label, "&"), "&amp;")
+  title = join(split(title, "<"), "&lt;")
+  title = join(split(title, ">"), "&gt;")
+  Draw.raw("<title>" + title + "</title>")
+  Draw.gradient("linear", "surface", [
+    {offset: "0%", color: colors.background},
+    {offset: "100%", color: Draw.blend(colors.background, colors.accent, 0.23)}
+  ], {x1: "0%", y1: "100%", x2: "100%", y2: "0%"})
+  Draw.rect(0, 0, w, h, "url(#surface)")
+}
+
+/**
+  Extracts the first and last word initials, or two characters for a single name.
+*/
+fn avatar_initials(label: string) -> string {
+  let words = regex("\\S+", label, {limit: len(label) + 1})
+  if len(words) == 0 { return "?" }
+
+  let first = regex(".", words[0]["match"], {flags: "u", limit: 2})
+  if len(words) == 1 {
+    if len(first) == 1 { return to_upper(first[0]["match"]) }
+    return to_upper(first[0]["match"] + first[1]["match"])
+  }
+  let last_word = words[len(words) - 1]["match"]
+  let last = regex(".", last_word, {flags: "u", limit: 1})
+  return to_upper(first[0]["match"] + last[0]["match"])
+}
+
+/**
+  Estimates the width of a glyph in ems for the system font stack.
+*/
+fn glyph_units(glyph: string) -> number {
+  if contains(" ilI.,:;!|'’", glyph) { return 0.38 }
+  if contains("mMwW@%&", glyph) { return 1.04 }
+  if regex("[^\\x00-\\xFF]", glyph, {mode: "test"}) { return 1.08 }
+  return 0.76
+}
+
+/**
+  Fits one line within the space reserved for its text. The SVG title retains
+  the full label when the visible line needs an ellipsis.
+*/
+fn draw_label(label: string, x: number, center_y: number, preferred: number, max_width: number, color: string, anchor: string = "start") {
+  let line = regex("\\s+", trim(label), {mode: "replace", replacement: " ", flags: "g"})
+  if line == "" { return null }
+  let glyphs = regex(".", line, {flags: "u", limit: len(line) + 1})
+  let units = 0
+  for glyph in glyphs {
+    units = units + glyph_units(glyph["match"])
+  }
+  let size = Math.min(preferred, max_width / units)
+  if size < preferred * 0.64 {
+    size = preferred * 0.64
+    let budget = max_width / size - 1
+    let visible = ""
+    for glyph in glyphs {
+      let char = glyph["match"]
+      budget = budget - glyph_units(char)
+      if budget < 0 { break }
+      visible = visible + char
+    }
+    line = trim(visible) + "…"
+  }
+  Draw.text(x, center_y + size * 0.34, line, size, color, {
+    "text-anchor": anchor, "font-family": FONT, "font-weight": "700"
+  })
+}
 /**
   Generates an SVG user avatar graphic with initials and abstract background accents.
 
   Parameters:
-  - label: The display name or string from which up to two uppercase initials are extracted. Defaults to "?".
+  - label: The display name used to form uppercase initials. Defaults to "?".
   - size: The square dimension (width and height) in pixels. Defaults to 256.
   - theme: The numeric theme palette index. Defaults to 0.
 
@@ -95,18 +171,17 @@ fn positive(value: number, fallback: number) -> number {
 export fn avatar(label: string = "?", size: number = 256, theme: number = 0) -> string {
   let s = positive(size, 256)
   let colors = palette(theme)
-  let initials = to_upper(join(slice(split(label, ""), 0, 2), ""))
-  if !initials { initials = "?" }
-  Draw.clear()
-  Draw.rect(0, 0, s, s, colors.background)
-  Draw.circle(s * 0.82, s * 0.18, s * 0.42, colors.accent, {opacity: 0.35})
-  Draw.circle(s * 0.13, s * 0.87, s * 0.32, colors.detail, {opacity: 0.18})
-  Draw.circle(s / 2, s / 2, s * 0.34, colors.accent)
-  Draw.text(s / 2, s * 0.59, initials, s * 0.29, colors.text, {"text-anchor": "middle", "font-family": "sans-serif", "font-weight": "700"})
+  let initials = avatar_initials(label)
+  let center = s / 2
+  begin_asset(s, s, colors, label)
+  Draw.circle(center, center, s * 0.39, colors.detail, {"fill-opacity": 0.07, stroke: colors.detail, "stroke-opacity": 0.24, "stroke-width": s * 0.006})
+  Draw.circle(center, center, s * 0.31, colors.background, {stroke: colors.accent, "stroke-width": s * 0.012})
+  Draw.circle(s * 0.77, s * 0.22, s * 0.025, colors.detail)
+  draw_label(initials, center, center, s * 0.26, s * 0.51, colors.text, "middle")
   return Draw.render(s, s)
 }
 /**
-  Generates an SVG banner graphic containing accent shapes, a vertical indicator bar, and a title.
+  Generates an SVG banner with a left-aligned title and an orbital motif on wide canvases.
 
   Parameters:
   - title: The text string to render on the banner. Defaults to "Your title".
@@ -131,12 +206,25 @@ export fn banner(title: string = "Your title", width: number = 1200, height: num
   let w = positive(width, 1200)
   let h = positive(height, 400)
   let colors = palette(theme)
-  Draw.clear()
-  Draw.rect(0, 0, w, h, colors.background)
-  Draw.circle(w * 0.88, h * 0.18, h * 0.85, colors.accent, {opacity: 0.28})
-  Draw.circle(w * 0.76, h * 1.1, h * 0.72, colors.detail, {opacity: 0.14})
-  Draw.rect(w * 0.07, h * 0.24, w * 0.012, h * 0.52, colors.accent)
-  Draw.text(w * 0.11, h * 0.57, title, h * 0.17, colors.text, {"font-family": "sans-serif", "font-weight": "700"})
+  begin_asset(w, h, colors, title)
+
+  let x = w * 0.07
+  let text_width = w * 0.86
+  let size = Math.min(w * 0.14, h * 0.2)
+  if w >= h * 1.65 {
+    text_width = w * 0.57
+    let cx = w * 0.79
+    let cy = h * 0.5
+    let radius = Math.min(h * 0.37, w * 0.16)
+    Draw.circle(cx, cy, radius, colors.detail, {"fill-opacity": 0.08, stroke: colors.detail, "stroke-opacity": 0.21, "stroke-width": h * 0.004})
+    let rotation = "rotate(-30 " + str(cx) + " " + str(cy) + ")"
+    Draw.ellipse(cx, cy, radius * 0.91, radius * 0.49, "none", {transform: rotation, stroke: colors.accent, "stroke-opacity": 0.78, "stroke-width": h * 0.006})
+    Draw.circle(cx, cy, radius * 0.24, colors.background, {stroke: colors.detail, "stroke-width": h * 0.005})
+    Draw.circle(cx + radius * 0.72, cy - radius * 0.45, radius * 0.057, colors.detail)
+  }
+  let rule = Math.min(text_width / 4, h * 0.16)
+  Draw.rect(x, h * 0.32, rule, h * 0.012, colors.accent, {rx: h * 0.006})
+  draw_label(title, x, h * 0.54, size, text_width, colors.text)
   return Draw.render(w, h)
 }
 /**
@@ -159,17 +247,18 @@ export fn banner(title: string = "Your title", width: number = 1200, height: num
 
   Notes:
   - Resets the `std/draw` buffer before appending geometry.
-  - Includes a background circle and a horizontal accent bar spanning the bottom boundary.
+  - Includes a bottom rule and a short theme accent.
 */
 export fn header(title: string = "Page title", width: number = 1200, height: number = 240, theme: number = 0) -> string {
   let w = positive(width, 1200)
   let h = positive(height, 240)
   let colors = palette(theme)
-  Draw.clear()
-  Draw.rect(0, 0, w, h, colors.background)
-  Draw.rect(0, h * 0.94, w, h * 0.06, colors.accent)
-  Draw.circle(w * 0.94, h * 0.12, h * 0.65, colors.accent, {opacity: 0.22})
-  Draw.text(w * 0.06, h * 0.62, title, h * 0.27, colors.text, {"font-family": "sans-serif", "font-weight": "700"})
+  begin_asset(w, h, colors, title)
+  let x = w * 0.06
+  let rule_width = Math.min(w * 0.23, h * 0.54)
+  Draw.rect(0, h * 0.975, w, h * 0.025, colors.detail, {"fill-opacity": 0.24})
+  Draw.rect(x, h * 0.975, rule_width, h * 0.025, colors.accent)
+  draw_label(title, x, h * 0.49, Math.min(w * 0.16, h * 0.28), w * 0.88, colors.text)
   return Draw.render(w, h)
 }
 /**
@@ -192,18 +281,22 @@ export fn header(title: string = "Page title", width: number = 1200, height: num
 
   Notes:
   - Wipes the internal `std/draw` buffer prior to drawing.
-  - Renders a semi-transparent bottom banner to ensure title readability against background shapes.
+  - Places the title in a solid bottom panel for contrast against the illustration.
 */
 export fn thumbnail(title: string = "Preview", width: number = 640, height: number = 360, theme: number = 0) -> string {
   let w = positive(width, 640)
   let h = positive(height, 360)
   let colors = palette(theme)
-  Draw.clear()
-  Draw.rect(0, 0, w, h, colors.background)
-  Draw.circle(w * 0.78, h * 0.42, h * 0.43, colors.accent, {opacity: 0.75})
-  Draw.circle(w * 0.91, h * 0.22, h * 0.17, colors.detail, {opacity: 0.7})
-  Draw.rect(0, h * 0.72, w, h * 0.28, colors.background, {opacity: 0.82})
-  Draw.text(w * 0.06, h * 0.89, title, h * 0.12, colors.text, {"font-family": "sans-serif", "font-weight": "700"})
+  begin_asset(w, h, colors, title)
+  let sun = Math.min(w * 0.11, h * 0.105)
+  Draw.circle(w * 0.71, h * 0.27, sun, colors.detail, {"fill-opacity": 0.72})
+  let peaks = "0," + str(h * 0.67) + " " + str(w * 0.31) + "," + str(h * 0.24)
+  peaks = peaks + " " + str(w * 0.57) + "," + str(h * 0.62) + " " + str(w * 0.76) + "," + str(h * 0.41)
+  peaks = peaks + " " + str(w) + "," + str(h * 0.69) + " " + str(w) + "," + str(h * 0.74) + " 0," + str(h * 0.74)
+  Draw.polygon(peaks, colors.accent, {"fill-opacity": 0.48})
+  Draw.rect(0, h * 0.72, w, h * 0.28, colors.background)
+  Draw.line(0, h * 0.72, w, h * 0.72, colors.detail, {"stroke-opacity": 0.25, "stroke-width": h * 0.004})
+  draw_label(title, w * 0.065, h * 0.86, Math.min(w * 0.13, h * 0.115), w * 0.87, colors.text)
   return Draw.render(w, h)
 }
 

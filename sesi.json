@@ -3,7 +3,7 @@
   "version": "1.9.2",
   "dependencies": {
     "AutoWebpageDiagnostics": "Misterscan/AutoWebpageDiagnostics#v1.0.1",
-    "SesiDo": "Misterscan/SesiDo#v1.3.5",
+    "SesiDo": "Misterscan/SesiDo#v1.3.6",
     "shell-automation": "Misterscan/shell-automation#v1.0.6",
     "math": "Misterscan/math#v1.0.2",
     "SesiraAPI": "Misterscan/SesiraAPI#v1.0.4"

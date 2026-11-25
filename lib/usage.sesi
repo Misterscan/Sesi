@@ -83,7 +83,7 @@ let options = [
   Output:
   - An array of accepted thinking values used during validation.
 */
-let thinking_values = ["low", "medium", "high"]
+let thinking_values = ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
 
 /**
   Lists the accepted configuration keys for image requests.
@@ -359,7 +359,7 @@ export fn track_structured_model(request: string, schema: object, config: object
     }
   )
 
-  if write_file("A-serene-mountain-lake.json", to_json(data)) { show "Metadata saved successfully." }
+  if write_file("A-serene-mountain-lake.json", to_json(data)) {show "Metadata saved successfully."}
   ```
 
   Notes:
@@ -385,7 +385,7 @@ export fn track_image(request: string, config: object, auto_save: bool = false, 
         if config.background { raise_error("InvalidConfig", "Gemini image models do not support the 'background' option. Use a GPT image model for background control.") }
       }
       if starts_with(config[key], "gpt-image-") {
-        if config.system == "" { show "WARNING: GPT image models do not support the 'system' option. Pass your instructions into the 'prompt' instead next time." }
+        if config.system { show "WARNING: GPT image models do not support the 'system' option. Pass your instructions into the 'prompt' instead next time." }
         if config.background == "" { raise_error("InvalidConfig", "GPT image models require the 'background' option to be specified. Provide a valid background value or remove the option for automatic background control.") }
       }
     }

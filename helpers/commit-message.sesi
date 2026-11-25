@@ -23,7 +23,7 @@ Rules:
 - Use Conventional Commit format.
 - Use one concise subject line.
 - Add a blank line and 3-7 bullet points only if the diff needs explanation.
-  If under 3 files changed, max 3 bullet points. If 3-10 files changed, max 5 bullet points. If over 10 files changed, max 7 bullet points. All depending on the diff.
+  If under 5 files changed, max 4 bullet points. If 5-15 files changed, max 7 bullet points. If over 15 files changed, max 10 bullet points. All depending on the diff.
 - Prefer these types when appropriate: feat, fix, refactor, docs, test, chore, build, ci, perf.
 - Keep the subject under 72 characters.
 - Do not invent changes not shown in the diff.
@@ -38,4 +38,4 @@ Diff stat:
 "data.stat"
 
 Diff:
-"data.diff}let message=model("gemini-3.1-flash-lite"){thinkingLevel:"minimal",max_tokens:300}{request}return trim(message)}fn write_output(path:str,message:str){try{safe.write(path,message);show"Commit message written:"path}catch(err){show"Could not write commit message:"err}}let options=parse_options();if options.help{show_help()}else{let data=get_diff(options.mode);if!has_changes(data){show"No diff found for mode:"options.mode;show"Try unstaged or all if your changes are not staged."}else{let message=generate_commit_message(data);show message;if options.write!=null{write_output(options.write,message)}}}
+"data.diff}let message=model("gemini-3.5-flash-lite"){thinkingLevel:"medium",max_tokens:800}{request}return trim(message)}fn write_output(path:str,message:str){try{safe.write(path,message);show"Commit message written:"path}catch(err){show"Could not write commit message:"err}}let options=parse_options();if options.help{show_help()}else{let data=get_diff(options.mode);if!has_changes(data){show"No diff found for mode:"options.mode;show"Try unstaged or all if your changes are not staged."}else{let message=generate_commit_message(data);show message;if options.write!=null{write_output(options.write,message)}}}
