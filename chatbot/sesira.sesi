@@ -1,11 +1,10 @@
 /* 
-  Sesira
-  Dynamically indexes the sesi-db knowledge base, trains on-the-fly, and answers queries! 
-    Run sesi install to ensure you have the required modules. 
+  Sesira: Built-in Sesi assistant for understanding the Sesi programming language and providing guidance on its usage.
 */
 allow "helpers/safe" in as Safe
 allow "std/time" in with {now, format}
 allow "lib/usage" in with {track_model}
+allow "lib/refs" in as Refs
 allow "timestamp" in as Stamp
 allow "lib/network/utils" in with {read}
 
@@ -14,7 +13,6 @@ let responses = "chatbot/responses/"; if !exists(responses) { responses | make_d
 let queryText = ""
 let fileContext = null
 let logFile = "chatbot/sesira.log"
-
 /**
   Writes a log entry to the log file with a timestamp, sender, and message.
 
@@ -29,21 +27,17 @@ let logFile = "chatbot/sesira.log"
 fn writeLog(sender, msg) {
   let status = "Error writing to log file."
   let wrote = false
-
   if (msg | length) > 5000 {
     let lines = msg | split("\n")
     let truncatedLines = lines | slice(0, 350)
     truncatedLines = truncatedLines | join("\n")
     msg = truncatedLines + "...\n<truncated>"
   }
-
   let timestamp = "in_ms" | Stamp.localTime
-
   prompt logEntry {"["timestamp"]
 ["sender"]: "msg"
 ===============================
 "}
-
   try {
     logFile | Safe.appendFile(logEntry)
     wrote = true
@@ -51,11 +45,9 @@ fn writeLog(sender, msg) {
     prompt logEntry {"["timestamp"] ["sender"]: "msg"\n===============================\n"}
     wrote = logFile | Safe.writeFile(logEntry)
   }
-
   if sender == "USER" { show "User Query Logged:" msg }
   else if sender == "SESI" { continue }
   if wrote { status = "Log entry written successfully." }
-
   return status
 }
 
@@ -71,16 +63,11 @@ fn clearLog() {
   let archivePath = archiveDir + archiveBase + "-" + Stamp.formattedTime() + ".log"
   let previousLog = logFile | Safe.readFile("text")
   if (previousLog | length) > 0 {
-    try {
-      logFile | archive(archivePath)
-    } catch (e) {
-      return false
-    }
+    try { logFile | archive(archivePath) }
+    catch (e) { return false }
   }
   let cleared = logFile | Safe.writeFile("")
-  if !cleared {
-    return false
-  }
+  if !cleared { return false }
   show "Log file cleared."
   return true
 }
@@ -105,7 +92,6 @@ fn getHistory() {
     clearLog()
     "SESI" | writeLog("Log file exceeded 50K characters. Retaining last 10000 lines and clearing log.")
   }
-
   return history
 }
 
@@ -145,31 +131,32 @@ if (args | length) > 1 && (args[0] == "new-chat" || args[0] == "new") {
   let fileName = "Enter the active file name (optional): " | input
   if fileName != "" { "USER" | writeLog("Active file: " + fileName) }
 }
-// ==================================================
 
 show "Loading Sesira..."
 "SESI" | writeLog("Loading Sesira...")
-
-// 7. Output
 show "--------------------------------------------------"
 show "💭 SESIRA IS THINKING:"
 show "--------------------------------------------------"
 "SESI" | writeLog("💭 SESIRA IS THINKING:")
 
-let src = "src/"
-let files = list_dir(src) || ["ai-runtime.ts", "browser-compiler.ts", "browser-deployment.ts", "browser-js-runtime.ts", "builtins.ts", "chunk.ts", "compiler.ts", "documentation.ts", "dry-checker.ts", "game.ts", "html-to-text.d.ts", "index.ts", "interpreter.ts", "js-emitter.ts", "lexer.ts", "make.ts", "mpc.ts", "native-object.ts", "parser.ts", "pm.ts", "profiler.ts", "token-pricing.ts", "type-checker.ts", "types.ts", "video-input.ts", "vm.ts"]
-let brain = []
+let refs = Refs.BUILTINS
+let brain = refs || []
 let skills = ""
 let expandedLibs = ""
 try {
   skills = ".agents/skills/SKILLS.md" | Safe.readFile || read("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/.agents/skills/SKILLS.md")
-  for file in files { if get_ext(file) == "ts" { brain | push({filename: file, contents: (Safe.readFile(src + file) || read("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/" + src + file))}) } }
   expandedLibs = "=== LIB: File System (Built-in via \"helpers/safe\") ===\n" + (Safe.readFile("helpers/safe.sesi") || read("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/helpers/safe.sesi"))
   expandedLibs = expandedLibs + "\n\n=== LIB: Model Usage (via \"lib/usage\") ===\n" + (Safe.readFile("lib/usage.sesi") || read("https://raw.githubusercontent.com/Misterscan/Sesi/refs/heads/main/lib/usage.sesi"))
-  expandedLibs = expandedLibs + "\n\n=== LIB: Math (via sesi install Misterscan/math) ===\n" + (Safe.readFile("sesi_modules/math/main.sesi") || read("https://raw.githubusercontent.com/Misterscan/math/refs/heads/main/main.sesi"))
-  expandedLibs = expandedLibs + "\n\n=== LIB: Shell (via sesi install Misterscan/shell-automation) ===\n" + (Safe.readFile("sesi_modules/shell-automation/index.sesi") || read("https://raw.githubusercontent.com/Misterscan/shell-automation/refs/heads/main/index.sesi"))
-  expandedLibs = expandedLibs + "\n\n=== LIB: Web Diagnostics (via sesi install Misterscan/AutoWebpageDiagnostics) ===\n" + (Safe.readFile("sesi_modules/AutoWebpageDiagnostics/main.sesi") || read("https://raw.githubusercontent.com/Misterscan/AutoWebpageDiagnostics/refs/heads/main/main.sesi"))
+  expandedLibs = expandedLibs + "\n\n=== SESI MODULE: math (via sesi install Misterscan/math) ===\n" + (Safe.readFile("sesi_modules/math/main.sesi") || read("https://raw.githubusercontent.com/Misterscan/math/refs/heads/main/main.sesi"))
+  expandedLibs = expandedLibs + "\n\n=== SESI MODULE: shell-automation (via sesi install Misterscan/shell-automation) ===\n" + (Safe.readFile("sesi_modules/shell-automation/index.sesi") || read("https://raw.githubusercontent.com/Misterscan/shell-automation/refs/heads/main/index.sesi"))
+  expandedLibs = expandedLibs + "\n\n=== SESI MODULE: AutoWebpageDiagnostics (via sesi install Misterscan/AutoWebpageDiagnostics) ===\n" + (Safe.readFile("sesi_modules/AutoWebpageDiagnostics/main.sesi") || read("https://raw.githubusercontent.com/Misterscan/AutoWebpageDiagnostics/refs/heads/main/main.sesi"))
 } catch (e) { raise_error(e) }
+if !exists(".compacted_libs.sesi") {
+  Safe.writeFile(".compacted_libs.sesi", expandedLibs) 
+  sesi("helpers/sesi-minify.sesi", false, false, [".compacted_libs.sesi", ".compacted_libs.min.sesi"])
+  rename(".compacted_libs.min.sesi", ".compacted_libs.sesi")
+}
+expandedLibs = Safe.readFile(".compacted_libs.sesi") | split("\n") | join(" ")
 
 prompt instructions {"
 Sesi Official Reference:
@@ -188,136 +175,7 @@ Instructions:
 
 If Active File Context is present, use it directly and talk about that file concretely. 
 - Be accurate and verbose.
-- Use the correct style for multi-line comments in your scripts and examples only:
-```
-/**
-  Multi-line comment
-
-  Use double newlines to separate sections.
-
-  List:
-    - `item 1`
-    - `item 2`
-    - `item 3`
-*/
-```
-This also applies to function comments. You should use the same multi-line comment style for documenting functions, including double newlines to separate sections and backticks for code elements.
-Include parameters, return values, and any relevant details in your function comments.
-Example:
-```
-/**
-  Adds two numbers.
-
-  Parameters:
-  - `a`: The first number.
-  - `b`: The second number.
-
-  Returns:
-  - The sum of `a` and `b`.
-
-  Example:
-  ```sesi
-  let result = add(3, 5)
-  show \"The result is:\" result
-  ```
-
-  Notes:
-  - This function simply adds two numbers and returns the result.
-*/
-fn add(a: number, b: number) -> number { return a + b }
-```
-
-For comments within nested functions:
-```
-/**
-  Example function with a nested function and comments.
-  Parameters:
-  - `x`: The input parameter for the example function.
-
-  Returns:
-  - `true` if the response has been answered, `false` otherwise.
-*/
-fn exampleFunction(x: any) -> any {
-  ...
-  /** This is an example of a single-line comment within a nested function.
-  * -> **LEAVE BLANK** 
-  * Parameters:
-  *   - `y`: The input parameter for the nested function.
-  * -> **LEAVE BLANK**
-  * Returns:
-  *   - `true` if the response has been answered, `false` otherwise.
-  */
-  fn nestedFunction(y: any) {
-    ...
-  }
-}
-
-For comments within nested make objects:
-/**
-  Example make template with a nested function and comments.
-  Fields:
-  - `x`: The input parameter for the example function.
-  - ...
-
-  Returns:
-  - ...
-*/
-make Example {
-  let x = 0
-  ...
-  /** This is an example of a single-line comment within a nested function.
-  * -> **LEAVE BLANK** 
-  * Parameters:
-  *   - `self`: ...
-  *   - `y`: The input parameter for the nested function.
-  * -> **LEAVE BLANK**
-  * Returns:
-  *   - ...
-  */
-  fn nestedFunction(self, y: any) {
-    ...
-  }
-}
-```
-
-The same can be applied to other types of comments and documentation within your code and is optional, but recommended for onboarding and maintaining code clarity.
-Example:
-```
-// Retrieved response from the model.
-let answer = ""
-
-/**
-  Indicates whether the response has been answered.
-
-  Notes:
-  - `true` if the response has been answered, `false` otherwise.
-*/
-let answered = false
-
-/**
-  Parts of the response.
-
-  Array:
-  - `part1`: The first part of the response.
-  - `part2`: The second part of the response.
-  - `part3`: The third part of the response.
-*/
-let parts = [\"part1\", \"part2\", \"part3\"]
-
-/**
-  Template for structured data.
-
-  Object:
-  - `field1`: The first field of the template.
-    - `value1`: The value for the first field.
-  - `field2`: The second field of the template.
-    - `value2`: The value for the second field.
-  - `field3`: The third field of the template.
-    - `value3`: The value for the third field.
-*/
-let template = {\"field1\": \"value1\", \"field2\": \"value2\", \"field3\": \"value3\"}
-```
-
+- For filesystem operations, never manually do `while !saved && attempts < max_attempts`. Always create a wrapper function for the file operation and use `retry(<operation>, {max_retries: 3, initial_delay: <ms>})` instead.
 - Prefer code piping when it offers better legibility and readability.
 Example:
 ```
@@ -410,7 +268,7 @@ let sys = persona + instructions
 let generated_response = ""
 let err = ""
 
-try { generated_response = track_model(ragPrompt, {model_name: "gemini-3.5-flash-lite", system: sys, thinking: "low", max_tokens: 8192, response: "full"}) }
+try { generated_response = track_model(ragPrompt, {model_name: "gpt-6-luna", system: sys, thinking: "low", max_tokens: 8192, response: "full"}) }
 catch (e) {
   err = e.message
   try { generated_response = track_model(ragPrompt, {model_name: "gemini-3.5-flash-lite", system: sys, thinking: "low", max_tokens: 8192, response: "full"}) }
@@ -434,6 +292,4 @@ try {
   "SESI" | writeLog("Response written to " + responseFile)
   "SESIRA" | writeLog(generated_response.response)
   show Safe.json(responseFile | swap(".md", ""), to_json(generated_response))
-} catch (e) {
-  "SESI" | writeLog("Failed to write " + responseFile + ": " + e)
-}
+} catch (e) { "SESI" | writeLog("Failed to write " + responseFile + ": " + e) }

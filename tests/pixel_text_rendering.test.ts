@@ -39,6 +39,16 @@ async function main() {
     ['bitmap', 'A', 1, 'classic'], ['bitmapFraction', 'A', 1.8, 'classic'],
     ['blank', '   ', 2, 'mono'],
   ];
+  const fontPresets = [
+    'classic', 'bubble', 'impact', 'sans', 'light', 'serif', 'mono',
+    'script', 'comic', 'marker', 'wide', 'italic', 'outline',
+  ];
+  const coloredSamples = fontPresets.map((font, index) => {
+    const x = 12 + (index % 3) * 130;
+    const y = 10 + Math.floor(index / 3) * 30;
+    const color = ['#974831', '#315983', '#3b654a'][index % 3];
+    return `Draw.pixel_text(${x}, ${y}, ${JSON.stringify(font)}, "${color}", 2.5, "${font}")`;
+  }).join('\n');
   try {
     for (const engine of ['interpreter', 'vm']) {
       const output = (id: string) => path.join(directory, `${engine}-${id}.png`);
@@ -50,6 +60,14 @@ Draw.save_png(${JSON.stringify(output(id))}, 400, 160)
 let rejected = false
 try { Draw.pixel_text(0, 0, "bad scale", "#ffffff", "invalid", "mono") } catch (err) { rejected = true }
 if !rejected { raise_error("TestFailure", "Invalid scale was accepted") }
+Draw.clear()
+${coloredSamples}
+Draw.save_png(${JSON.stringify(output('transparentEdges'))}, 400, 160)
+Draw.save_png(${JSON.stringify(output('exportBackground'))}, 400, 160, "#f8f3e9")
+Draw.clear()
+Draw.pixel_rect(0, 0, 400, 160, "#f8f3e9")
+${coloredSamples}
+Draw.save_png(${JSON.stringify(output('paintedBackground'))}, 400, 160)
 `;
       const parser = new Parser(new Lexer(source).scanTokens());
       const program = parser.parse();
@@ -86,6 +104,11 @@ if !rejected { raise_error("TestFailure", "Invalid scale was accepted") }
       assert.deepEqual((await pixels(output('bitmap'))).data, (await pixels(output('bitmapFraction'))).data,
         `${engine}: classic bitmap cell scaling is unchanged`);
       assert.equal((await bounds(output('blank'))).width <= 0, true);
+      const transparentEdges = (await pixels(output('transparentEdges'))).data;
+      assert.ok(transparentEdges.some((alpha, index) => index % 4 === 3 && alpha > 0 && alpha < 255),
+        `${engine}: transparent exports retain antialiased edges`);
+      assert.deepEqual((await pixels(output('exportBackground'))).data, (await pixels(output('paintedBackground'))).data,
+        `${engine}: export backgrounds composite colored glyph edges like painted backgrounds`);
     }
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
   console.log('Pixel text tests passed: fractional sizing, pixel-size conversion, whitespace, baselines, descenders, newlines and bitmap compatibility in interpreter and VM.');

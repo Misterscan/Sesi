@@ -324,7 +324,7 @@ const interpreter = new Interpreter(scriptDir, {
 
 ## Agent Context
 
-The root-level `SKILLS.md` file is a workspace context file for AI agents.
+`.agents` is a workspace context folder for AI agents.
 
 ## Project Structure
 

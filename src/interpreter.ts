@@ -3707,7 +3707,24 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
       let defs: string[] = [];
       let pixels = new Map<string, [number, number, number, number]>();
 
-      const parsePixelColor = (value: RuntimeValue): [number, number, number, number] => {
+      type PixelColor = [number, number, number, number];
+
+      const compositePixel = (source: PixelColor, destination: PixelColor): PixelColor => {
+        if (source[3] === 255 || destination[3] === 0) return source;
+        if (source[3] === 0) return destination;
+
+        const sourceAlpha = source[3] / 255;
+        const remainingAlpha = (destination[3] / 255) * (1 - sourceAlpha);
+        const outputAlpha = sourceAlpha + remainingAlpha;
+        return [
+          Math.round((source[0] * sourceAlpha + destination[0] * remainingAlpha) / outputAlpha),
+          Math.round((source[1] * sourceAlpha + destination[1] * remainingAlpha) / outputAlpha),
+          Math.round((source[2] * sourceAlpha + destination[2] * remainingAlpha) / outputAlpha),
+          Math.round(outputAlpha * 255),
+        ];
+      };
+
+      const parsePixelColor = (value: RuntimeValue): PixelColor => {
         const color = stringify(value).trim().toLowerCase();
         const named: Record<string, [number, number, number, number]> = {
           transparent: [0, 0, 0, 0], black: [0, 0, 0, 255], white: [255, 255, 255, 255],
@@ -3798,7 +3815,8 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
           const rowStart = y * (width * 4 + 1);
           scanlines[rowStart] = 0;
           for (let x = 0; x < width; x++) {
-            const rgba = pixels.get(`${x},${y}`) ?? background;
+            const painted = pixels.get(`${x},${y}`);
+            const rgba = painted ? compositePixel(painted, background) : background;
             const offset = rowStart + 1 + x * 4;
             scanlines[offset] = rgba[0];
             scanlines[offset + 1] = rgba[1];
@@ -4128,25 +4146,11 @@ private async evaluateToolCall(expr: ToolCallExpression): Promise<RuntimeValue> 
         }
       };
 
-      const blendPixel = (px: number, py: number, source: [number, number, number, number]) => {
+      const blendPixel = (px: number, py: number, source: PixelColor) => {
         if (source[3] === 0) return;
         const key = `${px},${py}`;
         const destination = pixels.get(key);
-        if (!destination || source[3] === 255) {
-          pixels.set(key, source);
-          return;
-        }
-
-        const sourceAlpha = source[3] / 255;
-        const destinationAlpha = destination[3] / 255;
-        const outputAlpha = sourceAlpha + destinationAlpha * (1 - sourceAlpha);
-        if (outputAlpha <= 0) return;
-        pixels.set(key, [
-          Math.round((source[0] * sourceAlpha + destination[0] * destinationAlpha * (1 - sourceAlpha)) / outputAlpha),
-          Math.round((source[1] * sourceAlpha + destination[1] * destinationAlpha * (1 - sourceAlpha)) / outputAlpha),
-          Math.round((source[2] * sourceAlpha + destination[2] * destinationAlpha * (1 - sourceAlpha)) / outputAlpha),
-          Math.round(outputAlpha * 255),
-        ]);
+        pixels.set(key, destination ? compositePixel(source, destination) : source);
       };
 
       const escapeSvgText = (value: string): string => value

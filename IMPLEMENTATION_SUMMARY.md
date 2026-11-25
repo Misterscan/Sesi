@@ -17,8 +17,8 @@
 | --------- | ------------------------------------------------ | ------------------------------------------------------------------- |
 | Language  | TypeScript                                       | Type safety, IDE support, easy debugging                            |
 | Runtime   | Node.js 22+                                      | Wide availability, async support                                    |
-| Reasoning | Gemini 3.1                                       | Latest models, 1M token context, fast                               |
-| SDK       | @google/genai                                    | Official, well-maintained, async-first                              |
+| Reasoning | Gemini/OpenAI                                    | Latest models, 1M token context, fast                               |
+| SDK       | @google/genai, @openai                           | Official, well-maintained, async-first                              |
 | Parser    | Recursive descent                                | Simple, readable, extensible                                        |
 | Execution | Bytecode VM (`vm.ts`) + Compiler (`compiler.ts`) | Fast OpCode dispatch; tree-walking interpreter retained as fallback |
 | 3D Games | Babylon.js 9.22.1 + Havok 1.3.14 + Electron 43.4.1 | Optional imperative desktop engine kept outside core |
